@@ -9,6 +9,7 @@
 #ifndef __ORYX_MPM_H__
 #define __ORYX_MPM_H__
 
+#if 0
 #if !defined(HAVE_SURICATA)
 
 #define BUILD_HYPERSCAN
@@ -314,5 +315,6 @@ MpmAddSids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
 #define SCMalloc(a)	kmalloc(a, MPF_CLR, __oryx_unused_val__)
 #define SCFree(a)	kfree(a)
 
+#endif
 #endif
 #endif

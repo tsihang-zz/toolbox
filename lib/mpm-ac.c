@@ -1,6 +1,7 @@
 #include "oryx.h"
 #include "mpm-ac.h"
 
+#if 0
 #if !defined(HAVE_SURICATA)
 
 void SCACInitCtx(MpmCtx *);
@@ -1761,4 +1762,5 @@ void MpmACRegister(void)
 
 
 /*************************************Unittests********************************/
+#endif
 #endif

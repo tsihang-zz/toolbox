@@ -575,15 +575,6 @@ do {							\
     }							\
 } while (0)
 
-typedef struct vlib_main_t
-{
- /* Name for e.g. syslog. */
- char *name;
- int argc;
- char **argv;
- 
-}vlib_main_t;
-
 oryx_status_t oryx_initialize(void);
 
 #include "oryx_error.h"

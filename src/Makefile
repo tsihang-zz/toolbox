@@ -42,8 +42,15 @@ APP = et1500
 # all sources are stored in SRCS-y
 #
 SRCS-y += \
-	main.c dpdk.c \
-	init.c
+	main.c dpdk.c appl.c intf.c map.c range.c rfc.c\
+	rc4.c udp.c init.c tables.c version.c\
+	dataplane.c exflow.c\
+	decode-ethernet.c\
+	decode-icmpv4.c decode-icmpv6.c\
+	decode-ipv4.c decode-ipv6.c\
+	decode-mpls.c decode-ppp.c decode-pppoe.c\
+	decode-sctp.c decode-tcp.c decode-udp.c\
+	decode-vlan.c decode-gre.c
 
 SRCS-y += version.c
 
@@ -52,6 +59,9 @@ CFLAGS += -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS
 CFLAGS += -I$(SRCDIR)/../lib -I$(SRCDIR)/../deps/quagga -I$(SRCDIR)/../deps/suricata/src
 CFLAGS += $(WERROR_FLAGS)
+
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
+		   -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml -lpcap
 
 LDLIBS += -L$(subst src,lib,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

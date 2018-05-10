@@ -12,10 +12,11 @@
 #include "prefix.h"
 #endif
 
+#include "et1500.h"
 #if defined(HAVE_DPDK)
 #include "dpdk.h"
 #endif
-
+#include "dataplane.h"
 
 vlib_main_t vlib_main;
 static unsigned short int alternative_port = 12000;
@@ -122,7 +123,13 @@ int main (int argc, char **argv)
 	format_files("/home/tsihang/Source/et1500/deps/suricata/src", 
 			format_dot_file, ".c");
 #endif
-
+	/* Initialize the configuration module. */
+	ConfInit();
+	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
+		printf ("ConfYamlLoadFile error\n");
+		return 0;
+	}
+	
 	oryx_initialize();
 
 	/* master init. */
@@ -146,10 +153,15 @@ int main (int argc, char **argv)
 	/* Configuration file read*/
 	vty_read_config(config_current, config_default);
 
+	MpmTableSetup();
+	port_init();
+	appl_init();
+	map_init();
+	udp_init();
+
+	dataplane_init(&vlib_main);
+	
 	oryx_task_launch();
-
-	dpdk_init(&vlib_main);
-
 	FOREVER {
 			/* Fetch next active thread. */
 			while (thread_fetch(master, &thread)) {

@@ -2,6 +2,7 @@
 #include "mpm-ac.h"
 #include "mpm-hs.h"
 
+#if 0
 //#define MPM_DEBUG
 
 #if !defined(HAVE_SURICATA)
@@ -876,4 +877,5 @@ void MpmTableSetup(void)
 //SCACRegisterTests ();
 //SCHSRegisterTests ();
 }
+#endif
 #endif

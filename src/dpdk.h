@@ -28,7 +28,6 @@
 #include <rte_version.h>
 #include <rte_ethdev.h>
 
-
 #define HAVE_DPDK_SCRIPT_MOUNT	1
 #define HAVE_DPDK_SCRIPT_DEVBIND	1
 #define DPDK_SCRIPT_MOUNT	"dpdk-mount-hugedir.sh"
@@ -211,5 +210,6 @@ typedef struct
 } dpdk_main_t;
 
 extern void dpdk_init (vlib_main_t * vm);
+
 
 #endif

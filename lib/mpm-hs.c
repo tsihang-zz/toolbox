@@ -1,6 +1,6 @@
 #include "oryx.h"
 
-
+#if 0
 #if !defined(HAVE_SURICATA)
 #include "mpm-hs.h"
 
@@ -1328,4 +1328,5 @@ void MpmHSGlobalCleanup(void)
 /*************************************Unittests********************************/
 
 #endif /* HAVE_HYPERSCAN */
+#endif
 #endif

@@ -1,6 +1,7 @@
 #ifndef __ORYX_MPM_AC_H__
 #define __ORYX_MPM_AC_H__
 
+#if 0
 #if !defined(HAVE_SURICATA)
 
 #include "mpm.h"
@@ -179,4 +180,4 @@ extern void MpmACRegister(void);
 
 #endif
 #endif
-
+#endif

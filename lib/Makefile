@@ -65,7 +65,4 @@ LDLIBS += -lrte_pmd_ixgbe
 endif
 endif
 
-LDLIBS += -lstdc++ -ldl -lpthread -lm -lrt
-LDLIBS += -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml
-
 include $(RTE_SDK)/mk/rte.extlib.mk
