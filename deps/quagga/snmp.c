@@ -19,7 +19,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #ifdef HAVE_SNMP
 #include <net-snmp/net-snmp-config.h>

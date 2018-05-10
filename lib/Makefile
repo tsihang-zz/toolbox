@@ -55,13 +55,8 @@ SRCS-y :=\
    mpm-ac.c mpm.c lru.c list.c tmr.c vec.c
 
 CFLAGS += -O3 --std=gnu99
-CFLAGS += \
-	-D_GNU_SOURCE\
-	-D__USE_GNU\
-	-D__STDC_FORMAT_MACROS\
-	-DHAVE_PCAP\
-	-DHAVE_ADVANCED_TMR
-
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU
+CFLAGS += -DHAVE_PCAP -DHAVE_ADVANCED_TMR
 CFLAGS += $(WERROR_FLAGS)
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)

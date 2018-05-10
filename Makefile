@@ -42,10 +42,10 @@ ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
 $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
-DIRS-y += lib src
+DIRS-y += deps lib src
 endif
 
-DEPDIRS-src := lib librte_eal librte_ether
+DEPDIRS-src := lib deps librte_eal librte_ether
 DEPDIRS-lib := librte_eal librte_ether
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk

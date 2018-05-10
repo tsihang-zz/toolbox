@@ -21,7 +21,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 #include "thread.h"
 #include "memory.h"
 #include "workqueue.h"

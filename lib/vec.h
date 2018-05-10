@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 
+#if 1
 /* struct for oryx_vector */
 struct _oryx_vector 
 {
@@ -34,41 +35,41 @@ struct _oryx_vector
 };
 typedef struct _oryx_vector *oryx_vector;
 
-#define VECTOR_MIN_SIZE 1
+#define VEC_MIN_SIZE 1
 
 /* (Sometimes) usefull macros.  This macro convert index expression to
  array expression. */
 /* Reference slot at given index, caller must ensure slot is active */
-#define vector_slot(V,I)  ((V)->index[(I)])
+#define vec_slot(V,I)  ((V)->index[(I)])
 /* Number of active slots. 
  * Note that this differs from vector_count() as it the count returned
  * will include any empty slots
  */
-#define vector_active(V) ((V)->active)
+#define vec_active(V) ((V)->active)
 
 /* Prototypes. */
-extern oryx_vector vector_init (unsigned int size);
-extern void vector_ensure (oryx_vector v, unsigned int num);
-extern int vector_empty_slot (oryx_vector v);
-extern int vector_set (oryx_vector v, void *val);
-extern int vector_set_index (oryx_vector v, unsigned int i, void *val);
-extern void vector_unset (oryx_vector v, unsigned int i);
-extern unsigned int vector_count (oryx_vector v);
-extern void vector_only_wrapper_free (oryx_vector v);
-extern void vector_only_index_free (void *index);
-extern void vector_free (oryx_vector v);
-extern oryx_vector vector_copy (oryx_vector v);
+extern oryx_vector vec_init (unsigned int size);
+extern void vec_ensure (oryx_vector v, unsigned int num);
+extern int vec_empty_slot (oryx_vector v);
+extern int vec_set (oryx_vector v, void *val);
+extern int vec_set_index (oryx_vector v, unsigned int i, void *val);
+extern void vec_unset (oryx_vector v, unsigned int i);
+extern unsigned int vec_count (oryx_vector v);
+extern void vec_only_wrapper_free (oryx_vector v);
+extern void vec_only_index_free (void *index);
+extern void vec_free (oryx_vector v);
+extern oryx_vector vec_copy (oryx_vector v);
 
-extern void *vector_lookup (oryx_vector, unsigned int);
-extern void *vector_lookup_ensure (oryx_vector, unsigned int);
+extern void *vec_lookup (oryx_vector, unsigned int);
+extern void *vec_lookup_ensure (oryx_vector, unsigned int);
 
-void *vector_first (oryx_vector v);
-void *vector_last (oryx_vector v);
+void *vec_first (oryx_vector v);
+void *vec_last (oryx_vector v);
 
-#define vector_foreach_element(oryx_vector, foreach_element, element)\
+#define vec_foreach_element(oryx_vector, foreach_element, element)\
 	for (foreach_element = 0, element = NULL;\
-		foreach_element <= (int)vector_active(oryx_vector); \
-		element = (typeof(*element) *)vector_slot(oryx_vector, foreach_element), foreach_element++)
+		foreach_element <= (int)vec_active(oryx_vector); \
+		element = (typeof(*element) *)vec_slot(oryx_vector, foreach_element), foreach_element++)
 		
-
+#endif
 #endif /* _ZEBRA_VECTOR_H */

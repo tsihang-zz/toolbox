@@ -18,7 +18,7 @@ along with GNU Zebra; see the file COPYING.  If not, write to the Free
 Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "linklist.h"
 #include "memory.h"
@@ -64,7 +64,7 @@ struct route_map_list
 };
 
 /* Master list of route map. */
-static struct route_map_list route_map_master = { NULL, NULL, NULL, NULL };
+static struct route_map_list route_map_master = { NULL, NULL, NULL, NULL, NULL };
 
 static void
 route_map_rule_delete (struct route_map_rule_list *,
@@ -1296,7 +1296,10 @@ static struct cmd_node rmap_node =
 {
   RMAP_NODE,
   "%s(config-route-map)# ",
-  1
+  1,
+  NULL,
+  NULL,
+  NULL,
 };
 
 /* Common route map rules */

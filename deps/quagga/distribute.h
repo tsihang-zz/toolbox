@@ -22,7 +22,7 @@
 #ifndef _ZEBRA_DISTRIBUTE_H
 #define _ZEBRA_DISTRIBUTE_H
 
-#include <zebra.h>
+#include "zebra.h"
 #include "if.h"
 #include "filter.h"
 

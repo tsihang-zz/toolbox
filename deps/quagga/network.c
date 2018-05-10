@@ -20,7 +20,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 #include "log.h"
 #include "network.h"
 

@@ -21,7 +21,7 @@
  * Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
  * 02111-1307, USA.  
  */
-#include <zebra.h>
+#include "zebra.h"
 #include "log.h"
 #include "privs.h"
 #include "memory.h"
@@ -619,7 +619,7 @@ zprivs_state_uid (void)
 
 int
 zprivs_change_null (zebra_privs_ops_t op)
-{
+{op = op;
   return 0;
 }
 

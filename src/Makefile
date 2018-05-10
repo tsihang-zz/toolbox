@@ -48,12 +48,19 @@ SRCS-y += \
 SRCS-y += version.c
 
 CFLAGS += -O3
-CFLAGS += -DHAVE_DPDK
-CFLAGS += -pthread -I$(SRCDIR)/../lib
+CFLAGS += -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS
+CFLAGS += -I$(SRCDIR)/../lib -I$(SRCDIR)/../deps/quagga -I$(SRCDIR)/../deps/suricata/src
 CFLAGS += $(WERROR_FLAGS)
 
-LDLIBS += -L$(subst ethtool-app,lib,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst src,lib,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
+
+LDLIBS += -L$(subst src,deps/quagga,$(RTE_OUTPUT))/lib
+LDLIBS += -lquagga
+
+LDLIBS += -L$(subst src,deps/suricata/src,$(RTE_OUTPUT))/lib
+LDLIBS += -lsuricata
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

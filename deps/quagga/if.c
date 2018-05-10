@@ -21,7 +21,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "linklist.h"
 #include "vector.h"

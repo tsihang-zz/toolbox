@@ -22,7 +22,7 @@
 
 #define QUAGGA_DEFINE_DESC_TABLE
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "log.h"
 #include "memory.h"
@@ -480,6 +480,9 @@ zlog_signal(int signo, const char *action
 void
 zlog_backtrace_sigsafe(int priority, void *program_counter)
 {
+		   priority = priority;
+		   program_counter = program_counter;
+
 #ifdef HAVE_STACK_TRACE
   static const char pclabel[] = "Program counter: ";
   void *array[64];

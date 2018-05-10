@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  */
 
-#include <zebra.h>
+#include "zebra.h"
 #include "md5.h"
 
 #define SHIFT(X, s) (((X) << (s)) | ((X) >> (32 - (s))))

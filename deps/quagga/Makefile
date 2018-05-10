@@ -1,6 +1,6 @@
 #   BSD LICENSE
 #
-#   Copyright(c) 2015-2017 Intel Corporation. All rights reserved.
+#   Copyright(c) 2015 Intel Corporation. All rights reserved.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,46 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+ifeq ($(RTE_SDK),)
+$(error "Please define RTE_SDK environment variable")
+endif
+
+# Default target, can be overwritten by command line or environment
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
+
 include $(RTE_SDK)/mk/rte.vars.mk
 
-DIRS-y += src
+ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
+$(error This application can only operate in a linuxapp environment, \
+please change the definition of the RTE_TARGET environment variable)
+endif
 
-include $(RTE_SDK)/mk/rte.extsubdir.mk
+# library name
+LIB = libquagga.a
+
+LIBABIVER := 1
+
+# all source are stored in SRC-Y
+SRCS-y :=\
+	str.c event_counter.c linklist.c agentx.c network.c	routemap.c \
+	workqueue.c vrf.c memtypes.c sockunion.c nexthop.c buffer.c \
+	privs.c table.c smux.c if.c log.c pqueue.c pid_output.c regex.c \
+	checksum.c snmp.c md5.c distribute.c vty.c memory.c sigevent.c \
+	daemon.c hash.c command.c getopt.c filter.c thread.c stream.c \
+	if_rmap.c zclient.c	jhash.c	prefix.c plist.c sockopt.c getopt1.c\
+	keychain.c vector.c
+
+CFLAGS += -O3 --std=gnu99
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU
+CFLAGS += $(WERROR_FLAGS)
+
+ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
+ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)
+LDLIBS += -lrte_pmd_ixgbe
+endif
+endif
+
+LDLIBS += -lstdc++ -ldl -lpthread -lm -lrt
+LDLIBS += -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml
+
+include $(RTE_SDK)/mk/rte.extlib.mk

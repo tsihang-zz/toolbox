@@ -20,8 +20,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include <zebra.h>
-#include <log.h>
+#include "zebra.h"
+#include "log.h"
 
 #ifndef HAVE_DAEMON
 

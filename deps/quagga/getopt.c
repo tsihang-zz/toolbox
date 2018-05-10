@@ -30,7 +30,7 @@
 # define _NO_PROTO
 #endif
 
-#include <zebra.h>
+#include "zebra.h"
 
 #if !defined __STDC__ || !__STDC__
 /* This is a separate conditional since some stdc systems

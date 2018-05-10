@@ -20,7 +20,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "prefix.h"
 #include "table.h"
@@ -495,6 +495,8 @@ static struct route_node *
 route_node_create (route_table_delegate_t *delegate,
 		   struct route_table *table)
 {
+delegate = delegate;
+table = table;
   struct route_node *node;
   node = XCALLOC (MTYPE_ROUTE_NODE, sizeof (struct route_node));
   return node;
@@ -509,6 +511,8 @@ static void
 route_node_destroy (route_table_delegate_t *delegate,
 		    struct route_table *table, struct route_node *node)
 {
+delegate = delegate;
+table = table;
   XFREE (MTYPE_ROUTE_NODE, node);
 }
 

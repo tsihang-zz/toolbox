@@ -20,7 +20,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 /* malloc.h is generally obsolete, however GNU Libc mallinfo wants it. */
 #if !defined(HAVE_STDLIB_H) || (defined(GNU_LINUX) && defined(HAVE_MALLINFO))
 #include <malloc.h>

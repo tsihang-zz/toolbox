@@ -6,7 +6,7 @@
  * pp. 86-101, for additional details on computing this checksum.
  */
 
-#include <zebra.h>
+#include "zebra.h"
 #include "checksum.h"
 
 int			/* return checksum in low-order 16 bits */

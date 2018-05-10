@@ -20,7 +20,7 @@
  * MA 02111-1307, USA.
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "prefix.h"
 #include "stream.h"

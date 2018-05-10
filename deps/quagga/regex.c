@@ -29,7 +29,7 @@
 #define _GNU_SOURCE
 
 #ifdef HAVE_CONFIG_H
-# include <config.h>
+# include "config.h"
 #endif
 #ifdef _WIN32
 /* Windows does not provide unistd.h, which is required for abort() */

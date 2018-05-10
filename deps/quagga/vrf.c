@@ -20,7 +20,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #ifdef HAVE_NETNS
 #undef  _GNU_SOURCE

@@ -24,7 +24,7 @@
 #ifndef _QUAGGA_SIGNAL_H
 #define _QUAGGA_SIGNAL_H
 
-#include <thread.h>
+#include "thread.h"
 
 #define QUAGGA_SIGNAL_TIMER_INTERVAL 2L
 

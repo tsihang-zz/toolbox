@@ -19,10 +19,10 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
-#include <sigevent.h>
-#include <log.h>
-#include <memory.h>
+#include "zebra.h"
+#include "sigevent.h"
+#include "log.h"
+#include "memory.h"
 
 #ifdef SA_SIGINFO
 #ifdef HAVE_UCONTEXT_H

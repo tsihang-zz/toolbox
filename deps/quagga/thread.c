@@ -21,7 +21,7 @@
 
 /* #define DEBUG */
 
-#include <zebra.h>
+#include "zebra.h"
 #include <sys/resource.h>
 
 #include "thread.h"

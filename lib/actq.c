@@ -147,7 +147,7 @@ void actq_inner_init (struct oryx_actq_mgr_t *mgr)
 		goto finish;
 	}
 
-	mgr->vec_table = vector_init (1);
+	mgr->vec_table = vec_init (1);
 	if (unlikely (!mgr->ht_table)) {
 		oryx_htable_destroy(mgr->ht_table);
 		mgr->ul_flags |= INIT_VEC_TABLE_ERROR;
@@ -315,7 +315,7 @@ oryx_status_t oryx_actq_new (struct oryx_actq_prefix_t *ap,
 		(*actq) = v;
 		int r = oryx_htable_add (mgr->ht_table, (*actq)->sc_alias, (*actq)->ul_alias_size);
 		if (r == 0 /** success*/) {
-			(*actq)->ul_id = vector_set (mgr->vec_table, (*actq));
+			(*actq)->ul_id = vec_set (mgr->vec_table, (*actq));
 			tracker ("new actq %p\n", (*actq));
 		}
 	}

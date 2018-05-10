@@ -19,7 +19,7 @@
  * 02111-1307, USA.  
  */
 
-#include <zebra.h>
+#include "zebra.h"
 
 #include "prefix.h"
 #include "vty.h"
@@ -199,7 +199,6 @@ static void
 sockunion_normalise_mapped (union sockunion *su)
 {
 #ifdef HAVE_IPV6
-
   struct sockaddr_in sin;
  
   if (su->sa.sa_family == AF_INET6 
@@ -211,7 +210,10 @@ sockunion_normalise_mapped (union sockunion *su)
       memcpy (&sin.sin_addr, ((char *)&su->sin6.sin6_addr) + 12, 4);
       memcpy (su, &sin, sizeof (struct sockaddr_in));
     }
-#endif /* HAVE_IPV6 */
+//#endif /* HAVE_IPV6 */
+#else
+	su = su;
+#endif
 }
 
 /* Return socket of sockunion. */
@@ -297,6 +299,7 @@ sockunion_connect (int fd, const union sockunion *peersu, unsigned short port,
   int ret;
   int val;
   union sockunion su;
+  ifindex = ifindex;
 
   memcpy (&su, peersu, sizeof (union sockunion));
 
@@ -533,7 +536,8 @@ sockopt_minttl (int family, int sock, int minttl)
 int
 sockopt_v6only (int family, int sock)
 {
-	
+	family = family;
+	sock = sock;
 #ifdef HAVE_IPV6
 #ifdef IPV6_V6ONLY
 
