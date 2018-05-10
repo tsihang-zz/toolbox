@@ -3,8 +3,7 @@
 
 static void
 netdev_dispatcher(u_char *argument,
-		const struct pcap_pkthdr *pkthdr,
-		const u_char *packet)
+		const struct pcap_pkthdr *pkthdr, const u_char *packet)
 {
 	printf ("defualt dispatch\n");
 }

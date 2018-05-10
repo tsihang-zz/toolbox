@@ -9,7 +9,6 @@ bin
 ./lib/
 
 # compile files
-Makefile
 CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
