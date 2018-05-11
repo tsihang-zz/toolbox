@@ -191,7 +191,7 @@ struct stats_trunk_t {
 #endif
 
 
-#define CONFIG_PATH	"/home/tsihang/Source/et1500/conf"
+#define CONFIG_PATH	"conf"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
 
 

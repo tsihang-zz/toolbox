@@ -58,9 +58,17 @@ SRCS-y :=\
 	if_rmap.c zclient.c	jhash.c	prefix.c plist.c sockopt.c getopt1.c\
 	keychain.c vector.c
 
-CFLAGS += -O3 --std=gnu99
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU
-CFLAGS += $(WERROR_FLAGS)
+#CFLAGS += $(WERROR_FLAGS)
+CFLAGS_QUAGGA := -W -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_QUAGGA += -Wmissing-declarations -Wpointer-arith
+CFLAGS_QUAGGA += -Wcast-align -Wnested-externs
+CFLAGS_QUAGGA += -Wformat-nonliteral -Wformat-security
+CFLAGS_QUAGGA += -Wundef -Wwrite-strings
+#CFLAGS_QUAGGA += -Wold-style-definition -Wcast-qual
+
+CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_QUAGGA)
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS
+
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
 ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)

@@ -54,10 +54,19 @@ SRCS-y :=\
    netdev_pcap.c task.c htable.c memory.c netdev.c netdev_pfring.c \
    mpm-ac.c mpm.c lru.c list.c tmr.c vec.c
 
-CFLAGS += -O3 --std=gnu99
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU
-CFLAGS += -DHAVE_PCAP -DHAVE_ADVANCED_TMR
-CFLAGS += $(WERROR_FLAGS)
+
+#CFLAGS += $(WERROR_FLAGS)
+CFLAGS_ORYX := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_ORYX += -Wmissing-declarations -Wpointer-arith
+CFLAGS_ORYX += -Wcast-align -Wnested-externs
+CFLAGS_ORYX += -Wformat-nonliteral -Wformat-security
+CFLAGS_ORYX += -Wundef -Wwrite-strings
+#CFLAGS_ORYX += -Wold-style-definition -Wcast-qual
+
+CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_ORYX)
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
+		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
+
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
 ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)

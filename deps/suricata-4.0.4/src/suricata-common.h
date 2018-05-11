@@ -193,7 +193,7 @@
 #include <pcap/bpf.h>
 //#endif
 
-#if __CYGWIN__
+#if defined(__CYGWIN__)
 #if !defined _X86_ && !defined __x86_64
 #define _X86_
 #endif
@@ -214,7 +214,7 @@
 #include <w32api/wtypes.h>
 #endif
 
-#if !__CYGWIN__
+#if !defined(__CYGWIN__)
 #ifdef HAVE_WINSOCK2_H
 #include <winsock2.h>
 #endif
@@ -244,7 +244,7 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
-#if CPPCHECK==1
+#if defined(CPPCHECK)
     #define BUG_ON(x) if (((x))) exit(1)
 #else
     #if defined HAVE_ASSERT_H && !defined NDEBUG

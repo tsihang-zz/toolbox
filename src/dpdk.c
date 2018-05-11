@@ -318,8 +318,6 @@ static dpdk_eal_args_format(const char *argv)
 /**
  * DPDK EAL init args: -c 0xf -n 4 --huge-dir /run/et1500/hugepages --file-prefix et1500 -w 0000:05:00.2 -w 0000:05:00.3 --master-lcore 0 --socket-mem 256
  */
-
-#define WHITE_SPACE	' '
 static void
 dpdk_init_eal (dpdk_main_t *dm)
 {
@@ -414,7 +412,7 @@ dpdk_init_eal (dpdk_main_t *dm)
 	uint32_t id_core;
 	uint32_t cnt_ports;
 	/* Init runtime enviornment */
-	rv = rte_eal_init(eal_init_args, eal_init_argv);
+	rv = rte_eal_init(vm->argc, vm->argv);
 	if (rv < 0)
 		rte_exit(EXIT_FAILURE, "rte_eal_init(): Failed");
 

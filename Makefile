@@ -49,3 +49,19 @@ DEPDIRS-src := lib deps librte_eal librte_ether
 DEPDIRS-lib := librte_eal librte_ether
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
+
+clean:
+	@rm -fr file
+	@rm -fr src/$(RTE_TARGET)
+	@rm -fr lib/$(RTE_TARGET)
+	@rm -fr deps/quagga/$(RTE_TARGET)
+	@rm -fr deps/suricata/src/$(RTE_TARGET)
+
+docs:
+	@make -C docs html
+
+pdf:
+	@make -C docs latexpdf
+
+cleandocs:
+	@make -C docs clean

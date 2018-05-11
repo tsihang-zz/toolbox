@@ -845,10 +845,10 @@ static void PrintBuildInfo(void)
     printf("C version %"PRIiMAX"\n", (intmax_t)__STDC_VERSION__);
 #endif
 
-#if __SSP__ == 1
+#if (defined(__SSP__) && (__SSP__ == 1))
     printf("compiled with -fstack-protector\n");
 #endif
-#if __SSP_ALL__ == 2
+#if (defined(__SSP_ALL__) && (__SSP_ALL__ == 2))
     printf("compiled with -fstack-protector-all\n");
 #endif
 /*

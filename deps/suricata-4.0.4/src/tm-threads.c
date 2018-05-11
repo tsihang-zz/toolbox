@@ -906,7 +906,7 @@ static int SetCPUAffinitySet(cpu_set_t *cs)
 #if defined OS_FREEBSD
     int r = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
                                SCGetThreadIdLong(), sizeof(cpu_set_t),cs);
-#elif OS_DARWIN
+#elif defined OS_DARWIN
     int r = thread_policy_set(mach_thread_self(), THREAD_AFFINITY_POLICY,
                               (void*)cs, THREAD_AFFINITY_POLICY_COUNT);
 #else

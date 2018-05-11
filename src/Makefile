@@ -54,14 +54,22 @@ SRCS-y += \
 
 SRCS-y += version.c
 
-CFLAGS += -O3
-CFLAGS += -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS
+#CFLAGS += $(WERROR_FLAGS)
+CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_SRC += -Wmissing-declarations -Wpointer-arith
+CFLAGS_SRC += -Wcast-align -Wnested-externs
+CFLAGS_SRC += -Wformat-nonliteral -Wformat-security
+CFLAGS_SRC += -Wundef -Wwrite-strings
+#CFLAGS_SRC += -Wold-style-definition -Wcast-qual
+CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
+		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
+		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
 CFLAGS += -I$(SRCDIR)/../lib -I$(SRCDIR)/../deps/quagga -I$(SRCDIR)/../deps/suricata/src
-CFLAGS += $(WERROR_FLAGS)
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml -lpcap
+
 
 LDLIBS += -L$(subst src,lib,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

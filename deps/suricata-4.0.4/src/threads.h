@@ -43,7 +43,7 @@
 #endif /* PROFILE_LOCKING */
 #endif /* PROFILING */
 
-#if defined OS_FREEBSD || __OpenBSD__
+#if defined (OS_FREEBSD) || defined (__OpenBSD__)
 
 #if ! defined __OpenBSD__
 #include <sys/thr.h>
@@ -54,7 +54,7 @@ enum {
     PRIO_HIGH = -2,
 };
 
-#elif OS_DARWIN
+#elif defined(OS_DARWIN)
 
 #include <mach/mach_init.h>
 enum {
@@ -63,7 +63,7 @@ enum {
     PRIO_HIGH = -2,
 };
 
-#elif OS_WIN32
+#elif defined(OS_WIN32)
 
 #include <windows.h>
 enum {
@@ -219,24 +219,24 @@ enum {
     u_long _scgetthread_tid = (u_long)tmpthid; \
     _scgetthread_tid; \
 })
-#elif __OpenBSD__
+#elif defined(__OpenBSD__)
 #define SCGetThreadIdLong(...) ({ \
     pid_t tpid; \
     tpid = getpid(); \
     u_long _scgetthread_tid = (u_long)tpid; \
     _scgetthread_tid; \
 })
-#elif __CYGWIN__
+#elif defined(__CYGWIN__)
 #define SCGetThreadIdLong(...) ({ \
     u_long _scgetthread_tid = (u_long)GetCurrentThreadId(); \
 	_scgetthread_tid; \
 })
-#elif OS_WIN32
+#elif defined(OS_WIN32)
 #define SCGetThreadIdLong(...) ({ \
     u_long _scgetthread_tid = (u_long)GetCurrentThreadId(); \
 	_scgetthread_tid; \
 })
-#elif OS_DARWIN
+#elif defined(OS_DARWIN)
 #define SCGetThreadIdLong(...) ({ \
     thread_port_t tpid; \
     tpid = mach_thread_self(); \

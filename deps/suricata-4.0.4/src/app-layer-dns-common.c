@@ -947,7 +947,7 @@ const uint8_t *DNSReponseParse(DNSState *dns_state, const DNSHeader * const dns_
                 if (tdata == NULL) {
                     goto insufficient_data;
                 }
-#if DEBUG
+#if defined(DEBUG)
                 struct Trailer {
                     uint32_t serial;
                     uint32_t refresh;

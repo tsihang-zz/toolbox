@@ -24,7 +24,7 @@
  * \author Victor Julien <victor@inliniac.net>
  */
 
-#if CPPCHECK==1
+#if defined(CPPCHECK)
 #define likely
 #define unlikely
 #else

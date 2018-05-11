@@ -32,7 +32,7 @@
 
 #include "util-atomic.h"
 
-#if CPPCHECK==1
+#if defined(CPPCHECK)
 #define SCMalloc malloc
 #define SCCalloc calloc
 #define SCRealloc realloc

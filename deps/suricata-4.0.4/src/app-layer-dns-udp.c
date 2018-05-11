@@ -270,7 +270,7 @@ static int DNSUDPResponseParse(Flow *f, void *dstate,
             SCLogDebug("input buffer too small for DNSQueryTrailer");
             goto insufficient_data;
         }
-#if DEBUG
+#if defined(DEBUG)
         DNSQueryTrailer *trailer = (DNSQueryTrailer *)data;
         SCLogDebug("trailer type %04x class %04x", ntohs(trailer->type), ntohs(trailer->class));
 #endif
