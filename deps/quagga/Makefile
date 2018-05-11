@@ -59,12 +59,12 @@ SRCS-y :=\
 	keychain.c vector.c
 
 #CFLAGS += $(WERROR_FLAGS)
-CFLAGS_QUAGGA := -W -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_QUAGGA := -Wstrict-prototypes -Wmissing-prototypes
 CFLAGS_QUAGGA += -Wmissing-declarations -Wpointer-arith
-CFLAGS_QUAGGA += -Wcast-align -Wnested-externs
-CFLAGS_QUAGGA += -Wformat-nonliteral -Wformat-security
+CFLAGS_QUAGGA += -Wcast-align
+CFLAGS_QUAGGA += -Wformat-security
 CFLAGS_QUAGGA += -Wundef -Wwrite-strings
-#CFLAGS_QUAGGA += -Wold-style-definition -Wcast-qual
+#CFLAGS_QUAGGA += -W -Wformat-nonliteral -Wold-style-definition -Wcast-qual -Wnested-externs
 
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_QUAGGA)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS

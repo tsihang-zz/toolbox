@@ -29,12 +29,11 @@ char *eal_init_argv[1024] = {0};
 int eal_init_args = 0;
 int eal_args_offset = 0;
 dpdk_main_t dpdk_main;
+dpdk_config_main_t dpdk_config_main;
 vlib_pci_main_t pci_main;
 
-
 static int
-//vlib_sysfs_read (char *file_name, char *fmt, ...) {
-vlib_sysfs_read (char *file_name, int *r) {
+vlib_sysfs_read (char *file_name, const char *fmt, ...) {
 	char s[4096] = {0};
 	int fd;
 	ssize_t sz;
@@ -48,21 +47,19 @@ vlib_sysfs_read (char *file_name, int *r) {
 		close (fd);
 		return -1;
 	}
-	sscanf (s, "%d", r);
-	#if 0
+
 	va_list va;
 	va_start (va, fmt);
-	sscanf (s, fmt, &va);
+	vsprintf (s, fmt, va);
 	va_end (va);
-	#endif
+
 	close(fd);
 
 	return 0;
 }
 
 static int
-vlib_sysfs_get_free_hugepages (unsigned int numa_node, int page_size)
-{
+vlib_sysfs_get_free_hugepages (unsigned int numa_node, int page_size) {
 	struct stat sb;
 	char p[1024] = {0};
 	int r = -1;
@@ -85,13 +82,12 @@ vlib_sysfs_get_free_hugepages (unsigned int numa_node, int page_size)
 	else goto done;
 
 	l += sprintf (p + l, "/hugepages/hugepages-%ukB/free_hugepages", page_size);
-	vlib_sysfs_read ((char *) p, &r);
+	vlib_sysfs_read ((char *) p, "%d", &r);
 
 done:
 	SCLogDebug("read hugepages %s, free_hugepages = %d", p, r);
 	return r;
 }
-
 
 static void
 unformat_pci_addr(char *pci_addr_str, vlib_pci_addr_t *addr) {
@@ -163,23 +159,14 @@ foreach_directory_file (char *dir_name,
   return error;
 }
 
-static int
-rte_ethtool_get_link(uint8_t port_id)
-{
-	struct rte_eth_link link;
-
-	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
-	rte_eth_link_get(port_id, &link);
-	return link.link_status;
-}
-
 static void
 dpdk_bind_devices_to_uio (dpdk_config_main_t * conf)
 {
 	char dpdk_devbind_cmd[1024] = {0};
 	int i;
 	char addr[32] = {0};
-	for (i = 0; i < conf->device_config_index_by_pci_addr; i ++) {
+	
+	for (i = 0; i < (int)conf->device_config_index_by_pci_addr; i ++) {
 		dpdk_device_config_t *devconf;
 		devconf = conf->dev_confs + i;
 
@@ -189,44 +176,18 @@ dpdk_bind_devices_to_uio (dpdk_config_main_t * conf)
 
 		format_pci_addr(addr, &devconf->pci_addr);
 		sprintf(dpdk_devbind_cmd, "dpdk-devbind.py --bind=%s %s", conf->uio_driver_name, addr);
-		system(dpdk_devbind_cmd);
+		do_system(dpdk_devbind_cmd);
 	}
-
-	
-	/** link test */
-	int num_ports = rte_eth_dev_count();
-	int id_port, stat_port;
-
-	for (id_port = 0; id_port < num_ports; id_port++) {
-		if (!rte_eth_dev_is_valid_port(id_port))
-			continue;
-		stat_port = rte_ethtool_get_link(id_port);
-		switch (stat_port) {
-		case 0:
-			SCLogNotice("Port %i: Down", id_port);
-			break;
-		case 1:
-			SCLogNotice("Port %i: Up", id_port);
-			break;
-		default:
-			SCLogNotice("Port %i: Error getting link status",
-				id_port
-				);
-			break;
-		}
-	}
-	SCLogNotice("num_ports = %d", num_ports);
-
-
 }
 
 static void
 dpdk_mount_hugedir (dpdk_config_main_t *conf)
 {
+	conf = conf;
 #if defined(HAVE_DPDK_SCRIPT_MOUNT)
 	char dpdk_mount_hugedir_cmd[1024] = {0};
 	sprintf(dpdk_mount_hugedir_cmd, "/bin/sh %s/%s", CONFIG_PATH, DPDK_SCRIPT_MOUNT);
-	system (dpdk_mount_hugedir_cmd);
+	do_system (dpdk_mount_hugedir_cmd);
 #else
 	uword c = 0;
 	u8 use_1g = 1;
@@ -238,7 +199,7 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 	int pages_avail_1g, pages_avail_512m, pages_avail_2m;
 	
 
-	umount (DEFAULT_HUGE_DIR);
+	umount (ET1500_DPDK_DEFAULT_HUGE_DIR);
 	
 	page_size = 1024;
 	pages_avail_1g = pages_avail = vlib_sysfs_get_free_hugepages(c, page_size * 1024);
@@ -260,25 +221,25 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 	SCLogNotice(" @ -512MB, %2d", pages_avail_512m);
 	SCLogNotice(" @ ---2MB, %2d", pages_avail_2m);
 	
-	rv = mkdir (ET1500_RUN_DIR, 0755);
+	rv = mkdir (ET1500_DPDK_DEFAULT_RUN_DIR, 0755);
 	if (rv && errno != EEXIST)
 		goto done;
 	
-	rv = mkdir (DEFAULT_HUGE_DIR, 0755);
+	rv = mkdir (ET1500_DPDK_DEFAULT_HUGE_DIR, 0755);
 	if (rv && errno != EEXIST)
 		goto done;
 
 	if (use_1g && !(less_than_1g && use_512m && use_2m)) {
-		SCLogNotice ("Mounting ... 1 GB (%s)", DEFAULT_HUGE_DIR);
-		rv = mount ("none", DEFAULT_HUGE_DIR, "hugetlbfs", 0, "pagesize=1G");
+		SCLogNotice ("Mounting ... 1 GB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, "pagesize=1G");
 	} 
 	else if (use_512m) {
-		SCLogNotice ("Mounting ... 512 MB (%s)", DEFAULT_HUGE_DIR);
-		rv = mount ("none", DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
+		SCLogNotice ("Mounting ... 512 MB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else if (use_2m) {
-		SCLogNotice ("Mounting ... 2 MB (%s)", DEFAULT_HUGE_DIR);
-		rv = mount ("none", DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
+		SCLogNotice ("Mounting ... 2 MB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else {
 		SCLogNotice ("no enough free hugepages");
@@ -307,25 +268,22 @@ dpdk_eal_args_2string(dpdk_main_t *dm, char *format_buffer)
 	}
 }
 
-static dpdk_eal_args_format(const char *argv)
+static void
+dpdk_eal_args_format(const char *argv)
 {
 	char *t = kmalloc(strlen(argv) + 1, MPF_CLR, __oryx_unused_val__);
 	sprintf (t, "%s%c", argv, 0);
 	eal_init_argv[eal_init_args ++] = t;
 }
 
-
 /**
  * DPDK EAL init args: -c 0xf -n 4 --huge-dir /run/et1500/hugepages --file-prefix et1500 -w 0000:05:00.2 -w 0000:05:00.3 --master-lcore 0 --socket-mem 256
  */
 static void
-dpdk_init_eal (dpdk_main_t *dm)
+dpdk_format_eal_args (dpdk_main_t *dm)
 {
-	vlib_main_t *vm = dm->vlib_main;
 	int i;
 	char argv_buf[128] = {0};
-	char pci_dev_addr[128] = {0};
-	int master_lcore = 0;
 	const char *socket_mem = "256";
 	const char *file_prefix = "et1500";
 	dpdk_config_main_t *conf = &dpdk_config_main;
@@ -356,7 +314,7 @@ dpdk_init_eal (dpdk_main_t *dm)
 	sprintf (argv_buf, "--huge-dir");
 	dpdk_eal_args_format(argv_buf);
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", DEFAULT_HUGE_DIR);
+	sprintf (argv_buf, "%s", ET1500_DPDK_DEFAULT_HUGE_DIR);
 	dpdk_eal_args_format(argv_buf);
 
 
@@ -369,7 +327,7 @@ dpdk_init_eal (dpdk_main_t *dm)
 	dpdk_eal_args_format(argv_buf);
 
 	/** PCI device */
-	for (i = 0; i < conf->device_config_index_by_pci_addr; i ++) {
+	for (i = 0; i < (int)conf->device_config_index_by_pci_addr; i ++) {
 		dpdk_device_config_t *devconf = conf->dev_confs + i;
 		devconf = conf->dev_confs + i;
 
@@ -391,7 +349,6 @@ dpdk_init_eal (dpdk_main_t *dm)
 	dpdk_eal_args_format(argv_buf);
 
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%d", master_lcore);
 	dpdk_eal_args_format(argv_buf);
 
 
@@ -407,26 +364,6 @@ dpdk_init_eal (dpdk_main_t *dm)
 	char eal_args_format_buffer[1024] = {0};
 	dpdk_eal_args_2string(dm, eal_args_format_buffer);
 	SCLogNotice("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
-
-	int rv;
-	uint32_t id_core;
-	uint32_t cnt_ports;
-	/* Init runtime enviornment */
-	rv = rte_eal_init(vm->argc, vm->argv);
-	if (rv < 0)
-		rte_exit(EXIT_FAILURE, "rte_eal_init(): Failed");
-
-	cnt_ports = rte_eth_dev_count();
-	printf("Number of NICs: %i\n", cnt_ports);
-	if (cnt_ports == 0)
-		rte_exit(EXIT_FAILURE, "No available NIC ports!\n");
-	if (cnt_ports > MAX_PORTS) {
-		printf("Info: Using only %i of %i ports\n",
-			cnt_ports, MAX_PORTS
-			);
-		cnt_ports = MAX_PORTS;
-	}
-
 #if 0
 	/** never free eal args. */
 	for (i = 0; i < eal_init_args; i ++) {
@@ -439,9 +376,8 @@ static void
 dpdk_device_config (dpdk_config_main_t *conf)
 {
 	/* Check if we have memcap and hash_size defined at config */
-	const char *conf_val;
 	dpdk_device_config_t *devconf;
-    ConfNode *ethdev_pci, *ethdev_pci_config;	
+    ConfNode *ethdev_pci;	
 	/** config dpdk-device */
 	/* Find initial node */
 	ConfNode *dpdk_config_devices;
@@ -516,7 +452,7 @@ dpdk_device_config (dpdk_config_main_t *conf)
 
 	int i;
 	char pci_addr[32] = {0};	/** debug */
-	SCLogNotice("===== Total %d/%lu devices configured ======", ethdev_activity, conf->device_config_index_by_pci_addr);
+	SCLogNotice("===== Total %d/%d devices configured ======", ethdev_activity, conf->device_config_index_by_pci_addr);
 	for (i = 0; i < conf->device_config_index_by_pci_addr; i ++) {
 		devconf  = conf->dev_confs + i;
 		format_pci_addr(pci_addr, &devconf->pci_addr);
@@ -531,73 +467,60 @@ dpdk_device_config (dpdk_config_main_t *conf)
 static void
 dpdk_config(vlib_main_t *vm)
 {
-  dpdk_main_t *dm = &dpdk_main;
-  dpdk_config_main_t *conf = &dpdk_config_main;
-  /* Check if we have memcap and hash_size defined at config */
-  const char *conf_val;
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_config_main_t *conf = &dpdk_config_main;
+	/* Check if we have memcap and hash_size defined at config */
+	const char *conf_val;
 
-  dm->vlib_main = vm;
-  
-  SCLogNotice ("Entering %s", __func__);
-  
-  /** set config values for dpdk-config, prealloc and hash_size */
-  if (ConfGet("dpdk-config.uio-driver", (char **)&conf->uio_driver_name))
-  	;
-  if ((ConfGet("dpdk-config.num-mbufs", &conf_val)) == 1){
+	dm->vlib_main = vm;
+
+	SCLogNotice ("Entering %s", __func__);
+
+	/** set config values for dpdk-config, prealloc and hash_size */
+	if (ConfGet("dpdk-config.uio-driver", (char **)&conf->uio_driver_name) == 1) {
+		/** igb_uio uio_pci_generic (default), vfio-pci (aarch64 used) */
+		if (strcmp (conf->uio_driver_name, "vfio-pci")) {
+			SCLogError(SC_ERR_SIZE_PARSE, "uio-driver %s. But vfio-pci needed on this platform ",
+	                   conf->uio_driver_name);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if ((ConfGet("dpdk-config.num-mbufs", &conf_val)) == 1){
 		if (ParseSizeStringU32(conf_val, &conf->num_mbufs) < 0) {
-            SCLogError(SC_ERR_SIZE_PARSE, "Error parsing ippair.memcap "
-                       "from conf file - %s.  Killing engine",
-                       conf_val);
-            exit(EXIT_FAILURE);
-        }
-  }
+	        SCLogError(SC_ERR_SIZE_PARSE, "Error parsing ippair.memcap "
+	                   "from conf file - %s.  Killing engine",
+	                   conf_val);
+	        exit(EXIT_FAILURE);
+	    }
+	}
     
-  dpdk_device_config(conf);
-  dpdk_mount_hugedir(conf);
-  dpdk_bind_devices_to_uio(conf);
+	dpdk_device_config(conf);
+	dpdk_mount_hugedir(conf);
+	dpdk_bind_devices_to_uio(conf);
+	dpdk_format_eal_args(dm);
   
-  dpdk_init_eal(dm);
-
-}
-
-static int
-scan_device (void *arg, char * dev_dir_name, char * ignored)
-{
-	//vlib_main_t *vm = arg;
-	//vlib_pci_main_t *pm = &pci_main;
-	int fd;
-	char f[1024];
-	int error = 0;
-
-	printf ("%s\n", dev_dir_name);	
-	sprintf(f, "%s/config", dev_dir_name);
-	  fd = open ((char *) f, O_RDWR);
-
-  /* Try read-only access if write fails. */
-  if (fd < 0)
-    fd = open ((char *) f, O_RDONLY);
-
-  if (fd < 0)
-    {
-      goto done;
-    }
-
-	close(fd);
-  
-  done:
-   return error;
-}
-
-static int
-linux_pci_init (vlib_main_t * vm)
-{
-	int error;
+  	/* Init runtime enviornment */
+	if (rte_eal_init(vm->argc, vm->argv) < 0) {
+		rte_exit(EXIT_FAILURE, "rte_eal_init(): Failed");
+	}
+	vm->ul_flags |= VLIB_DPDK_EAL_INITIALIZED;
 	
-	vlib_pci_main_t *pm = &pci_main;
-	pm->vlib_main = vm;
+	/* Dump the physical memory layout prior to creating the mbuf_pool */
+	fprintf (stdout, "DPDK physical memory layout:\n");
+	rte_dump_physmem_layout (stdout);
 
-	error = foreach_directory_file ("/sys/bus/pci/devices", scan_device, vm,
-					/* scan_dirs */ 0);
+	/* create the mbuf pool */
+	dm->pktmbuf_pools = rte_pktmbuf_pool_create((const char *)"et1500_mbuf_pool", /* pool name */
+									conf->num_mbufs,	/* number of mbufs */
+									conf->cache_size, 	/* cache size */
+									conf->priv_size, 	/* priv size */
+									conf->data_room_size, /* dataroom size */
+									rte_socket_id());	/* cpu socket */
+	if (dm->pktmbuf_pools == NULL) {
+		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
+	}
+	vm->ul_flags |= VLIB_DPDK_MEMPOOL_INITIALIZED;
+	
 }
 
 void dpdk_init (vlib_main_t * vm)
@@ -607,12 +530,15 @@ void dpdk_init (vlib_main_t * vm)
 	dm->conf = &dpdk_config_main;
 	dm->conf->nchannels = 4;
 	dm->conf->coremask = 0xf;
-	dm->conf->num_mbufs = dm->conf->num_mbufs ? dm->conf->num_mbufs : NB_MBUF;
-	dm->conf->dev_confs = SCMalloc(sizeof(dpdk_device_config_t) * PANEL_N_PORTS);
+	dm->conf->num_mbufs = dm->conf->num_mbufs ? dm->conf->num_mbufs : ET1500_DPDK_DEFAULT_NB_MBUF;
+	dm->conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * PANEL_N_PORTS, MPF_CLR, __oryx_unused_val__);
 	dm->conf->uio_driver_name = (u8 *)"uio_pci_generic";
-	dm->stat_poll_interval = DPDK_STATS_POLL_INTERVAL;
-	dm->link_state_poll_interval = DPDK_LINK_POLL_INTERVAL;
-
+	dm->conf->cache_size = ET1500_DPDK_DEFAULT_CACHE_SIZE;
+	dm->conf->data_room_size = ET1500_DPDK_DEFAULT_BUFFER_SIZE;
+	dm->conf->priv_size = 0;//vm->extra_priv_size;
+	dm->stat_poll_interval = ET1500_DPDK_STATS_POLL_INTERVAL;
+	dm->link_state_poll_interval = ET1500_DPDK_LINK_POLL_INTERVAL;
+		
 	dpdk_config(vm);
 }
 

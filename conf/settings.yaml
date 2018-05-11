@@ -17,6 +17,9 @@ dpdk-config:
   ## Default is 16384
   num-mbufs: 128000
 
+  # 256 (default)
+  cache-size: 512
+  
   ## Change hugepages allocation per-socket, needed only if there is need for
   ## larger number of mbufs. Default is 256M on each detected CPU socket
   # socket-mem 2048,2048

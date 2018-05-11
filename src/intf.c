@@ -8,9 +8,6 @@
 
 #include "et1500.h"
 
-vector panel_intfs_vlan_table;
-DECLARE_TABLE(panel_port);
-
 #define PORT_LOCK
 #ifdef PORT_LOCK
 static INIT_MUTEX(port_lock);
@@ -29,21 +26,36 @@ static INIT_MUTEX(port_lock);
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, v->sc_alias, v->ul_id, VTY_NEWLINE)
 
+const struct rte_eth_conf port_conf_default = {
+	.rxmode = {
+		.split_hdr_size = 0,
+		.header_split   = 0, /**< Header Split disabled */
+		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
+		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
+		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
+		.hw_strip_crc   = 1, /**< CRC stripped by hardware */
+	},
+	.txmode = {
+		.mq_mode = ETH_MQ_TX_NONE,
+	},
+};
+
+
 static __oryx_always_inline__
 void mk_alias (struct port_t *entry)
 {
 
 	switch (entry->uc_speed) {
-	case INTF_SPEED_1G:
+	case ETH_SPEED_1G:
 			sprintf (entry->sc_alias, "%s%u", (char *)"G0/", entry->ul_id);
 			break;
-	case INTF_SPEED_10G:
+	case ETH_SPEED_10G:
 			sprintf (entry->sc_alias, "%s%u", (char *)"XG0/", entry->ul_id);
 			break;
-	case INTF_SPEED_40G:
+	case ETH_SPEED_40G:
 			sprintf (entry->sc_alias, "%s%u", (char *)"4XG0/", entry->ul_id);
 			break;
-	case INTF_SPEED_100G:
+	case ETH_SPEED_100G:
 			sprintf (entry->sc_alias, "%s%u", (char *)"10XG0/", entry->ul_id);
 			break;
 	default:
@@ -91,32 +103,26 @@ port_cmp (ht_value_t v1,
 	if (!v1 || !v2 ||s1 != s2 ||
 		memcmp(v1, v2, s2))
 		xret = 1;	/** Compare failed. */
-	
-#ifdef APPL_DEBUG
-	//printf ("(%s, %s), xret = %d\n", (char *)v1, (char *)v2, xret);
-#endif
+
 	return xret;
 }
 
-static __oryx_always_inline__
-void port_entry_new (struct port_t **port, u32 id)
+void port_entry_new (struct port_t **port, u32 id, int type)
 {
 	/** create an port */
 	(*port) = kmalloc (sizeof (struct port_t), MPF_CLR, __oryx_unused_val__);
 
 	ASSERT ((*port));
 
+	(*port)->type = type;
 	(*port)->ul_id = id;
 	(*port)->us_mtu = 1500;
-	(*port)->belong_maps = vector_init(1024);
-	/** make port alias. */
-	mk_alias (*port);
-		
+	(*port)->belong_maps = vec_init(1024);
 }
 
 static void port_entry_destroy (struct port_t *port)
 {
-	vector_free (port->belong_maps);
+	vec_free (port->belong_maps);
 	kfree (port);
 }
 
@@ -131,6 +137,15 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 	/** find this port named 'alias'. */
 	printout (vty, "%16s\"%s\"(%u)%s", "Port ", port->sc_alias, port->ul_id, VTY_NEWLINE);
 
+	printout (vty, "		%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
+		"Mac: ", 
+		port->eth_addr.addr_bytes[0],
+		port->eth_addr.addr_bytes[1],
+		port->eth_addr.addr_bytes[2],
+		port->eth_addr.addr_bytes[3],
+		port->eth_addr.addr_bytes[4],
+		port->eth_addr.addr_bytes[5],
+		VTY_NEWLINE);
 	printout (vty, "		%16s%s%s", 
 		"Duplex: ", 
 		(port->ul_flags & NB_INTF_FLAGS_FULL_DUPLEX) ? "Full" : "Half",
@@ -155,8 +170,8 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 
 	printout (vty, "		%16s", "Maps: ");
 
-	vector v = port->belong_maps;
-	int actives = vector_active(v);
+	oryx_vector v = port->belong_maps;
+	int actives = vec_active(v);
 	if (!actives) printout (vty, "N/A%s", VTY_NEWLINE);
 	else {
 		int i;
@@ -206,62 +221,47 @@ void port_entry_stat_output (struct port_t *port, struct vty *vty)
 static __oryx_always_inline__
 void do_port_activity_check(struct port_t *p) {
 
-	/** update port activity flags. */
-	/*
-	 * TODO.
-	 */
-	
-	if (p->ul_flags & NB_INTF_FLAGS_LINKUP)
-		return;
-	else {
-		/** remap port if in a specified map. */
-		;
-	}
+	switch (p->type) {
+		
+		case dpdk_port:
+			break;
 
+		case sw_port:
+			break;
+
+		default:
+			break;
+	}
 	return;
 }
 
 static __oryx_always_inline__
-void port_activity_prob_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char **argv)
+void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
+	vlib_port_main_t *vp = &vlib_port_main;	
 	int foreach_element;
-	vector vec;
 	struct port_t *p;
 
-	vec = TABLE(panel_port)->vec;
-
-	vector_foreach_element(vec, foreach_element, p){
+	vector_foreach_element(vp->entry_vec, foreach_element, p){
 		if (likely(p)) {
 			do_port_activity_check(p);
 		}
 	}
 }
 
-void port_activity_tmr_init(void){
-	struct oryx_timer_t *activity_tmr;
-	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-
-	activity_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
-							ul_activity_tmr_setting_flags,
-							port_activity_prob_tmr_handler, 
-							0, NULL, 3000);
-
-	if(likely(activity_tmr))
-		oryx_tmr_start(activity_tmr);
-}
-
 static __oryx_always_inline__
 void do_port_rename (struct port_t *port, struct prefix_t *new_alias)
 {
+	vlib_port_main_t *vp = &vlib_port_main;
 
 	/** Delete old alias from hash table. */
-	oryx_htable_del (TABLE(panel_port)->ht, port_alias(port), strlen (port_alias(port)));
+	oryx_htable_del (vp->htable, port_alias(port), strlen (port_alias(port)));
 	memset (port_alias(port), 0, strlen (port_alias(port)));
 	memcpy (port_alias(port), (char *)new_alias->v, 
 		strlen ((char *)new_alias->v));
 	/** New alias should be rewrite to hash table. */
-	oryx_htable_add (TABLE(panel_port)->ht, port_alias(port), strlen (port_alias(port)));		
+	oryx_htable_add (vp->htable, port_alias(port), strlen (port_alias(port)));		
 }
 
 static __oryx_always_inline__
@@ -316,23 +316,125 @@ void port_entry_config (struct port_t *port, void __oryx_unused__ *vty_, void *a
 	}
 }
 
+static dpdk_device_config_t *id2_devconf(u32 ul_id)
+{
+	dpdk_main_t *dm = &dpdk_main;
+	return dm->conf->dev_confs + (ul_id % dm->conf->device_config_index_by_pci_addr);
+}
+
+void port_entry_setup(struct port_t *entry)
+{
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_device_config_t *dev_conf;
+	int ret;
+	
+	switch (entry->type) {
+		case dpdk_port:
+
+			dev_conf = id2_devconf(entry->ul_id);
+			if (!dev_conf) {
+				printf ("No device config for this port %d\n", entry->ul_id);
+				exit (0);
+			}
+			
+			printf("Initializing port %u... ", (unsigned) entry->ul_id);
+			fflush(stdout);
+			/** */
+			ret = rte_eth_dev_configure (entry->ul_id, 		/** port id */
+								dev_conf->num_rx_queues,	/** nb_rx_q */
+								dev_conf->num_tx_queues,	/** nb_tx_q */
+								&port_conf_default);		/** devconf */
+			if (ret < 0) {
+				rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
+					  ret, (unsigned) entry->ul_id);
+			}
+			/** MAC */
+			rte_eth_macaddr_get(entry->ul_id, &entry->eth_addr);
+
+#if 1
+			printf ("socket ID %d\n", rte_eth_dev_socket_id(entry->ul_id));
+			/* init one RX queue */
+			fflush(stdout);
+			ret = rte_eth_rx_queue_setup (entry->ul_id,		/** port id */
+							0,								/** rx_queue_id */
+							dev_conf->num_rx_desc,			/** nb_rx_desc */
+							rte_eth_dev_socket_id(entry->ul_id),/** socket id */
+							NULL,							/** rx_conf */
+							dm->pktmbuf_pools); /** mempool */
+			if (ret < 0) {
+				rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
+					  ret, (unsigned) entry->ul_id);
+			}
+
+			/* init one TX queue on each port */
+			fflush(stdout);
+			ret = rte_eth_tx_queue_setup(entry->ul_id, 		/** port id */
+							0, 								/** tx_queue_id */
+							dev_conf->num_tx_desc,			/** nb_tx_desc */
+							rte_eth_dev_socket_id(entry->ul_id),/** socket id */
+							NULL);							/** tx_conf */
+			if (ret < 0) {
+				rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
+					ret, (unsigned) entry->ul_id);
+			}
+
+#endif
+
+			/* Start device */
+			ret = rte_eth_dev_start(entry->ul_id);
+			if (ret < 0) {
+				rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
+					  ret, (unsigned) entry->ul_id);
+			}
+			rte_eth_promiscuous_enable(entry->ul_id);
+
+			printf("done: \n");
+	
+			/** LinkS */		
+			struct rte_eth_link link;	/** defined in rte_ethdev.h */
+			rte_eth_link_get_nowait(entry->ul_id, &link);
+			if (link.link_status) {
+				printf("Port %d Link Up - speed %u "
+					"Mbps - %s\n", (uint8_t)entry->ul_id,
+					(unsigned)link.link_speed,
+					(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+					("full-duplex") : ("half-duplex\n"));
+			} else {
+				printf("Port %d Link Down\n",
+					(uint8_t)entry->ul_id);
+			}
+			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+				(unsigned) entry->ul_id,
+				entry->eth_addr.addr_bytes[0],
+				entry->eth_addr.addr_bytes[1],
+				entry->eth_addr.addr_bytes[2],
+				entry->eth_addr.addr_bytes[3],
+				entry->eth_addr.addr_bytes[4],
+				entry->eth_addr.addr_bytes[5]);
+
+			break;
+
+		case sw_port:
+			break;
+
+		default:
+			return;
+	}
+
+	/** make port alias. */
+	mk_alias (entry);
+}
+
 static __oryx_always_inline__
 int port_table_entry_remove (struct port_t *port)
 {
-
-	do_lock (&port_lock);
+	vlib_port_main_t *vp = &vlib_port_main;
 	
-	/**
-	  * Delete port alias from hash table.
-	  */
-	int r = oryx_htable_del(TABLE(panel_port)->ht, port->sc_alias, strlen((const char *)port->sc_alias));
+	do_lock (&port_lock);
+	int r = oryx_htable_del(vp->htable, port->sc_alias, strlen((const char *)port->sc_alias));
 	if (r == 0) {
-		/** 
-		  * Delete port entry from vector
-		  */
-		vector_unset (TABLE(panel_port)->vec, port->ul_id);
+		vec_unset (vp->entry_vec, port->ul_id);
 	}
-
 	do_unlock (&port_lock);
 
 	/** Should you free port here ? */
@@ -343,13 +445,15 @@ int port_table_entry_remove (struct port_t *port)
 static __oryx_always_inline__
 void port_table_entry_lookup_alias (char *alias, struct port_t **p)
 {
+	vlib_port_main_t *vp = &vlib_port_main;
+
 	(*p) = NULL;
 
 	/** ALIASE validate check. */
 	if (unlikely (!alias)) 
 		return;
 
-	void *s = oryx_htable_lookup(TABLE(panel_port)->ht, alias, strlen(alias));
+	void *s = oryx_htable_lookup(vp->htable, alias, strlen(alias));
 
 	if (likely (s)) {
 		/** THIS IS A VERY CRITICAL POINT. */
@@ -362,12 +466,13 @@ void port_table_entry_lookup_alias (char *alias, struct port_t **p)
 static __oryx_always_inline__
 void port_table_entry_lookup_id (u32 id, struct port_t **p)
 {
+	vlib_port_main_t *vp = &vlib_port_main;
 	/** ID validate check. */
 
 	(*p) = NULL;
 
 	do_lock (&port_lock);
-	(*p) = (struct port_t *) vector_lookup_ensure (TABLE(panel_port)->vec, id);
+	(*p) = (struct port_t *) vec_lookup_ensure (vp->entry_vec, id);
 	do_unlock (&port_lock);
 
 }
@@ -375,24 +480,16 @@ void port_table_entry_lookup_id (u32 id, struct port_t **p)
 __oryx_always_extern__
 int port_table_entry_add (struct port_t *port)
 {
+	vlib_port_main_t *vp = &vlib_port_main;
 
 	ASSERT (port);
-		
+
 	do_lock (&port_lock);
-	
-	/**
-	  * Add port->sc_alias to hash table for controlplane fast lookup.
-	  */
-	int r = oryx_htable_add(TABLE(panel_port)->ht, port->sc_alias, strlen((const char *)port->sc_alias));
+	int r = oryx_htable_add(vp->htable, port->sc_alias, strlen((const char *)port->sc_alias));
 	if (r == 0) {
-		/**
-		  * Add port to a vector table for dataplane fast lookup. 
-	  	  */
-		vector_set_index (TABLE(panel_port)->vec, port->ul_id, port);
-
-		port->table = TABLE(panel_port);
+		vec_set_index (vp->entry_vec, port->ul_id, port);
+		//port->table = TABLE(panel_port);
 	}
-
 	do_unlock (&port_lock);
 
 	return r;
@@ -440,7 +537,7 @@ atomic_t n_intf_elements = ATOMIC_INIT(0);
 
 #define PRINT_SUMMARY	\
 	printout (vty, "matched %d element(s), total %d element(s)%s", \
-		atomic_read(&n_intf_elements), (int)vector_count(TABLE(panel_port)->vec), VTY_NEWLINE);
+		atomic_read(&n_intf_elements), (int)vec_count(vp->entry_vec), VTY_NEWLINE);
 
 DEFUN(show_interfacce,
       show_interface_cmd,
@@ -451,9 +548,9 @@ DEFUN(show_interfacce,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	printout (vty, "Trying to display %s%d%s elements ...%s", 
-		draw_color(COLOR_RED), vector_active(TABLE(panel_port)->vec), draw_color(COLOR_FIN), 
+		draw_color(COLOR_RED), vec_active(vp->entry_vec), draw_color(COLOR_FIN), 
 		VTY_NEWLINE);
 	
 	printout (vty, "%16s%s", "_______________________________________________", VTY_NEWLINE);
@@ -482,9 +579,9 @@ DEFUN(show_interfacce_stats,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	printout (vty, "Trying to display %d elements ...%s", 
-			vector_active(TABLE(panel_port)->vec), VTY_NEWLINE);
+			vec_active(vp->entry_vec), VTY_NEWLINE);
 	printout (vty, "%15s%20s%20s%s", "Port", "Bytes(I/O)", "Packets(I/O)", VTY_NEWLINE);
 	
 	if (argc == 0) {
@@ -509,7 +606,7 @@ DEFUN(interface_alias,
 	  KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_ALIAS,
 		.v = (char *)argv[1],
@@ -536,7 +633,7 @@ DEFUN(interface_mtu,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_MTU,
 		.v = (char *)argv[1],
@@ -565,7 +662,7 @@ DEFUN(interface_looback,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_LOOPBACK,
 		.v = (char *)argv[1],
@@ -592,7 +689,7 @@ DEFUN(interface_stats_clear,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-
+	vlib_port_main_t *vp = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_CLEAR_STATS,
 		.v = (char *)argv[1],
@@ -609,51 +706,21 @@ DEFUN(interface_stats_clear,
 
 #endif
 
-/** A random Pattern generator.*/
-static __oryx_always_inline__
-void vlan_id_generate (struct port_t *port)
-{
-#if 0	
-	/** VLAN already exist ? */
-	do {
-		port->ul_vid = random() % 4095;
-	} while (vector_lookup_ensure (panel_intfs_vlan_table, entry->ul_vid));
-	//vector_set_index (panel_intfs_vlan_table, entry->ul_vid, entry);
-#else
-	port = port;
-#endif
-
-}
-
-
-void port_init(void)
+void port_init (vlib_main_t *vm)
 {
 
-	/**
-	 * Init PORT hash table, NAME -> PORT_ID.
-	 */
-	struct oryx_htable_t *port_hash_table = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	vp->link_detect_tmr_interval = 3;
+	vp->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			port_hval, port_cmp, port_free, 0);
-	printf ("[port_hash_table] htable init ");
+	vp->entry_vec = vector_init (PANEL_N_PORTS);
 	
-	if (port_hash_table == NULL) {
-		printf ("error!\n");
-		goto finish;
+	if (vp->htable == NULL || vp->entry_vec == NULL) {
+		printf ("vlib port main init error!\n");
+		exit(0);
 	}
-	printf ("okay\n");
-	
-       /**
-	 * Init VLAN table, VLAN -> INTERFACE INSTANCE.
-	 */
-	panel_intfs_vlan_table = vector_init (PANEL_N_PORTS);
-
-       /**
-	 * Init INTERFACE table, INTERFACE ID -> INTERFACE INSTANCE.
-	 */	
-	vector port_vector_table = vector_init (PANEL_N_PORTS);
-
-	INIT_TABLE(panel_port, port_vector_table, port_hash_table);
-		
+	    
 #if defined(HAVE_QUAGGA)
 	install_element (CONFIG_NODE, &show_interface_cmd);
 	install_element (CONFIG_NODE, &show_interfacce_stats_cmd);
@@ -663,103 +730,17 @@ void port_init(void)
 	install_element (CONFIG_NODE, &interface_stats_clear_cmd);
 #endif
 
-	port_activity_tmr_init();
+	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
+
+	vp->link_detect_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
+							ul_activity_tmr_setting_flags,
+							port_activity_prob_tmr_handler, 
+							0, NULL, vp->link_detect_tmr_interval);
+
+	if(likely(vp->link_detect_tmr))
+		oryx_tmr_start(vp->link_detect_tmr);
 
 
-#ifndef HAVE_SELF_TEST
-#define HAVE_SELF_TEST
-#endif
-
-#if defined(HAVE_SELF_TEST)
-	/** P O R T   I N I T  */
-	int n_intfs = PANEL_N_PORTS + 1;
-	u32 id;
-	struct port_t *entry;
-	
-	while (n_intfs -- > 0) {		
-		
-		id = n_intfs;
-
-		/** Interface entry already exist ? */
-		struct prefix_t lp = {
-			.cmd = LOOKUP_ID,
-			.v = (void *)&id,
-			.s = __oryx_unused_val__,
-		};
-
-		port_table_entry_lookup (&lp, &entry);
-		if (entry != NULL) continue;
-
-		port_entry_new (&entry, id);
-		if (!entry) exit (0);
-
-		vlan_id_generate (entry);
-
-		if (n_intfs % 4) {
-			entry->ul_flags |= NB_INTF_FLAGS_FORCEDUP;
-		}
-
-		if (n_intfs % 1) {
-			entry->ul_flags |= NB_INTF_FLAGS_FULL_DUPLEX;
-		}
-		
-		if (n_intfs % 2) {
-			entry->ul_flags |= NB_INTF_FLAGS_LINKUP;
-		}
-
-		if (n_intfs % 3) {
-			entry->ul_flags |= NB_INTF_FLAGS_NETWORK;
-		}
-		
-		port_table_entry_add (entry);
-	}
-
-#if 1
-	struct port_t *p1, *p2;
-
-	struct prefix_t lp = {
-		.cmd = LOOKUP_ALIAS,
-		.v = "G0/1",
-		.s = strlen ("G0/1"),
-	};
-	/** Find port which named "G0/1" */
-	port_table_entry_lookup (&lp, &p1);
-	if (!p1) goto finish;
-
-	lp.cmd = LOOKUP_ID;
-	lp.v = (void *)&p1->ul_id;
-	port_table_entry_lookup (&lp, &p2);
-	if (!p2) goto finish;
-
-	if (p1 != p2) goto finish;
-	printf ("Lookup PORT (%p, %p) success\n", p1, p2);
-
-	sleep (1);
-
-	struct prefix_t lp0 = {
-		.cmd = LOOKUP_ALIAS,
-		.s = strlen ("G0/1"),
-		.v = "G0/1",
-	};
-	port_table_entry_lookup (&lp0, &p1);
-	
-	id = 1;
-	struct prefix_t lp1 = {
-		.cmd = LOOKUP_ID,
-		.s = strlen ("1"),
-		.v = (void *)&id,
-	};
-	port_table_entry_lookup (&lp1, &p1);
-	if (!p1) {
-		printf ("------ Lookup PORT (%s) failed\n", (char *)lp1.v);
-	}
-#endif
-#endif
-
-finish:
-
-	return;
-	
 }
 
 

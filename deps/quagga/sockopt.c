@@ -595,7 +595,7 @@ sockopt_tcp_signature (int sock, union sockunion *su, const char *password)
   
   return setsockopt (sock, IPPROTO_TCP, TCP_MD5_AUTH, &cmd, sizeof cmd);
   
-#elif HAVE_DECL_TCP_MD5SIG
+#elif defined HAVE_DECL_TCP_MD5SIG
   int ret;
 #ifndef GNU_LINUX
   /*

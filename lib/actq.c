@@ -220,7 +220,7 @@ oryx_status_t actq_inner_write (struct oryx_actq_t *actq,
 	}
 
 	tracker ("queue %s is not writeable.\n", actq->sc_alias);
-	
+	return 0;
 }
 
 oryx_status_t actq_inner_read (struct oryx_actq_t *actq,

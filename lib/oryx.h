@@ -179,7 +179,7 @@
 #define __oryx_always_extern__		__attribute__((visibility("default")))
 #define	__oryx_always_inline__		__attribute__((always_inline)) inline
 #define	__oryx_unused__				__attribute__((unused))
-#define __oryx_noreturn__(fn)		__attribute__((noreturn))
+#define __oryx_noreturn__(fn)		__attribute__((noreturn))fn
 //#define __oryx_format_func__(f,a)	__attribute__((format(__NSString__, f, a)))
 #else
 // TODO: dllexport defines for windows
@@ -193,12 +193,14 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
+#if 0
 #ifndef BUG_ON
 #define BUG_ON(expr)	assert(!(expr))
 #endif
 
 #ifndef WARN_ON
 #define WARN_ON(expr)	assert(!(expr))
+#endif
 #endif
 
 /** std variable. */

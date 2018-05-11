@@ -28,19 +28,35 @@
 #include <rte_version.h>
 #include <rte_ethdev.h>
 
+/** These two macro means a frame. */
+#define ET1500_BUFFER_PRE_DATA_SIZE	RTE_PKTMBUF_HEADROOM		//(128)
+#define ET1500_BUFFER_DATA_SIZE		RTE_MBUF_DEFAULT_DATAROOM	//(2048)
+
+/** 
+ * default macros and can be overwrite by settings.yaml. 
+ */
+#define	ET1500_DPDK_DEFAULT_BUFFER_SIZE	\
+	(ET1500_BUFFER_DATA_SIZE + ET1500_BUFFER_PRE_DATA_SIZE)
+
+#define ET1500_DPDK_DEFAULT_NB_MBUF   (16 << 10)
+#define ET1500_DPDK_DEFAULT_CACHE_SIZE	256
+
+/** DO not change DEFAULT_HUGE_DIR. see dpdk-mount-hugedir.sh in conf/ */
+#define ET1500_DPDK_DEFAULT_HUGE_DIR "/mnt/huge"
+#define ET1500_DPDK_DEFAULT_RUN_DIR "/run/et1500"
+
+#define ET1500_DPDK_STATS_POLL_INTERVAL      (10.0)
+#define ET1500_DPDK_MIN_STATS_POLL_INTERVAL  (0.001)	/* 1msec */
+#define ET1500_DPDK_LINK_POLL_INTERVAL       (3.0)
+#define ET1500_DPDK_MIN_LINK_POLL_INTERVAL   (0.001)	/* 1msec */
+
 #define HAVE_DPDK_SCRIPT_MOUNT	1
 #define HAVE_DPDK_SCRIPT_DEVBIND	1
 #define DPDK_SCRIPT_MOUNT	"dpdk-mount-hugedir.sh"
 #define DPDK_SCRIPT_DEVBIND	"dpdk-devbind-uio.sh"
 
 #define MAX_PORTS RTE_MAX_ETHPORTS
-
-/** DO not change DEFAULT_HUGE_DIR. see dpdk-mount-hugedir.sh in conf/ */
-#define DEFAULT_HUGE_DIR "/mnt/huge"
-#define ET1500_RUN_DIR "/run/et1500"
-
 #define _PACKED(x)	x __attribute__ ((packed))
-#define NB_MBUF   (16<<10)
 
 typedef union {
 	struct {
@@ -134,6 +150,9 @@ typedef struct
 
 typedef struct
 {
+	/** how to match with panel ID ??? */
+	u32 global_id;
+	
 	u8 enable;
 	vlib_pci_addr_t pci_addr;
 	u8 is_blacklisted;
@@ -165,6 +184,9 @@ typedef struct
 	u32 coremask;
 	u32 nchannels;
 	u32 num_mbufs;
+	u32 cache_size;
+	u32 priv_size;
+	u32 data_room_size;
 
 	/*
 	* format interface names ala xxxEthernet%d/%d/%d instead of
@@ -175,20 +197,14 @@ typedef struct
 	/* per-device config */
 	dpdk_device_config_t default_devconf;
 	dpdk_device_config_t *dev_confs;
-	uword device_config_index_by_pci_addr;
+	int device_config_index_by_pci_addr;
 
 } dpdk_config_main_t;
-dpdk_config_main_t dpdk_config_main;
 
+extern dpdk_config_main_t dpdk_config_main;
 
 typedef struct
 {
-#define DPDK_STATS_POLL_INTERVAL      (10.0)
-#define DPDK_MIN_STATS_POLL_INTERVAL  (0.001)	/* 1msec */
-	
-#define DPDK_LINK_POLL_INTERVAL       (3.0)
-#define DPDK_MIN_LINK_POLL_INTERVAL   (0.001)	/* 1msec */
-
 	/* Devices */
 	//dpdk_device_t *devices;
 	//dpdk_device_and_queue_t **devices_by_hqos_cpu;
@@ -201,13 +217,18 @@ typedef struct
 
 	dpdk_config_main_t *conf;
 	/* mempool */
-	struct rte_mempool **pktmbuf_pools;
+	struct rte_mempool *pktmbuf_pools;
 
 	/* API message ID base */
 	u16 msg_id_base;
 
+	u32 n_lcores;
+	u32 master_lcore;
+
 	vlib_main_t *vlib_main;
 } dpdk_main_t;
+
+extern dpdk_main_t dpdk_main;
 
 extern void dpdk_init (vlib_main_t * vm);
 

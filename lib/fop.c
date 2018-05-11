@@ -256,13 +256,8 @@ int tm_format(uint64_t ts, const char *tm_form, char *date, size_t len)
 __oryx_always_extern__
 void do_system(const char *cmd)
 {
-    int xret = -1;
-
     if (likely(cmd)) {
-	    xret = system(cmd);
-	    if (likely(xret < 0)){
-	        ;//oryx_log_error(ERRNO_FATAL, "%s", oryx_safe_strerror(errno));
-	    }
+	    __oryx_noreturn__(system(cmd));
     }
 }
 

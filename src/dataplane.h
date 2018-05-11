@@ -1,6 +1,9 @@
 #ifndef __DATAPLANE_H__
 #define __DATAPLANE_H__
 
+/** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
+#define ET1500_BUFFER_HDR_SIZE  (sizeof(struct Packet_) - ET1500_BUFFER_PRE_DATA_SIZE)
+
 #if !defined(HAVE_SURICATA)
 /** libpcap shows us the way to linktype codes
  * \todo we need more & maybe put them in a separate file? */

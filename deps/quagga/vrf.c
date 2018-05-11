@@ -623,7 +623,10 @@ static struct cmd_node vrf_node =
 {
   VRF_NODE,
   "",       /* VRF node has no interface. */
-  1
+  1,
+  NULL,
+  NULL,
+  NULL
 };
 
 /* VRF configuration write function. */

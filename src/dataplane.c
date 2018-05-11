@@ -1,160 +1,6 @@
 #include "oryx.h"
-
-#if defined(HAVE_QUAGGA)
-#include "zebra.h"
-#include "memory.h"
-#include "log.h"
-#include "version.h"
-#include "vector.h"
-#include "vty.h"
-#include "command.h"
-#include "prefix.h"
-
-#endif
-
 #include "et1500.h"
-
 #include "dataplane.h"
-
-#if defined(HAVE_SURICATA)
-#include "suricata-common.h"
-#include "config.h"
-
-#if HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#if HAVE_SIGNAL_H
-#include <signal.h>
-#endif
-
-#ifdef HAVE_NSS
-#include <prinit.h>
-#include <nss.h>
-#endif
-
-#include "suricata.h"
-#include "decode.h"
-#include "detect.h"
-#include "packet-queue.h"
-#include "threads.h"
-#include "threadvars.h"
-#include "flow-worker.h"
-
-#include "util-atomic.h"
-#include "util-spm.h"
-#include "util-cpu.h"
-#include "util-action.h"
-#include "util-pidfile.h"
-#include "util-ioctl.h"
-#include "util-device.h"
-#include "util-misc.h"
-#include "util-running-modes.h"
-
-#include "tm-queuehandlers.h"
-#include "tm-queues.h"
-#include "tm-threads.h"
-
-#include "tmqh-flow.h"
-
-#include "conf.h"
-#include "conf-yaml-loader.h"
-
-#include "source-nfq.h"
-#include "source-nfq-prototypes.h"
-
-#include "source-nflog.h"
-
-#include "source-ipfw.h"
-
-#include "source-pcap.h"
-#include "source-pcap-file.h"
-
-#include "source-pfring.h"
-
-#include "source-erf-file.h"
-#include "source-erf-dag.h"
-#include "source-napatech.h"
-
-#include "source-af-packet.h"
-#include "source-netmap.h"
-#include "source-mpipe.h"
-
-#include "respond-reject.h"
-
-#include "flow.h"
-#include "flow-timeout.h"
-#include "flow-manager.h"
-#include "flow-var.h"
-#include "flow-bit.h"
-#include "pkt-var.h"
-#include "host-bit.h"
-
-#include "ippair.h"
-#include "ippair-bit.h"
-
-#include "host.h"
-#include "unix-manager.h"
-
-#include "util-decode-der.h"
-#include "util-radix-tree.h"
-#include "util-host-os-info.h"
-#include "util-cidr.h"
-#include "util-unittest.h"
-#include "util-unittest-helper.h"
-#include "util-time.h"
-#include "util-rule-vars.h"
-#include "util-classification-config.h"
-#include "util-threshold-config.h"
-#include "util-reference-config.h"
-#include "util-profiling.h"
-#include "util-magic.h"
-#include "util-signal.h"
-#include "util-coredump-config.h"
-
-#include "defrag.h"
-
-#include "runmodes.h"
-#include "runmode-unittests.h"
-
-#include "util-cuda.h"
-#include "util-decode-asn1.h"
-#include "util-debug.h"
-#include "util-error.h"
-#include "util-daemon.h"
-#include "reputation.h"
-
-#include "output.h"
-
-#include "util-privs.h"
-
-#include "tmqh-packetpool.h"
-
-#include "util-proto-name.h"
-#ifdef __SC_CUDA_SUPPORT__
-#include "util-cuda-buffer.h"
-#include "util-mpm-ac.h"
-#endif
-#include "util-mpm-hs.h"
-#include "util-storage.h"
-#include "host-storage.h"
-
-#include "util-lua.h"
-#include "log-filestore.h"
-
-#ifdef HAVE_RUST
-#include "rust.h"
-#include "rust-core-gen.h"
-#endif
-
-#include "decode-ethernet.h"
-#include "util-validate.h"
-#include "exflow.h"
-
-#include "util-unittest.h"
-#include "util-unittest-helper.h"
-
-#endif
 
 #define DATAPLANE_DEBUG	0
 #define INIT_PQ(pq) (pq = pq)
@@ -699,18 +545,6 @@ static struct oryx_task_t netdev_task =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-static TmEcode LogVersion(void)
-{
-#ifdef REVISION
-    SCLogNotice("This is %s version %s (rev %s)", PROG_NAME, PROG_VER, xstr(REVISION));
-#elif defined RELEASE
-    SCLogNotice("This is %s version %s RELEASE", PROG_NAME, PROG_VER);
-#else
-    SCLogNotice("This is %s version %s", PROG_NAME, PROG_VER);
-#endif
-    return TM_ECODE_OK;
-}
-
 static void netdev_init_private(struct netdev_t *netdev)
 {
 	ThreadVars *tv;
@@ -800,44 +634,12 @@ void perf_tmr_init()
 	
 	perf_tmr = oryx_tmr_create (1, "perf_tmr", ul_perf_tmr_setting_flags,
 											  perf_tmr_handler, 0, (char **)&netdev, 3000);
-
 	oryx_tmr_start(perf_tmr);
 }
 
 void dataplane_init (vlib_main_t *vm)
 {
-	SCLogInitLogModule(NULL);
-	ParseSizeInit();
-
-	GlobalsInitPreConfig();
-	SCLogLoadConfig(0, 0);
-
 	dpdk_init(vm);
-	
-    /* Since our config is now loaded we can finish configurating the
-     * logging module. */
-    SCLogLoadConfig(0, 1);
-	/** logging module. */
-	LogVersion();
-	UtilCpuPrintSummary();
-
-	
-#if defined(HAVE_STATS_COUNTERS)
-	StatsInit();
-#endif
-    DefragInit();
-    FlowInitConfig(FLOW_QUIET);
-    IPPairInitConfig(FLOW_QUIET);
-    LogFilestoreInitConfig();
-
-	//read_settings();
-
-	/** Pre-RUN POST */
-	RunModeInitializeOutputs();
-	
-#if defined(HAVE_STATS_COUNTERS)
-    StatsSetupPostConfig();
-#endif
 
 	/** init netdev private zoon. */
 	netdev_init_private(&netdev);
@@ -846,10 +648,4 @@ void dataplane_init (vlib_main_t *vm)
 	oryx_task_registry(&netdev_task);
 }
 
-static void dataplane_close(void)
-{
-
-	ParseSizeDeinit();
-	//netdev_close();
-}
 

@@ -64,7 +64,8 @@ CFLAGS_SRC += -Wundef -Wwrite-strings
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
+		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA\
+		  -DHAVE_STATS_COUNTERS
 CFLAGS += -I$(SRCDIR)/../lib -I$(SRCDIR)/../deps/quagga -I$(SRCDIR)/../deps/suricata/src
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
