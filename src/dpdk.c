@@ -2,6 +2,8 @@
 #include "et1500.h"
 #include "dpdk.h"
 
+extern dpdk_main_t dpdk_main;
+
 /* These args appear by themselves */
 #define foreach_eal_double_hyphen_predicate_arg \
 _(no-shconf)                                    \
@@ -28,8 +30,7 @@ _(vdev)
 char *eal_init_argv[1024] = {0};
 int eal_init_args = 0;
 int eal_args_offset = 0;
-dpdk_main_t dpdk_main;
-dpdk_config_main_t dpdk_config_main;
+
 vlib_pci_main_t pci_main;
 
 static int
@@ -277,31 +278,33 @@ dpdk_eal_args_format(const char *argv)
 }
 
 /**
- * DPDK EAL init args: -c 0xf -n 4 --huge-dir /run/et1500/hugepages --file-prefix et1500 -w 0000:05:00.2 -w 0000:05:00.3 --master-lcore 0 --socket-mem 256
+ * DPDK simple EAL init args : $prgname -c 0x0c -n 2 -- -p 3 -q 1 CT0
  */
 static void
 dpdk_format_eal_args (dpdk_main_t *dm)
 {
 	int i;
+	vlib_main_t *vm = dm->vlib_main;
+	dpdk_config_main_t *conf = dm->conf;
 	char argv_buf[128] = {0};
 	const char *socket_mem = "256";
 	const char *file_prefix = "et1500";
-	dpdk_config_main_t *conf = &dpdk_config_main;
-
-	/** app it's self */
+	const char *prgname = "et1500";
+	
+	/** ARGS: < APPNAME >  */
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", "et1500");
+	sprintf (argv_buf, "%s", prgname);
 	dpdk_eal_args_format(argv_buf);
 
-	/** -c $COREMASK */
+	/** ARGS: < -c $COREMASK > */
 	memset(argv_buf, 0, 128);
 	sprintf (argv_buf, "-c");
 	dpdk_eal_args_format(argv_buf);
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "0x%x", conf->coremask);
+	sprintf (argv_buf, "0x%x", conf->coremask);	/** [core2:p0] [core3:p1] */
 	dpdk_eal_args_format(argv_buf);
 
-	/** -n $NCHANNELS */
+	/** ARGS: < -n $NCHANNELS >  */
 	memset(argv_buf, 0, 128);
 	sprintf (argv_buf, "-n");
 	dpdk_eal_args_format(argv_buf);
@@ -309,67 +312,34 @@ dpdk_format_eal_args (dpdk_main_t *dm)
 	sprintf (argv_buf, "%d", conf->nchannels);
 	dpdk_eal_args_format(argv_buf);
 
-	/** --huge-dir $HUGEDIR */
+	/** ARGS: < -- > */
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--huge-dir");
-	dpdk_eal_args_format(argv_buf);
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", ET1500_DPDK_DEFAULT_HUGE_DIR);
+	sprintf (argv_buf, "--");
 	dpdk_eal_args_format(argv_buf);
 
-
-	/** --file-prefix $FILEPREFIX */
+	/** ARGS: < -p $PORTMASK > */
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--file-prefix");
+	sprintf (argv_buf, "-p");
 	dpdk_eal_args_format(argv_buf);
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", file_prefix);
+	sprintf (argv_buf, "0x%x", conf->portmask);	/** Port0 Port1 */
 	dpdk_eal_args_format(argv_buf);
 
-	/** PCI device */
-	for (i = 0; i < (int)conf->device_config_index_by_pci_addr; i ++) {
-		dpdk_device_config_t *devconf = conf->dev_confs + i;
-		devconf = conf->dev_confs + i;
-
-		if(!devconf->enable)
-			continue;
-		
-		/** -w $PCIADDR */
-		memset(argv_buf, 0, 128);
-		sprintf (argv_buf, "-w");
-		dpdk_eal_args_format(argv_buf);
-		memset(argv_buf, 0, 128);
-		format_pci_addr(argv_buf, &devconf->pci_addr);
-		dpdk_eal_args_format(argv_buf);
-	}
-	
-	/** --master-lcore $MASTERLCORE */
+	/** ARGS: < -q $QUEUE_PER_LOCRE > */
 	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--master-lcore");
+	sprintf (argv_buf, "-q");
 	dpdk_eal_args_format(argv_buf);
-
 	memset(argv_buf, 0, 128);
-	dpdk_eal_args_format(argv_buf);
-
-
-	/** --socket-mem $SOCKETMEM */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--socket-mem");
-	dpdk_eal_args_format(argv_buf);
-
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", socket_mem);
+	sprintf (argv_buf, "%d", conf->n_rx_q_per_lcore);	/** nx_queues_per_lcore */
 	dpdk_eal_args_format(argv_buf);
 
 	char eal_args_format_buffer[1024] = {0};
 	dpdk_eal_args_2string(dm, eal_args_format_buffer);
+
+	vm->argc = eal_init_args;	
+	vm->argv = eal_init_argv;
+
 	SCLogNotice("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
-#if 0
-	/** never free eal args. */
-	for (i = 0; i < eal_init_args; i ++) {
-		kfree(eal_init_argv[i]);
-	}
-#endif
 }
 
 static void
@@ -468,13 +438,31 @@ static void
 dpdk_config(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
-	dpdk_config_main_t *conf = &dpdk_config_main;
-	/* Check if we have memcap and hash_size defined at config */
-	const char *conf_val;
-
+	dpdk_config_main_t *conf = dm->conf;
 	dm->vlib_main = vm;
 
 	SCLogNotice ("Entering %s", __func__);
+
+	dpdk_device_config(conf);
+	dpdk_mount_hugedir(conf);
+	dpdk_bind_devices_to_uio(conf);
+	dpdk_format_eal_args(dm);
+
+	init_dpdk_env(dm);
+}
+
+void dpdk_init (vlib_main_t * vm)
+{
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_config_main_t *conf = dm->conf;
+	const char *conf_val;
+	
+	SCLogNotice ("Entering %s", __func__);
+	
+	conf->num_mbufs = conf->num_mbufs ? conf->num_mbufs : ET1500_DPDK_DEFAULT_NB_MBUF;
+	conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * PANEL_N_PORTS,
+									MPF_CLR, __oryx_unused_val__);
+	conf->priv_size = vm->extra_priv_size;
 
 	/** set config values for dpdk-config, prealloc and hash_size */
 	if (ConfGet("dpdk-config.uio-driver", (char **)&conf->uio_driver_name) == 1) {
@@ -493,52 +481,28 @@ dpdk_config(vlib_main_t *vm)
 	        exit(EXIT_FAILURE);
 	    }
 	}
-    
-	dpdk_device_config(conf);
-	dpdk_mount_hugedir(conf);
-	dpdk_bind_devices_to_uio(conf);
-	dpdk_format_eal_args(dm);
-  
-  	/* Init runtime enviornment */
-	if (rte_eal_init(vm->argc, vm->argv) < 0) {
-		rte_exit(EXIT_FAILURE, "rte_eal_init(): Failed");
-	}
-	vm->ul_flags |= VLIB_DPDK_EAL_INITIALIZED;
-	
-	/* Dump the physical memory layout prior to creating the mbuf_pool */
-	fprintf (stdout, "DPDK physical memory layout:\n");
-	rte_dump_physmem_layout (stdout);
 
-	/* create the mbuf pool */
-	dm->pktmbuf_pools = rte_pktmbuf_pool_create((const char *)"et1500_mbuf_pool", /* pool name */
-									conf->num_mbufs,	/* number of mbufs */
-									conf->cache_size, 	/* cache size */
-									conf->priv_size, 	/* priv size */
-									conf->data_room_size, /* dataroom size */
-									rte_socket_id());	/* cpu socket */
-	if (dm->pktmbuf_pools == NULL) {
-		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
-	}
-	vm->ul_flags |= VLIB_DPDK_MEMPOOL_INITIALIZED;
-	
-}
 
-void dpdk_init (vlib_main_t * vm)
-{
-	dpdk_main_t *dm = &dpdk_main;
+	if (RTE_ALIGN(dm->conf->priv_size, RTE_MBUF_PRIV_ALIGN) != dm->conf->priv_size) {
+		SCLogError (ERRNO_INVALID_ARGU, "ERROR -->>>> mbuf priv_size=%u is not aligned\n",
+			dm->conf->priv_size);
+		exit (0);
+	}
 	
-	dm->conf = &dpdk_config_main;
-	dm->conf->nchannels = 4;
-	dm->conf->coremask = 0xf;
-	dm->conf->num_mbufs = dm->conf->num_mbufs ? dm->conf->num_mbufs : ET1500_DPDK_DEFAULT_NB_MBUF;
-	dm->conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * PANEL_N_PORTS, MPF_CLR, __oryx_unused_val__);
-	dm->conf->uio_driver_name = (u8 *)"uio_pci_generic";
-	dm->conf->cache_size = ET1500_DPDK_DEFAULT_CACHE_SIZE;
-	dm->conf->data_room_size = ET1500_DPDK_DEFAULT_BUFFER_SIZE;
-	dm->conf->priv_size = 0;//vm->extra_priv_size;
-	dm->stat_poll_interval = ET1500_DPDK_STATS_POLL_INTERVAL;
-	dm->link_state_poll_interval = ET1500_DPDK_LINK_POLL_INTERVAL;
-		
+	SCLogNotice ("================ DPDK INIT ARGS =================");
+	SCLogNotice ("%20s%15x", "core_mask", conf->coremask);
+	SCLogNotice ("%20s%15x", "port_mask", conf->portmask);
+	SCLogNotice ("%20s%15d", "num_mbufs", conf->num_mbufs);
+	SCLogNotice ("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
+	SCLogNotice ("%20s%15d", "cachesize", conf->cache_size);
+	SCLogNotice ("%20s%15d", "priv_size", conf->priv_size);
+	SCLogNotice ("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
+	SCLogNotice ("%20s%15d", "packetsiz", sizeof(struct Packet_));
+	SCLogNotice ("%20s%15d", "bufferhdr", ET1500_BUFFER_HDR_SIZE);
+	SCLogNotice ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(ET1500_BUFFER_HDR_SIZE));
+	SCLogNotice ("%20s%15d", "datarmsiz", conf->data_room_size);
+	SCLogNotice ("%20s%15d", "socket_id", rte_socket_id());
+
 	dpdk_config(vm);
 }
 

@@ -32,6 +32,9 @@
 #define ET1500_BUFFER_PRE_DATA_SIZE	RTE_PKTMBUF_HEADROOM		//(128)
 #define ET1500_BUFFER_DATA_SIZE		RTE_MBUF_DEFAULT_DATAROOM	//(2048)
 
+/** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
+#define ET1500_BUFFER_HDR_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)) - ET1500_BUFFER_PRE_DATA_SIZE)
+
 /** 
  * default macros and can be overwrite by settings.yaml. 
  */
@@ -57,6 +60,14 @@
 
 #define MAX_PORTS RTE_MAX_ETHPORTS
 #define _PACKED(x)	x __attribute__ ((packed))
+
+#define MAX_RX_QUEUE_PER_LCORE 16
+#define MAX_TX_QUEUE_PER_PORT 16
+struct lcore_queue_conf {
+	unsigned n_rx_port;
+	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
+} __rte_cache_aligned;
+
 
 typedef union {
 	struct {
@@ -171,22 +182,24 @@ typedef struct
 
 typedef struct
 {
-	/* Config stuff */
-	u8 **eal_init_args;
-	u8 *eal_init_args_str;
-	u8 *uio_driver_name;
+	char *uio_driver_name;
 	u8 no_multi_seg;
 	u8 enable_tcp_udp_checksum;
 
 	/* Required config parameters */
 	u8 coremask_set_manually;
 	u8 nchannels_set_manually;
+
+	int device_config_index_by_pci_addr;
+
 	u32 coremask;
+	u32 portmask;
 	u32 nchannels;
 	u32 num_mbufs;
 	u32 cache_size;
 	u32 priv_size;
 	u32 data_room_size;
+	u32 n_rx_q_per_lcore;
 
 	/*
 	* format interface names ala xxxEthernet%d/%d/%d instead of
@@ -197,17 +210,11 @@ typedef struct
 	/* per-device config */
 	dpdk_device_config_t default_devconf;
 	dpdk_device_config_t *dev_confs;
-	int device_config_index_by_pci_addr;
 
 } dpdk_config_main_t;
 
-extern dpdk_config_main_t dpdk_config_main;
-
 typedef struct
 {
-	/* Devices */
-	//dpdk_device_t *devices;
-	//dpdk_device_and_queue_t **devices_by_hqos_cpu;
 	/* control interval of dpdk link state and stat polling */
 	f64 link_state_poll_interval;
 	f64 stat_poll_interval;
@@ -219,12 +226,14 @@ typedef struct
 	/* mempool */
 	struct rte_mempool *pktmbuf_pools;
 
-	/* API message ID base */
-	u16 msg_id_base;
-
 	u32 n_lcores;
+	u32 n_ports;
 	u32 master_lcore;
 
+	int (*dp_fn)(void *);
+	volatile bool force_quit;
+	
+	struct lcore_queue_conf *lqc;
 	vlib_main_t *vlib_main;
 } dpdk_main_t;
 

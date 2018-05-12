@@ -5,12 +5,7 @@
 #define DATAPLANE_DEBUG	0
 #define INIT_PQ(pq) (pq = pq)
 
-static LIST_HEAD_DECLARE(packet_list);
-static INIT_MUTEX(packet_list_lock);
-
-/** in us. */
-u64 longest_cost = 0;
-u64 shortest_cost = 10000000;
+extern vlib_main_t vlib_main;
 
 struct suricata_private_t {
 	ThreadVars tv;
@@ -22,6 +17,24 @@ struct _3rd_pktvar_t {
 	struct port_t from;
 	struct list_head node;
 	void *packet;	/** packet this pktvar belongs to. */
+};
+
+static LIST_HEAD_DECLARE(packet_list);
+static INIT_MUTEX(packet_list_lock);
+
+/** in us. */
+u64 longest_cost = 0;
+u64 shortest_cost = 10000000;
+
+static dpdk_config_main_t dpdk_config_main = {
+	.nchannels = 2,		/** */		
+	.coremask = 0x0f,	/** 4 lcores. */
+	.portmask = 0x03,	/** 2 xe ports */
+	.n_rx_q_per_lcore = 1,
+	.uio_driver_name = (char *)"uio_pci_generic",
+	.num_mbufs = ET1500_DPDK_DEFAULT_NB_MBUF,
+	.cache_size = ET1500_DPDK_DEFAULT_CACHE_SIZE,
+	.data_room_size = ET1500_DPDK_DEFAULT_BUFFER_SIZE
 };
 
 static int
@@ -345,74 +358,6 @@ static void packet_proc (struct port_t *port, Packet *packet)
 	}
 }
 
-static void *PacketCosummer (void __oryx_unused__ *args)
-{
-
-	Packet *packet, *p = NULL;
-	struct _3rd_pktvar_t *pktvar, *pv = NULL;
-	struct port_t *port;
-	
-	FOREVER {
-		/** Recv from internal queue */
-		oryx_thread_mutex_lock(&packet_list_lock);
-		list_for_each_entry_safe(pktvar, pv, &packet_list, node) {
-
-			if (unlikely (!pktvar)) {
-				printf ("\n");
-				continue;
-			}
-			/** delete from list. */
-			list_del (&pktvar->node);
-
-			/** fetch packet. */
-			packet = pktvar->packet;
-			port = &pktvar->from;
-		#if 0
-			struct prefix_t lp = {
-				.cmd = LOOKUP_ID,
-				.v = (void *)&packet->from,
-				.s = __oryx_unused_val__,
-			};
-			
-			port_table_entry_lookup (&lp, &port);
-			if(unlikely (!port)) {
-				goto end_this_packet;
-			}
-		#endif
-			packet_proc (port, packet);
-			
-			//UTHFreePacket (packet);
-			packet = packet;
-		}
-		oryx_thread_mutex_unlock(&packet_list_lock);
-	}
-
-	oryx_task_deregistry_id (pthread_self());
-	return NULL;
-}
-
-struct oryx_task_t Producertask =
-{
-    .module = THIS,
-    .sc_alias = "PacketProducer Task",
-    .ul_lcore = INVALID_CORE,
-    .ul_prio = KERNEL_SCHED,
-    .argc = 0,
-    .argv = NULL,
-    .fn_handler = PacketProducer,
-};
-
-struct oryx_task_t Cosummertask =
-{
-    .module = THIS,
-    .sc_alias = "PacketCosummer Task",
-    .ul_lcore = INVALID_CORE,
-    .ul_prio = KERNEL_SCHED,
-	.argc = 0,
-	.argv = NULL,
-    .fn_handler = PacketCosummer,
-};
-
 /** \brief handle flow for packet
  *
  *  Handle flow creation/lookup
@@ -545,36 +490,7 @@ static struct oryx_task_t netdev_task =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-static void netdev_init_private(struct netdev_t *netdev)
-{
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
-	PacketQueue *pq;
-	size_t priv_size = sizeof(struct suricata_private_t);
-	
-	/** alloca threadvars */
-	if (unlikely((netdev->private = SCMalloc(priv_size)) == NULL))
-		return;
-	memset(netdev->private, 0, priv_size);
-
-	tv = &((struct suricata_private_t *)netdev->private)->tv;
-	dtv = &((struct suricata_private_t *)netdev->private)->dtv;
-	pq = &((struct suricata_private_t *)netdev->private)->pq;
-
-	tv->thread_group_name = strdup("netdev thread");
-    SC_ATOMIC_INIT(tv->flags);
-    SCMutexInit(&tv->perf_public_ctx.m, NULL);
-
-	INIT_PQ(pq);
-	
-#if defined(HAVE_STATS_COUNTERS)
-	SCLogDebug("(1) tv=%p, dtv=%p", tv, dtv);
-	DecodeRegisterPerfCounters(dtv, tv);
-	/** setup private. */
-	StatsSetupPrivate(tv);
-#endif
-}
-
+#if 0
 static __oryx_always_inline__ 
 void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char **argv)
@@ -636,16 +552,93 @@ void perf_tmr_init()
 											  perf_tmr_handler, 0, (char **)&netdev, 3000);
 	oryx_tmr_start(perf_tmr);
 }
+#endif
 
-void dataplane_init (vlib_main_t *vm)
+void
+notify_dp(int signum)
 {
-	dpdk_init(vm);
-
-	/** init netdev private zoon. */
-	netdev_init_private(&netdev);
-	netdev_open(&netdev);
-	perf_tmr_init();
-	oryx_task_registry(&netdev_task);
+	dpdk_main_t *dm = &dpdk_main;
+	if (signum == SIGINT || signum == SIGTERM) {
+		printf("\n\nSignal %d received, preparing to exit...\n",
+				signum);
+		dm->force_quit = true;
+	}
 }
 
+typedef struct _dp_main_t {
+	ThreadVars tv;
+	DecodeThreadVars dtv;
+	PacketQueue pq;
+}dp_main_t;
 
+dp_main_t dp_main[RTE_MAX_LCORE];
+
+static int
+dp_start(__attribute__((unused)) void *ptr_data)
+{
+	dpdk_main_t *dm = &dpdk_main;
+	dp_main_t *dp;
+	ThreadVars *tv;
+	DecodeThreadVars *dtv;
+	PacketQueue *pq;
+	char thrgp_name[128] = {0};
+
+	dp = &dp_main[rte_lcore_id() % RTE_MAX_LCORE];
+	tv = &dp->tv;
+	dtv = &dp->dtv;
+	pq = &dp->pq;
+
+	sprintf (thrgp_name, "dp[%u] hd-thread", rte_lcore_id());
+	tv->thread_group_name = strdup(thrgp_name);
+	SC_ATOMIC_INIT(tv->flags);
+	SCMutexInit(&tv->perf_public_ctx.m, NULL);
+
+	INIT_PQ(pq);
+	
+#if defined(HAVE_STATS_COUNTERS)
+	SCLogDebug("(1) tv=%p, dtv=%p", tv, dtv);
+	DecodeRegisterPerfCounters(dtv, tv);
+	/** setup private. */
+	StatsSetupPrivate(tv);
+#endif
+
+	while (!dm->force_quit) {
+		/** rx */
+	}
+
+	SCLogNotice ("dp_main[%d] exiting ...", rte_lcore_id());
+}
+
+dpdk_main_t dpdk_main = {
+	.vlib_main = &vlib_main,
+	.conf = &dpdk_config_main,
+	.stat_poll_interval = ET1500_DPDK_STATS_POLL_INTERVAL,
+	.link_state_poll_interval = ET1500_DPDK_LINK_POLL_INTERVAL,
+	.dp_fn = dp_start,
+	.force_quit = false,
+};
+
+void dataplane_start(void) {
+	dpdk_main_t *dm = &dpdk_main;
+	printf ("Master Lcore %d\n", rte_get_master_lcore());
+
+	/* launch per-lcore init on every lcore */
+	rte_eal_mp_remote_launch(dm->dp_fn, NULL, SKIP_MASTER);
+}
+
+void dataplane_terminal(void)
+{
+	dpdk_main_t *dm = &dpdk_main;
+	u8 portid;
+	
+	for (portid = 0; portid < dm->n_ports; portid++) {
+		if ((dm->conf->portmask & (1 << portid)) == 0)
+			continue;
+		printf("Closing port %d...", portid);
+		rte_eth_dev_stop(portid);
+		rte_eth_dev_close(portid);
+		printf(" Done\n");
+	}
+	printf("Bye...\n");
+
+}

@@ -2,8 +2,8 @@
 #define __INFACE_H__
 
 #define PORT_PREFIX	"port"
-#define PANEL_N_PORTS	(2 + 8)
-#define NB_APPL_N_BUCKETS	(1<<10)
+#define PANEL_N_PORTS		(ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
+#define NB_APPL_N_BUCKETS	(1 << 10)
 #define PORT_INVALID_ID		(PANEL_N_PORTS)
 
 #define foreach_intf_speed				\
@@ -100,7 +100,7 @@ struct port_t {
 
 typedef struct {
 	/* dpdk_ports + sw_ports */
-	u32 ul_n_ports;
+	int ul_n_ports;
 	u32 ul_flags;
 	struct oryx_timer_t *link_detect_tmr;
 	u32 link_detect_tmr_interval;

@@ -26,7 +26,7 @@ static INIT_MUTEX(appl_lock);
 #endif
 
 static __oryx_always_inline__
-void base_action_iterator (char *action_str, u8 *action)
+void action_parser (char *action_str, u8 *action)
 {
 	if (action_str) {
 		if (!strcmp (action_str, "pass")) *action |= CRITERIA_FLAGS_PASS;
@@ -98,7 +98,7 @@ void appl_entry_format (struct appl_t *appl,
 		}
 	}
 	
-	if (rule_action) base_action_iterator (rule_action, &action);
+	if (rule_action) action_parser (rule_action, &action);
 	appl->ul_flags = action;
 
 }

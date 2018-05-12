@@ -18,7 +18,11 @@
 #endif
 #include "dataplane.h"
 
-vlib_main_t vlib_main;
+vlib_main_t vlib_main = {
+	.prgname = "et1500",
+	.extra_priv_size = ET1500_BUFFER_HDR_SIZE,
+};
+
 static unsigned short int alternative_port = 12000;
 char config_current[] = SYSCONFDIR "/usr/local/etc/current.conf";
 char config_default[] = SYSCONFDIR "/usr/local/etc/default.conf";
@@ -122,15 +126,50 @@ void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc,
 		tmr->sc_alias, tmr->tmr_id, tmr->ul_cyclical_times);
 }
 
-static int dp_main(__attribute__((unused)) void *ptr_data)
+static __oryx_always_inline__
+void * run_cli (void __oryx_unused__*pv_par)
 {
-	while (1) {
-		printf ("slave[%d]\n", rte_lcore_id());
-		sleep (1);
+	char *vty_addr = NULL;
+	short vty_port = ZEBRA_VTY_PORT;
+	struct thread thread;
+
+	/* Make vty server socket. */
+	if (alternative_port != 0) {
+		vty_port = alternative_port;
 	}
+	
+	printf ("Command Line Interface Initialization done (%d)!\n", vty_port);
+	
+	/* Create VTY socket */
+	vty_serv_sock(vty_addr, vty_port, ZEBRA_VTYSH_PATH);
+	
+	/* Configuration file read*/
+	vty_read_config(config_current, config_default);
+	
+	FOREVER {
+		/* Fetch next active thread. */
+		while (thread_fetch(master, &thread))
+			thread_call(&thread);
+	}
+	oryx_task_deregistry_id(pthread_self());
+	return NULL;
 }
 
-void register_port ()
+
+static struct oryx_task_t cli_register =
+{
+	.module = THIS,
+	.sc_alias = "CLI Task",
+	.fn_handler = run_cli,
+	.ul_lcore = INVALID_CORE,
+	.ul_prio = KERNEL_SCHED,
+	.argc = 0,
+	.argv = NULL,
+	.ul_flags = 0,	/** Can not be recyclable. */
+};
+
+
+static void register_port ()
 {
 	int portid = 0;
 	int dpdk_ports;
@@ -184,18 +223,35 @@ void register_port ()
 	}
 }
 
+extern void
+notify_dp(int signum);
+
+static void
+sig_handler(int signum) {
+
+	vlib_main_t *vm = &vlib_main;
+	
+	if (signum == SIGINT || signum == SIGTERM) {
+		notify_dp(signum);
+		/** */
+		vm->ul_flags |= VLIB_QUIT;
+	}
+}
+
 int main (int argc, char **argv)
 {
 	uint32_t id_core;
-	char *vty_addr = NULL;
-	short vty_port = ZEBRA_VTY_PORT;
-	struct thread thread;
 
 	vlib_main.argc = argc;
 	vlib_main.argv = argv;
-	vlib_main.extra_priv_size = ET1500_BUFFER_HDR_SIZE;
+
+	signal(SIGINT, sig_handler);
+	signal(SIGTERM, sig_handler);
 
 	oryx_initialize();
+	
+	/* master init. */
+	master = thread_master_create();
 
 	/* Initialize the configuration module. */
 	ConfInit();
@@ -219,9 +275,6 @@ int main (int argc, char **argv)
 	
 #if defined(HAVE_STATS_COUNTERS)
 	StatsInit();
-	printf ("can you hear me ... ?");
-#else
-	printf ("no\n");
 #endif
 
 	DefragInit();
@@ -238,55 +291,31 @@ int main (int argc, char **argv)
 
 	MpmTableSetup();
 
-	/* master init. */
-	master = thread_master_create();
-	
 	/* Library inits. */
 	cmd_init(1);
 	vty_init(master);
 	memory_init();
 
-	/* Make vty server socket. */
-	if (alternative_port != 0) {
-		vty_port = alternative_port;
-	}
+	dpdk_init(&vlib_main);
 
-	printf ("Command Line Interface Initialization done (%d)!\n", vty_port);
-
-	/* Create VTY socket */
-	vty_serv_sock(vty_addr, vty_port, ZEBRA_VTYSH_PATH);
-
-	/* Configuration file read*/
-	vty_read_config(config_current, config_default);
-
-	
 	port_init(&vlib_main);
 	appl_init();
 	map_init();
 	udp_init();
 
-	dpdk_init(&vlib_main);
-	//register_port();
+	register_port();
 
-	rte_eal_mp_remote_launch(dp_main, NULL, SKIP_MASTER);
+	oryx_task_registry(&cli_register);
 	oryx_task_launch();
-	FOREVER {
-		printf ("master[%d]\n", rte_lcore_id());
-		
-		/* Fetch next active thread. */
-		while (thread_fetch(master, &thread)) {
-			thread_call(&thread);
-#if defined(ENABLE_KILL_ALL_VTY)
-			if (kill_all_vty)
-				vty_kill_all();
-#endif
-		}
-	}
 	
+	dataplane_start();
+
 	RTE_LCORE_FOREACH_SLAVE(id_core) {
 		if (rte_eal_wait_lcore(id_core) < 0)
 			return -1;
 	}
+
+	dataplane_terminal();
 
 	return 0;
 }

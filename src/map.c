@@ -129,7 +129,7 @@ static int map_entry_split_application (struct map_t *map,
 }
 
 static __oryx_always_inline__
-void base_action_iterator (char *action_str, u8 *action)
+void action_parser (char *action_str, u8 *action)
 {
 	if (action_str) {
 		if (!strcmp (action_str, "pass")) *action |= CRITERIA_FLAGS_PASS;
@@ -1201,8 +1201,8 @@ int map_init (void)
 	printf ("map_vector_table = %p, %p, %p\n", map_vector_table, map_vector_tables[VECTOR_TABLE0], map_vector_tables[VECTOR_TABLE1]);
 
 	u8 action = 0;
-	base_action_iterator ("p", &action); printf ("action %x\n", action);
-	base_action_iterator ("d", &action); printf ("action %x\n", action);
+	action_parser ("p", &action); printf ("action %x\n", action);
+	action_parser ("d", &action); printf ("action %x\n", action);
 
 	INIT_TABLE(traffic_map, map_vector_table, map_hash_table);
 

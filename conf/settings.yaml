@@ -32,7 +32,7 @@ dpdk-config-devices:
    ## Number of descriptors in transmit and receive rings
    ## increasing or reducing number can impact performance
    ## Default is 1024 for both rx and tx     
-   num-rx-desc: 512
+   num-rx-desc: 128
    num-tx-desc: 512
   
    ## Number of receive queues(default is 1), enables RSS
@@ -46,6 +46,8 @@ dpdk-config-devices:
 
  - ethdev-pci-id: 0000:05:00.3
    enable: "yes"
+   num-rx-desc: 128
+   num-tx-desc: 512
 
 ##
 ## Step 1: inform Suricata about your network

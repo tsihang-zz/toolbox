@@ -1148,6 +1148,18 @@ thread_process (struct thread_list *list)
   return ready;
 }
 
+struct thread *
+thread_fetch_nodelay (struct thread_master *m, struct thread *fetch) {
+	struct thread *thread;
+
+  /* Drain the ready queue of already scheduled jobs, before scheduling
+   * more.
+   */
+  if ((thread = thread_trim_head (&m->ready)) != NULL)
+    return thread_run (m, thread, fetch);
+
+  return NULL;
+}
 
 /* Fetch next ready thread. */
 struct thread *
