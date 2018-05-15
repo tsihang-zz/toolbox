@@ -38,48 +38,53 @@ ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 #
 APP = et1500
 
+
+SRCS-dpdk += \
+	dpdk.c dpdk_init.c
 #
 # all sources are stored in SRCS-y
 #
 SRCS-y += \
-	main.c dpdk.c appl.c intf.c map.c range.c rfc.c\
-	rc4.c udp.c init.c tables.c version.c\
-	dataplane.c exflow.c\
-	decode-ethernet.c\
-	decode-icmpv4.c decode-icmpv6.c\
-	decode-ipv4.c decode-ipv6.c\
-	decode-mpls.c decode-ppp.c decode-pppoe.c\
-	decode-sctp.c decode-tcp.c decode-udp.c\
-	decode-vlan.c decode-gre.c
-
-SRCS-y += version.c
+	main.c threadvars.c counters.c event.c\
+	$(SRCS-dpdk) dp_main.c dp_decode.c \
+	dp_flow.c dp_flow_queue.c\
+	dp_decode_eth.c dp_decode_vlan.c dp_decode_mpls.c\
+	dp_decode_ipv4.c dp_decode_ipv6.c \
+	dp_decode_icmpv4.c dp_decode_icmpv6.c\
+	dp_decode_tcp.c dp_decode_udp.c dp_decode_sctp.c\
+	dp_decode_gre.c dp_decode_ppp.c dp_decode_pppoe.c\
+	dp_storage.c
 
 #CFLAGS += $(WERROR_FLAGS)
-CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_SRC := -W -Wstrict-prototypes -Wmissing-prototypes
 CFLAGS_SRC += -Wmissing-declarations -Wpointer-arith
 CFLAGS_SRC += -Wcast-align -Wnested-externs
 CFLAGS_SRC += -Wformat-nonliteral -Wformat-security
 CFLAGS_SRC += -Wundef -Wwrite-strings
-#CFLAGS_SRC += -Wold-style-definition -Wcast-qual
+#CFLAGS_SRC += -Wall -Wold-style-definition -Wcast-qual
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
 		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA\
 		  -DHAVE_STATS_COUNTERS
-CFLAGS += -I$(SRCDIR)/../lib -I$(SRCDIR)/../deps/quagga -I$(SRCDIR)/../deps/suricata/src
+CFLAGS += -I$(SRCDIR)\
+		  -I$(SRCDIR)/include\
+		  -I$(SRCDIR)/../lib\
+		  -I$(SRCDIR)/../lib/quagga\
+		  -I$(SRCDIR)/../lib/oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml -lpcap
 
 
-LDLIBS += -L$(subst src,lib,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst src,lib/oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
 
-LDLIBS += -L$(subst src,deps/quagga,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst src,lib/quagga,$(RTE_OUTPUT))/lib
 LDLIBS += -lquagga
 
-LDLIBS += -L$(subst src,deps/suricata/src,$(RTE_OUTPUT))/lib
-LDLIBS += -lsuricata
+#LDLIBS += -L$(subst src,lib/suricata/src,$(RTE_OUTPUT))/lib
+#LDLIBS += -lsuricata
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

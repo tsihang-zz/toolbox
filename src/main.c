@@ -1,6 +1,8 @@
 
 #include "oryx.h"
 
+#include "version.h"
+
 #if defined(HAVE_QUAGGA)
 #include "zebra.h"
 #include "memory.h"
@@ -12,15 +14,18 @@
 #include "prefix.h"
 #endif
 
-#include "et1500.h"
-#if defined(HAVE_DPDK)
+#include "main.h"
 #include "dpdk.h"
-#endif
-#include "dataplane.h"
+
+#include "dp_decode.h"
+#include "dp_main.h"
+
+/** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
+#define DPDK_BUFFER_HDR_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)) - DPDK_BUFFER_PRE_DATA_SIZE)
 
 vlib_main_t vlib_main = {
 	.prgname = "et1500",
-	.extra_priv_size = ET1500_BUFFER_HDR_SIZE,
+	.extra_priv_size = DPDK_BUFFER_HDR_SIZE,
 };
 
 static unsigned short int alternative_port = 12000;
@@ -29,11 +34,12 @@ char config_default[] = SYSCONFDIR "/usr/local/etc/default.conf";
 
 struct thread_master *master;
 
+#if 0
 #define max_dotfiles_per_line 5
 char *dotfile_buff[max_dotfiles_per_line] = {NULL};
 int dotfiles = 0;
 
-static void
+void
 format_dot_file(char *f, char *sep, void *fp)
 {	
 	int i;
@@ -64,7 +70,7 @@ flush:
 	}
 }
 
-static void
+void
 format_dota_file(char*f, char *sep, void *fp)
 {
 	char *s, *d;
@@ -85,7 +91,7 @@ format_dota_file(char*f, char *sep, void *fp)
 	}
 }
 
-static void 
+void 
 format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
 {
 	oryx_dir_t *d;
@@ -104,6 +110,7 @@ format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
 		}
 	}
 }
+#endif
 
 static TmEcode LogVersion(void)
 {
@@ -168,7 +175,7 @@ static struct oryx_task_t cli_register =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-
+#if 0
 static void register_port ()
 {
 	int portid = 0;
@@ -222,9 +229,9 @@ static void register_port ()
 			port_table_entry_add (entry);
 	}
 }
-
 extern void
 notify_dp(int signum);
+#endif
 
 static void
 sig_handler(int signum) {
@@ -232,7 +239,7 @@ sig_handler(int signum) {
 	vlib_main_t *vm = &vlib_main;
 	
 	if (signum == SIGINT || signum == SIGTERM) {
-		notify_dp(signum);
+		//notify_dp(signum);
 		/** */
 		vm->ul_flags |= VLIB_QUIT;
 	}
@@ -245,21 +252,31 @@ int main (int argc, char **argv)
 	vlib_main.argc = argc;
 	vlib_main.argv = argv;
 
-	signal(SIGINT, sig_handler);
-	signal(SIGTERM, sig_handler);
+	//signal(SIGINT, sig_handler);
+	//signal(SIGTERM, sig_handler);
 
 	oryx_initialize();
 	
+	LogVersion();
+
 	/* master init. */
 	master = thread_master_create();
 
-	/* Initialize the configuration module. */
-	ConfInit();
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
 	}
-	
+
+	/* Library inits. */
+	cmd_init(1);
+	vty_init(master);
+	memory_init();
+
+	StatsInit();
+
+	dp_start();
+
+#if 0	
 	SCLogInitLogModule(NULL);
 	ParseSizeInit();
 
@@ -273,10 +290,6 @@ int main (int argc, char **argv)
 	LogVersion();
 	UtilCpuPrintSummary();
 	
-#if defined(HAVE_STATS_COUNTERS)
-	StatsInit();
-#endif
-
 	DefragInit();
 	FlowInitConfig(FLOW_QUIET);
 	IPPairInitConfig(FLOW_QUIET);
@@ -291,11 +304,6 @@ int main (int argc, char **argv)
 
 	MpmTableSetup();
 
-	/* Library inits. */
-	cmd_init(1);
-	vty_init(master);
-	memory_init();
-
 	dpdk_init(&vlib_main);
 
 	port_init(&vlib_main);
@@ -305,8 +313,7 @@ int main (int argc, char **argv)
 
 	register_port();
 
-	oryx_task_registry(&cli_register);
-	oryx_task_launch();
+
 	
 	dataplane_start();
 
@@ -316,6 +323,13 @@ int main (int argc, char **argv)
 	}
 
 	dataplane_terminal();
-
+#else
+oryx_task_registry(&cli_register);
+oryx_task_launch();
+	FOREVER{
+		;
+	}
+	
+#endif
 	return 0;
 }

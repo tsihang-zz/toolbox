@@ -1,37 +1,12 @@
 #include "oryx.h"
-#include "et1500.h"
 #include "dpdk.h"
 
 extern dpdk_main_t dpdk_main;
-
-/* These args appear by themselves */
-#define foreach_eal_double_hyphen_predicate_arg \
-_(no-shconf)                                    \
-_(no-hpet)                                      \
-_(no-huge)                                      \
-_(vmware-tsc-map)
-
-#define foreach_eal_single_hyphen_mandatory_arg \
-_(coremask, c)                                  \
-_(nchannels, n)                                 \
-
-#define foreach_eal_single_hyphen_arg           \
-_(blacklist, b)                                 \
-_(mem-alloc-request, m)                         \
-_(force-ranks, r)
-
-/* These args are preceeded by "--" and followed by a single string */
-#define foreach_eal_double_hyphen_arg           \
-_(huge-dir)                                     \
-_(proc-type)                                    \
-_(file-prefix)                                  \
-_(vdev)
 
 char *eal_init_argv[1024] = {0};
 int eal_init_args = 0;
 int eal_args_offset = 0;
 
-vlib_pci_main_t pci_main;
 
 static int
 vlib_sysfs_read (char *file_name, const char *fmt, ...) {
@@ -58,6 +33,7 @@ vlib_sysfs_read (char *file_name, const char *fmt, ...) {
 
 	return 0;
 }
+
 
 static int
 vlib_sysfs_get_free_hugepages (unsigned int numa_node, int page_size) {
@@ -108,58 +84,6 @@ format_pci_addr(char *pci_addr_str, vlib_pci_addr_t *addr){
 		 addr->slot, addr->function);
 }
 
-static int
-foreach_directory_file (char *dir_name,
-			int (*f) (void *arg, char * path_name,
-			char * file_name), void *arg,
-			int scan_dirs)
-{
-	DIR *d;
-	struct dirent *e;
-	int error = 0;
-	char s[1024], t[1024];
-
-  d = opendir (dir_name);
-  if (!d)
-	{
-	  if (errno == ENOENT)
-			return 0;
-	  else {
-	  	SCLogNotice ("open %s, %d", dir_name, errno);
-		return 0;
-	  }
-	}
-
-  while (1)
-	{
-	  e = readdir (d);
-	  if (!e)
-	break;
-	  if (scan_dirs)
-	{
-	  if (e->d_type == DT_DIR
-		  && (!strcmp (e->d_name, ".") || !strcmp (e->d_name, "..")))
-		continue;
-	}
-	  else
-	{
-	  if (e->d_type == DT_DIR)
-		continue;
-	}
-
-	  sprintf (s, "%s/%s", dir_name, e->d_name);
-	  sprintf (t, "%s", e->d_name);
-	
-	  error = f (arg, s, t);
-	  if (error)
-		break;
-	}
-
-  closedir (d);
-
-  return error;
-}
-
 static void
 dpdk_bind_devices_to_uio (dpdk_config_main_t * conf)
 {
@@ -181,6 +105,7 @@ dpdk_bind_devices_to_uio (dpdk_config_main_t * conf)
 	}
 }
 
+
 static void
 dpdk_mount_hugedir (dpdk_config_main_t *conf)
 {
@@ -200,7 +125,7 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 	int pages_avail_1g, pages_avail_512m, pages_avail_2m;
 	
 
-	umount (ET1500_DPDK_DEFAULT_HUGE_DIR);
+	umount (DPDK_DEFAULT_HUGE_DIR);
 	
 	page_size = 1024;
 	pages_avail_1g = pages_avail = vlib_sysfs_get_free_hugepages(c, page_size * 1024);
@@ -222,25 +147,25 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 	SCLogNotice(" @ -512MB, %2d", pages_avail_512m);
 	SCLogNotice(" @ ---2MB, %2d", pages_avail_2m);
 	
-	rv = mkdir (ET1500_DPDK_DEFAULT_RUN_DIR, 0755);
+	rv = mkdir (DPDK_DEFAULT_RUN_DIR, 0755);
 	if (rv && errno != EEXIST)
 		goto done;
 	
-	rv = mkdir (ET1500_DPDK_DEFAULT_HUGE_DIR, 0755);
+	rv = mkdir (DPDK_DEFAULT_HUGE_DIR, 0755);
 	if (rv && errno != EEXIST)
 		goto done;
 
 	if (use_1g && !(less_than_1g && use_512m && use_2m)) {
-		SCLogNotice ("Mounting ... 1 GB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
-		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, "pagesize=1G");
+		SCLogNotice ("Mounting ... 1 GB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, "pagesize=1G");
 	} 
 	else if (use_512m) {
-		SCLogNotice ("Mounting ... 512 MB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
-		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
+		SCLogNotice ("Mounting ... 512 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else if (use_2m) {
-		SCLogNotice ("Mounting ... 2 MB (%s)", ET1500_DPDK_DEFAULT_HUGE_DIR);
-		rv = mount ("none", ET1500_DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
+		SCLogNotice ("Mounting ... 2 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else {
 		SCLogNotice ("no enough free hugepages");
@@ -258,8 +183,7 @@ done:
 }
 
 static void
-dpdk_eal_args_2string(dpdk_main_t *dm, char *format_buffer)
-{
+dpdk_eal_args_2string(dpdk_main_t *dm, char *format_buffer) {
 	dm = dm;
 	int i;
 	int l = 0;
@@ -270,8 +194,7 @@ dpdk_eal_args_2string(dpdk_main_t *dm, char *format_buffer)
 }
 
 static void
-dpdk_eal_args_format(const char *argv)
-{
+dpdk_eal_args_format(const char *argv) {
 	char *t = kmalloc(strlen(argv) + 1, MPF_CLR, __oryx_unused_val__);
 	sprintf (t, "%s%c", argv, 0);
 	eal_init_argv[eal_init_args ++] = t;
@@ -284,7 +207,7 @@ static void
 dpdk_format_eal_args (dpdk_main_t *dm)
 {
 	int i;
-	vlib_main_t *vm = dm->vlib_main;
+	vlib_main_t *vm = dm->vm;
 	dpdk_config_main_t *conf = dm->conf;
 	char argv_buf[128] = {0};
 	const char *socket_mem = "256";
@@ -342,6 +265,7 @@ dpdk_format_eal_args (dpdk_main_t *dm)
 	SCLogNotice("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
 }
 
+
 static void
 dpdk_device_config (dpdk_config_main_t *conf)
 {
@@ -388,25 +312,25 @@ dpdk_device_config (dpdk_config_main_t *conf)
 			}
 
 			else if (ethdev->name != NULL && strcmp(ethdev->name, "num-rx-desc") == 0) {
-				if (ParseSizeStringU64(ethdev->val, &devconf->num_rx_desc) < 0) {
+				if (oryx_str2_u64(ethdev->val, &devconf->num_rx_desc) < 0) {
 					exit(EXIT_FAILURE);
 				}
 			}
 
 			else if (ethdev->name != NULL && strcmp(ethdev->name, "num-tx-desc") == 0) {
-				if (ParseSizeStringU64(ethdev->val, &devconf->num_tx_desc) < 0) {
+				if (oryx_str2_u64(ethdev->val, &devconf->num_tx_desc) < 0) {
 					exit(EXIT_FAILURE);
 				}
 			}
 			
 			else if (ethdev->name != NULL && strcmp(ethdev->name, "num-rx-queues") == 0) {
-				if (ParseSizeStringU64(ethdev->val, &devconf->num_rx_queues) < 0) {
+				if (oryx_str2_u64(ethdev->val, &devconf->num_rx_queues) < 0) {
 					exit(EXIT_FAILURE);
 				}
 			}
 			
 			else if (ethdev->name != NULL && strcmp(ethdev->name, "num-tx-queues") == 0) {
-				if (ParseSizeStringU64(ethdev->val, &devconf->num_tx_queues) < 0) {
+				if (oryx_str2_u64(ethdev->val, &devconf->num_tx_queues) < 0) {
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -434,12 +358,13 @@ dpdk_device_config (dpdk_config_main_t *conf)
 	}
 }
 
+
 static void
 dpdk_config(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
-	dm->vlib_main = vm;
+	dm->vm = vm;
 
 	SCLogNotice ("Entering %s", __func__);
 
@@ -459,8 +384,8 @@ void dpdk_init (vlib_main_t * vm)
 	
 	SCLogNotice ("Entering %s", __func__);
 	
-	conf->num_mbufs = conf->num_mbufs ? conf->num_mbufs : ET1500_DPDK_DEFAULT_NB_MBUF;
-	conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * PANEL_N_PORTS,
+	conf->num_mbufs = conf->num_mbufs ? conf->num_mbufs : DPDK_DEFAULT_NB_MBUF;
+	conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * MAX_PORTS,
 									MPF_CLR, __oryx_unused_val__);
 	conf->priv_size = vm->extra_priv_size;
 
@@ -468,23 +393,26 @@ void dpdk_init (vlib_main_t * vm)
 	if (ConfGet("dpdk-config.uio-driver", (char **)&conf->uio_driver_name) == 1) {
 		/** igb_uio uio_pci_generic (default), vfio-pci (aarch64 used) */
 		if (strcmp (conf->uio_driver_name, "vfio-pci")) {
-			SCLogError(SC_ERR_SIZE_PARSE, "uio-driver %s. But vfio-pci needed on this platform ",
+			SCLogError(0,
+				"uio-driver %s. But vfio-pci needed on this platform ",
 	                   conf->uio_driver_name);
 			exit(EXIT_FAILURE);
 		}
 	}
-	if ((ConfGet("dpdk-config.num-mbufs", &conf_val)) == 1){
-		if (ParseSizeStringU32(conf_val, &conf->num_mbufs) < 0) {
-	        SCLogError(SC_ERR_SIZE_PARSE, "Error parsing ippair.memcap "
+	if ((ConfGet("dpdk-config.num-mbufs", &conf_val)) == 1) {
+		if (oryx_str2_u32(conf_val, &conf->num_mbufs) < 0) {
+	        SCLogError(0,
+				"Error parsing ippair.memcap "
 	                   "from conf file - %s.  Killing engine",
 	                   conf_val);
 	        exit(EXIT_FAILURE);
 	    }
+
 	}
 
-
 	if (RTE_ALIGN(dm->conf->priv_size, RTE_MBUF_PRIV_ALIGN) != dm->conf->priv_size) {
-		SCLogError (ERRNO_INVALID_ARGU, "ERROR -->>>> mbuf priv_size=%u is not aligned\n",
+		SCLogError(0,
+			"ERROR -->>>> mbuf priv_size=%u is not aligned\n",
 			dm->conf->priv_size);
 		exit (0);
 	}
@@ -495,11 +423,9 @@ void dpdk_init (vlib_main_t * vm)
 	SCLogNotice ("%20s%15d", "num_mbufs", conf->num_mbufs);
 	SCLogNotice ("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
 	SCLogNotice ("%20s%15d", "cachesize", conf->cache_size);
-	SCLogNotice ("%20s%15d", "priv_size", conf->priv_size);
 	SCLogNotice ("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
-	SCLogNotice ("%20s%15d", "packetsiz", sizeof(struct Packet_));
-	SCLogNotice ("%20s%15d", "bufferhdr", ET1500_BUFFER_HDR_SIZE);
-	SCLogNotice ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(ET1500_BUFFER_HDR_SIZE));
+	SCLogNotice ("%20s%15d", "priv_size", conf->priv_size);
+	SCLogNotice ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(conf->priv_size));
 	SCLogNotice ("%20s%15d", "datarmsiz", conf->data_room_size);
 	SCLogNotice ("%20s%15d", "socket_id", rte_socket_id());
 

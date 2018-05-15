@@ -1,6 +1,6 @@
 #   BSD LICENSE
 #
-#   Copyright(c) 2015 Intel Corporation. All rights reserved.
+#   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -29,49 +29,19 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
-endif
-
-# Default target, can be overwritten by command line or environment
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
-
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(error This application can only operate in a linuxapp environment, \
-please change the definition of the RTE_TARGET environment variable)
+ifeq ($(HAVE_QUAGGA),)
+DIRS-y += quagga
+DEPDIRS-y = quagga
 endif
 
-# library name
-LIB = liboryx.a
+#ifeq ($(HAVE_SURICATA),)
+#DIRS-y += suricata
+#DEPDIRS-y += suricata
+#endif
 
-LIBABIVER := 1
+DIRS-y += oryx
+DEPDIRS-y = oryx
 
-# all source are stored in SRC-Y
-SRCS-y :=\
-   fop.c mpm-hs.c rbtree.c ipc.c actq.c memcache.c oryx.c error.c atomic.c \
-   netdev_pcap.c task.c htable.c memory.c netdev.c netdev_pfring.c \
-   mpm-ac.c mpm.c lru.c list.c tmr.c vec.c
-
-
-#CFLAGS += $(WERROR_FLAGS)
-CFLAGS_ORYX := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS_ORYX += -Wmissing-declarations -Wpointer-arith
-CFLAGS_ORYX += -Wcast-align -Wnested-externs
-CFLAGS_ORYX += -Wformat-nonliteral -Wformat-security
-CFLAGS_ORYX += -Wundef -Wwrite-strings
-#CFLAGS_ORYX += -Wold-style-definition -Wcast-qual
-
-CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_ORYX)
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
-
-
-ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
-ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)
-LDLIBS += -lrte_pmd_ixgbe
-endif
-endif
-
-include $(RTE_SDK)/mk/rte.extlib.mk
+include $(RTE_SDK)/mk/rte.extsubdir.mk

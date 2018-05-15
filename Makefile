@@ -42,7 +42,7 @@ ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
 $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
-DIRS-y += deps lib src
+DIRS-y += lib src
 endif
 
 DEPDIRS-src := lib deps librte_eal librte_ether
@@ -54,14 +54,5 @@ clean:
 	@rm -fr file
 	@rm -fr src/$(RTE_TARGET)
 	@rm -fr lib/$(RTE_TARGET)
-	@rm -fr deps/quagga/$(RTE_TARGET)
-	@rm -fr deps/suricata/src/$(RTE_TARGET)
-
-docs:
-	@make -C docs html
-
-pdf:
-	@make -C docs latexpdf
-
-cleandocs:
-	@make -C docs clean
+	@rm -fr lib/quagga/$(RTE_TARGET)
+	@rm -fr lib/suricata/src/$(RTE_TARGET)
