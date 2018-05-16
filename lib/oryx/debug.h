@@ -51,7 +51,7 @@ extern struct oryx_logs_t oryx_logs;
 #define ORYX_LOGTYPE_USER8     31 /**< User-defined log type 8. */
 
 /** First identifier for extended logs */
-#define ORYX_LOGTYPE_FIRST_EXT_ID 128
+#define ORYX_LOGTYPE_FIRST_EXT_ID 64
 
 
 /* Can't use 0, as it gives compiler warnings */
@@ -100,7 +100,7 @@ typedef enum {
 #endif
 
 /* The maximum length of the log message */
-#define SC_LOG_MAX_LOG_MSG_LEN 2048
+#define ORYX_LOG_MAX_LOG_MSG_LEN 2048
 
 /* The maximum length of the log format */
 #define SC_LOG_MAX_LOG_FORMAT_LEN 128

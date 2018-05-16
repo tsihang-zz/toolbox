@@ -1,12 +1,12 @@
 #include "oryx.h"
 #include "dpdk.h"
 
-extern dpdk_main_t dpdk_main;
-
 char *eal_init_argv[1024] = {0};
 int eal_init_args = 0;
 int eal_args_offset = 0;
 
+extern int
+init_dpdk_env(dpdk_main_t *dm);
 
 static int
 vlib_sysfs_read (char *file_name, const char *fmt, ...) {
@@ -62,7 +62,7 @@ vlib_sysfs_get_free_hugepages (unsigned int numa_node, int page_size) {
 	vlib_sysfs_read ((char *) p, "%d", &r);
 
 done:
-	SCLogDebug("read hugepages %s, free_hugepages = %d", p, r);
+	oryx_logd("read hugepages %s, free_hugepages = %d", p, r);
 	return r;
 }
 
@@ -142,10 +142,10 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 	if (pages_avail < 0 || page_size * pages_avail < mem)
 	  use_2m = 0;
 	
-	SCLogNotice("free-hugepages availiable:");
-	SCLogNotice(" @ 1024MB, %2d", pages_avail_1g);
-	SCLogNotice(" @ -512MB, %2d", pages_avail_512m);
-	SCLogNotice(" @ ---2MB, %2d", pages_avail_2m);
+	oryx_logn("free-hugepages availiable:");
+	oryx_logn(" @ 1024MB, %2d", pages_avail_1g);
+	oryx_logn(" @ -512MB, %2d", pages_avail_512m);
+	oryx_logn(" @ ---2MB, %2d", pages_avail_2m);
 	
 	rv = mkdir (DPDK_DEFAULT_RUN_DIR, 0755);
 	if (rv && errno != EEXIST)
@@ -156,24 +156,24 @@ dpdk_mount_hugedir (dpdk_config_main_t *conf)
 		goto done;
 
 	if (use_1g && !(less_than_1g && use_512m && use_2m)) {
-		SCLogNotice ("Mounting ... 1 GB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		oryx_logn ("Mounting ... 1 GB (%s)", DPDK_DEFAULT_HUGE_DIR);
 		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, "pagesize=1G");
 	} 
 	else if (use_512m) {
-		SCLogNotice ("Mounting ... 512 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		oryx_logn ("Mounting ... 512 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
 		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else if (use_2m) {
-		SCLogNotice ("Mounting ... 2 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
+		oryx_logn ("Mounting ... 2 MB (%s)", DPDK_DEFAULT_HUGE_DIR);
 		rv = mount ("none", DPDK_DEFAULT_HUGE_DIR, "hugetlbfs", 0, NULL);
 	}
 	else {
-		SCLogNotice ("no enough free hugepages");
+		oryx_logn ("no enough free hugepages");
 		goto done;
 	}
 	
 	if (rv){
-		SCLogNotice ("mount failed %d", errno);
+		oryx_logn ("mount failed %d", errno);
 		goto done;
 	}
 
@@ -262,7 +262,7 @@ dpdk_format_eal_args (dpdk_main_t *dm)
 	vm->argc = eal_init_args;	
 	vm->argv = eal_init_argv;
 
-	SCLogNotice("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
+	oryx_logn("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
 }
 
 
@@ -279,7 +279,7 @@ dpdk_device_config (dpdk_config_main_t *conf)
 	
     dpdk_config_devices = ConfGetNode("dpdk-config-devices");
     if (dpdk_config_devices == NULL) {
-        SCLogNotice ("Unable to find dpdk config device using default value");
+        oryx_logn ("Unable to find dpdk config device using default value");
         return;
     }
 
@@ -346,15 +346,15 @@ dpdk_device_config (dpdk_config_main_t *conf)
 
 	int i;
 	char pci_addr[32] = {0};	/** debug */
-	SCLogNotice("===== Total %d/%d devices configured ======", ethdev_activity, conf->device_config_index_by_pci_addr);
+	oryx_logn("===== Total %d/%d devices configured ======", ethdev_activity, conf->device_config_index_by_pci_addr);
 	for (i = 0; i < conf->device_config_index_by_pci_addr; i ++) {
 		devconf  = conf->dev_confs + i;
 		format_pci_addr(pci_addr, &devconf->pci_addr);
-		SCLogNotice ("%18s%16s", pci_addr, devconf->enable ? "enabled" : "disabled");
-		SCLogNotice ("%18s%16lu", "rx-desc:",   devconf->num_rx_desc);
-		SCLogNotice ("%18s%16lu", "tx-desc:",   devconf->num_tx_desc);
-		SCLogNotice ("%18s%16lu", "rx-queues:", devconf->num_rx_queues);
-		SCLogNotice ("%18s%16lu", "tx-queues:", devconf->num_tx_queues);
+		oryx_logn ("%18s%16s", pci_addr, devconf->enable ? "enabled" : "disabled");
+		oryx_logn ("%18s%16lu", "rx-desc:",   devconf->num_rx_desc);
+		oryx_logn ("%18s%16lu", "tx-desc:",   devconf->num_tx_desc);
+		oryx_logn ("%18s%16lu", "rx-queues:", devconf->num_rx_queues);
+		oryx_logn ("%18s%16lu", "tx-queues:", devconf->num_tx_queues);
 	}
 }
 
@@ -366,7 +366,7 @@ dpdk_config(vlib_main_t *vm)
 	dpdk_config_main_t *conf = dm->conf;
 	dm->vm = vm;
 
-	SCLogNotice ("Entering %s", __func__);
+	oryx_logn ("Entering %s", __func__);
 
 	dpdk_device_config(conf);
 	dpdk_mount_hugedir(conf);
@@ -382,7 +382,7 @@ void dpdk_init (vlib_main_t * vm)
 	dpdk_config_main_t *conf = dm->conf;
 	const char *conf_val;
 	
-	SCLogNotice ("Entering %s", __func__);
+	oryx_logn ("Entering %s", __func__);
 	
 	conf->num_mbufs = conf->num_mbufs ? conf->num_mbufs : DPDK_DEFAULT_NB_MBUF;
 	conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * MAX_PORTS,
@@ -390,10 +390,10 @@ void dpdk_init (vlib_main_t * vm)
 	conf->priv_size = vm->extra_priv_size;
 
 	/** set config values for dpdk-config, prealloc and hash_size */
-	if (ConfGet("dpdk-config.uio-driver", (char **)&conf->uio_driver_name) == 1) {
+	if (ConfGet("dpdk-config.uio-driver", (const char **)&conf->uio_driver_name) == 1) {
 		/** igb_uio uio_pci_generic (default), vfio-pci (aarch64 used) */
 		if (strcmp (conf->uio_driver_name, "vfio-pci")) {
-			SCLogError(0,
+			oryx_loge(0,
 				"uio-driver %s. But vfio-pci needed on this platform ",
 	                   conf->uio_driver_name);
 			exit(EXIT_FAILURE);
@@ -401,7 +401,7 @@ void dpdk_init (vlib_main_t * vm)
 	}
 	if ((ConfGet("dpdk-config.num-mbufs", &conf_val)) == 1) {
 		if (oryx_str2_u32(conf_val, &conf->num_mbufs) < 0) {
-	        SCLogError(0,
+	        oryx_loge(0,
 				"Error parsing ippair.memcap "
 	                   "from conf file - %s.  Killing engine",
 	                   conf_val);
@@ -411,23 +411,23 @@ void dpdk_init (vlib_main_t * vm)
 	}
 
 	if (RTE_ALIGN(dm->conf->priv_size, RTE_MBUF_PRIV_ALIGN) != dm->conf->priv_size) {
-		SCLogError(0,
+		oryx_loge(0,
 			"ERROR -->>>> mbuf priv_size=%u is not aligned\n",
 			dm->conf->priv_size);
 		exit (0);
 	}
 	
-	SCLogNotice ("================ DPDK INIT ARGS =================");
-	SCLogNotice ("%20s%15x", "core_mask", conf->coremask);
-	SCLogNotice ("%20s%15x", "port_mask", conf->portmask);
-	SCLogNotice ("%20s%15d", "num_mbufs", conf->num_mbufs);
-	SCLogNotice ("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
-	SCLogNotice ("%20s%15d", "cachesize", conf->cache_size);
-	SCLogNotice ("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
-	SCLogNotice ("%20s%15d", "priv_size", conf->priv_size);
-	SCLogNotice ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(conf->priv_size));
-	SCLogNotice ("%20s%15d", "datarmsiz", conf->data_room_size);
-	SCLogNotice ("%20s%15d", "socket_id", rte_socket_id());
+	oryx_logn ("================ DPDK INIT ARGS =================");
+	oryx_logn ("%20s%15x", "core_mask", conf->coremask);
+	oryx_logn ("%20s%15x", "port_mask", conf->portmask);
+	oryx_logn ("%20s%15d", "num_mbufs", conf->num_mbufs);
+	oryx_logn ("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
+	oryx_logn ("%20s%15d", "cachesize", conf->cache_size);
+	oryx_logn ("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
+	oryx_logn ("%20s%15d", "priv_size", conf->priv_size);
+	oryx_logn ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(conf->priv_size));
+	oryx_logn ("%20s%15d", "datarmsiz", conf->data_room_size);
+	oryx_logn ("%20s%15d", "socket_id", rte_socket_id());
 
 	dpdk_config(vm);
 }

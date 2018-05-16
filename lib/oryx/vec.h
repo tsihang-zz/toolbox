@@ -42,7 +42,7 @@ typedef struct _oryx_vector *oryx_vector;
 /* Reference slot at given index, caller must ensure slot is active */
 #define vec_slot(V,I)  ((V)->index[(I)])
 /* Number of active slots. 
- * Note that this differs from vector_count() as it the count returned
+ * Note that this differs from vec_count() as it the count returned
  * will include any empty slots
  */
 #define vec_active(V) ((V)->active)

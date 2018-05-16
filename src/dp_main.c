@@ -6,6 +6,18 @@ ThreadVars g_tv[MAX_LCORES];
 DecodeThreadVars g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
 
+extern void DecodeUpdateCounters(ThreadVars *tv,
+                                const DecodeThreadVars *dtv, const Packet *p);
+
+typedef struct _dp_args_t {
+	ThreadVars tv[MAX_LCORES];
+	DecodeThreadVars dtv[MAX_LCORES];
+	PacketQueue pq[MAX_LCORES];
+}dp_private_t;
+
+
+dp_private_t dp_private_main;
+
 static dpdk_config_main_t dpdk_config_main = {
 	.nchannels = 2,		/** */		
 	.coremask = 0x0f,	/** 4 lcores. */
@@ -17,6 +29,7 @@ static dpdk_config_main_t dpdk_config_main = {
 	.data_room_size =	DPDK_DEFAULT_BUFFER_SIZE
 };
 
+
 static void
 netdev_pkt_handler(u_char *argv,
 		const struct pcap_pkthdr *pcaphdr,
@@ -26,12 +39,14 @@ netdev_pkt_handler(u_char *argv,
 	ThreadVars *tv = &g_tv[lcore];
 	DecodeThreadVars *dtv = &g_dtv[lcore];
 	PacketQueue *pq = &g_pq[lcore];
-
-	struct netdev_t *netdev = (struct netdev_t *)argv;
-		
 	Packet *p = PacketGetFromAlloc();
+	struct netdev_t *netdev = (struct netdev_t *)argv;
+
+	SET_PKT_LEN(p, pcaphdr->len);
 	DecodeEthernet0(tv, dtv, p, 
 				packet, pcaphdr->len, pq);
+
+	DecodeUpdateCounters(tv, dtv, p); 
 
 	/** StatsINCR called within PakcetDecodeFinalize. */
 	PacketDecodeFinalize(tv, dtv, p);
@@ -55,7 +70,7 @@ netdev_pkt_handler(u_char *argv,
 		/** lock this flow. */
 	}
 
-	SCLogDebug("packet %"PRIu64" has flow? %s", p->pcap_cnt, p->flow ? "yes" : "no");
+	oryx_logd("packet %"PRIu64" has flow? %s", p->pcap_cnt, p->flow ? "yes" : "no");
 
 	/** unlock this flow. */
 	if (p->flow) {
@@ -113,6 +128,7 @@ DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_ppp = StatsRegisterCounter("decoder.ppp", tv);
     dtv->counter_pppoe = StatsRegisterCounter("decoder.pppoe", tv);
     dtv->counter_gre = StatsRegisterCounter("decoder.gre", tv);
+	dtv->counter_arp = StatsRegisterCounter("decoder.arp", tv);
     dtv->counter_vlan = StatsRegisterCounter("decoder.vlan", tv);
     dtv->counter_vlan_qinq = StatsRegisterCounter("decoder.vlan_qinq", tv);
     dtv->counter_ieee8021ah = StatsRegisterCounter("decoder.ieee8021ah", tv);
@@ -159,7 +175,6 @@ static __oryx_always_inline__
 void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char **argv)
 {
-	struct netdev_t *nd = (struct netdev_t *)argv;
 	int lcore = 0;
 	ThreadVars *tv = &g_tv[lcore];
 	DecodeThreadVars *dtv = &g_dtv[lcore];
@@ -175,6 +190,8 @@ void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc,
 			"\"%15s\"		%lu\n", "bytes:", StatsGetLocalCounterValue(tv, dtv->counter_bytes));
 	step += snprintf (buf + step, format_buf_size - step, 
 			"\"%15s\"		%lu\n", "eth:", StatsGetLocalCounterValue(tv, dtv->counter_eth));
+	step += snprintf (buf + step, format_buf_size - step, 
+			"\"%15s\"		%lu\n", "arp:", StatsGetLocalCounterValue(tv, dtv->counter_arp));
 	step += snprintf (buf + step, format_buf_size - step, 
 			"\"%15s\"		%lu\n", "ipv4:", StatsGetLocalCounterValue(tv, dtv->counter_ipv4));
 	step += snprintf (buf + step, format_buf_size - step, 
@@ -200,23 +217,24 @@ void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc,
 	step += snprintf (buf + step, format_buf_size - step, 
 			"\"%15s\"		%lu\n", "flows.icmpv6:", StatsGetLocalCounterValue(tv, dtv->counter_flow_icmp6));
 
-	SCLogNotice("\n%s", buf);
+	oryx_logn("\n%s", buf);
 	
 }
 
-static void
-perf_tmr_init(void)
-{
-	struct oryx_timer_t *perf_tmr;
-	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-	
-	perf_tmr = oryx_tmr_create (1, "perf_tmr", ul_perf_tmr_setting_flags,
-											  perf_tmr_handler, 0, (char **)&netdev, 3000);
-	oryx_tmr_start(perf_tmr);
-}
+dpdk_main_t dpdk_main = {
+	.vm = NULL,
+	.conf = &dpdk_config_main,
+	.stat_poll_interval = DPDK_STATS_POLL_INTERVAL,
+	.link_state_poll_interval = DPDK_LINK_POLL_INTERVAL,
+	.dp_fn = NULL,
+	.ext_private = &dp_private_main,
+	.force_quit = false,
+};
 
-void dp_start(void)
+void dp_init(vlib_main_t *vm)
 {
+	dpdk_main.vm = vm;
+	
 #define DATAPATH_LOGTYPE	"datapath"
 #define DATAPATH_LOGLEVEL	ORYX_LOG_DEBUG
 	oryx_log_register(DATAPATH_LOGTYPE);
@@ -232,7 +250,7 @@ void dp_start(void)
 	sprintf (thrgp_name, "dp[%u] hd-thread", 0);
 	tv->thread_group_name = strdup(thrgp_name);
 	SC_ATOMIC_INIT(tv->flags);
-	SCMutexInit(&tv->perf_public_ctx.m, NULL);
+	pthread_mutex_init(&tv->perf_public_ctx.m, NULL);
 
 	DecodeRegisterPerfCounters(dtv, tv);
 	/** setup private. */
@@ -241,15 +259,22 @@ void dp_start(void)
 	netdev_open(&netdev);
 	oryx_task_registry(&netdev_task);
 
-	perf_tmr_init();
+	
+	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
+	
+	dpdk_main.perf_tmr = oryx_tmr_create (1, "perf_tmr", ul_perf_tmr_setting_flags,
+											  perf_tmr_handler, 0, (char **)&netdev, 3000);
+	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }
 
-dpdk_main_t dpdk_main = {
-	.vm = &vlib_main,
-	.conf = &dpdk_config_main,
-	.stat_poll_interval = DPDK_STATS_POLL_INTERVAL,
-	.link_state_poll_interval = DPDK_LINK_POLL_INTERVAL,
-	.dp_fn = NULL,
-	.force_quit = false,
-};
+typedef struct _vlib_dataplane_main_t {
+	int (*decoder) (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+					   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+} vlib_dataplane_main_t;
+
+vlib_dataplane_main_t vlib_dp_main;
+
+
+
 

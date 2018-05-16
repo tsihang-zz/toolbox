@@ -1,6 +1,8 @@
 #ifndef DP_FLOW_H
 #define DP_FLOW_H
 
+#if defined (HAVE_FLOW_MGR)
+
 #include "flow.h"
 
 /* global flow config */
@@ -140,8 +142,10 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
         (a)->addr_data32[3] = (p)->ip6h->s_ip6_dst[3];  \
     } while (0)
 
+#endif	/** end of if defined(HAVE_FLOW_MGR */
+
 void FlowSetupPacket(Packet *p);
 
 
-#endif
+#endif	/** end of ifndef DP_FLOW_H */
 

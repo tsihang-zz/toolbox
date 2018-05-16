@@ -86,7 +86,7 @@ ConfYamlSetConfDirname(const char *filename)
     if (ep == NULL) {
         conf_dirname = strdup(".");
         if (conf_dirname == NULL) {
-            SCLogError(0,
+            oryx_loge(0,
                "ERROR: Failed to allocate memory while loading configuration.\n");
             exit(EXIT_FAILURE);
         }
@@ -94,7 +94,7 @@ ConfYamlSetConfDirname(const char *filename)
     else {
         conf_dirname = strdup(filename);
         if (conf_dirname == NULL) {
-            SCLogError(0,
+            oryx_loge(0,
                "ERROR: Failed to allocate memory while loading configuration.\n");
             exit(EXIT_FAILURE);
         }
@@ -119,7 +119,7 @@ ConfYamlHandleInclude(ConfNode *parent, const char *filename)
     FILE *file;
 
     if (yaml_parser_initialize(&parser) != 1) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Failed to initialize YAML parser.\n");
         return -1;
     }
@@ -134,7 +134,7 @@ ConfYamlHandleInclude(ConfNode *parent, const char *filename)
 
     file = fopen(include_filename, "r");
     if (file == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
             "Failed to open configuration include file %s: %s.\n",
             include_filename, strerror(errno));
         return -1;
@@ -143,7 +143,7 @@ ConfYamlHandleInclude(ConfNode *parent, const char *filename)
     yaml_parser_set_input_file(&parser, file);
 
     if (ConfYamlParse(&parser, parent, 0) != 0) {
-        SCLogError(0,
+        oryx_loge(0,
             "Failed to include configuration file %s.\n", filename);
         return -1;
     }
@@ -174,7 +174,7 @@ ConfYamlParse(yaml_parser_t *parser, ConfNode *parent, int inseq)
 
     while (!done) {
         if (!yaml_parser_parse(parser, &event)) {
-            SCLogError(0,
+            oryx_loge(0,
                 "Failed to parse configuration file at line %" PRIuMAX ": %s\n",
                 (uintmax_t)parser->problem_mark.line, parser->problem);
             return -1;
@@ -393,7 +393,7 @@ ConfYamlLoadFile(const char *filename)
     ConfNode *root = ConfGetRootNode();
 
     if (yaml_parser_initialize(&parser) != 1) {
-        SCLogError(0,
+        oryx_loge(0,
 			"failed to initialize yaml parser.\n");
         return -1;
     }
@@ -401,7 +401,7 @@ ConfYamlLoadFile(const char *filename)
     struct stat stat_buf;
     if (stat(filename, &stat_buf) == 0) {
         if (stat_buf.st_mode & S_IFDIR) {
-            SCLogError(0,
+            oryx_loge(0,
 				"yaml argument is not a file but a directory: %s. "
                     "Please specify the yaml file in your -c option.\n", filename);
             return -1;
@@ -410,7 +410,7 @@ ConfYamlLoadFile(const char *filename)
 
     infile = fopen(filename, "r");
     if (infile == NULL) {
-        SCLogError(0,"failed to open file: %s: %s\n", filename,
+        oryx_loge(0,"failed to open file: %s: %s\n", filename,
             strerror(errno));
         yaml_parser_delete(&parser);
         return -1;
@@ -471,7 +471,7 @@ ConfYamlLoadFileWithPrefix(const char *filename, const char *prefix)
     ConfNode *root = ConfGetNode(prefix);
 
     if (yaml_parser_initialize(&parser) != 1) {
-        SCLogError(0,
+        oryx_loge(0,
 			"failed to initialize yaml parser.");
         return -1;
     }
@@ -480,7 +480,7 @@ ConfYamlLoadFileWithPrefix(const char *filename, const char *prefix)
     /* coverity[toctou] */
     if (stat(filename, &stat_buf) == 0) {
         if (stat_buf.st_mode & S_IFDIR) {
-            SCLogError(0,
+            oryx_loge(0,
 				"yaml argument is not a file but a directory: %s. "
                     "Please specify the yaml file in your -c option.", filename);
             return -1;
@@ -490,7 +490,7 @@ ConfYamlLoadFileWithPrefix(const char *filename, const char *prefix)
     /* coverity[toctou] */
     infile = fopen(filename, "r");
     if (infile == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"failed to open file: %s: %s", filename,
             strerror(errno));
         yaml_parser_delete(&parser);

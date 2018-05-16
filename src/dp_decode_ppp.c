@@ -14,7 +14,7 @@ int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
     if (unlikely(p->ppph == NULL))
         return TM_ECODE_FAILED;
 
-    SCLogDebug("p %p pkt %p PPP protocol %04x Len: %" PRId32 "",
+    oryx_logd("p %p pkt %p PPP protocol %04x Len: %" PRId32 "",
         p, pkt, ntohs(p->ppph->protocol), len);
 
     switch (ntohs(p->ppph->protocol))
@@ -83,7 +83,7 @@ int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             return TM_ECODE_OK;
 
         default:
-            SCLogDebug("unknown PPP protocol: %" PRIx32 "",ntohs(p->ppph->protocol));
+            oryx_logd("unknown PPP protocol: %" PRIx32 "",ntohs(p->ppph->protocol));
             ENGINE_SET_INVALID_EVENT(p, PPP_WRONG_TYPE);
             return TM_ECODE_OK;
     }

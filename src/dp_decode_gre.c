@@ -10,7 +10,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
     uint16_t header_len = GRE_HDR_LEN;
     GRESreHdr *gsre = NULL;
 
-	SCLogDebug("GRE");
+	oryx_logd("GRE");
 
     StatsIncr(tv, dtv->counter_gre);
     if(len < GRE_HDR_LEN)    {
@@ -22,7 +22,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
     if(p->greh == NULL)
         return TM_ECODE_FAILED;
 
-    SCLogDebug("p %p pkt %p GRE protocol %04x Len: %d GRE version %x",
+    oryx_logd("p %p pkt %p GRE protocol %04x Len: %d GRE version %x",
         p, pkt, GRE_GET_PROTO(p->greh), len,GRE_GET_VERSION(p->greh));
 
     switch (GRE_GET_VERSION(p->greh))

@@ -1,23 +1,11 @@
 #ifndef __ORYX_MPM_AC_H__
 #define __ORYX_MPM_AC_H__
 
-#if 0
-#if !defined(HAVE_SURICATA)
-
 #include "mpm.h"
 
 #define SC_AC_STATE_TYPE_U16 uint16_t
 #define SC_AC_STATE_TYPE_U32 uint32_t
 
-#ifdef __SC_CUDA_SUPPORT__
-#include "suricata-common.h"
-#include "util-cuda.h"
-#include "util-cuda-vars.h"
-#include "decode.h"
-#include "util-cuda-buffer.h"
-#include "util-mpm.h"
-#include "flow.h"
-#endif /* __SC_CUDA_SUPPORT__ */
 
 typedef struct SCACPatternList_ {
     uint8_t *cs;
@@ -86,13 +74,13 @@ static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled) {
         while (!p->cuda_pkt_vars.cuda_done) {
-            SCMutexLock(&p->cuda_pkt_vars.cuda_mutex);
+            do_lock(&p->cuda_pkt_vars.cuda_mutex);
             if (p->cuda_pkt_vars.cuda_done) {
-                SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+                do_unlock(&p->cuda_pkt_vars.cuda_mutex);
                 break;
             } else {
-                SCCondWait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
-                SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+                do_cond_wait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
+                do_unlock(&p->cuda_pkt_vars.cuda_mutex);
             }
         }
     }
@@ -178,6 +166,4 @@ void CudaReleasePacket(Packet *p);
 
 extern void MpmACRegister(void);
 
-#endif
-#endif
 #endif

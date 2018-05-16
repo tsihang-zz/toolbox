@@ -34,7 +34,7 @@ static int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16_t len)
 
 int DecodeUDP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-	SCLogDebug("UDP");
+	oryx_logd("UDP");
 
     StatsIncr(tv, dtv->counter_udp);
 
@@ -43,7 +43,7 @@ int DecodeUDP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
         return TM_ECODE_FAILED;
     }
 
-    SCLogDebug("UDP sp: %" PRIu32 " -> dp: %" PRIu32 " - HLEN: %" PRIu32 " LEN: %" PRIu32 "",
+    oryx_logd("UDP sp: %" PRIu32 " -> dp: %" PRIu32 " - HLEN: %" PRIu32 " LEN: %" PRIu32 "",
         UDP_GET_SRC_PORT(p), UDP_GET_DST_PORT(p), UDP_HEADER_LEN, p->payload_len);
 
 #if defined(HAVE_TEREDO_DECODE)

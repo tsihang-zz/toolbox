@@ -50,18 +50,18 @@ void StorageCleanup(void)
         int i;
         for (i = 0; i < STORAGE_MAX; i++) {
             if (storage_map[i] != NULL) {
-                SCFree(storage_map[i]);
+                free(storage_map[i]);
                 storage_map[i] = NULL;
             }
         }
-        SCFree(storage_map);
+        free(storage_map);
         storage_map = NULL;
     }
 
     StorageList *entry = storage_list;
     while (entry) {
         StorageList *next = entry->next;
-        SCFree(entry);
+        free(entry);
         entry = next;
     }
 
@@ -80,7 +80,7 @@ int StorageRegister(const StorageEnum type, const char *name, const unsigned int
     StorageList *list = storage_list;
     while (list) {
         if (strcmp(name, list->map.name) == 0 && type == list->map.type) {
-            SCLogError(0,
+            oryx_loge(0,
 				"storage for type \"%s\" with "
                 "name \"%s\" already registered\n", StoragePrintType(type),
                 name);
@@ -90,7 +90,7 @@ int StorageRegister(const StorageEnum type, const char *name, const unsigned int
         list = list->next;
     }
 
-    StorageList *entry = SCMalloc(sizeof(StorageList));
+    StorageList *entry = malloc(sizeof(StorageList));
     if (unlikely(entry == NULL))
         return -1;
 
@@ -123,7 +123,7 @@ int StorageFinalize(void)
     if (count == 0)
         return 0;
 
-    storage_map = SCMalloc(sizeof(StorageMapping *) * STORAGE_MAX);
+    storage_map = malloc(sizeof(StorageMapping *) * STORAGE_MAX);
     if (unlikely(storage_map == NULL)) {
         return -1;
     }
@@ -131,7 +131,7 @@ int StorageFinalize(void)
 
     for (i = 0; i < STORAGE_MAX; i++) {
         if (storage_max_id[i] > 0) {
-            storage_map[i] = SCMalloc(sizeof(StorageMapping) * storage_max_id[i]);
+            storage_map[i] = malloc(sizeof(StorageMapping) * storage_max_id[i]);
             if (storage_map[i] == NULL)
                 return -1;
             memset(storage_map[i], 0x00, sizeof(StorageMapping) * storage_max_id[i]);
@@ -159,7 +159,7 @@ int StorageFinalize(void)
         int j;
         for (j = 0; j < storage_max_id[i]; j++) {
             StorageMapping *m = &storage_map[i][j];
-            SCLogDebug("type \"%s\" name \"%s\" size \"%"PRIuMAX"\"\n",
+            oryx_logd("type \"%s\" name \"%s\" size \"%"PRIuMAX"\"\n",
                     StoragePrintType(m->type), m->name, (uintmax_t)m->size);
         }
     }
@@ -188,7 +188,7 @@ void *StorageGetById(const Storage *storage, const StorageEnum type, const int i
 #ifdef DEBUG
     BUG_ON(!storage_registraton_closed);
 #endif
-    SCLogDebug("storage %p id %d\n", storage, id);
+    oryx_logd("storage %p id %d\n", storage, id);
     if (storage == NULL)
         return NULL;
     return storage[id];
@@ -199,7 +199,7 @@ int StorageSetById(Storage *storage, const StorageEnum type, const int id, void 
 #ifdef DEBUG
     BUG_ON(!storage_registraton_closed);
 #endif
-    SCLogDebug("storage %p id %d\n", storage, id);
+    oryx_logd("storage %p id %d\n", storage, id);
     if (storage == NULL)
         return -1;
     storage[id] = ptr;
@@ -211,7 +211,7 @@ void *StorageAllocByIdPrealloc(Storage *storage, StorageEnum type, int id)
 #ifdef DEBUG
     BUG_ON(!storage_registraton_closed);
 #endif
-    SCLogDebug("storage %p id %d\n", storage, id);
+    oryx_logd("storage %p id %d\n", storage, id);
 
     StorageMapping *map = &storage_map[type][id];
     if (storage[id] == NULL && map->Alloc != NULL) {
@@ -229,22 +229,22 @@ void *StorageAllocById(Storage **storage, StorageEnum type, int id)
 #ifdef DEBUG
     BUG_ON(!storage_registraton_closed);
 #endif
-    SCLogDebug("storage %p id %d\n", storage, id);
+    oryx_logd("storage %p id %d\n", storage, id);
 
     StorageMapping *map = &storage_map[type][id];
     Storage *store = *storage;
     if (store == NULL) {
-        store = SCMalloc(sizeof(void *) * storage_max_id[type]);
+        store = malloc(sizeof(void *) * storage_max_id[type]);
         if (unlikely(store == NULL))
         return NULL;
         memset(store, 0x00, sizeof(void *) * storage_max_id[type]);
     }
-    SCLogDebug("store %p\n", store);
+    oryx_logd("store %p\n", store);
 
     if (store[id] == NULL && map->Alloc != NULL) {
         store[id] = map->Alloc(map->size);
         if (store[id] == NULL) {
-            SCFree(store);
+            free(store);
             *storage = NULL;
             return NULL;
         }
@@ -263,11 +263,11 @@ void StorageFreeById(Storage *storage, StorageEnum type, int id)
     if (storage_map == NULL)
         return;
 #endif
-    SCLogDebug("storage %p id %d", storage, id);
+    oryx_logd("storage %p id %d", storage, id);
 
     Storage *store = storage;
     if (store != NULL) {
-        SCLogDebug("store %p", store);
+        oryx_logd("store %p", store);
         if (store[id] != NULL) {
             StorageMapping *map = &storage_map[type][id];
             map->Free(store[id]);
@@ -321,7 +321,7 @@ void StorageFree(Storage **storage, StorageEnum type)
             store[i] = NULL;
         }
     }
-    SCFree(*storage);
+    free(*storage);
     *storage = NULL;
 }
 

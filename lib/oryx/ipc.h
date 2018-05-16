@@ -48,7 +48,6 @@ oryx_status_t oryx_thread_cond_signal(oryx_thread_cond_t *cptr) { return thread_
 static __oryx_always_inline__
 oryx_status_t oryx_thread_cond_wait(oryx_thread_cond_t *cptr, oryx_thread_mutex_t *mptr) { return thread_cond_wait(cptr, mptr); }
 
-
 typedef oryx_thread_mutex_t	os_lock_t;
 typedef oryx_thread_cond_t	os_cond_t;
 
@@ -56,32 +55,17 @@ typedef oryx_thread_cond_t	os_cond_t;
 	oryx_thread_mutex_lock(lock)
 #define do_unlock(lock)\
 	oryx_thread_mutex_unlock(lock)
+#define do_trylock(lock)\
+	oryx_thread_mutex_trylock(lock)
+#define do_destroy_lock(lock)\
+	oryx_thread_mutex_destroy(lock)
 
-/* mutex */
-#define SCMutex pthread_mutex_t
-#define SCMutexAttr pthread_mutexattr_t
-#define SCMutexInit(mut, mutattr ) pthread_mutex_init(mut, mutattr)
-#define SCMutexLock(mut) pthread_mutex_lock(mut)
-#define SCMutexTrylock(mut) pthread_mutex_trylock(mut)
-#define SCMutexUnlock(mut) pthread_mutex_unlock(mut)
-#define SCMutexDestroy pthread_mutex_destroy
-#define SCMUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
-
-
-/* conditions */
-
-#define SCCondT pthread_cond_t
-#define SCCondInit pthread_cond_init
-#define SCCondSignal pthread_cond_signal
-#define SCCondDestroy pthread_cond_destroy
-#define SCCondWait(cond, mut) pthread_cond_wait(cond, mut)
-
-/* spinlocks */
-
-extern __thread uint64_t spin_lock_contention;
-extern __thread uint64_t spin_lock_wait_ticks;
-extern __thread uint64_t spin_lock_cnt;
-
+#define do_cond_signal(cond)\
+	oryx_thread_cond_signal(cond)
+#define do_cond_destroy(cond)\
+	pthread_cond_destroy(cond)
+#define do_cond_wait(cond, m)\
+	pthread_cond_wait
 
 /* rwlocks */
 #define SCRWLock pthread_rwlock_t
@@ -93,31 +77,14 @@ extern __thread uint64_t spin_lock_cnt;
 #define SCRWLockUnlock(rwl) pthread_rwlock_unlock(rwl)
 #define SCRWLockDestroy pthread_rwlock_destroy
 
-/* ctrl mutex */
-#define SCCtrlMutex pthread_mutex_t
-#define SCCtrlMutexAttr pthread_mutexattr_t
-#define SCCtrlMutexInit(mut, mutattr ) pthread_mutex_init(mut, mutattr)
-#define SCCtrlMutexLock(mut) pthread_mutex_lock(mut)
-#define SCCtrlMutexTrylock(mut) pthread_mutex_trylock(mut)
-#define SCCtrlMutexUnlock(mut) pthread_mutex_unlock(mut)
-#define SCCtrlMutexDestroy pthread_mutex_destroy
-
-/* ctrl conditions */
-#define SCCtrlCondT pthread_cond_t
-#define SCCtrlCondInit pthread_cond_init
-#define SCCtrlCondSignal pthread_cond_signal
-#define SCCtrlCondTimedwait pthread_cond_timedwait
-#define SCCtrlCondWait pthread_cond_wait
-#define SCCtrlCondDestroy pthread_cond_destroy
-
 /* spinlocks */
 #if ((_POSIX_SPIN_LOCKS - 200112L) < 0L) || defined HELGRIND
-#define SCSpinlock                              SCMutex
-#define SCSpinLock(spin)                        SCMutexLock((spin))
-#define SCSpinTrylock(spin)                     SCMutexTrylock((spin))
-#define SCSpinUnlock(spin)                      SCMutexUnlock((spin))
-#define SCSpinInit(spin, spin_attr)             SCMutexInit((spin), NULL)
-#define SCSpinDestroy(spin)                     SCMutexDestroy((spin))
+#define SCSpinlock                              os_lock_t
+#define SCSpinLock(spin)                        do_lock((spin))
+#define SCSpinTrylock(spin)                     do_trylock((spin))
+#define SCSpinUnlock(spin)                      do_unlock((spin))
+#define SCSpinInit(spin, spin_attr)             pthread_mutex_init((spin), NULL)
+#define SCSpinDestroy(spin)                     do_destroy_lock((spin))
 #else /* no spinlocks */
 #define SCSpinlock                              pthread_spinlock_t
 #define SCSpinLock(spin)                        pthread_spin_lock(spin)

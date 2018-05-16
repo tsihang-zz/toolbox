@@ -25,11 +25,9 @@ int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
     int label;
     int event = 0;
 
-	SCLogDebug("MPLS");
+	oryx_logd("MPLS");
 
-#if defined(HAVE_STATS_COUNTERS)
     StatsIncr(tv, dtv->counter_mpls);
-#endif
 
     do {
         if (len < MPLS_HEADER_LEN) {

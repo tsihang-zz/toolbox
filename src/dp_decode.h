@@ -2,8 +2,12 @@
 #define DP_DECODE_H
 
 #include "version.h"
+
+#include "common_private.h"
+#include "vars_private.h"
+#include "queue_private.h"
+
 #include "threadvars.h"
-#include "counters.h"
 #include "event.h"
 /* < protocol headers> */
 #include "ethh.h"
@@ -18,7 +22,10 @@
 #include "mplsh.h"
 #include "802xx.h"
 
+#if defined(HAVE_FLOW_MGR)
 #include "flow.h"
+#endif
+
 /*Error codes for the thread modules*/
 typedef enum {
     TM_ECODE_OK = 0,    /**< Thread module exits OK*/
@@ -89,15 +96,6 @@ typedef struct PacketAlerts_ {
         (a)->addr_data32[3] = 0;                                  \
     } while (0)
 
-/* clear the address structure by setting all fields to 0 */
-#define CLEAR_ADDR(a) do {       \
-        (a)->family = 0;         \
-        (a)->addr_data32[0] = 0; \
-        (a)->addr_data32[1] = 0; \
-        (a)->addr_data32[2] = 0; \
-        (a)->addr_data32[3] = 0; \
-    } while (0)
-
 /* Set the IPv6 addressesinto the Addrs of the Packet.
  * Make sure p->ip6h is initialized and validated. */
 #define SET_IPV6_SRC_ADDR(p, a) do {                    \
@@ -163,85 +161,6 @@ typedef struct PacketAlerts_ {
 #define SET_PKT_LEN(p, len) do { \
     (p)->pktlen = (len); \
     } while (0)
-
-
-typedef struct PktVar_ {
-    uint32_t id;
-    struct PktVar_ *next; /* right now just implement this as a list,
-                           * in the long run we have thing of something
-                           * faster. */
-    uint16_t key_len;
-    uint16_t value_len;
-    uint8_t *key;
-    uint8_t *value;
-} PktVar;
-
-
-/** \brief Structure to hold thread specific data for all decode modules */
-typedef struct DecodeThreadVars_
-{
-    /** Specific context for udp protocol detection (here atm) */
-    //AppLayerThreadCtx *app_tctx;
-
-    int vlan_disabled;
-
-    /** stats/counters */
-    uint16_t counter_pkts;
-    uint16_t counter_bytes;
-    uint16_t counter_avg_pkt_size;
-    uint16_t counter_max_pkt_size;
-
-    uint16_t counter_invalid;
-
-    uint16_t counter_eth;
-    uint16_t counter_ipv4;
-    uint16_t counter_ipv6;
-    uint16_t counter_tcp;
-    uint16_t counter_udp;
-    uint16_t counter_icmpv4;
-    uint16_t counter_icmpv6;
-
-    uint16_t counter_sll;
-    uint16_t counter_raw;
-    uint16_t counter_null;
-    uint16_t counter_sctp;
-    uint16_t counter_ppp;
-    uint16_t counter_gre;
-    uint16_t counter_vlan;
-    uint16_t counter_vlan_qinq;
-    uint16_t counter_ieee8021ah;
-    uint16_t counter_pppoe;
-    uint16_t counter_teredo;
-    uint16_t counter_mpls;
-    uint16_t counter_ipv4inipv6;
-    uint16_t counter_ipv6inipv6;
-    uint16_t counter_erspan;
-
-    /** frag stats - defrag runs in the context of the decoder. */
-    uint16_t counter_defrag_ipv4_fragments;
-    uint16_t counter_defrag_ipv4_reassembled;
-    uint16_t counter_defrag_ipv4_timeouts;
-    uint16_t counter_defrag_ipv6_fragments;
-    uint16_t counter_defrag_ipv6_reassembled;
-    uint16_t counter_defrag_ipv6_timeouts;
-    uint16_t counter_defrag_max_hit;
-
-    uint16_t counter_flow_memcap;
-
-    uint16_t counter_flow_tcp;
-    uint16_t counter_flow_udp;
-    uint16_t counter_flow_icmp4;
-    uint16_t counter_flow_icmp6;
-
-    uint16_t counter_invalid_events[DECODE_EVENT_PACKET_MAX];
-    /* thread data for flow logging api: only used at forced
-     * flow recycle during lookups */
-    void *output_flow_thread_data;
-
-#ifdef __SC_CUDA_SUPPORT__
-    CudaThreadVars cuda_vars;
-#endif
-} DecodeThreadVars;
 
 /** number of decoder events we support per packet. Power of 2 minus 1
  *  for memory layout */
@@ -480,18 +399,6 @@ typedef struct Packet_
 				PACKET_REINIT((p)); \
 			} while (0)
 
-typedef struct PacketQueue_ {
-    Packet *top;
-    Packet *bot;
-    uint32_t len;
-#ifdef DBG_PERF
-    uint32_t dbg_maxlen;
-#endif /* DBG_PERF */
-    SCMutex mutex_q;
-    SCCondT cond_q;
-} PacketQueue;
-
-
 #define ENGINE_SET_EVENT(p, e) do { \
     if ((p)->events.cnt < PACKET_ENGINE_EVENT_MAX) { \
         (p)->events.events[(p)->events.cnt] = e; \
@@ -517,6 +424,7 @@ typedef struct PacketQueue_ {
 #include "dp_decode_ppp.h"
 #include "dp_decode_pppoe.h"
 #include "dp_decode_vlan.h"
+#include "dp_decode_arp.h"
 
 
 extern Packet *PacketGetFromAlloc(void);

@@ -50,7 +50,7 @@ LIBABIVER := 1
 
 # all source are stored in SRC-Y
 SRCS-y :=\
-   debug.c fop.c mpm-hs.c rbtree.c ipc.c actq.c memcache.c oryx.c error.c atomic.c \
+   counter.c debug.c format.c fop.c mpm-hs.c rbtree.c ipc.c actq.c memcache.c oryx.c error.c atomic.c \
    netdev_pcap.c parser.c task.c htable.c memory.c netdev.c netdev_pfring.c \
    mpm-ac.c mpm.c lru.c list.c tmr.c vec.c conf.c conf-yaml-loader.c
 

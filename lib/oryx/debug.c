@@ -5,7 +5,7 @@
 #define ORYX_LOG_LEVEL	ORYX_LOG_DEBUG
 #endif
 
-u32 oryx_log_global_log_level = ORYX_LOG_DEBUG;
+u32 oryx_log_global_log_level = ORYX_LOG_INFO;
 
 /** Get the Current Thread Id */
 #ifdef OS_FREEBSD
@@ -300,8 +300,8 @@ oryx_log_init(void)
 	oryx_logs.dynamic_types_len = ORYX_LOGTYPE_FIRST_EXT_ID;
 }
 
-static const char *
-loglevel_to_string(uint32_t level)
+const char *
+loglevel_format(uint32_t level)
 {
 	switch (level) {
 	case 0: return "disabled";
@@ -317,6 +317,30 @@ loglevel_to_string(uint32_t level)
 	}
 }
 
+int
+loglevel_unformat(const char *level_str)
+{
+	if (!strcmp(level_str, "debug"))
+		return ORYX_LOG_DEBUG;
+	if (!strcmp(level_str, "info"))
+		return ORYX_LOG_INFO;
+	if (!strcmp(level_str, "notice"))
+		return ORYX_LOG_NOTICE;
+	if (!strcmp(level_str, "warning"))
+		return ORYX_LOG_WARNING;
+	if (!strcmp(level_str, "error"))
+		return ORYX_LOG_ERROR;
+	if (!strcmp(level_str, "critical"))
+		return ORYX_LOG_CRITICAL;
+	if (!strcmp(level_str, "alert"))
+		return ORYX_LOG_ALERT;
+	if (!strcmp(level_str, "emerg"))
+		return ORYX_LOG_EMERGENCY;
+
+	return UINT_MAX;
+}
+
+
 /* dump global level and registered log types */
 void
 oryx_log_dump(FILE *f)
@@ -325,7 +349,7 @@ oryx_log_dump(FILE *f)
 	struct oryx_log_dynamic_type *dt;
 	
 	fprintf(f, "global log level is %s\n",
-		loglevel_to_string(oryx_log_get_global_level()));
+		loglevel_format(oryx_log_get_global_level()));
 
 	for (i = 0; i < oryx_logs.dynamic_types_len; i++) {
 		dt = &oryx_logs.dynamic_types[i];
@@ -333,7 +357,7 @@ oryx_log_dump(FILE *f)
 			continue;
 		fprintf(f, "id %zu: %s, level is %s\n",
 			i, dt->name,
-			loglevel_to_string(dt->loglevel));
+			loglevel_format(dt->loglevel));
 	}
 }
 
@@ -479,7 +503,7 @@ static int oryx_log2_buffer(
     char *substr = temp_fmt;
 
 	while ( (temp_fmt = index(temp_fmt, SC_LOG_FMT_PREFIX)) ) {
-        if ((temp - buffer) > SC_LOG_MAX_LOG_MSG_LEN) {
+        if ((temp - buffer) > ORYX_LOG_MAX_LOG_MSG_LEN) {
             return 0;
         }
         switch(temp_fmt[1]) {
@@ -489,7 +513,7 @@ static int oryx_log2_buffer(
                 struct tm local_tm;
                 tms = oryx_localtime(tval->tv_sec, &local_tm);
 
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%d/%d/%04d -- %02d:%02d:%02d%s",
                               substr, green, tms->tm_mday, tms->tm_mon + 1,
                               tms->tm_year + 1900, tms->tm_hour, tms->tm_min,
@@ -504,7 +528,7 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_PID:
                 temp_fmt[0] = '\0';
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%u%s", substr, yellow, getpid(), reset);
                 if (cw < 0)
                     return -1;
@@ -516,7 +540,7 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_TID:
                 temp_fmt[0] = '\0';
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%lu%s", substr, yellow, SCGetThreadIdLong(), reset);
                 if (cw < 0)
                     return -1;
@@ -534,10 +558,10 @@ static int oryx_log2_buffer(
  * lock. */
 #if 0
                 ThreadVars *tv = TmThreadsGetCallingThread();
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - *msg),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - *msg),
                               "%s%s", substr, ((tv != NULL)? tv->name: "UNKNOWN TM"));
 #endif
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s", substr, "N/A");
                 if (cw < 0)
                     return -1;
@@ -549,22 +573,22 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_LOG_LEVEL:
                 temp_fmt[0] = '\0';
-                s = loglevel_to_string(log_level);
+                s = loglevel_format(log_level);
                 if (s != NULL) {
                     if (log_level <= ORYX_LOG_ERROR)
-                        cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                        cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                                   "%s%s%s%s", substr, redb, s, reset);
                     else if (log_level == ORYX_LOG_WARNING)
-                        cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                        cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                                   "%s%s%s%s", substr, red, s, reset);
                     else if (log_level == ORYX_LOG_NOTICE)
-                        cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                        cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                                   "%s%s%s%s", substr, yellowb, s, reset);
                     else
-                        cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                        cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                                   "%s%s%s%s", substr, yellow, s, reset);
                 } else {
-                    cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                    cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                                   "%s%s", substr, "INVALID");
                 }
                 if (cw < 0)
@@ -577,7 +601,7 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_FILE_NAME:
                 temp_fmt[0] = '\0';
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%s%s", substr, blue, file, reset);
                 if (cw < 0)
                     return -1;
@@ -589,7 +613,7 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_LINE:
                 temp_fmt[0] = '\0';
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%u%s", substr, green, line, reset);
                 if (cw < 0)
                     return -1;
@@ -601,7 +625,7 @@ static int oryx_log2_buffer(
 
             case SC_LOG_FMT_FUNCTION:
                 temp_fmt[0] = '\0';
-                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+                cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%s%s", substr, green, function, reset);
                 if (cw < 0)
                     return -1;
@@ -614,26 +638,26 @@ static int oryx_log2_buffer(
         }
         temp_fmt++;
 	}
-    if ((temp - buffer) > SC_LOG_MAX_LOG_MSG_LEN) {
+    if ((temp - buffer) > ORYX_LOG_MAX_LOG_MSG_LEN) {
         return 0;
     }
-    cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s", substr);
+    cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s", substr);
     if (cw < 0) {
         return -1;
     }
     temp += cw;
-    if ((temp - buffer) > SC_LOG_MAX_LOG_MSG_LEN) {
+    if ((temp - buffer) > ORYX_LOG_MAX_LOG_MSG_LEN) {
         return 0;
     }
 	
     if (error_code != 0) {
-        cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
+        cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                 "[%sERRCODE%s: %s%s%s(%s%d%s)] - ", yellow, reset, red, errno2_string(error_code), reset, yellow, error_code, reset);
         if (cw < 0) {
             return -1;
         }
         temp += cw;
-        if ((temp - buffer) > SC_LOG_MAX_LOG_MSG_LEN) {
+        if ((temp - buffer) > ORYX_LOG_MAX_LOG_MSG_LEN) {
             return 0;
         }
     }
@@ -643,12 +667,12 @@ static int oryx_log2_buffer(
         hi = red;
     else if (log_level <= ORYX_LOG_NOTICE)
         hi = yellow;
-    cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s%s%s", hi, message, reset);
+    cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s%s%s", hi, message, reset);
     if (cw < 0) {
         return -1;
     }
     temp += cw;
-    if ((temp - buffer) > SC_LOG_MAX_LOG_MSG_LEN) {
+    if ((temp - buffer) > ORYX_LOG_MAX_LOG_MSG_LEN) {
         return 0;
     }
 #if 0
@@ -672,7 +696,7 @@ void oryx_logging_out(const int log_level, const char *file,
                      const unsigned int line, const char *function,
                      const int error_code, const char *message)
 {
-	char buffer[SC_LOG_MAX_LOG_MSG_LEN] = "";
+	char buffer[ORYX_LOG_MAX_LOG_MSG_LEN] = "";
     /* get ts here so we log the same ts to each output */
     struct timeval tval;
     gettimeofday(&tval, NULL);

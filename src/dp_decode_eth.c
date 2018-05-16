@@ -5,11 +5,11 @@
 int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-	SCLogDebug("Ethernet ...");
+	EthernetHdr *ethh;
+
+	oryx_logd("Ethernet ...");
 
     StatsIncr(tv, dtv->counter_eth);
-
-	EthernetHdr *ethh;
     if (unlikely(len < ETHERNET_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_TOO_SMALL);
         return TM_ECODE_FAILED;
@@ -19,7 +19,7 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
     if (unlikely(p->ethh == NULL))
         return TM_ECODE_FAILED;
 
-	SCLogDebug("p %p pkt %p ether type %04x", p, pkt, ntohs(ethh->eth_type));
+	oryx_logd("p %p pkt %p ether type %04x", p, pkt, ntohs(ethh->eth_type));
 
 	switch (ntohs(ethh->eth_type)) {
 			case ETHERNET_TYPE_IP:
@@ -56,8 +56,12 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 						len - ETHERNET_DCE_HEADER_LEN, pq);
 				}
 				break;
+			case ETHERNET_TYPE_ARP:
+				DecodeARP0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
+					 len - ETHERNET_HEADER_LEN, pq);
+				break;
 			default:
-				SCLogNotice("p %p pkt %p ether type %04x not supported", p,
+				oryx_logn("p %p pkt %p ether type %04x not supported", p,
 						   pkt, ntohs(ethh->eth_type));
 	}
 

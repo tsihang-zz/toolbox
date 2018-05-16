@@ -23,9 +23,7 @@ static void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, u
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPV6);
                 /* add the tp to the packet queue. */
                 PacketEnqueue(pq,tp);
-			#if defined(HAVE_STATS_COUNTERS)
                 StatsIncr(tv, dtv->counter_ipv4inipv6);
-			#endif
                 return;
             }
         }
@@ -55,9 +53,7 @@ static int DecodeIP6inIP6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint
             if (tp != NULL) {
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPV6);
                 PacketEnqueue(pq,tp);
-			#if defined(HAVE_STATS_COUNTERS)
                 StatsIncr(tv, dtv->counter_ipv6inipv6);
-			#endif
             }
         }
     } else
@@ -86,7 +82,7 @@ void DecodeIPV6FragHeader(Packet *p, uint8_t *pkt,
     memcpy(&fh_id, pkt+4, 4);
     p->ip6eh.fh_id = ntohl(fh_id);
 
-    SCLogDebug("IPV6 FH: offset %u, mf %s, nh %u, id %u/%x",
+    oryx_logd("IPV6 FH: offset %u, mf %s, nh %u, id %u/%x",
             p->ip6eh.fh_offset,
             p->ip6eh.fh_more_frags_set ? "true" : "false",
             p->ip6eh.fh_nh,
@@ -106,7 +102,7 @@ void DecodeIPV6FragHeader(Packet *p, uint8_t *pkt,
         p->ip6eh.fh_prev_hdr_offset = frag_hdr_offset - prev_hdrextlen;
     }
 
-    SCLogDebug("IPV6 FH: frag_hdr_offset %u, data_offset %u, data_len %u",
+    oryx_logd("IPV6 FH: frag_hdr_offset %u, data_offset %u, data_len %u",
             p->ip6eh.fh_header_offset, p->ip6eh.fh_data_offset,
             p->ip6eh.fh_data_len);
 }
@@ -166,7 +162,7 @@ DecodeIPV6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
                 IPV6_SET_L4PROTO(p,nh);
                 hdrextlen = 8 + (*(pkt+1) * 8);  /* 8 bytes + length in 8 octet units */
 
-                SCLogDebug("hdrextlen %"PRIu8, hdrextlen);
+                oryx_logd("hdrextlen %"PRIu8, hdrextlen);
 
                 if (hdrextlen > plen) {
                     ENGINE_SET_EVENT(p, IPV6_TRUNC_EXTHDR);
@@ -459,7 +455,7 @@ DecodeIPV6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
                 if (*(pkt+1) > 0)
                     hdrextlen += ((*(pkt+1) - 1) * 4);
 
-                SCLogDebug("hdrextlen %"PRIu8, hdrextlen);
+                oryx_logd("hdrextlen %"PRIu8, hdrextlen);
 
                 if (hdrextlen > plen) {
                     ENGINE_SET_EVENT(p, IPV6_TRUNC_EXTHDR);
@@ -527,7 +523,7 @@ static int DecodeIPV6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, u
     }
 
     if (unlikely(IP_GET_RAW_VER(pkt) != 6)) {
-        SCLogDebug("wrong ip version %" PRIu8 "",IP_GET_RAW_VER(pkt));
+        oryx_logd("wrong ip version %" PRIu8 "",IP_GET_RAW_VER(pkt));
         ENGINE_SET_INVALID_EVENT(p, IPV6_WRONG_IP_VER);
         return -1;
     }
@@ -548,12 +544,11 @@ static int DecodeIPV6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, u
 
 int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-	SCLogDebug("IPv6");
-
+	oryx_logd("IPv6");
+	
     int ret;
-#if defined(HAVE_STATS_COUNTERS)
-    StatsIncr(tv, dtv->counter_ipv6);
-#endif
+
+	StatsIncr(tv, dtv->counter_ipv6);
     /* do the actual decoding */
     ret = DecodeIPV6Packet (tv, dtv, p, pkt, len);
     if (unlikely(ret < 0)) {
@@ -567,7 +562,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
         char s[46], d[46];
         PrintInet(AF_INET6, (const void *)GET_IPV6_SRC_ADDR(p), s, sizeof(s));
         PrintInet(AF_INET6, (const void *)GET_IPV6_DST_ADDR(p), d, sizeof(d));
-        SCLogDebug("IPV6 %s->%s - CLASS: %" PRIu32 " FLOW: %" PRIu32 " NH: %" PRIu32 " PLEN: %" PRIu32 " HLIM: %" PRIu32 "", s,d,
+        oryx_logd("IPV6 %s->%s - CLASS: %" PRIu32 " FLOW: %" PRIu32 " NH: %" PRIu32 " PLEN: %" PRIu32 " HLIM: %" PRIu32 "", s,d,
                 IPV6_GET_CLASS(p), IPV6_GET_FLOW(p), IPV6_GET_NH(p), IPV6_GET_PLEN(p),
                 IPV6_GET_HLIM(p));
     }

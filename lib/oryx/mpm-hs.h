@@ -1,9 +1,6 @@
 #ifndef __UTIL_MPM_HS__H__
 #define __UTIL_MPM_HS__H__
 
-#if 0
-#if !defined(HAVE_SURICATA)
-
 #include "mpm.h"
 
 typedef struct SCHSPattern_ {
@@ -54,6 +51,4 @@ void MpmHSGlobalCleanup(void);
 void SCHSPrintInfo(MpmCtx *mpm_ctx);
 #endif
 
-#endif
-#endif
 #endif

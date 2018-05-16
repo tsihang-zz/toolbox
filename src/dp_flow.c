@@ -161,7 +161,7 @@ Flow *FlowAlloc(void)
 
     (void) SC_ATOMIC_ADD(flow_memuse, size);
 
-    f = SCMalloc(size);
+    f = malloc(size);
     if (unlikely(f == NULL)) {
         (void)SC_ATOMIC_SUB(flow_memuse, size);
         return NULL;
@@ -457,7 +457,7 @@ void FlowUpdateState(Flow *f, enum FlowState s)
  * we see from it. */
 void FlowInit(Flow *f, const Packet *p)
 {
-    SCLogDebug("flow %p", f);
+    oryx_logd("flow %p", f);
 
     f->proto = p->proto;
     f->recursion_level = p->recursion_level;
@@ -577,7 +577,7 @@ Flow *FlowGetFlowFromHash(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p
     FlowBucket *fb = &flow_hash[hash % flow_config.hash_size];
     FBLOCK_LOCK(fb);
 
-    SCLogDebug("fb %p fb->head %p", fb, fb->head);
+    oryx_logd("fb %p fb->head %p", fb, fb->head);
 
     /* see if the bucket already has a flow */
     if (fb->head == NULL) {

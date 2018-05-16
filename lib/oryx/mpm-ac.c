@@ -1,23 +1,19 @@
 #include "oryx.h"
 #include "mpm-ac.h"
 
-#if 0
-#if !defined(HAVE_SURICATA)
-
-void SCACInitCtx(MpmCtx *);
-void SCACInitThreadCtx(MpmCtx *, MpmThreadCtx *);
-void SCACDestroyCtx(MpmCtx *);
-void SCACDestroyThreadCtx(MpmCtx *, MpmThreadCtx *);
-int SCACAddPatternCI(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
+void ACinitCtx(MpmCtx *);
+void ACInitThreadCtx(MpmCtx *, MpmThreadCtx *);
+void ACDestroyCtx(MpmCtx *);
+void ACDestroyThreadCtx(MpmCtx *, MpmThreadCtx *);
+int ACAddPatternCI(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
                      uint32_t, sig_id, uint8_t);
-int SCACAddPatternCS(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
+int ACAddPatternCS(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
                      uint32_t, sig_id, uint8_t);
-int SCACPreparePatterns(MpmCtx *mpm_ctx);
-uint32_t SCACSearch(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
+int ACPreparePatterns(MpmCtx *mpm_ctx);
+uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen);
-void SCACPrintInfo(MpmCtx *mpm_ctx);
-void SCACPrintSearchStats(MpmThreadCtx *mpm_thread_ctx);
-void SCACRegisterTests(void);
+void ACPrintInfo(MpmCtx *mpm_ctx);
+void ACPrintSearchStats(MpmThreadCtx *mpm_thread_ctx);
 
 /* a placeholder to denote a failure transition in the goto table */
 #define SC_AC_FAIL (-1)
@@ -45,7 +41,7 @@ typedef struct StateQueue_ {
  *        aren't retrieving anything for AC conf now, but we will certainly
  *        need it, when we customize AC.
  */
-static void SCACGetConfig (void)
+static void ACGetConfig (void)
 {
     //ConfNode *ac_conf;
     //const char *hash_val = NULL;
@@ -63,7 +59,7 @@ static void SCACGetConfig (void)
  *
  * \retval The state id, of the newly created state.
  */
-static inline int SCACReallocState(SCACCtx *ctx, uint32_t cnt)
+static inline int ACReallocState(SCACCtx *ctx, uint32_t cnt)
 {
     void *ptmp;
     int64_t size = 0;
@@ -115,7 +111,7 @@ ASSERT (ptmp);
  *
  *  Shrinks only the output table, goto table is freed after calling this
  */
-static void SCACShrinkState(SCACCtx *ctx)
+static void ACShrinkState(SCACCtx *ctx)
 {
     /* reallocate space in the output table for the new state */
 #ifdef MPM_DEBUG
@@ -156,7 +152,7 @@ static inline int SCACInitNewState(MpmCtx *mpm_ctx)
         else
             ctx->allocated_state_count *= 2;
 
-        SCACReallocState(ctx, ctx->allocated_state_count);
+        ACReallocState(ctx, ctx->allocated_state_count);
 
     }
 #if 0
@@ -680,7 +676,7 @@ static void SCACPrepareStateTable(MpmCtx *mpm_ctx)
     SCACInsertCaseSensitiveEntriesForPatterns(mpm_ctx);
 
     /* shrink the memory */
-    SCACShrinkState(ctx);
+    ACShrinkState(ctx);
 
 #if 0
     SCACPrintDeltaTable(mpm_ctx);
@@ -700,7 +696,7 @@ static void SCACPrepareStateTable(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-int SCACPreparePatterns(MpmCtx *mpm_ctx)
+int ACPreparePatterns(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
 
@@ -824,7 +820,7 @@ error:
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  * \param matchsize      We don't need this.
  */
-void SCACInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void ACInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
 
@@ -844,7 +840,7 @@ void SCACInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread
  *
  * \param mpm_ctx       Mpm context.
  */
-void SCACInitCtx(MpmCtx *mpm_ctx)
+void ACinitCtx(MpmCtx *mpm_ctx)
 {
     if (mpm_ctx->ctx != NULL)
         return;
@@ -865,7 +861,7 @@ void SCACInitCtx(MpmCtx *mpm_ctx)
 
     /* get conf values for AC from our yaml file.  We have no conf values for
      * now.  We will certainly need this, as we develop the algo */
-    SCACGetConfig();
+    ACGetConfig();
 
     SCReturn;
 }
@@ -876,9 +872,9 @@ void SCACInitCtx(MpmCtx *mpm_ctx)
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-void SCACDestroyThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void ACDestroyThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
-    SCACPrintSearchStats(mpm_thread_ctx);
+    ACPrintSearchStats(mpm_thread_ctx);
 
     if (mpm_thread_ctx->ctx != NULL) {
         kfree(mpm_thread_ctx->ctx);
@@ -895,7 +891,7 @@ void SCACDestroyThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thr
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-void SCACDestroyCtx(MpmCtx *mpm_ctx)
+void ACDestroyCtx(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     if (ctx == NULL)
@@ -983,7 +979,7 @@ void SCACDestroyCtx(MpmCtx *mpm_ctx)
 //#define BIT_ARRAY_ALLOC_STACK
 uint8_t *bitarray_ptr;
 #define BIT_ARRAY_DEFAULT_SIZE		102400
-uint32_t SCACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
+uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
     const SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
@@ -1126,7 +1122,7 @@ uint32_t SCACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ct
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-int SCACAddPatternCI(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+int ACAddPatternCI(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
@@ -1151,14 +1147,14 @@ int SCACAddPatternCI(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-int SCACAddPatternCS(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+int ACAddPatternCS(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
     return MpmAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
-void SCACPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
+void ACPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
 {
 
 #ifdef SC_AC_COUNTERS
@@ -1171,7 +1167,7 @@ void SCACPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
     return;
 }
 
-void SCACPrintInfo(MpmCtx __oryx_unused__ *mpm_ctx)
+void ACPrintInfo(MpmCtx __oryx_unused__ *mpm_ctx)
 {
     SCACCtx __oryx_unused__ *ctx = (SCACCtx *)mpm_ctx->ctx;
 #if 1
@@ -1263,9 +1259,9 @@ void CudaReleasePacket(Packet *p)
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled == 1) {
         p->cuda_pkt_vars.cuda_mpm_enabled = 0;
-        SCMutexLock(&p->cuda_pkt_vars.cuda_mutex);
+        do_lock(&p->cuda_pkt_vars.cuda_mutex);
         p->cuda_pkt_vars.cuda_done = 0;
-        SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+        do_unlock(&p->cuda_pkt_vars.cuda_mutex);
     }
 
     return;
@@ -1470,10 +1466,10 @@ static void *SCACCudaDispatcher(void *arg)
         for (uint32_t i = 0; i < no_of_items; i++, i_op_start_offset++) {
             Packet *p = (Packet *)cb_data->p_buffer[i_op_start_offset];
 
-            SCMutexLock(&p->cuda_pkt_vars.cuda_mutex);
+            do_lock(&p->cuda_pkt_vars.cuda_mutex);
             if (p->cuda_pkt_vars.cuda_mpm_enabled == 0) {
                 p->cuda_pkt_vars.cuda_done = 0;
-                SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+                do_unlock(&p->cuda_pkt_vars.cuda_mutex);
                 continue;
             }
 
@@ -1488,8 +1484,8 @@ static void *SCACCudaDispatcher(void *arg)
             }
 
             p->cuda_pkt_vars.cuda_done = 1;
-            SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
-            SCCondSignal(&p->cuda_pkt_vars.cuda_cond);
+            do_unlock(&p->cuda_pkt_vars.cuda_mutex);
+            do_cond_signal(&p->cuda_pkt_vars.cuda_cond);
         }
         if (no_of_items != 0)
             CudaBufferReportCulledConsumption(cb_data, &cb_culled_info);
@@ -1536,13 +1532,13 @@ uint32_t SCACCudaPacketResultsProcessing(Packet *p, const MpmCtx *mpm_ctx,
     uint32_t u = 0;
 
     while (!p->cuda_pkt_vars.cuda_done) {
-        SCMutexLock(&p->cuda_pkt_vars.cuda_mutex);
+        do_lock(&p->cuda_pkt_vars.cuda_mutex);
         if (p->cuda_pkt_vars.cuda_done) {
-            SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+            do_unlock(&p->cuda_pkt_vars.cuda_mutex);
             break;
         } else {
-            SCCondWait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
-            SCMutexUnlock(&p->cuda_pkt_vars.cuda_mutex);
+            do_cond_wait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
+            do_unlock(&p->cuda_pkt_vars.cuda_mutex);
         }
     } /* while */
     p->cuda_pkt_vars.cuda_done = 0;
@@ -1572,7 +1568,7 @@ uint32_t SCACCudaPacketResultsProcessing(Packet *p, const MpmCtx *mpm_ctx,
          * since the cuda kernel does that for us */
         uint32_t *pids = output_table[state].pids;
         uint32_t k;
-        /* note that this is not a verbatim copy from SCACSearch().  We
+        /* note that this is not a verbatim copy from ACSearch().  We
          * don't copy the pattern id into the pattern_id_array.  That's
          * the only change */
         for (k = 0; k < no_of_entries; k++) {
@@ -1744,23 +1740,20 @@ int MpmCudaBufferDeSetup(void)
 void MpmACRegister(void)
 {
     mpm_table[MPM_AC].name = "ac";
-    mpm_table[MPM_AC].InitCtx = SCACInitCtx;
-    mpm_table[MPM_AC].InitThreadCtx = SCACInitThreadCtx;
-    mpm_table[MPM_AC].DestroyCtx = SCACDestroyCtx;
-    mpm_table[MPM_AC].DestroyThreadCtx = SCACDestroyThreadCtx;
-    mpm_table[MPM_AC].AddPattern = SCACAddPatternCS;
-    mpm_table[MPM_AC].AddPatternNocase = SCACAddPatternCI;
-    mpm_table[MPM_AC].Prepare = SCACPreparePatterns;
-    mpm_table[MPM_AC].Search = SCACSearch;
+    mpm_table[MPM_AC].InitCtx = ACinitCtx;
+    mpm_table[MPM_AC].InitThreadCtx = ACInitThreadCtx;
+    mpm_table[MPM_AC].DestroyCtx = ACDestroyCtx;
+    mpm_table[MPM_AC].DestroyThreadCtx = ACDestroyThreadCtx;
+    mpm_table[MPM_AC].AddPattern = ACAddPatternCS;
+    mpm_table[MPM_AC].AddPatternNocase = ACAddPatternCI;
+    mpm_table[MPM_AC].Prepare = ACPreparePatterns;
+    mpm_table[MPM_AC].Search = ACSearch;
     mpm_table[MPM_AC].Cleanup = NULL;
-    mpm_table[MPM_AC].PrintCtx = SCACPrintInfo;
-    mpm_table[MPM_AC].PrintThreadCtx = SCACPrintSearchStats;
-    mpm_table[MPM_AC].RegisterUnittests = SCACRegisterTests;
+    mpm_table[MPM_AC].PrintCtx = ACPrintInfo;
+    mpm_table[MPM_AC].PrintThreadCtx = ACPrintSearchStats;
+    mpm_table[MPM_AC].RegisterUnittests = NULL;
 
     return;
 }
 
 
-/*************************************Unittests********************************/
-#endif
-#endif

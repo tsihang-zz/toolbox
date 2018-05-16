@@ -118,8 +118,8 @@ struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets,
 	/** kmalloc.MPF_CLR means that the memory block pointed by its return 
 	 *  has been CLEARED. */
     /** memset(ht->array,0,ht->array_size * sizeof(struct oryx_hbucket_t *)); */
-
-	oryx_htable_print (ht);
+	if(ht->ul_flags & HTABLE_PRINT_INFO)
+		oryx_htable_print (ht);
 
     return ht;
 

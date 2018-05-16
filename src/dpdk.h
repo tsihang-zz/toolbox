@@ -28,7 +28,7 @@
 #include <rte_version.h>
 #include <rte_ethdev.h>
 
-#include "main.h"
+#include "common_private.h"
 
 /** These two macro means a frame. */
 #define DPDK_BUFFER_PRE_DATA_SIZE	RTE_PKTMBUF_HEADROOM		//(128)
@@ -152,8 +152,10 @@ typedef struct {
 typedef struct {
 	/* control interval of dpdk link state and stat polling */
 	f64 link_state_poll_interval;
-
+	
 	f64 stat_poll_interval;
+
+	struct oryx_timer_t *perf_tmr;
 	
 	/* Sleep for this many usec after each device poll */
 	u32 poll_sleep_usec;
@@ -171,7 +173,12 @@ typedef struct {
 	volatile bool force_quit;
 	
 	vlib_main_t *vm;
+
+	/** hold threadvars, detect_thread_ctx etc. */
+	void *ext_private;
 } dpdk_main_t;
+
+extern dpdk_main_t dpdk_main;
 
 #include "dpdk_init.h"
 

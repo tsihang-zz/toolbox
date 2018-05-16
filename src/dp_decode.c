@@ -1,11 +1,4 @@
-#include "oryx.h"
-#include "event.h"
-#include "threadvars.h"
-#include "dp_decode.h"
-#include "dp_decode_eth.h"
-#include "dp_decode_ipv4.h"
-#include "dp_decode_ipv6.h"
-
+#include "oryx.h"#include "event.h"#include "threadvars.h"#include "dp_decode.h"#include "dp_decode_eth.h"#include "dp_decode_ipv4.h"#include "dp_decode_ipv6.h"void DecodeUpdateCounters(ThreadVars *tv,                                const DecodeThreadVars *dtv, const Packet *p){    StatsIncr(tv, dtv->counter_pkts);    //StatsIncr(tv, dtv->counter_pkts_per_sec);    StatsAddUI64(tv, dtv->counter_bytes, GET_PKT_LEN(p));    StatsAddUI64(tv, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));    StatsSetUI64(tv, dtv->counter_max_pkt_size, GET_PKT_LEN(p));}								
 /**
  * \brief Return a malloced packet.
  */static

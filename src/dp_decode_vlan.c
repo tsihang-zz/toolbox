@@ -57,14 +57,12 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 {
     uint32_t proto;
 
-	SCLogDebug("VLAN");
+	oryx_logd("VLAN");
 
-#if defined(HAVE_STATS_COUNTERS)
     if (p->vlan_idx == 0)
         StatsIncr(tv, dtv->counter_vlan);
     else if (p->vlan_idx == 1)
         StatsIncr(tv, dtv->counter_vlan_qinq);
-#endif
 
     if(len < VLAN_HEADER_LEN)    {
         ENGINE_SET_INVALID_EVENT(p, VLAN_HEADER_TOO_SMALL);
@@ -81,7 +79,7 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 
     proto = GET_VLAN_PROTO(p->vlanh[p->vlan_idx]);
 
-    SCLogDebug("p %p pkt %p VLAN protocol %04x VLAN PRI %d VLAN CFI %d VLAN ID %d Len: %" PRId32 "",
+    oryx_logd("p %p pkt %p VLAN protocol %04x VLAN PRI %d VLAN CFI %d VLAN ID %d Len: %" PRId32 "",
             p, pkt, proto, GET_VLAN_PRIORITY(p->vlanh[p->vlan_idx]),
             GET_VLAN_CFI(p->vlanh[p->vlan_idx]), GET_VLAN_ID(p->vlanh[p->vlan_idx]), len);
 
@@ -123,7 +121,7 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
                     len - VLAN_HEADER_LEN, pq);
             break;
         default:
-            SCLogDebug("unknown VLAN type: %" PRIx32 "", proto);
+            oryx_logd("unknown VLAN type: %" PRIx32 "", proto);
             ENGINE_SET_INVALID_EVENT(p, VLAN_UNKNOWN_TYPE);
             return TM_ECODE_OK;
     }

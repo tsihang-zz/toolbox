@@ -1,6 +1,10 @@
 #ifndef FLOW_H
 #define FLOW_H
 
+#if defined(HAVE_FLOW_MGR)
+
+#include "common_private.h"
+
 #define FLOWLOCK_MUTEX
 #define FBLOCK_MUTEX
 
@@ -107,42 +111,6 @@ enum FlowState {
 typedef unsigned short FlowStateType;
 typedef unsigned short FlowRefCount;
 
-/* Port is just a uint16_t */
-typedef uint16_t Port;
-#define SET_PORT(v, p) ((p) = (v))
-#define COPY_PORT(a,b) ((b) = (a))
-
-#define CMP_ADDR(a1, a2) \
-    (((a1)->addr_data32[3] == (a2)->addr_data32[3] && \
-      (a1)->addr_data32[2] == (a2)->addr_data32[2] && \
-      (a1)->addr_data32[1] == (a2)->addr_data32[1] && \
-      (a1)->addr_data32[0] == (a2)->addr_data32[0]))
-#define CMP_PORT(p1, p2) \
-    ((p1) == (p2))
-
-/* Address */
-typedef struct Address_ {
-    char family;
-    union {
-        uint32_t       address_un_data32[4]; /* type-specific field */
-        uint16_t       address_un_data16[8]; /* type-specific field */
-        uint8_t        address_un_data8[16]; /* type-specific field */
-    } address;
-} Address;
-
-
-#define addr_data32 address.address_un_data32
-#define addr_data16 address.address_un_data16
-#define addr_data8  address.address_un_data8
-
-#define COPY_ADDRESS(a, b) do {                    \
-        (b)->family = (a)->family;                 \
-        (b)->addr_data32[0] = (a)->addr_data32[0]; \
-        (b)->addr_data32[1] = (a)->addr_data32[1]; \
-        (b)->addr_data32[2] = (a)->addr_data32[2]; \
-        (b)->addr_data32[3] = (a)->addr_data32[3]; \
-    } while (0)
-
 /* Hash key for the flow hash */
 typedef struct FlowKey_
 {
@@ -239,7 +207,7 @@ typedef struct Flow_
 #ifdef FLOWLOCK_RWLOCK
     SCRWLock r;
 #elif defined FLOWLOCK_MUTEX
-    SCMutex m;
+    os_lock_t m;
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
@@ -346,7 +314,7 @@ typedef struct FlowBucket_ {
     Flow *head;
     Flow *tail;
 #ifdef FBLOCK_MUTEX
-    SCMutex m;
+    os_lock_t m;
 #elif defined FBLOCK_SPIN
     SCSpinlock s;
 #else
@@ -369,13 +337,13 @@ typedef struct FlowBucket_ {
     #define FLOWLOCK_TRYWRLOCK(fb) SCRWLockTryWRLock(&(fb)->r)
     #define FLOWLOCK_UNLOCK(fb) SCRWLockUnlock(&(fb)->r)
 #elif defined FLOWLOCK_MUTEX
-    #define FLOWLOCK_INIT(fb) SCMutexInit(&(fb)->m, NULL)
-    #define FLOWLOCK_DESTROY(fb) SCMutexDestroy(&(fb)->m)
-    #define FLOWLOCK_RDLOCK(fb) SCMutexLock(&(fb)->m)
-    #define FLOWLOCK_WRLOCK(fb) SCMutexLock(&(fb)->m)
-    #define FLOWLOCK_TRYRDLOCK(fb) SCMutexTrylock(&(fb)->m)
-    #define FLOWLOCK_TRYWRLOCK(fb) SCMutexTrylock(&(fb)->m)
-    #define FLOWLOCK_UNLOCK(fb) SCMutexUnlock(&(fb)->m)
+    #define FLOWLOCK_INIT(fb) pthread_mutex_init(&(fb)->m, NULL)
+    #define FLOWLOCK_DESTROY(fb) do_destroy_lock(&(fb)->m)
+    #define FLOWLOCK_RDLOCK(fb) do_lock(&(fb)->m)
+    #define FLOWLOCK_WRLOCK(fb) do_lock(&(fb)->m)
+    #define FLOWLOCK_TRYRDLOCK(fb) do_trylock(&(fb)->m)
+    #define FLOWLOCK_TRYWRLOCK(fb) do_trylock(&(fb)->m)
+    #define FLOWLOCK_UNLOCK(fb) do_unlock(&(fb)->m)
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
@@ -388,11 +356,11 @@ typedef struct FlowBucket_ {
     #define FBLOCK_TRYLOCK(fb) SCSpinTrylock(&(fb)->s)
     #define FBLOCK_UNLOCK(fb) SCSpinUnlock(&(fb)->s)
 #elif defined FBLOCK_MUTEX
-    #define FBLOCK_INIT(fb) SCMutexInit(&(fb)->m, NULL)
-    #define FBLOCK_DESTROY(fb) SCMutexDestroy(&(fb)->m)
-    #define FBLOCK_LOCK(fb) SCMutexLock(&(fb)->m)
-    #define FBLOCK_TRYLOCK(fb) SCMutexTrylock(&(fb)->m)
-    #define FBLOCK_UNLOCK(fb) SCMutexUnlock(&(fb)->m)
+    #define FBLOCK_INIT(fb) pthread_mutex_init(&(fb)->m, NULL)
+    #define FBLOCK_DESTROY(fb) do_destroy_lock(&(fb)->m)
+    #define FBLOCK_LOCK(fb) do_lock(&(fb)->m)
+    #define FBLOCK_TRYLOCK(fb) do_trylock(&(fb)->m)
+    #define FBLOCK_UNLOCK(fb) do_unlock(&(fb)->m)
 #else
     #error Enable FBLOCK_SPIN or FBLOCK_MUTEX
 #endif
@@ -429,5 +397,6 @@ enum {
 /** flow memuse counter (atomic), for enforcing memcap limit */
 SC_ATOMIC_DECLARE(uint64_t, flow_memuse);
 
+#endif
 #endif
 

@@ -43,6 +43,7 @@ struct oryx_htable_t
 	/** Synchronized hash table. 
 	 *  Caller can use the hash table safely without maintaining a thread-safe-lock. */
 #define HTABLE_SYNCHRONIZED	(1 << 0)
+#define HTABLE_PRINT_INFO	(1 << 1)
 	u32 ul_flags;
 
 	os_lock_t *os_lock;

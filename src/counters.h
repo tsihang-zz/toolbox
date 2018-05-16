@@ -1,9 +1,12 @@
 #ifndef COUNTERS_H
 #define COUNTERS_H
 
+#include "counters_private.h"
+
 /* forward declaration of the ThreadVars structure */
 struct ThreadVars_;
 
+#if 0
 /**
  * \brief Container to hold the counter variable
  */
@@ -22,7 +25,7 @@ typedef struct StatsCounter_ {
 
     /* when using type STATS_TYPE_Q_FUNC this function is called once
      * to get the counter value, regardless of how many threads there are. */
-    uint64_t (*Func)(void);
+    uint64_t (*hook)(void);
 
     /* name of the counter */
     const char *name;
@@ -46,7 +49,7 @@ typedef struct StatsPublicThreadContext_ {
     uint16_t curr_id;
 
     /* mutex to prevent simultaneous access during update_counter/output_stat */
-    SCMutex m;
+    os_lock_t m;
 } StatsPublicThreadContext;
 
 
@@ -68,7 +71,6 @@ typedef struct StatsLocalCounter_ {
     uint64_t updates;
 } StatsLocalCounter;
 
-
 /**
  * \brief used to hold the private version of the counters registered
  */
@@ -81,6 +83,7 @@ typedef struct StatsPrivateThreadContext_ {
 
     int initialized;
 } StatsPrivateThreadContext;
+#endif
 
 void StatsInit(void);
 void StatsIncr(struct ThreadVars_ *tv, uint16_t id);
@@ -91,6 +94,8 @@ uint16_t StatsRegisterCounter(const char *name, struct ThreadVars_ *tv);
 uint16_t StatsRegisterAvgCounter(const char *name, struct ThreadVars_ *tv);
 uint16_t StatsRegisterMaxCounter(const char *name, struct ThreadVars_ *tv);
 uint16_t StatsRegisterGlobalCounter(const char *name, uint64_t (*Func)(void));
+uint16_t RegisterCounter(const char *name, const char *tm_name,
+                               StatsPublicThreadContext *pctx);
 
 
 #endif

@@ -17,7 +17,7 @@ struct oryx_file_rw_context_t {
 
 int oryx_path_remove (const char *path);
 int oryx_path_exsit (const char *path);
-int oryx_mkfile (const char *file, oryx_file_t **fp, char *mode);
+int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode);
 int oryx_mkdir(const char *path, oryx_dir_t **dir);
 int oryx_file_close (oryx_file_t *fp);
 int oryx_file_read_write (oryx_file_t *fp, 

@@ -43,7 +43,7 @@ typedef struct StatsThreadStore_ {
 typedef struct StatsGlobalContext_ {
     /** list of thread stores: one per thread plus one global */
     StatsThreadStore *sts;
-    SCMutex sts_lock;
+    os_lock_t sts_lock;
     int sts_cnt;
 
     //HashTable *counters_id_hash;
@@ -103,12 +103,12 @@ static int CountersIdHashCompareFunc(void *data1, uint32_t datalen1,
 
 static void CountersIdHashFreeFunc(void *data)
 {
-    SCFree(data);
+    free(data);
 }
 
 static void StatsPublicThreadContextInit(StatsPublicThreadContext *t)
 {
-    SCMutexInit(&t->m, NULL);
+    pthread_mutex_init(&t->m, NULL);
 }
 
 /**
@@ -172,7 +172,7 @@ void StatsInit(void)
 {
     BUG_ON(stats_ctx != NULL);
     if ( (stats_ctx = malloc(sizeof(StatsGlobalContext))) == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Fatal error encountered in StatsInitCtx. Exiting...\n");
         exit(EXIT_FAILURE);
     }
@@ -183,13 +183,65 @@ void StatsInit(void)
 
 static void StatsPublicThreadContextCleanup(StatsPublicThreadContext *t)
 {
-    SCMutexLock(&t->m);
+    do_lock(&t->m);
     StatsReleaseCounters(t->head);
     t->head = NULL;
     t->perf_flag = 0;
     t->curr_id = 0;
-    SCMutexUnlock(&t->m);
-    SCMutexDestroy(&t->m);
+    do_unlock(&t->m);
+    do_destroy_lock(&t->m);
+}
+
+/**
+ * \brief Adds a value of type uint64_t to the local counter.
+ *
+ * \param id  ID of the counter as set by the API
+ * \param pca Counter array that holds the local counter for this TM
+ * \param x   Value to add to this local counter
+ */
+void StatsAddUI64(ThreadVars *tv, uint16_t id, uint64_t x)
+{
+    StatsPrivateThreadContext *pca = &tv->perf_private_ctx;
+#ifdef UNITTESTS
+    if (pca->initialized == 0)
+        return;
+#endif
+#ifdef DEBUG
+    BUG_ON ((id < 1) || (id > pca->size));
+#endif
+    pca->head[id].value += x;
+    pca->head[id].updates++;
+    return;
+}
+
+/**
+ * \brief Sets a value of type double to the local counter
+ *
+ * \param id  Index of the local counter in the counter array
+ * \param pca Pointer to the StatsPrivateThreadContext
+ * \param x   The value to set for the counter
+ */
+void StatsSetUI64(ThreadVars *tv, uint16_t id, uint64_t x)
+{
+    StatsPrivateThreadContext *pca = &tv->perf_private_ctx;
+#ifdef UNITTESTS
+    if (pca->initialized == 0)
+        return;
+#endif
+#ifdef DEBUG
+    BUG_ON ((id < 1) || (id > pca->size));
+#endif
+
+    if ((pca->head[id].pc->type == STATS_TYPE_MAXIMUM) &&
+            (x > pca->head[id].value)) {
+        pca->head[id].value = x;
+    } else if (pca->head[id].pc->type == STATS_TYPE_NORMAL) {
+        pca->head[id].value = x;
+    }
+
+    pca->head[id].updates++;
+
+    return;
 }
 
 void StatsIncr(struct ThreadVars_ *tv, uint16_t id)
@@ -220,9 +272,9 @@ void StatsIncr(struct ThreadVars_ *tv, uint16_t id)
  *         present counter on success
  * \retval 0 on failure
  */
-static uint16_t StatsRegisterQualifiedCounter(const char *name, const char *tm_name,
-                                              StatsPublicThreadContext *pctx,
-                                              int type_q, uint64_t (*Func)(void))
+static uint16_t StatsRegisterQualifiedCounter(const char *name, 
+					const char __oryx_unused__ *tm_name, StatsPublicThreadContext *pctx,
+					int type_q, uint64_t (*fn)(void))
 {
     StatsCounter **head = &pctx->head;
     StatsCounter *temp = NULL;
@@ -250,7 +302,7 @@ static uint16_t StatsRegisterQualifiedCounter(const char *name, const char *tm_n
         return(temp->id);
 
     /* if we reach this point we don't have a counter registered by this name */
-    if ( (pc = SCMalloc(sizeof(StatsCounter))) == NULL)
+    if ( (pc = malloc(sizeof(StatsCounter))) == NULL)
         return 0;
     memset(pc, 0, sizeof(StatsCounter));
 
@@ -259,7 +311,7 @@ static uint16_t StatsRegisterQualifiedCounter(const char *name, const char *tm_n
     pc->id = ++(pctx->curr_id);
     pc->name = name;
     pc->type = type_q;
-    pc->Func = Func;
+    pc->hook = fn;
 
     /* we now add the counter to the list */
     if (prev == NULL)
@@ -375,21 +427,21 @@ static int StatsGetCounterArrayRange(uint16_t s_id, uint16_t e_id,
     uint32_t i = 0;
 
     if (pctx == NULL || pca == NULL) {
-        SCLogDebug("pctx/pca is NULL");
+        oryx_logd("pctx/pca is NULL");
         return -1;
     }
 
     if (s_id < 1 || e_id < 1 || s_id > e_id) {
-        SCLogDebug("error with the counter ids");
+        oryx_logd("error with the counter ids");
         return -1;
     }
 
     if (e_id > pctx->curr_id) {
-        SCLogDebug("end id is greater than the max id for this tv");
+        oryx_logd("end id is greater than the max id for this tv");
         return -1;
     }
 
-    if ( (pca->head = SCMalloc(sizeof(StatsLocalCounter) * (e_id - s_id  + 2))) == NULL) {
+    if ( (pca->head = malloc(sizeof(StatsLocalCounter) * (e_id - s_id  + 2))) == NULL) {
         return -1;
     }
     memset(pca->head, 0, sizeof(StatsLocalCounter) * (e_id - s_id  + 2));
@@ -442,18 +494,18 @@ static int StatsGetAllCountersArray(StatsPublicThreadContext *pctx, StatsPrivate
 static int StatsThreadRegister(const char *thread_name, StatsPublicThreadContext *pctx)
 {
     if (stats_ctx == NULL) {
-        SCLogDebug("Counter module has been disabled");
+        oryx_logd("Counter module has been disabled");
         return 0;
     }
 
     StatsThreadStore *temp = NULL;
 
     if (thread_name == NULL || pctx == NULL) {
-        SCLogDebug("supplied argument(s) to StatsThreadRegister NULL");
+        oryx_logd("supplied argument(s) to StatsThreadRegister NULL");
         return 0;
     }
 
-    SCMutexLock(&stats_ctx->sts_lock);
+    do_lock(&stats_ctx->sts_lock);
     if (stats_ctx->counters_id_hash == NULL) {
         stats_ctx->counters_id_hash = oryx_htable_init(256, CountersIdHashFunc,
                                                               CountersIdHashCompareFunc,
@@ -465,7 +517,7 @@ static int StatsThreadRegister(const char *thread_name, StatsPublicThreadContext
         CountersIdType t = { 0, pc->name }, *id = NULL;
         id = oryx_htable_lookup(stats_ctx->counters_id_hash, &t, sizeof(t));
         if (id == NULL) {
-            id = SCCalloc(1, sizeof(*id));
+            id = calloc(1, sizeof(*id));
             BUG_ON(id == NULL);
             id->id = counters_global_id++;
             id->string = pc->name;
@@ -476,8 +528,8 @@ static int StatsThreadRegister(const char *thread_name, StatsPublicThreadContext
     }
 
 
-    if ( (temp = SCMalloc(sizeof(StatsThreadStore))) == NULL) {
-        SCMutexUnlock(&stats_ctx->sts_lock);
+    if ( (temp = malloc(sizeof(StatsThreadStore))) == NULL) {
+        do_unlock(&stats_ctx->sts_lock);
         return 0;
     }
     memset(temp, 0, sizeof(StatsThreadStore));
@@ -488,9 +540,9 @@ static int StatsThreadRegister(const char *thread_name, StatsPublicThreadContext
     temp->next = stats_ctx->sts;
     stats_ctx->sts = temp;
     stats_ctx->sts_cnt++;
-    SCLogDebug("stats_ctx->sts %p", stats_ctx->sts);
+    oryx_logd("stats_ctx->sts %p", stats_ctx->sts);
 
-    SCMutexUnlock(&stats_ctx->sts_lock);
+    do_unlock(&stats_ctx->sts_lock);
     return 1;
 }
 
@@ -501,5 +553,26 @@ int StatsSetupPrivate(ThreadVars *tv)
     StatsThreadRegister(tv->printable_name ? tv->printable_name : tv->name,
         &(tv)->perf_public_ctx);
     return 0;
+}
+
+/** \internal
+ * \brief Registers a normal, unqualified counter
+ *
+ * \param name   Name of the counter, to be registered
+ * \param tm_name Name of the engine module under which the counter has to be
+ *                registered
+ * \param type    Datatype of this counter variable
+ * \param pctx    StatsPublicThreadContext corresponding to the tm_name key under which the
+ *                key has to be registered
+ *
+ * \retval id Counter id for the newly registered counter, or the already
+ *            present counter
+ */
+uint16_t RegisterCounter(const char *name, const char *tm_name,
+                               StatsPublicThreadContext *pctx)
+{
+    uint16_t id = StatsRegisterQualifiedCounter(name, tm_name, pctx,
+                                                STATS_TYPE_NORMAL, NULL);
+    return id;
 }
 

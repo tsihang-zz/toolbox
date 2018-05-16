@@ -1,6 +1,8 @@
 #include "oryx.h"
 #include "dp_flow_queue.h"
 
+#if defined(HAVE_FLOW_MGR)
+
 /** spare/unused/prealloced flows live here */
 FlowQueue flow_spare_q;
 
@@ -9,9 +11,9 @@ FlowQueue flow_recycle_q;
 
 FlowQueue *FlowQueueNew()
 {
-    FlowQueue *q = (FlowQueue *)SCMalloc(sizeof(FlowQueue));
+    FlowQueue *q = (FlowQueue *)malloc(sizeof(FlowQueue));
     if (q == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Fatal error encountered in FlowQueueNew. Exiting...");
         exit(EXIT_SUCCESS);
     }
@@ -141,3 +143,4 @@ void FlowMoveToSpare(Flow *f)
     FQLOCK_UNLOCK(&flow_spare_q);
 }
 
+#endif

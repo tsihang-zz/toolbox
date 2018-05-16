@@ -252,29 +252,29 @@ int oryx_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
 
 extern u32 oryx_log_global_log_level;
 
-#define SCLog(x, file, func, line, ...)                                          	\
+#define __oryx_log__(x, file, func, line, ...)                                          	\
 	    do {                                                                        \
 	        if (oryx_log_global_log_level >= x)                                 		\
 	        {                                                                       \
-	            char _oryx_log_msg[SC_LOG_MAX_LOG_MSG_LEN];                           \
+	            char _oryx_log_msg[ORYX_LOG_MAX_LOG_MSG_LEN];                           \
 	                                                                                \
-	            int _oryx_log_ret = snprintf(_oryx_log_msg, SC_LOG_MAX_LOG_MSG_LEN, __VA_ARGS__);   \
-	            if (_oryx_log_ret == SC_LOG_MAX_LOG_MSG_LEN)                          \
-	                _oryx_log_msg[SC_LOG_MAX_LOG_MSG_LEN - 1] = '\0';                 \
+	            int _oryx_log_ret = snprintf(_oryx_log_msg, ORYX_LOG_MAX_LOG_MSG_LEN, __VA_ARGS__);   \
+	            if (_oryx_log_ret == ORYX_LOG_MAX_LOG_MSG_LEN)                          \
+	                _oryx_log_msg[ORYX_LOG_MAX_LOG_MSG_LEN - 1] = '\0';                 \
 	                                                                                \
 	            oryx_logging_out(x, file, line, func, 0, _oryx_log_msg);              \
 	        }                                                                       \
 	    } while(0)
 
-#define SCLogErr(x, file, func, line, err, ...)                                     \
+#define __oryx_loge__(x, file, func, line, err, ...)                                     \
 		do {																		\
 			if (oryx_log_global_log_level >= x)										\
 			{																		\
-				char _oryx_log_msg[SC_LOG_MAX_LOG_MSG_LEN];							\
+				char _oryx_log_msg[ORYX_LOG_MAX_LOG_MSG_LEN];							\
 																					\
-				int _oryx_log_ret = snprintf(_oryx_log_msg, SC_LOG_MAX_LOG_MSG_LEN, __VA_ARGS__);	\
-				if (_oryx_log_ret == SC_LOG_MAX_LOG_MSG_LEN)							\
-					_oryx_log_msg[SC_LOG_MAX_LOG_MSG_LEN - 1] = '\0'; 				\
+				int _oryx_log_ret = snprintf(_oryx_log_msg, ORYX_LOG_MAX_LOG_MSG_LEN, __VA_ARGS__);	\
+				if (_oryx_log_ret == ORYX_LOG_MAX_LOG_MSG_LEN)							\
+					_oryx_log_msg[ORYX_LOG_MAX_LOG_MSG_LEN - 1] = '\0'; 				\
 																					\
 				oryx_logging_out(x, file, line, func, err, _oryx_log_msg);			\
 			}																		\
@@ -286,7 +286,7 @@ extern u32 oryx_log_global_log_level;
  *
  * \retval ... Takes as argument(s), a printf style format message
  */
-#define SCLogDebug(...)       SCLog(ORYX_LOG_DEBUG, \
+#define oryx_logd(...)       __oryx_log__(ORYX_LOG_DEBUG, \
 		__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /**
@@ -294,7 +294,7 @@ extern u32 oryx_log_global_log_level;
  *
  * \retval ... Takes as argument(s), a printf style format message
  */
-#define SCLogInfo(...) SCLog(ORYX_LOG_INFO, \
+#define oryx_logi(...) __oryx_log__(ORYX_LOG_INFO, \
 		__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 					
 /**
@@ -302,7 +302,7 @@ extern u32 oryx_log_global_log_level;
  *
  * \retval ... Takes as argument(s), a printf style format message
  */
-#define SCLogNotice(...) SCLog(ORYX_LOG_NOTICE, \
+#define oryx_logn(...) __oryx_log__(ORYX_LOG_NOTICE, \
         __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /**
@@ -312,7 +312,7 @@ extern u32 oryx_log_global_log_level;
  *                  warning message
  * \retval ...      Takes as argument(s), a printf style format message
  */
-#define SCLogWarning(err_code, ...) SCLogErr(ORYX_LOG_WARNING, \
+#define oryx_logw(err_code, ...) __oryx_loge__(ORYX_LOG_WARNING, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
 
@@ -323,7 +323,7 @@ extern u32 oryx_log_global_log_level;
  *                  error message
  * \retval ...      Takes as argument(s), a printf style format message
  */
-#define SCLogError(err_code, ...) SCLogErr(ORYX_LOG_ERROR, \
+#define oryx_loge(err_code, ...) __oryx_loge__(ORYX_LOG_ERROR, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
 
@@ -334,7 +334,7 @@ extern u32 oryx_log_global_log_level;
  *                  critical message
  * \retval ...      Takes as argument(s), a printf style format message
  */
-#define SCLogCritical(err_code, ...) SCLogErr(ORYX_LOG_CRITICAL, \
+#define oryx_logc(err_code, ...) __oryx_loge__(ORYX_LOG_CRITICAL, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
 
@@ -345,7 +345,7 @@ extern u32 oryx_log_global_log_level;
  *                  alert message
  * \retval ...      Takes as argument(s), a printf style format message
  */
-#define SCLogAlert(err_code, ...) SCLogErr(ORYX_LOG_ALERT, \
+#define oryx_loga(err_code, ...) __oryx_loge__(ORYX_LOG_ALERT, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
 
@@ -356,7 +356,7 @@ extern u32 oryx_log_global_log_level;
  *                  emergency message
  * \retval ...      Takes as argument(s), a printf style format message
  */
-#define SCLogEmerg(err_code, ...) SCLogErr(ORYX_LOG_EMERGENCY, \
+#define oryx_logE(err_code, ...) __oryx_loge__(ORYX_LOG_EMERGENCY, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
 

@@ -271,7 +271,7 @@ static int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options 
         for (i = 0; i < len; i++) {
             offset += snprintf(buf + offset, (sizeof(buf) - offset), "%02" PRIx8 " ", pkt[i]);
         }
-        SCLogDebug("IPV4OPTS: { %s}", buf);
+        oryx_logd("IPV4OPTS: { %s}", buf);
     }
 #endif
 
@@ -288,12 +288,12 @@ static int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options 
         /* single byte options */
         if (*pkt == IPV4_OPT_EOL) {
             /** \todo What if more data exist after EOL (possible covert channel or data leakage)? */
-            SCLogDebug("IPV4OPT %" PRIu16 " len 1 @ %" PRIu16 "/%" PRIu16 "",
+            oryx_logd("IPV4OPT %" PRIu16 " len 1 @ %" PRIu16 "/%" PRIu16 "",
                    *pkt, (len - plen), (len - 1));
             p->ip4vars.opts_set |= IPV4_OPT_FLAG_EOL;
             break;
         } else if (*pkt == IPV4_OPT_NOP) {
-            SCLogDebug("IPV4OPT %" PRIu16 " len 1 @ %" PRIu16 "/%" PRIu16 "",
+            oryx_logd("IPV4OPT %" PRIu16 " len 1 @ %" PRIu16 "/%" PRIu16 "",
                    *pkt, (len - plen), (len - 1));
             pkt++;
             plen--;
@@ -429,7 +429,7 @@ static int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options 
                     p->ip4vars.opts_set |= IPV4_OPT_FLAG_RTRALT;
                     break;
                 default:
-                    SCLogDebug("IPV4OPT <unknown> (%" PRIu8 ") len %" PRIu8,
+                    oryx_logd("IPV4OPT <unknown> (%" PRIu8 ") len %" PRIu8,
                            opt.type, opt.len);
                     ENGINE_SET_EVENT(p,IPV4_OPT_INVALID);
                     /* Warn - we can keep going */
@@ -453,7 +453,7 @@ static int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
     }
 
     if (unlikely(IP_GET_RAW_VER(pkt) != 4)) {
-        SCLogDebug("wrong ip version %" PRIu8 "",IP_GET_RAW_VER(pkt));
+        oryx_logd("wrong ip version %" PRIu8 "",IP_GET_RAW_VER(pkt));
         ENGINE_SET_INVALID_EVENT(p, IPV4_WRONG_IP_VER);
         return -1;
     }
@@ -492,15 +492,15 @@ static int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
 
 int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-	SCLogDebug("IPv4");
+	oryx_logd("IPv4");
 
     StatsIncr(tv, dtv->counter_ipv4);
 	
-    SCLogDebug("pkt %p len %"PRIu16"", pkt, len);
+    oryx_logd("pkt %p len %"PRIu16"", pkt, len);
 
     /* do the actual decoding */
     if (unlikely(DecodeIPV4Packet0 (p, pkt, len) < 0)) {
-        SCLogDebug("decoding IPv4 packet failed");
+        oryx_logd("decoding IPv4 packet failed");
         p->ip4h = NULL;
         return TM_ECODE_FAILED;
     }
@@ -525,7 +525,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
         char s[16], d[16];
         PrintInet(AF_INET, (const void *)GET_IPV4_SRC_ADDR_PTR(p), s, sizeof(s));
         PrintInet(AF_INET, (const void *)GET_IPV4_DST_ADDR_PTR(p), d, sizeof(d));
-        SCLogDebug("IPV4 %s->%s PROTO: %" PRIu32 " OFFSET: %" PRIu32 " RF: %" PRIu32 " DF: %" PRIu32 " MF: %" PRIu32 " ID: %" PRIu32 "", s,d,
+        oryx_logd("IPV4 %s->%s PROTO: %" PRIu32 " OFFSET: %" PRIu32 " RF: %" PRIu32 " DF: %" PRIu32 " MF: %" PRIu32 " ID: %" PRIu32 "", s,d,
                 IPV4_GET_IPPROTO(p), IPV4_GET_IPOFFSET(p), IPV4_GET_RF(p),
                 IPV4_GET_DF(p), IPV4_GET_MF(p), IPV4_GET_IPID(p));
     }
@@ -534,32 +534,32 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     /* check what next decoder to invoke */
     switch (IPV4_GET_IPPROTO(p)) {
         case IPPROTO_TCP:
-			SCLogDebug("DecodeEthernet TCP");
+			oryx_logd("DecodeEthernet TCP");
             DecodeTCP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_UDP:
-			SCLogDebug("DecodeEthernet UDP");
+			oryx_logd("DecodeEthernet UDP");
             DecodeUDP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_ICMP:
-			SCLogDebug("DecodeEthernet ICMPv4");
+			oryx_logd("DecodeEthernet ICMPv4");
             DecodeICMPV40(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                          IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_GRE:
-			SCLogDebug("DecodeEthernet GRE");
+			oryx_logd("DecodeEthernet GRE");
             DecodeGRE0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_SCTP:
-			SCLogDebug("DecodeEthernet SCTP");
+			oryx_logd("DecodeEthernet SCTP");
             DecodeSCTP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_IPV6:
-			SCLogDebug("DecodeEthernet IPv6");
+			oryx_logd("DecodeEthernet IPv6");
             {
             #if 0
                 if (pq != NULL) {
@@ -576,7 +576,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
                 break;
             }
         case IPPROTO_IP:
-			SCLogDebug("DecodeEthernet IPv4");
+			oryx_logd("DecodeEthernet IPv4");
             /* check PPP VJ uncompressed packets and decode tcp dummy */
             if(p->ppph != NULL && ntohs(p->ppph->protocol) == PPP_VJ_UCOMP)    {
                 DecodeTCP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
@@ -584,7 +584,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
             }
             break;
         case IPPROTO_ICMPV6:
-			SCLogDebug("DecodeEthernet ICMPv6");
+			oryx_logd("DecodeEthernet ICMPv6");
             ENGINE_SET_INVALID_EVENT(p, IPV4_WITH_ICMPV6);
             break;
     }

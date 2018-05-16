@@ -70,7 +70,7 @@ int oryx_mkdir (const char *dir, oryx_dir_t **d)
 }
 
 __oryx_always_extern__
-int oryx_mkfile (const char *file, oryx_file_t **fp, char *mode)
+int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode)
 {
 
 	char cmd[256] = {0};
@@ -432,7 +432,7 @@ foreach_directory_file (char *dir_name,
 	  if (errno == ENOENT)
 			return 0;
 	  else {
-	  	SCLogNotice ("open %s, %d", dir_name, errno);
+	  	oryx_logn ("open %s, %d", dir_name, errno);
 		return 0;
 	  }
 	}
@@ -515,4 +515,24 @@ strlcat(char *d, const char *s, size_t bufsize)
 	return ret;
 }
 #endif
+
+
+/**
+ * \internal
+ * \brief Does a memcpy of the input string to lowercase.
+ *
+ * \param d   Pointer to the target area for memcpy.
+ * \param s   Pointer to the src string for memcpy.
+ * \param len len of the string sent in s.
+ */
+__oryx_always_extern__
+void memcpy_tolower (u8 *d, u8 *s, u16 len)
+{
+    uint16_t i;
+	
+    for (i = 0; i < len; i++)
+        d[i] = u8_tolower(s[i]);
+
+    return;
+}
 

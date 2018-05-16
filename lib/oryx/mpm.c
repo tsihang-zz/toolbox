@@ -2,10 +2,8 @@
 #include "mpm-ac.h"
 #include "mpm-hs.h"
 
-#if 0
 //#define MPM_DEBUG
 
-#if !defined(HAVE_SURICATA)
 
 #if 0
 /**
@@ -22,14 +20,14 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
     if (de_ctx->mpm_ctx_factory_container == NULL) {
         de_ctx->mpm_ctx_factory_container = kmalloc(sizeof(MpmCtxFactoryContainer));
         if (de_ctx->mpm_ctx_factory_container == NULL) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(de_ctx->mpm_ctx_factory_container, 0, sizeof(MpmCtxFactoryContainer));
 
         MpmCtxFactoryItem *item = kmalloc(sizeof(MpmCtxFactoryItem));
         if (unlikely(item == NULL)) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
 
@@ -38,7 +36,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
         /* toserver */
         item[0].mpm_ctx_ts = kmalloc(sizeof(MpmCtx));
         if (item[0].mpm_ctx_ts == NULL) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(item[0].mpm_ctx_ts, 0, sizeof(MpmCtx));
@@ -47,7 +45,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
         /* toclient */
         item[0].mpm_ctx_tc = kmalloc(sizeof(MpmCtx));
         if (item[0].mpm_ctx_tc == NULL) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(item[0].mpm_ctx_tc, 0, sizeof(MpmCtx));
@@ -72,7 +70,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
                 if (items[i].mpm_ctx_ts == NULL) {
                     items[i].mpm_ctx_ts = kmalloc(sizeof(MpmCtx));
                     if (items[i].mpm_ctx_ts == NULL) {
-                        SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+                        oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
                         exit(EXIT_FAILURE);
                     }
                     memset(items[i].mpm_ctx_ts, 0, sizeof(MpmCtx));
@@ -81,7 +79,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
                 if (items[i].mpm_ctx_tc == NULL) {
                     items[i].mpm_ctx_tc = kmalloc(sizeof(MpmCtx));
                     if (items[i].mpm_ctx_tc == NULL) {
-                        SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+                        oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
                         exit(EXIT_FAILURE);
                     }
                     memset(items[i].mpm_ctx_tc, 0, sizeof(MpmCtx));
@@ -97,7 +95,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
         if (unlikely(ptmp == NULL)) {
             kfree(items);
             items = NULL;
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         items = ptmp;
@@ -110,7 +108,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
         /* toserver */
         new_item[0].mpm_ctx_ts = kmalloc(sizeof(MpmCtx));
         if (new_item[0].mpm_ctx_ts == NULL) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(new_item[0].mpm_ctx_ts, 0, sizeof(MpmCtx));
@@ -119,7 +117,7 @@ int32_t MpmFactoryRegisterMpmCtxProfile(DetectEngineCtx *de_ctx, const char *nam
         /* toclient */
         new_item[0].mpm_ctx_tc = kmalloc(sizeof(MpmCtx));
         if (new_item[0].mpm_ctx_tc == NULL) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(new_item[0].mpm_ctx_tc, 0, sizeof(MpmCtx));
@@ -158,13 +156,13 @@ MpmCtx *MpmFactoryGetMpmCtxForProfile(const DetectEngineCtx *de_ctx, int32_t id,
     if (id == MPM_CTX_FACTORY_UNIQUE_CONTEXT) {
         MpmCtx *mpm_ctx = kmalloc(sizeof(MpmCtx));
         if (unlikely(mpm_ctx == NULL)) {
-            SCLogError(SC_ERR_MEM_ALLOC, "Error allocating memory");
+            oryx_loge(SC_ERR_MEM_ALLOC, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
         memset(mpm_ctx, 0, sizeof(MpmCtx));
         return mpm_ctx;
     } else if (id < -1) {
-        SCLogError(ERRNO_INVALID_ARGU, "Invalid argument - %d\n", id);
+        oryx_loge(ERRNO_INVALID_ARGU, "Invalid argument - %d\n", id);
         return NULL;
     } else if (id >= de_ctx->mpm_ctx_factory_container->no_of_items) {
         /* this id does not exist */
@@ -243,7 +241,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->data_buffer_size_min_limit = UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MIN_LIMIT_DEFAULT;
     } else if (ParseSizeStringU16(value, &conf->data_buffer_size_min_limit) < 0) {
-        SCLogError(SC_ERR_INVALID_YAML_CONF_ENTRY, "Invalid entry for %s."
+        oryx_loge(SC_ERR_INVALID_YAML_CONF_ENTRY, "Invalid entry for %s."
                    "data-buffer-size-min-limit - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -877,5 +875,4 @@ void MpmTableSetup(void)
 //SCACRegisterTests ();
 //SCHSRegisterTests ();
 }
-#endif
-#endif
+

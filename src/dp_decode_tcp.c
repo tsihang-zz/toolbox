@@ -97,7 +97,7 @@ static int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
                     }
                     break;
                 case TCP_OPT_SACK:
-                    SCLogDebug("SACK option, len %u", tcp_opts[tcp_opt_cnt].len);
+                    oryx_logd("SACK option, len %u", tcp_opts[tcp_opt_cnt].len);
                     if (tcp_opts[tcp_opt_cnt].len < TCP_OPT_SACK_MIN_LEN ||
                             tcp_opts[tcp_opt_cnt].len > TCP_OPT_SACK_MAX_LEN ||
                             !((tcp_opts[tcp_opt_cnt].len - 2) % 8 == 0))
@@ -159,18 +159,18 @@ static int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len
 
 int DecodeTCP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-	SCLogDebug("TCP");
+	oryx_logd("TCP");
 
     StatsIncr(tv, dtv->counter_tcp);
 
     if (unlikely(DecodeTCPPacket(tv, p,pkt,len) < 0)) {
-        SCLogDebug("invalid TCP packet");
+        oryx_logd("invalid TCP packet");
         p->tcph = NULL;
         return TM_ECODE_FAILED;
     }
 
 #ifdef DEBUG
-    SCLogDebug("TCP sp: %" PRIu32 " -> dp: %" PRIu32 " - HLEN: %" PRIu32 " LEN: %" PRIu32 " %s%s%s%s%s",
+    oryx_logd("TCP sp: %" PRIu32 " -> dp: %" PRIu32 " - HLEN: %" PRIu32 " LEN: %" PRIu32 " %s%s%s%s%s",
         GET_TCP_SRC_PORT(p), GET_TCP_DST_PORT(p), TCP_GET_HLEN(p), len,
         TCP_HAS_SACKOK(p) ? "SACKOK " : "", TCP_HAS_SACK(p) ? "SACK " : "",
         TCP_HAS_WSCALE(p) ? "WS " : "", TCP_HAS_TS(p) ? "TS " : "",

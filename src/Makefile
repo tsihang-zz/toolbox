@@ -38,21 +38,26 @@ ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 #
 APP = et1500
 
+SRCS-cli += \
+	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
+	cli_common.c
 
 SRCS-dpdk += \
 	dpdk.c dpdk_init.c
+
+SRCS-decode += \
+	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
+	dp_decode_arp.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
+	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c
 #
 # all sources are stored in SRCS-y
 #
 SRCS-y += \
-	main.c threadvars.c counters.c event.c\
-	$(SRCS-dpdk) dp_main.c dp_decode.c \
-	dp_flow.c dp_flow_queue.c\
-	dp_decode_eth.c dp_decode_vlan.c dp_decode_mpls.c\
-	dp_decode_ipv4.c dp_decode_ipv6.c \
-	dp_decode_icmpv4.c dp_decode_icmpv6.c\
-	dp_decode_tcp.c dp_decode_udp.c dp_decode_sctp.c\
-	dp_decode_gre.c dp_decode_ppp.c dp_decode_pppoe.c\
+	main.c rc4.c threadvars.c counters.c event.c\
+	dp_main.c dp_decode.c dp_flow.c dp_flow_queue.c\
+	$(SRCS-dpdk) \
+	$(SRCS-cli) \
+	$(SRCS-decode) \
 	dp_storage.c
 
 #CFLAGS += $(WERROR_FLAGS)
@@ -65,8 +70,7 @@ CFLAGS_SRC += -Wundef -Wwrite-strings
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA\
-		  -DHAVE_STATS_COUNTERS
+		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/include\
 		  -I$(SRCDIR)/../lib\

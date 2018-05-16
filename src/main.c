@@ -3,7 +3,6 @@
 
 #include "version.h"
 
-#if defined(HAVE_QUAGGA)
 #include "zebra.h"
 #include "memory.h"
 #include "log.h"
@@ -12,18 +11,24 @@
 #include "vty.h"
 #include "command.h"
 #include "prefix.h"
-#endif
 
-#include "main.h"
 #include "dpdk.h"
 
 #include "dp_decode.h"
 #include "dp_main.h"
 
+/** CLI decalre */
+extern void appl_init(vlib_main_t *vm);
+extern void port_init(vlib_main_t *vm);
+extern void udp_init(vlib_main_t *vm);
+extern void map_init(vlib_main_t *vm);
+
+extern void common_cli(void);
+
 /** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
 #define DPDK_BUFFER_HDR_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)) - DPDK_BUFFER_PRE_DATA_SIZE)
 
-vlib_main_t vlib_main = {
+static vlib_main_t vlib_main = {
 	.prgname = "et1500",
 	.extra_priv_size = DPDK_BUFFER_HDR_SIZE,
 };
@@ -115,11 +120,11 @@ format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
 static TmEcode LogVersion(void)
 {
 #ifdef REVISION
-    SCLogNotice("This is %s version %s (rev %s)", PROG_NAME, PROG_VER, xstr(REVISION));
+    oryx_logn("This is %s version %s (rev %s)", PROG_NAME, PROG_VER, xstr(REVISION));
 #elif defined RELEASE
-    SCLogNotice("This is %s version %s RELEASE", PROG_NAME, PROG_VER);
+    oryx_logn("This is %s version %s RELEASE", PROG_NAME, PROG_VER);
 #else
-    SCLogNotice("This is %s version %s", PROG_NAME, PROG_VER);
+    oryx_logn("This is %s version %s", PROG_NAME, PROG_VER);
 #endif
     return TM_ECODE_OK;
 }
@@ -193,7 +198,7 @@ static void register_port ()
 		}
 		
 		if (dpdk_ports > MAX_PORTS) {
-			SCLogNotice("Info: Using only %i of %i ports",
+			oryx_logn("Info: Using only %i of %i ports",
 				dpdk_ports, MAX_PORTS
 				);
 			dpdk_ports = MAX_PORTS;
@@ -259,14 +264,13 @@ int main (int argc, char **argv)
 	
 	LogVersion();
 
-	/* master init. */
-	master = thread_master_create();
-
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
 	}
 
+	/* master init. */
+	master = thread_master_create();
 	/* Library inits. */
 	cmd_init(1);
 	vty_init(master);
@@ -274,62 +278,29 @@ int main (int argc, char **argv)
 
 	StatsInit();
 
-	dp_start();
+	port_init(&vlib_main);
+	udp_init(&vlib_main);
+	appl_init(&vlib_main);
+	map_init(&vlib_main);
+
+	common_cli();
+	
+	dp_init(&vlib_main);
+
 
 #if 0	
-	SCLogInitLogModule(NULL);
-	ParseSizeInit();
-
-	GlobalsInitPreConfig();
-	SCLogLoadConfig(0, 0);
-
-    /* Since our config is now loaded we can finish configurating the
-     * logging module. */
-    SCLogLoadConfig(0, 1);
-	/** logging module. */
-	LogVersion();
-	UtilCpuPrintSummary();
-	
-	DefragInit();
-	FlowInitConfig(FLOW_QUIET);
-	IPPairInitConfig(FLOW_QUIET);
-	LogFilestoreInitConfig();
-
-	/** Pre-RUN POST */
-	RunModeInitializeOutputs();
-		
-#if defined(HAVE_STATS_COUNTERS)
-	StatsSetupPostConfig();
-#endif
-
-	MpmTableSetup();
-
-	dpdk_init(&vlib_main);
-
-	port_init(&vlib_main);
-	appl_init();
-	map_init();
-	udp_init();
-
 	register_port();
-
-
-	
 	dataplane_start();
-
 	RTE_LCORE_FOREACH_SLAVE(id_core) {
 		if (rte_eal_wait_lcore(id_core) < 0)
 			return -1;
 	}
-
-	dataplane_terminal();
 #else
 oryx_task_registry(&cli_register);
 oryx_task_launch();
 	FOREVER{
 		;
 	}
-	
 #endif
 	return 0;
 }

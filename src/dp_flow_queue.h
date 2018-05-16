@@ -1,6 +1,8 @@
 #ifndef FLOW_QUEUE_H
 #define FLOW_QUEUE_H
 
+#if defined(HAVE_FLOW_MGR)
+
 #include "flow.h"
 
 /** Spinlocks or Mutex for the flow queues. */
@@ -23,7 +25,7 @@ typedef struct FlowQueue_
     uint32_t dbg_maxlen;
 #endif /* DBG_PERF */
 #ifdef FQLOCK_MUTEX
-    SCMutex m;
+    os_lock_t m;
 #elif defined FQLOCK_SPIN
     SCSpinlock s;
 #else
@@ -38,11 +40,11 @@ typedef struct FlowQueue_
     #define FQLOCK_TRYLOCK(q) SCSpinTrylock(&(q)->s)
     #define FQLOCK_UNLOCK(q) SCSpinUnlock(&(q)->s)
 #elif defined FQLOCK_MUTEX
-    #define FQLOCK_INIT(q) SCMutexInit(&(q)->m, NULL)
-    #define FQLOCK_DESTROY(q) SCMutexDestroy(&(q)->m)
-    #define FQLOCK_LOCK(q) SCMutexLock(&(q)->m)
-    #define FQLOCK_TRYLOCK(q) SCMutexTrylock(&(q)->m)
-    #define FQLOCK_UNLOCK(q) SCMutexUnlock(&(q)->m)
+    #define FQLOCK_INIT(q) pthread_mutex_init(&(q)->m, NULL)
+    #define FQLOCK_DESTROY(q) do_destroy_lock(&(q)->m)
+    #define FQLOCK_LOCK(q) do_lock(&(q)->m)
+    #define FQLOCK_TRYLOCK(q) do_trylock(&(q)->m)
+    #define FQLOCK_UNLOCK(q) do_unlock(&(q)->m)
 #else
     #error Enable FQLOCK_SPIN or FQLOCK_MUTEX
 #endif
@@ -62,5 +64,7 @@ void FlowEnqueue (FlowQueue *, Flow *);
 Flow *FlowDequeue (FlowQueue *);
 
 void FlowMoveToSpare(Flow *);
+
+#endif /* end of if defined(HAVE_FLOW_MGR) */
 
 #endif

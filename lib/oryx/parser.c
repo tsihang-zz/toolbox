@@ -13,14 +13,14 @@ void oryx_pcre_initialize(void)
 
     parse_regex = pcre_compile(PARSE_REGEX, opts, &eb, &eo, NULL);
     if (parse_regex == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Compile of \"%s\" failed at offset "
                    "%" PRId32 ": %s", PARSE_REGEX, eo, eb);
         exit(EXIT_FAILURE);
     }
     parse_regex_study = pcre_study(parse_regex, 0, &eb);
     if (eb != NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"pcre study failed: %s", eb);
         exit(EXIT_FAILURE);
     }
@@ -49,7 +49,7 @@ static int ParseSizeString(const char *size, double *res)
     *res = 0;
 
     if (size == NULL) {
-        SCLogError(0,
+        oryx_loge(0,
 			"invalid size argument - NULL. Valid size "
                    "argument should be in the format - \n"
                    "xxx <- indicates it is just bytes\n"
@@ -64,7 +64,7 @@ static int ParseSizeString(const char *size, double *res)
     pcre_exec_ret = pcre_exec(parse_regex, parse_regex_study, size, strlen(size), 0, 0,
                     ov, MAX_SUBSTRINGS);
     if (!(pcre_exec_ret == 2 || pcre_exec_ret == 3)) {
-        SCLogError(0,
+        oryx_loge(0,
 			"invalid size argument - %s. Valid size "
                    "argument should be in the format - \n"
                    "xxx <- indicates it is just bytes\n"
@@ -79,7 +79,7 @@ static int ParseSizeString(const char *size, double *res)
     r = pcre_copy_substring((char *)size, ov, MAX_SUBSTRINGS, 1,
                              str, sizeof(str));
     if (r < 0) {
-        SCLogError(0,
+        oryx_loge(0,
 			"pcre_copy_substring failed");
         retval = -2;
         goto end;
@@ -89,12 +89,12 @@ static int ParseSizeString(const char *size, double *res)
     errno = 0;
     *res = strtod(str_ptr, &endptr);
     if (errno == ERANGE) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Numeric value out of range");
         retval = -1;
         goto end;
     } else if (endptr == str_ptr) {
-        SCLogError(0,
+        oryx_loge(0,
 			"Invalid numeric value");
         retval = -1;
         goto end;
@@ -104,7 +104,7 @@ static int ParseSizeString(const char *size, double *res)
         r = pcre_copy_substring((char *)size, ov, MAX_SUBSTRINGS, 2,
                                  str2, sizeof(str2));
         if (r < 0) {
-            SCLogError(0,
+            oryx_loge(0,
 				"pcre_copy_substring failed");
             retval = -2;
             goto end;

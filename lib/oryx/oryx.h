@@ -573,10 +573,6 @@ do {							\
 
 oryx_status_t oryx_initialize(void);
 
-#define SCMalloc	malloc
-#define SCCalloc	calloc
-#define SCFree		free
-
 #include "oryx_error.h"
 #include "oryx_debug.h"
 #include "oryx_ipc.h"
@@ -588,6 +584,7 @@ oryx_status_t oryx_initialize(void);
 #include "oryx_tmr.h"
 #include "oryx_mpm.h"
 #include "oryx_netdev.h"
+#include "oryx_counters.h"
 #include "conf.h"
 #include "conf-yaml-loader.h"
 
