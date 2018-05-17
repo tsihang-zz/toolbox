@@ -71,7 +71,7 @@ CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
+		  -DHAVE_DPDK
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/include\
 		  -I$(SRCDIR)/../lib\
@@ -79,7 +79,7 @@ CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/../lib/oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lhtp  -lapr-1 -laprutil-1 -lyaml -lpcap
+		   -lhs -lpcre -lyaml -lpcap
 
 
 LDLIBS += -L$(subst src,lib/oryx,$(RTE_OUTPUT))/lib
