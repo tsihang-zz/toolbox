@@ -711,3 +711,61 @@ void oryx_logging_out(const int log_level, const char *file,
 	}
 
 }
+
+#define ORYX_BACKTRACE_SIZE 256
+					 
+/* dump the stack of the calling core */
+void oryx_dump_stack(void)
+{
+#ifdef HAVE_BACKTRACE
+	void *func[BACKTRACE_SIZE];
+	char **symb = NULL;
+	int size;
+
+	size = backtrace(func, BACKTRACE_SIZE);
+	symb = backtrace_symbols(func, size);
+
+	if (symb == NULL)
+		return;
+
+	while (size > 0) {
+		oryx_loge(-1,
+		 "%d: [%s]", size, symb[size - 1]);
+		size --;
+	}
+
+	free(symb);
+#endif /* RTE_BACKTRACE */
+}
+
+/* not implemented in this environment */
+void oryx_dump_registers(void)
+{
+	return;
+}
+
+
+/*
+ * Like rte_panic this terminates the application. However, no traceback is
+ * provided and no core-dump is generated.
+ */
+void
+oryx_panic(int exit_code, const char *format, ...)
+{
+	va_list ap;
+	FILE *f = stderr;
+
+	if (exit_code != 0)
+		oryx_logn("Error - exiting with code: %d\n"
+				"  Cause: ", exit_code);
+
+	va_start(ap, format);
+	vfprintf(f, format, ap);
+	fflush(f);
+	va_end(ap);
+
+	oryx_dump_stack();
+	oryx_dump_registers();
+	abort();
+}
+

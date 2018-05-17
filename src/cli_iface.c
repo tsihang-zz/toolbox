@@ -18,6 +18,27 @@ static INIT_MUTEX(port_lock);
 #define do_unlock(lock)
 #endif
 
+struct iface_t {
+	const char *if_name;
+	int if_type;
+};
+
+static const struct iface_t sw_cpu_iface_list[] = {
+	{"enp5s0f1", 0},
+};
+
+/** all ge ports. */
+static const struct iface_t worked_ge_iface_list[] = {
+	{"lan1", 0},
+	{"lan2", 0},
+	{"lan3", 0},
+	{"lan4", 0},
+	{"lan5", 0},
+	{"lan6", 0},
+	{"lan7", 0},
+	{"lan8", 0}
+};
+
 #define VTY_ERROR_PORT(prefix, alias)\
 	vty_out (vty, "%s(Error)%s %s port \"%s\"%s", \
 		draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, alias, VTY_NEWLINE)
@@ -743,6 +764,33 @@ void port_init(vlib_main_t *vm)
 	if(likely(vp->link_detect_tmr))
 		oryx_tmr_start(vp->link_detect_tmr);
 
+
+	/** startup all interface. */
+	oryx_logn("network lo is %s", netdev_is_running("lo") ? "Up" : "Down");
+	int i;
+	for (i = 0; i < (int)DIM(worked_ge_iface_list); i ++) {
+		/** */
+		int rv = netdev_is_running(worked_ge_iface_list[i].if_name);
+		if(rv < 0 /** no such device */) {
+			continue;
+		} else {
+			if (rv == 0 /** not running */) {
+				oryx_logn("%s is not running, trying to up it ...", worked_ge_iface_list[i].if_name);
+				rv = netdev_up(worked_ge_iface_list[i].if_name);
+				if(rv == 0) {
+					/** one more time to check running status. */
+					rv = netdev_is_running(worked_ge_iface_list[i].if_name);
+					if(rv == 1) oryx_logn("successed!");
+					else oryx_logn("failed!");
+				} else {
+					oryx_logn("failed!");
+				}
+				
+			} else {
+				oryx_logn("%s is running", worked_ge_iface_list[i].if_name);
+			}
+		}
+	}
 
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }

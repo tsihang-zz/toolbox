@@ -8,7 +8,6 @@
 #include "vec.h"
 #include "fop.h"
 #include "tq.h"
-#include "format.h"
 #include "parser.h"
 
 #define u8_tolower(c) tolower((uint8_t)(c))
@@ -39,7 +38,5 @@ struct tm *oryx_localtime(time_t timep, struct tm *result)
 {
     return localtime_r(&timep, result);
 }
-
-void oryx_format(struct oryx_fmt_buff_t *fb, const char *fmt, ...);
 
 #endif

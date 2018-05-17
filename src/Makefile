@@ -69,6 +69,7 @@ CFLAGS_SRC += -Wundef -Wwrite-strings
 #CFLAGS_SRC += -Wall -Wold-style-definition -Wcast-qual
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
+		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
 		  -DHAVE_DPDK -DHAVE_QUAGGA -DHAVE_SURICATA
 CFLAGS += -I$(SRCDIR)\

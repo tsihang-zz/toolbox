@@ -261,7 +261,7 @@ int main (int argc, char **argv)
 	//signal(SIGTERM, sig_handler);
 
 	oryx_initialize();
-	
+
 	LogVersion();
 
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {

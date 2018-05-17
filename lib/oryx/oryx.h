@@ -78,6 +78,10 @@
 #include <sys/time.h>
 #include <stdalign.h>
 #include <math.h>
+
+#if defined(HAVE_BACKTRACE)
+#include <execinfo.h>
+#endif
 
 #if !defined(HAVE_DPDK)
 #include <net/ethernet.h>
@@ -515,6 +519,11 @@ struct inet_addr {
 #define ORYX_UINT64_T_HEX_FMT "lx"
 
 
+#ifndef DIM
+/** Number of elements in the array. */
+#define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
+#endif
+
 #define STRING_MAX 8096
 
 enum {LOOKUP_ID, LOOKUP_ALIAS};
@@ -574,6 +583,7 @@ do {							\
 oryx_status_t oryx_initialize(void);
 
 #include "oryx_error.h"
+#include "oryx_format.h"
 #include "oryx_debug.h"
 #include "oryx_ipc.h"
 #include "oryx_utils.h"

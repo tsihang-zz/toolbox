@@ -89,6 +89,13 @@ int oryx_log_set_level_regexp(const char *pattern, uint32_t level);
  */
 int oryx_log_set_level(uint32_t logtype, uint32_t level);
 
+const char *
+loglevel_format(uint32_t level);
+
+int
+loglevel_unformat(const char *level_str);
+
+
 /**
  * Get the current loglevel for the message being processed.
  *
@@ -359,5 +366,8 @@ extern u32 oryx_log_global_log_level;
 #define oryx_logE(err_code, ...) __oryx_loge__(ORYX_LOG_EMERGENCY, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
+
+void
+oryx_panic(int exit_code, const char *format, ...);
 
 #endif

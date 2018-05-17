@@ -107,7 +107,7 @@ typedef struct vlib_main_t
 
 #define CONFIG_PATH	"conf"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
-#define ET1500_N_XE_PORTS 2
+#define ET1500_N_XE_PORTS (2 + 1)
 #define ET1500_N_GE_PORTS 8
 #define MAX_LCORES	4
 

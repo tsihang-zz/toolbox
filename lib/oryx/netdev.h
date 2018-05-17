@@ -20,7 +20,7 @@ struct netdev_t {
 	int (*netdev_capture_fn)(dev_handler_t, char *, size_t);
 	int (*netdev_close_fn)(dev_handler_t);
 	void (*dispatch)(u_char *argument,
-						const struct pcap_pkthdr *pkthdr, u_char *packet);
+						const struct pcap_pkthdr *pkthdr, const u_char *packet);
 
 	void *private;
 	atomic64_t         rank;
@@ -28,6 +28,8 @@ struct netdev_t {
 	u32 ul_flags;
 };
 
+int netdev_exist(const char *iface);
+int netdev_is_running(const char* iface);
 int netdev_open(struct netdev_t *netdev);
 void *netdev_cap(void *argv);
 
