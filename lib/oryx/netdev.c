@@ -23,6 +23,9 @@ void *netdev_cap(void *argv)
 	atomic64_set(&netdev->rank, 0);
 	
 	FOREVER {
+		if (!netdev->handler)
+			continue;
+		
 		rank_acc = pcap_dispatch(netdev->handler,
 			1024, netdev->dispatch ? netdev->dispatch : netdev_dispatcher, 
 			(u_char *)netdev);

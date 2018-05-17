@@ -276,7 +276,7 @@ int main (int argc, char **argv)
 	vty_init(master);
 	memory_init();
 
-	StatsInit();
+	//StatsInit();
 
 	port_init(&vlib_main);
 	udp_init(&vlib_main);

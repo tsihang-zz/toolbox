@@ -2,7 +2,6 @@
 #define IFACE_PRIVATE_H
 
 #include "appl_private.h"
-#include "counters_private.h"
 
 #define NB_APPL_N_BUCKETS	(1 << 10)
 
@@ -35,6 +34,11 @@ enum interface_conf_cmd {
 	INTERFACE,
 };
 
+enum {
+	RX_COUNTER,
+	TX_COUNTER,
+	RX_TX
+};
 struct port_t {	
 	/** A panel interface ID. Can be translated by TO_INFACE_ID(Frame.vlan) */
 	u32 ul_id;
@@ -94,54 +98,31 @@ struct port_t {
 
 	void *table;
 
-    /** public counter store: counter syncs update this */
-    StatsPublicThreadContext perf_public_ctx;
 
-    /** private counter store: counter updates modify this */
-    StatsPrivateThreadContext perf_private_ctx;
-
+	struct CounterCtx perf_private_ctx;
+	
     /** stats/counters */
-    uint16_t counter_pkts;
-    uint16_t counter_bytes;
-
-    uint16_t counter_invalid;
-
-    uint16_t counter_eth;
-    uint16_t counter_ipv4;
-    uint16_t counter_ipv6;
-    uint16_t counter_tcp;
-    uint16_t counter_udp;
-    uint16_t counter_icmpv4;
-    uint16_t counter_icmpv6;
-
-    uint16_t counter_sll;
-    uint16_t counter_raw;
-    uint16_t counter_null;
-    uint16_t counter_sctp;
-    uint16_t counter_ppp;
-    uint16_t counter_gre;
-	uint16_t counter_arp;
-    uint16_t counter_vlan;
-    uint16_t counter_vlan_qinq;
-    uint16_t counter_ieee8021ah;
-    uint16_t counter_pppoe;
-    uint16_t counter_teredo;
-    uint16_t counter_mpls;
-    uint16_t counter_ipv4inipv6;
-    uint16_t counter_ipv6inipv6;
+    counter_id counter_pkts[RX_TX];
+    counter_id counter_bytes[RX_TX];
+	
+    counter_id counter_eth[RX_TX];
+    counter_id counter_ipv4[RX_TX];
+    counter_id counter_ipv6[RX_TX];
+    counter_id counter_tcp[RX_TX];
+    counter_id counter_udp[RX_TX];
+    counter_id counter_icmpv4[RX_TX];
+    counter_id counter_icmpv6[RX_TX];
+    counter_id counter_sctp[RX_TX];
+	counter_id counter_arp[RX_TX];
+    counter_id counter_vlan[RX_TX];
+    counter_id counter_pppoe[RX_TX];
+    counter_id counter_mpls[RX_TX];
 
 };
 
 static inline void iface_update_counters(struct port_t *p,
-					uint16_t id){
-	StatsPrivateThreadContext *pca = &p->perf_private_ctx;
-
-#if defined(DEBUG)
-	BUG_ON ((id < 1) || (id > pca->size));
-#endif
-
-	pca->head[id].value ++;
-	pca->head[id].updates ++;
+					counter_id id){
+	oryx_counter_inc(&p->perf_private_ctx, id);
 }
 					
 typedef struct {

@@ -121,8 +121,15 @@ void port_entry_new (struct port_t **port, u32 id, int type)
 	(*port)->belong_maps = vec_init(1024);
 
 	/** port counters */
-	(*port)->counter_bytes = RegisterCounter("port.bytes", "bytes", &(*port)->perf_public_ctx);
-	(*port)->counter_pkts = RegisterCounter("port.pkts", "pkts", &(*port)->perf_public_ctx);
+	(*port)->counter_bytes[RX_COUNTER] = oryx_register_counter("port.rx.bytes", 
+			"bytes Rx for this port", &(*port)->perf_private_ctx);
+	(*port)->counter_pkts[RX_COUNTER] = oryx_register_counter("port.rx.pkts",
+			"pkts Rx for this port", &(*port)->perf_private_ctx);
+
+	(*port)->counter_bytes[TX_COUNTER] = oryx_register_counter("port.rx.bytes", 
+			"bytes Tx for this port", &(*port)->perf_private_ctx);
+	(*port)->counter_pkts[TX_COUNTER] = oryx_register_counter("port.rx.pkts",
+			"pkts Tx for this port", &(*port)->perf_private_ctx);
 
 }
 

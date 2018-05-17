@@ -8,7 +8,7 @@ int DecodePPPOEDiscovery0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint
 {
 	oryx_logd("PPPoE_discovery");
 
-    StatsIncr(tv, dtv->counter_pppoe);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pppoe);
 
     if (len < PPPOE_DISCOVERY_HEADER_MIN_LEN) {
         ENGINE_SET_INVALID_EVENT(p, PPPOE_PKT_TOO_SMALL);
@@ -86,7 +86,7 @@ int DecodePPPOESession0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_
 {
 	oryx_logd("PPPoE_session");
 
-    StatsIncr(tv, dtv->counter_pppoe);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pppoe);
     if (len < PPPOE_SESSION_HEADER_LEN) {
         ENGINE_SET_INVALID_EVENT(p, PPPOE_PKT_TOO_SMALL);
         return TM_ECODE_FAILED;

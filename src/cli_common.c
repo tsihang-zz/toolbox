@@ -63,37 +63,37 @@ DEFUN(show_dp_stats,
 	size_t step = 0;
 
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "pkts:", StatsGetLocalCounterValue(tv, dtv->counter_pkts), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "pkts:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_pkts), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "bytes:", StatsGetLocalCounterValue(tv, dtv->counter_bytes), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "bytes:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_bytes), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "eth:", StatsGetLocalCounterValue(tv, dtv->counter_eth), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "eth:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "arp:", StatsGetLocalCounterValue(tv, dtv->counter_arp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "arp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_arp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "ipv4:", StatsGetLocalCounterValue(tv, dtv->counter_ipv4), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "ipv4:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_ipv4), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "ipv6:", StatsGetLocalCounterValue(tv, dtv->counter_ipv6), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "ipv6:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_ipv6), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "udp:", StatsGetLocalCounterValue(tv, dtv->counter_udp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "udp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_udp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "tcp:", StatsGetLocalCounterValue(tv, dtv->counter_tcp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "tcp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_tcp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "sctp:", StatsGetLocalCounterValue(tv, dtv->counter_sctp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "sctp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_sctp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "icmpv4:", StatsGetLocalCounterValue(tv, dtv->counter_icmpv4), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "icmpv4:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_icmpv4), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "icmpv6:", StatsGetLocalCounterValue(tv, dtv->counter_icmpv6), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "icmpv6:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_icmpv6), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "flows.memcap:", StatsGetLocalCounterValue(tv, dtv->counter_flow_memcap), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "flows.memcap:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_flow_memcap), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "flows.tcp:", StatsGetLocalCounterValue(tv, dtv->counter_flow_tcp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "flows.tcp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_flow_tcp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "flows.udp:", StatsGetLocalCounterValue(tv, dtv->counter_flow_udp), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "flows.udp:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_flow_udp), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "flows.icmpv4:", StatsGetLocalCounterValue(tv, dtv->counter_flow_icmp4), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "flows.icmpv4:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_flow_icmp4), VTY_NEWLINE);
 	step += snprintf (buf + step, format_buf_size - step, 
-		  "\"%15s\" 	  %lu%s", "flows.icmpv6:", StatsGetLocalCounterValue(tv, dtv->counter_flow_icmp6), VTY_NEWLINE);
+		  "\"%15s\" 	  %llu%s", "flows.icmpv6:", oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_flow_icmp6), VTY_NEWLINE);
 
 	vty_out(vty, "%s%s%s", VTY_NEWLINE, buf, VTY_NEWLINE);
 

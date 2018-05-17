@@ -494,7 +494,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 {
 	oryx_logd("IPv4");
 
-    StatsIncr(tv, dtv->counter_ipv4);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
 	
     oryx_logd("pkt %p len %"PRIu16"", pkt, len);
 

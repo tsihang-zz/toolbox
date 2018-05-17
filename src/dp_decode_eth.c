@@ -1,6 +1,5 @@
 #include "oryx.h"
 #include "dp_decode.h"
-#include "dp_decode_eth.h"
 
 int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq)
@@ -9,7 +8,7 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 
 	oryx_logd("Ethernet ...");
 
-    StatsIncr(tv, dtv->counter_eth);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_eth);
     if (unlikely(len < ETHERNET_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_TOO_SMALL);
         return TM_ECODE_FAILED;

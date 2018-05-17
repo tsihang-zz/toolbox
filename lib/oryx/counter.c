@@ -1,6 +1,6 @@
 #include "oryx.h"
 
-static struct oryx_stats_global_context_t *sg_ctx = NULL;
+static struct StatsGlobalCtx *sg_ctx = NULL;
 
 
 /**
@@ -72,11 +72,13 @@ static counter_id RegisterQualifiedCounter(const char *name,
 }
 
 counter_id oryx_register_counter(const char *name,
+							const char *comments,
 							 struct CounterCtx *ctx)
 {
-  counter_id id = RegisterQualifiedCounter(name, ctx,
+	comments = comments;
+	counter_id id = RegisterQualifiedCounter(name, ctx,
 											  STATS_TYPE_Q_NORMAL, NULL);
-  return id;
+	return id;
 }
 							 
 /**
@@ -111,24 +113,27 @@ void oryx_release_counter(struct CounterCtx *ctx)
  *
  *  \retval a counter-array in this(s_id-e_id) range for this TM instance
  */
-static int oryx_get_counter_array_range(counter_id s_id, counter_id e_id,
+int oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
                                       struct CounterCtx *ctx)
 {
     struct counter_t *c = NULL;
     uint32_t i = 0;
 
     if (ctx == NULL) {
-        oryx_logd("CounterCtx is NULL");
+        oryx_loge(-1,
+			"CounterCtx is NULL");
         return -1;
     }
 
     if (s_id < 1 || e_id < 1 || s_id > e_id) {
-        oryx_logd("error with the counter ids");
+        oryx_loge(-1,
+			"error with the counter ids");
         return -1;
     }
 
     if (e_id > (counter_id)atomic_read(&ctx->curr_id)) {
-        oryx_logd("end id is greater than the max id.");
+        oryx_loge(-1,
+			"end id is greater than the max id.");
         return -1;
     }
 
@@ -205,7 +210,7 @@ u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 #ifdef DEBUG
     BUG_ON ((id < 1) || (id > ctx->size));
 #endif
-    return atomic64_read(&ctx->head[id].value);
+    return (u64)atomic64_read(&ctx->head[id].value);
 }
 
 
@@ -226,11 +231,12 @@ void oryx_counter_init(void)
 
 	memset(&ctx, 0, sizeof(struct CounterCtx));
 
-	counter_id id1 = oryx_register_counter("t1", &ctx);
+	counter_id id1 = oryx_register_counter("t1", "c1", &ctx);
 	BUG_ON(id1 != 1);
-	counter_id id2 = oryx_register_counter("t2", &ctx);
+	counter_id id2 = oryx_register_counter("t2", "c2", &ctx);
+	BUG_ON(id2 != 2);
 	
-	oryx_get_counter_array_range(1, 
+	oryx_counter_get_array_range(1, 
 		atomic_read(&ctx.curr_id), &ctx);
 
 	oryx_counter_inc(&ctx, id1);

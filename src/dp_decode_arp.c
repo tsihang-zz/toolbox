@@ -11,7 +11,7 @@ int DecodeARP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
 
 	oryx_logd("ARP");
 
-    StatsIncr(tv, dtv->counter_arp);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_arp);
 
 }
 

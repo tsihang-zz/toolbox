@@ -53,7 +53,7 @@ SRCS-decode += \
 # all sources are stored in SRCS-y
 #
 SRCS-y += \
-	main.c rc4.c threadvars.c counters.c event.c\
+	main.c rc4.c threadvars.c event.c\
 	dp_main.c dp_decode.c dp_flow.c dp_flow_queue.c\
 	$(SRCS-dpdk) \
 	$(SRCS-cli) \

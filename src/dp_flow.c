@@ -308,16 +308,16 @@ static inline void FlowUpdateCounter(ThreadVars *tv, DecodeThreadVars *dtv,
 #endif
         switch (proto){
             case IPPROTO_UDP:
-                StatsIncr(tv, dtv->counter_flow_udp);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_udp);
                 break;
             case IPPROTO_TCP:
-                StatsIncr(tv, dtv->counter_flow_tcp);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_tcp);
                 break;
             case IPPROTO_ICMP:
-                StatsIncr(tv, dtv->counter_flow_icmp4);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_icmp4);
                 break;
             case IPPROTO_ICMPV6:
-                StatsIncr(tv, dtv->counter_flow_icmp6);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_icmp6);
                 break;
         }
 #ifdef UNITTESTS
@@ -367,7 +367,7 @@ static Flow *FlowGetNew(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p)
             if (f == NULL) {
                 /* max memcap reached, so increments the counter */
                 if (tv != NULL && dtv != NULL) {
-                    StatsIncr(tv, dtv->counter_flow_memcap);
+                    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_memcap);
                 }
 
                 /* very rare, but we can fail. Just giving up */
@@ -382,7 +382,7 @@ static Flow *FlowGetNew(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p)
             f = FlowAlloc();
             if (f == NULL) {
                 if (tv != NULL && dtv != NULL) {
-                    StatsIncr(tv, dtv->counter_flow_memcap);
+                    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_memcap);
                 }
                 return NULL;
             }

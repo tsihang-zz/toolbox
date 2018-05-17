@@ -2,7 +2,7 @@
 #ifndef THREADVARS_H
 #define THREADVARS_H
 
-#include "counters.h"
+//#include "counters.h"
 
 /** \brief Per thread variable structure */
 typedef struct ThreadVars_ {
@@ -17,12 +17,8 @@ typedef struct ThreadVars_ {
 
     /* counters */
 
-    /** public counter store: counter syncs update this */
-    StatsPublicThreadContext perf_public_ctx;
-
-    /** private counter store: counter updates modify this */
-    StatsPrivateThreadContext perf_private_ctx;
-
+	struct CounterCtx perf_private_ctx0;
+	
 	struct ThreadVars_ *next;
     struct ThreadVars_ *prev;
 

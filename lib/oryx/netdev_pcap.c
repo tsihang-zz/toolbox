@@ -16,26 +16,30 @@ int netdev_pcap_open(dev_handler_t **handler, char *devname, int flags)
     /** search the ethernet device */
     xret = pcap_lookupnet(devname, &ip, &mask, errbuf);
     if (likely(xret < 0)){
-        printf ("pcap_lookupnet error %s\n", devname);
-		return -1;
+        oryx_loge(-1,
+				"pcap_lookupnet error %s\n", devname);
+		exit(0);
     }
 
 	(*handler) = pcap_open_live(devname, 65535, 1, 500, errbuf);
 	if(unlikely(!(*handler))){
-		printf ("pcap_open_live error %s\n", devname);
-		return -1;
+		oryx_loge (-1,
+				"pcap_open_live error %s -> %s\n", devname, errbuf);
+		exit(0);
 	 }
 
     xret = pcap_compile((*handler), &bpf, &filter[0], 1, mask);
     if (likely(xret < 0)){
-        printf ("pcap_compile error\n");
-		return -1;
+        oryx_loge (-1,
+				"pcap_compile error\n");
+		exit(0);
     }
 
     xret = pcap_setfilter((*handler), &bpf);
     if (likely(xret < 0)){
-        printf ("pcap_setfilter error\n");
-		return -1;
+        oryx_loge (-1,
+				"pcap_setfilter error\n");
+		exit(0);
     }
 
 	printf ("Pcap open %s okay\n", devname);

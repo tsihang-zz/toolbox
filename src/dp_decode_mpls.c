@@ -27,7 +27,7 @@ int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
 
 	oryx_logd("MPLS");
 
-    StatsIncr(tv, dtv->counter_mpls);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_mpls);
 
     do {
         if (len < MPLS_HEADER_LEN) {

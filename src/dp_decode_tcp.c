@@ -161,7 +161,7 @@ int DecodeTCP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
 {
 	oryx_logd("TCP");
 
-    StatsIncr(tv, dtv->counter_tcp);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
 
     if (unlikely(DecodeTCPPacket(tv, p,pkt,len) < 0)) {
         oryx_logd("invalid TCP packet");

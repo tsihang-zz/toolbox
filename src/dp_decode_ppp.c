@@ -3,7 +3,7 @@
 
 int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-    StatsIncr(tv, dtv->counter_ppp);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ppp);
 
     if (unlikely(len < PPP_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, PPP_PKT_TOO_SMALL);

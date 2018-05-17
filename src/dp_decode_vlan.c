@@ -19,7 +19,7 @@ static inline uint16_t DecodeVLANGetId0(const Packet *p, uint8_t layer)
 
 static int DecodeIEEE8021ah0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
-    StatsIncr(tv, dtv->counter_ieee8021ah);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ieee8021ah);
 
     if (len < IEEE8021AH_HEADER_LEN) {
         ENGINE_SET_INVALID_EVENT(p, IEEE8021AH_HEADER_TOO_SMALL);
@@ -60,9 +60,9 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 	oryx_logd("VLAN");
 
     if (p->vlan_idx == 0)
-        StatsIncr(tv, dtv->counter_vlan);
+        oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_vlan);
     else if (p->vlan_idx == 1)
-        StatsIncr(tv, dtv->counter_vlan_qinq);
+        oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_vlan_qinq);
 
     if(len < VLAN_HEADER_LEN)    {
         ENGINE_SET_INVALID_EVENT(p, VLAN_HEADER_TOO_SMALL);

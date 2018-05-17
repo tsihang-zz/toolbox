@@ -125,7 +125,7 @@ int DecodeICMPV60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 {
     int full_hdr = 0;
 
-    StatsIncr(tv, dtv->counter_icmpv6);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_icmpv6);
 
     if (len < ICMPV6_HEADER_LEN) {
         oryx_logd("ICMPV6_PKT_TOO_SMALL");

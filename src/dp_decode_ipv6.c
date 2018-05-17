@@ -23,7 +23,7 @@ static void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, u
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPV6);
                 /* add the tp to the packet queue. */
                 PacketEnqueue(pq,tp);
-                StatsIncr(tv, dtv->counter_ipv4inipv6);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4inipv6);
                 return;
             }
         }
@@ -53,7 +53,7 @@ static int DecodeIP6inIP6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint
             if (tp != NULL) {
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPV6);
                 PacketEnqueue(pq,tp);
-                StatsIncr(tv, dtv->counter_ipv6inipv6);
+                oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv6inipv6);
             }
         }
     } else
@@ -548,7 +548,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 	
     int ret;
 
-	StatsIncr(tv, dtv->counter_ipv6);
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv6);
     /* do the actual decoding */
     ret = DecodeIPV6Packet (tv, dtv, p, pkt, len);
     if (unlikely(ret < 0)) {

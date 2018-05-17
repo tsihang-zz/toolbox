@@ -12,7 +12,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
 
 	oryx_logd("GRE");
 
-    StatsIncr(tv, dtv->counter_gre);
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_gre);
     if(len < GRE_HDR_LEN)    {
         ENGINE_SET_INVALID_EVENT(p, GRE_PKT_TOO_SMALL);
         return TM_ECODE_FAILED;

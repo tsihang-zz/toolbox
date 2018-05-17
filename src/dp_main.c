@@ -110,63 +110,138 @@ static struct oryx_task_t netdev_task =
 static void
 DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
 {
-    /* register counters */
-    dtv->counter_pkts = StatsRegisterCounter("decoder.pkts", tv);
-    dtv->counter_bytes = StatsRegisterCounter("decoder.bytes", tv);
-    dtv->counter_invalid = StatsRegisterCounter("decoder.invalid", tv);
-    dtv->counter_ipv4 = StatsRegisterCounter("decoder.ipv4", tv);
-    dtv->counter_ipv6 = StatsRegisterCounter("decoder.ipv6", tv);
-    dtv->counter_eth = StatsRegisterCounter("decoder.ethernet", tv);
-    dtv->counter_raw = StatsRegisterCounter("decoder.raw", tv);
-    dtv->counter_null = StatsRegisterCounter("decoder.null", tv);
-    dtv->counter_sll = StatsRegisterCounter("decoder.sll", tv);
-    dtv->counter_tcp = StatsRegisterCounter("decoder.tcp", tv);
-    dtv->counter_udp = StatsRegisterCounter("decoder.udp", tv);
-    dtv->counter_sctp = StatsRegisterCounter("decoder.sctp", tv);
-    dtv->counter_icmpv4 = StatsRegisterCounter("decoder.icmpv4", tv);
-    dtv->counter_icmpv6 = StatsRegisterCounter("decoder.icmpv6", tv);
-    dtv->counter_ppp = StatsRegisterCounter("decoder.ppp", tv);
-    dtv->counter_pppoe = StatsRegisterCounter("decoder.pppoe", tv);
-    dtv->counter_gre = StatsRegisterCounter("decoder.gre", tv);
-	dtv->counter_arp = StatsRegisterCounter("decoder.arp", tv);
-    dtv->counter_vlan = StatsRegisterCounter("decoder.vlan", tv);
-    dtv->counter_vlan_qinq = StatsRegisterCounter("decoder.vlan_qinq", tv);
-    dtv->counter_ieee8021ah = StatsRegisterCounter("decoder.ieee8021ah", tv);
-    dtv->counter_teredo = StatsRegisterCounter("decoder.teredo", tv);
-    dtv->counter_ipv4inipv6 = StatsRegisterCounter("decoder.ipv4_in_ipv6", tv);
-    dtv->counter_ipv6inipv6 = StatsRegisterCounter("decoder.ipv6_in_ipv6", tv);
-    dtv->counter_mpls = StatsRegisterCounter("decoder.mpls", tv);
-    dtv->counter_avg_pkt_size = StatsRegisterAvgCounter("decoder.avg_pkt_size", tv);
-    dtv->counter_max_pkt_size = StatsRegisterMaxCounter("decoder.max_pkt_size", tv);
-    dtv->counter_erspan = StatsRegisterMaxCounter("decoder.erspan", tv);
-    dtv->counter_flow_memcap = StatsRegisterCounter("flow.memcap", tv);
+	/* register counters */
+	dtv->counter_pkts = 
+		oryx_register_counter("decoder.pkts", 
+									"Packets that Rx have been decoded by PRG", &tv->perf_private_ctx0);
+	dtv->counter_bytes = 
+		oryx_register_counter("decoder.bytes", 
+									"Bytes that Rx have been decoded by PRG", &tv->perf_private_ctx0);
+	dtv->counter_invalid = 
+		oryx_register_counter("decoder.invalid", 
+									"Counter for unknown packets which can not been decoded by PRG", &tv->perf_private_ctx0);
+	dtv->counter_ipv4 = 
+		oryx_register_counter("decoder.ipv4", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_ipv6 = 
+		oryx_register_counter("decoder.ipv6", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_eth = 
+		oryx_register_counter("decoder.ethernet",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_raw = 
+		oryx_register_counter("decoder.raw", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_null = 
+		oryx_register_counter("decoder.null",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_sll = 
+		oryx_register_counter("decoder.sll",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_tcp = 
+		oryx_register_counter("decoder.tcp", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_udp = 
+		oryx_register_counter("decoder.udp",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_sctp = 
+		oryx_register_counter("decoder.sctp",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_icmpv4 =
+		oryx_register_counter("decoder.icmpv4", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_icmpv6 =
+		oryx_register_counter("decoder.icmpv6", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_ppp =
+		oryx_register_counter("decoder.ppp", 
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_pppoe =
+		oryx_register_counter("decoder.pppoe",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_gre =
+		oryx_register_counter("decoder.gre",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_arp =
+		oryx_register_counter("decoder.arp",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_vlan =
+		oryx_register_counter("decoder.vlan",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_vlan_qinq =
+		oryx_register_counter("decoder.vlan_qinq",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_ieee8021ah =
+		oryx_register_counter("decoder.ieee8021ah",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_teredo =
+		oryx_register_counter("decoder.teredo",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_ipv4inipv6 =
+		oryx_register_counter("decoder.ipv4_in_ipv6",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_ipv6inipv6 =
+		oryx_register_counter("decoder.ipv6_in_ipv6",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_mpls =
+		oryx_register_counter("decoder.mpls",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_avg_pkt_size =
+		oryx_register_counter("decoder.avg_pkt_size",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_max_pkt_size =
+		oryx_register_counter("decoder.max_pkt_size",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_erspan =
+		oryx_register_counter("decoder.erspan",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_flow_memcap =
+		oryx_register_counter("flow.memcap",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_flow_tcp =
+		oryx_register_counter("flow.tcp",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_flow_udp =
+		oryx_register_counter("flow.udp",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_flow_icmp4 =
+		oryx_register_counter("flow.icmpv4",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_flow_icmp6 =
+		oryx_register_counter("flow.icmpv6",
+									NULL, &tv->perf_private_ctx0);
 
-    dtv->counter_flow_tcp = StatsRegisterCounter("flow.tcp", tv);
-    dtv->counter_flow_udp = StatsRegisterCounter("flow.udp", tv);
-    dtv->counter_flow_icmp4 = StatsRegisterCounter("flow.icmpv4", tv);
-    dtv->counter_flow_icmp6 = StatsRegisterCounter("flow.icmpv6", tv);
+	dtv->counter_defrag_ipv4_fragments =
+		oryx_register_counter("defrag.ipv4.fragments",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_ipv4_reassembled =
+		oryx_register_counter("defrag.ipv4.reassembled",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_ipv4_timeouts =
+		oryx_register_counter("defrag.ipv4.timeouts",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_ipv6_fragments =
+		oryx_register_counter("defrag.ipv6.fragments",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_ipv6_reassembled =
+		oryx_register_counter("defrag.ipv6.reassembled",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_ipv6_timeouts =
+		oryx_register_counter("defrag.ipv6.timeouts",
+									NULL, &tv->perf_private_ctx0);
+	dtv->counter_defrag_max_hit =
+		oryx_register_counter("defrag.max_frag_hits",
+									NULL, &tv->perf_private_ctx0);
 
-    dtv->counter_defrag_ipv4_fragments =
-        StatsRegisterCounter("defrag.ipv4.fragments", tv);
-    dtv->counter_defrag_ipv4_reassembled =
-        StatsRegisterCounter("defrag.ipv4.reassembled", tv);
-    dtv->counter_defrag_ipv4_timeouts =
-        StatsRegisterCounter("defrag.ipv4.timeouts", tv);
-    dtv->counter_defrag_ipv6_fragments =
-        StatsRegisterCounter("defrag.ipv6.fragments", tv);
-    dtv->counter_defrag_ipv6_reassembled =
-        StatsRegisterCounter("defrag.ipv6.reassembled", tv);
-    dtv->counter_defrag_ipv6_timeouts =
-        StatsRegisterCounter("defrag.ipv6.timeouts", tv);
-    dtv->counter_defrag_max_hit =
-        StatsRegisterCounter("defrag.max_frag_hits", tv);
+	int i = 0;
+	for (i = 0; i < DECODE_EVENT_PACKET_MAX; i++) {
+		BUG_ON(i != (int)DEvents[i].code);
+		dtv->counter_invalid_events[i] = oryx_register_counter(DEvents[i].event_name,
+									NULL, &tv->perf_private_ctx0);
+	}
 
-    int i = 0;
-    for (i = 0; i < DECODE_EVENT_PACKET_MAX; i++) {
-        BUG_ON(i != (int)DEvents[i].code);
-        dtv->counter_invalid_events[i] = StatsRegisterCounter(
-                DEvents[i].event_name, tv);
-    }
+	oryx_counter_get_array_range(1, 
+		atomic_read(&tv->perf_private_ctx0.curr_id), &tv->perf_private_ctx0);
 
     return;
 }
@@ -175,50 +250,9 @@ static __oryx_always_inline__
 void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char **argv)
 {
-	int lcore = 0;
-	ThreadVars *tv = &g_tv[lcore];
-	DecodeThreadVars *dtv = &g_dtv[lcore];
-	PacketQueue *pq = &g_pq[lcore];
-
-#define format_buf_size 4096
-	char buf[format_buf_size] = {0};
-	size_t step = 0;
-	
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "pkts:", StatsGetLocalCounterValue(tv, dtv->counter_pkts));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "bytes:", StatsGetLocalCounterValue(tv, dtv->counter_bytes));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "eth:", StatsGetLocalCounterValue(tv, dtv->counter_eth));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "arp:", StatsGetLocalCounterValue(tv, dtv->counter_arp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "ipv4:", StatsGetLocalCounterValue(tv, dtv->counter_ipv4));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "ipv6:", StatsGetLocalCounterValue(tv, dtv->counter_ipv6));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "udp:", StatsGetLocalCounterValue(tv, dtv->counter_udp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "tcp:", StatsGetLocalCounterValue(tv, dtv->counter_tcp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "sctp:", StatsGetLocalCounterValue(tv, dtv->counter_sctp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "icmpv4:", StatsGetLocalCounterValue(tv, dtv->counter_icmpv4));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "icmpv6:", StatsGetLocalCounterValue(tv, dtv->counter_icmpv6));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "flows.memcap:", StatsGetLocalCounterValue(tv, dtv->counter_flow_memcap));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "flows.tcp:", StatsGetLocalCounterValue(tv, dtv->counter_flow_tcp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "flows.udp:", StatsGetLocalCounterValue(tv, dtv->counter_flow_udp));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "flows.icmpv4:", StatsGetLocalCounterValue(tv, dtv->counter_flow_icmp4));
-	step += snprintf (buf + step, format_buf_size - step, 
-			"\"%15s\"		%lu\n", "flows.icmpv6:", StatsGetLocalCounterValue(tv, dtv->counter_flow_icmp6));
-
-	oryx_logn("\n%s", buf);
-	
+	tmr = tmr;
+	argc = argc;
+	argv = argv;
 }
 
 dpdk_main_t dpdk_main = {
@@ -250,11 +284,9 @@ void dp_init(vlib_main_t *vm)
 	sprintf (thrgp_name, "dp[%u] hd-thread", 0);
 	tv->thread_group_name = strdup(thrgp_name);
 	SC_ATOMIC_INIT(tv->flags);
-	pthread_mutex_init(&tv->perf_public_ctx.m, NULL);
+	pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 
 	DecodeRegisterPerfCounters(dtv, tv);
-	/** setup private. */
-	StatsSetupPrivate(tv);
 
 	netdev_open(&netdev);
 	oryx_task_registry(&netdev_task);
