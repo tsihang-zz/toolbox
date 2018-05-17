@@ -30,6 +30,7 @@ struct netdev_t {
 
 int netdev_exist(const char *iface);
 int netdev_is_running(const char* iface);
+int netdev_is_up(const char *iface);
 int netdev_open(struct netdev_t *netdev);
 void *netdev_cap(void *argv);
 

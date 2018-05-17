@@ -654,7 +654,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 			struct port_t *p;
 			vec_foreach_element (v, i, p) {
 				if (p) {
-					if (p->ul_flags & NB_INTF_FLAGS_LOOPBACK)
+					if (p->ul_flags & NETDEV_LOOPBACK)
 						vty_out (vty, "%s(%s%s%s)", p->sc_alias, 
 							draw_color(COLOR_RED), 
 							"loopback",

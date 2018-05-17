@@ -1,7 +1,7 @@
 # arch dir
 linuxapp-gcc
 
-*native-linuxapp-gcc
+*-linuxapp-gcc
 
 bin
 .libs

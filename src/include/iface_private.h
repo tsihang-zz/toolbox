@@ -35,36 +35,30 @@ enum interface_conf_cmd {
 };
 
 enum {
-	RX_COUNTER,
-	TX_COUNTER,
+	COUNTER_RX,
+	COUNTER_TX,
 	RX_TX
 };
+
+enum {
+	ETH_GE,
+	ETH_XE
+};
+
 struct port_t {	
 	/** A panel interface ID. Can be translated by TO_INFACE_ID(Frame.vlan) */
 	u32 ul_id;
-	enum {dpdk_port, sw_port} type;
+	int type;
 	/** for validate checking. */
 	u32 ul_vid;
-	/** Port name. for example, Gn_b etc... */
+	
+	/** Port name. for example, Gn_b etc... can be overwritten by CLI. */
 	char  sc_alias[32];
 
-/** Work Port or Channel Port */
-#define	NB_INTF_FLAGS_NETWORK			(1 << 0 /** 0-Network port(s), 1-Tool port(s) */)
-#define	NB_INTF_FLAGS_FORCEDUP			(1 << 1 /** 0-disabled, 1-enabled. */)
-#define	NB_INTF_FLAGS_FULL_DUPLEX		(1 << 2 /** 0-half, 1-full */)
-#define	NB_INTF_FLAGS_LINKUP			(1 << 3 /** 0-down, 1-up */)
-#define	NB_INTF_FLAGS_LOOPBACK			(1 << 4)
-
+	/** fixed alias used to do linkstate poll, and can not be overwrite by CLI. */
+	const char *sc_alias_fixed;
+	
 #if defined(HAVE_DPDK)
-#define DPDK_DEVICE_FLAG_ADMIN_UP           (1 << 0)
-#define DPDK_DEVICE_FLAG_PROMISC            (1 << 1)
-#define DPDK_DEVICE_FLAG_PMD                (1 << 2)
-#define DPDK_DEVICE_FLAG_PMD_INIT_FAIL      (1 << 3)
-#define DPDK_DEVICE_FLAG_MAYBE_MULTISEG     (1 << 4)
-#define DPDK_DEVICE_FLAG_HAVE_SUBIF         (1 << 5)
-#define DPDK_DEVICE_FLAG_HQOS               (1 << 6)
-#define DPDK_DEVICE_FLAG_BOND_SLAVE         (1 << 7)
-#define DPDK_DEVICE_FLAG_BOND_SLAVE_UP      (1 << 8)
 	u16 nb_tx_desc;
 	/* dpdk rte_mbuf rx and tx vectors, VLIB_FRAME_SIZE */
 	struct rte_mbuf ***tx_vectors;	/* one per worker thread */
@@ -79,8 +73,18 @@ struct port_t {
 #endif
 	/** ethernet address for this port. */
 	struct ether_addr eth_addr;
+
+#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
+#define NETDEV_PROMISC            (1 << 1)
+#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
+#define NETDEV_PMD                (1 << 3)
+#define	NETDEV_LOOPBACK	  		  (1 << 4)
+
 	u32 ul_flags;
 
+	/** linkstate backup. */
+	int linkstate0;
+	
 	u8 uc_speed;
 
 	u16 us_mtu;
@@ -98,6 +102,7 @@ struct port_t {
 
 	void *table;
 
+	void (*state_poll)(struct port_t *this);
 
 	struct CounterCtx perf_private_ctx;
 	
@@ -134,6 +139,9 @@ typedef struct {
 	u32 poll_interval;
 	oryx_vector entry_vec;
 	struct oryx_htable_t *htable;
+
+	/** enp5s0f1 must be up first before lan1-lan8 up. */
+	int enp5s0f1_is_up;
 	
 }vlib_port_main_t;
 

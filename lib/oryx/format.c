@@ -18,7 +18,6 @@ ___format(struct oryx_fmt_buff_t *fb, const char *format, va_list ap)
 void oryx_format(struct oryx_fmt_buff_t *fb, const char *fmt, ...)
 {
 	va_list ap;
-	int ret;
 
 	if (!fb->fmt_data) {
 		fb->fmt_data = malloc (DEFAULT_FMT_MSG_SIZE);

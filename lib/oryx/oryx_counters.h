@@ -3,6 +3,8 @@
 
 #include "counter.h"
 
+#define COUNTER_RANGE_START(ctx)	1
+#define COUNTER_RANGE_END(ctx)	(atomic_read(&(ctx)->curr_id))
 void
 oryx_counter_init(void);
 

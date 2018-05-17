@@ -19,24 +19,11 @@ static INIT_MUTEX(port_lock);
 #endif
 
 struct iface_t {
+#define IS_PANLE_PORT 1
 	const char *if_name;
 	int if_type;
-};
-
-static const struct iface_t sw_cpu_iface_list[] = {
-	{"enp5s0f1", 0},
-};
-
-/** all ge ports. */
-static const struct iface_t worked_ge_iface_list[] = {
-	{"lan1", 0},
-	{"lan2", 0},
-	{"lan3", 0},
-	{"lan4", 0},
-	{"lan5", 0},
-	{"lan6", 0},
-	{"lan7", 0},
-	{"lan8", 0}
+	int is_a_panel_port;
+	void (*linkstate_poll)(struct port_t *this);
 };
 
 #define VTY_ERROR_PORT(prefix, alias)\
@@ -67,18 +54,12 @@ static __oryx_always_inline__
 void mk_alias (struct port_t *entry)
 {
 
-	switch (entry->uc_speed) {
-	case ETH_SPEED_1G:
+	switch (entry->type) {
+	case ETH_GE:
 			sprintf (entry->sc_alias, "%s%u", (char *)"G0/", entry->ul_id);
 			break;
-	case ETH_SPEED_10G:
+	case ETH_XE:
 			sprintf (entry->sc_alias, "%s%u", (char *)"XG0/", entry->ul_id);
-			break;
-	case ETH_SPEED_40G:
-			sprintf (entry->sc_alias, "%s%u", (char *)"4XG0/", entry->ul_id);
-			break;
-	case ETH_SPEED_100G:
-			sprintf (entry->sc_alias, "%s%u", (char *)"10XG0/", entry->ul_id);
 			break;
 	default:
 			sprintf (entry->sc_alias, "%s%u", (char *)"UnknownG0/", entry->ul_id);
@@ -129,29 +110,44 @@ port_cmp (ht_value_t v1,
 	return xret;
 }
 
-void port_entry_new (struct port_t **port, u32 id, int type)
+void port_entry_new (struct port_t **port, const struct iface_t *iface)
 {
+	int id;
+	
 	/** create an port */
 	(*port) = kmalloc (sizeof (struct port_t), MPF_CLR, __oryx_unused_val__);
 
 	ASSERT ((*port));
 
-	(*port)->type = type;
-	(*port)->ul_id = id;
 	(*port)->us_mtu = 1500;
 	(*port)->belong_maps = vec_init(1024);
+	memcpy(&(*port)->sc_alias[0], iface->if_name, strlen(iface->if_name));
+	(*port)->sc_alias_fixed = iface->if_name;
+	(*port)->type = iface->if_type;
+	(*port)->state_poll = iface->linkstate_poll;
 
 	/** port counters */
-	(*port)->counter_bytes[RX_COUNTER] = oryx_register_counter("port.rx.bytes", 
+	id = COUNTER_RX;
+	(*port)->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
 			"bytes Rx for this port", &(*port)->perf_private_ctx);
-	(*port)->counter_pkts[RX_COUNTER] = oryx_register_counter("port.rx.pkts",
+	(*port)->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
 			"pkts Rx for this port", &(*port)->perf_private_ctx);
 
-	(*port)->counter_bytes[TX_COUNTER] = oryx_register_counter("port.rx.bytes", 
+	id = COUNTER_TX;
+	(*port)->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
 			"bytes Tx for this port", &(*port)->perf_private_ctx);
-	(*port)->counter_pkts[TX_COUNTER] = oryx_register_counter("port.rx.pkts",
+	(*port)->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
 			"pkts Tx for this port", &(*port)->perf_private_ctx);
 
+	/**
+	 * More Counters here.
+	 * TODO ...
+	 */
+	
+	/** last step */
+	oryx_counter_get_array_range(COUNTER_RANGE_START(&(*port)->perf_private_ctx), 
+			COUNTER_RANGE_END(&(*port)->perf_private_ctx), 
+			&(*port)->perf_private_ctx);
 }
 
 static void port_entry_destroy (struct port_t *port)
@@ -173,34 +169,17 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 
 	vty_out (vty, "		%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
 		"Mac: ", 
-		port->eth_addr.addr_bytes[0],
-		port->eth_addr.addr_bytes[1],
-		port->eth_addr.addr_bytes[2],
-		port->eth_addr.addr_bytes[3],
-		port->eth_addr.addr_bytes[4],
-		port->eth_addr.addr_bytes[5],
-		VTY_NEWLINE);
+		port->eth_addr.addr_bytes[0], port->eth_addr.addr_bytes[1], port->eth_addr.addr_bytes[2],
+		port->eth_addr.addr_bytes[3], port->eth_addr.addr_bytes[4], port->eth_addr.addr_bytes[5], VTY_NEWLINE);
+	
 	vty_out (vty, "		%16s%s%s", 
-		"Duplex: ", 
-		(port->ul_flags & NB_INTF_FLAGS_FULL_DUPLEX) ? "Full" : "Half",
-		VTY_NEWLINE);
-	vty_out (vty, "		%16s%s%s", 
-		"States: ", 
-		(port->ul_flags & NB_INTF_FLAGS_LINKUP) ? "Up" : "Down", 
-		VTY_NEWLINE);
-	vty_out (vty, "		%16s%s%s", 
-		"Type: ", 
-		(port->ul_flags & NB_INTF_FLAGS_NETWORK) ? "Network" : "Tool", 
-		VTY_NEWLINE);
-	vty_out (vty, "		%16s%s%s", 
-		"ForceUP: ", 
-		(port->ul_flags & NB_INTF_FLAGS_FORCEDUP) ? "Yes" : "No", 
-		VTY_NEWLINE);
+		"Duplex: ", (port->ul_flags & NETDEV_DUPLEX_FULL) ? "Full" : "Half", VTY_NEWLINE);
+
+	vty_out (vty, " 	%16s%s%s", 
+		"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
 
 	vty_out (vty, "		%16s%d%s", 
-		"MTU: ", 
-		port->us_mtu, 
-		VTY_NEWLINE);
+		"MTU: ", port->us_mtu, VTY_NEWLINE);
 
 	vty_out (vty, "		%16s", "Maps: ");
 
@@ -231,42 +210,33 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 static __oryx_always_inline__
 void port_entry_stat_output (struct port_t *port, struct vty *vty)
 {
-
 	char format[256] = {0};
+	u64 pkts[RX_TX];
+	u64 bytes[RX_TX];
+	int id = 0;
 	
 	if (unlikely (!port)) 
 		return;
-	{
 
+	id = COUNTER_RX;
+	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
+	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
+	
+	id = COUNTER_TX;
+	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
+	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
+	{
 		/** find this port named 'alias'. */
 		vty_out (vty, "%15s(%u)", port->sc_alias, port->ul_id);
 
-		sprintf (format, "%llu/%llu", 0, 0);
+		sprintf (format, "%llu/%llu", bytes[COUNTER_RX], bytes[COUNTER_TX]);
 		vty_out (vty, "%20s", format);
 
-		sprintf (format, "%llu/%llu", 0, 0);
+		sprintf (format, "%llu/%llu", pkts[COUNTER_RX], pkts[COUNTER_TX]);
 		vty_out (vty, "%20s", format);
-
 
 		vty_newline(vty);
 	} 
-}
-
-static __oryx_always_inline__
-void do_port_activity_check(struct port_t *p) {
-
-	switch (p->type) {
-		
-		case dpdk_port:
-			break;
-
-		case sw_port:
-			break;
-
-		default:
-			break;
-	}
-	return;
 }
 
 static __oryx_always_inline__
@@ -279,7 +249,8 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 
 	vec_foreach_element(vp->entry_vec, foreach_element, p){
 		if (likely(p)) {
-			do_port_activity_check(p);
+			if (p->state_poll)
+				p->state_poll(p);
 		}
 	}
 }
@@ -334,9 +305,9 @@ void port_entry_config (struct port_t *port, void __oryx_unused__ *vty_, void *a
 			break;
 
 		case INTERFACE_SET_LOOPBACK:
-			ul_flags |= NB_INTF_FLAGS_LOOPBACK;
+			ul_flags |= NETDEV_LOOPBACK;
 			if (!strncmp ((char *)var->v, "d", 1))
-				ul_flags &= ~NB_INTF_FLAGS_LOOPBACK;
+				ul_flags &= ~NETDEV_LOOPBACK;
 			port->ul_flags = ul_flags;
 			break;
 			
@@ -432,7 +403,7 @@ int port_table_entry_add (struct port_t *port)
 	int r = oryx_htable_add(vp->htable, port->sc_alias, strlen((const char *)port->sc_alias));
 	if (r == 0) {
 		vec_set_index (vp->entry_vec, port->ul_id, port);
-		//port->table = TABLE(panel_port);
+		oryx_logn("registering interface %s ...", port->sc_alias);
 	}
 	do_unlock (&port_lock);
 
@@ -492,8 +463,6 @@ DEFUN(show_interfacce_stats,
       show_interfacce_stats_cmd,
       "show interface stats [WORD]",
       SHOW_STR SHOW_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
@@ -636,7 +605,7 @@ void port_entry_setup(struct port_t *entry)
 	int ret;
 	
 	switch (entry->type) {
-		case dpdk_port:
+		case ETH_XE:
 
 			dev_conf = id2_devconf(entry->ul_id);
 			if (!dev_conf) {
@@ -721,7 +690,7 @@ void port_entry_setup(struct port_t *entry)
 
 			break;
 
-		case sw_port:
+		case ETH_GE:
 			break;
 
 		default:
@@ -730,6 +699,175 @@ void port_entry_setup(struct port_t *entry)
 
 	/** make port alias. */
 	mk_alias (entry);
+}
+
+#if 0
+#define WAIT_USEC	1000000
+void netdev_all_up(void)
+{
+	int i;
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	/** startup all interface. */
+	oryx_logn("network lo is %s", netdev_is_running("lo") ? "Up" : "Down");
+
+	for (i = 0; i < (int)DIM(sw_cpu_iface_list); i ++) {
+		/** */
+		char *if_name = sw_cpu_iface_list[i].if_name;
+		int rv = netdev_is_running(if_name);
+		if(rv < 0 /** no such device */) {
+			continue;
+		} else {
+			if (rv == 0 /** not running */) {
+				oryx_logn("%s is not running, trying to up it ...", if_name);
+				rv = netdev_up(if_name);
+				if(rv == 0) {
+					usleep (WAIT_USEC);
+					/** one more time to check running status. */
+					rv = netdev_is_running(if_name);
+					if(rv == 1) {
+						oryx_logn("successed!");
+						vp->enp5s0f1_is_up = 1;
+					}
+					else oryx_logn("failed!");
+				} else {
+					oryx_logn("failed!");
+				}
+			} else {
+				oryx_logn("%s is running", if_name);
+				vp->enp5s0f1_is_up = 1;
+			}
+		}
+	}
+
+	if (!vp->enp5s0f1_is_up) {
+		oryx_loge(-1,
+			"Cannot up SW_CPU port");
+	}
+	
+	for (i = 0; i < (int)DIM(worked_ge_iface_list); i ++) {
+		/** */
+		char *if_name = worked_ge_iface_list[i].if_name;
+		int rv = netdev_is_running(if_name);
+		if(rv < 0 /** no such device */) {
+			continue;
+		} else {
+			if (rv == 0 /** not running */) {
+				oryx_logn("%s is not running, trying to up it ...", if_name);
+				rv = netdev_up(if_name);
+				if(rv == 0) {
+					/** wait for a while. */
+					usleep (WAIT_USEC);
+					/** one more time to check running status. */
+					rv = netdev_is_running(if_name);
+					if(rv == 1) oryx_logn("successed!");
+					else oryx_logn("failed!");
+				} else {
+					oryx_logn("failed!");
+				}
+				
+			} else {
+				oryx_logn("%s is running", if_name);
+			}
+		}
+	}
+}
+#endif
+
+void iface_linkstate_poll(struct port_t *this)
+{
+	int rv;
+	int if_need_up_configureation = 0;
+	vlib_port_main_t *vp = &vlib_port_main;
+	
+	if (this->type == ETH_GE) {
+		/** use ethtool. */
+		rv = netdev_is_up(this->sc_alias_fixed);
+		/** up -> down */
+		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0)
+			oryx_logn("%s is down", this->sc_alias);
+		/** down -> up */
+		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1)
+			oryx_logn("%s is up", this->sc_alias);
+		switch(rv) {
+			case 0:
+				this->ul_flags &= ~NETDEV_ADMIN_UP;
+				break;
+			case 1:
+				this->ul_flags |= NETDEV_ADMIN_UP;
+				break;
+			default:
+				oryx_logn("%s error", this->sc_alias);
+				break;
+		}
+	}
+
+	if (this->type == ETH_XE) {
+		rv = netdev_is_up(this->sc_alias_fixed);
+		/** up -> down */
+		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
+			oryx_logn("%s is down", this->sc_alias);
+		}
+		/** down -> up */
+		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1)
+			oryx_logn("%s is up", this->sc_alias);
+		switch(rv) {
+			case 0:
+				this->ul_flags &= ~NETDEV_ADMIN_UP;
+				break;
+			case 1:
+				this->ul_flags |= NETDEV_ADMIN_UP;
+				break;
+			default:
+				oryx_logn("%s error", this->sc_alias);
+				break;
+		}
+
+		if(rv && !strcmp(this->sc_alias_fixed, "enp5s0f1")) {
+			vp->enp5s0f1_is_up = rv;
+		}
+	}
+}
+
+static const struct iface_t iface_list[] = {
+	{"enp5s0f1", ETH_XE, !IS_PANLE_PORT, iface_linkstate_poll},
+	{"enp5s0f2", ETH_XE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"enp5s0f3", ETH_XE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan1",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan2",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan3",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan4",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan5",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan6",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan7",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
+	{"lan8",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll}
+};
+
+
+void register_ports(void)
+{
+	int i;
+	struct port_t *entry;
+	vlib_port_main_t *vp = &vlib_port_main;
+	int n_ports_now = vec_count(vp->entry_vec);
+
+	/** SW<->CPU ports, only one. */
+	for (i = 0; i < (int)DIM(iface_list); i ++) {
+
+		if (netdev_exist(iface_list[i].if_name) != 1) {
+			continue;
+		}
+		
+		port_entry_new (&entry, &iface_list[i]);
+		if (!entry) {
+			oryx_panic(-1, 
+				"Can not alloc memory for a port");
+		}
+		
+		entry->ul_id = n_ports_now + i;
+		port_table_entry_add (entry);
+	}
+
 }
 
 void port_init(vlib_main_t *vm)
@@ -758,40 +896,16 @@ void port_init(vlib_main_t *vm)
 
 	vp->link_detect_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
 							ul_activity_tmr_setting_flags,
-							port_activity_prob_tmr_handler, 
+							port_activity_prob_tmr_handler,
 							0, NULL, vp->link_detect_tmr_interval);
 
 	if(likely(vp->link_detect_tmr))
 		oryx_tmr_start(vp->link_detect_tmr);
 
+	//netdev_all_up();
 
-	/** startup all interface. */
-	oryx_logn("network lo is %s", netdev_is_running("lo") ? "Up" : "Down");
-	int i;
-	for (i = 0; i < (int)DIM(worked_ge_iface_list); i ++) {
-		/** */
-		int rv = netdev_is_running(worked_ge_iface_list[i].if_name);
-		if(rv < 0 /** no such device */) {
-			continue;
-		} else {
-			if (rv == 0 /** not running */) {
-				oryx_logn("%s is not running, trying to up it ...", worked_ge_iface_list[i].if_name);
-				rv = netdev_up(worked_ge_iface_list[i].if_name);
-				if(rv == 0) {
-					/** one more time to check running status. */
-					rv = netdev_is_running(worked_ge_iface_list[i].if_name);
-					if(rv == 1) oryx_logn("successed!");
-					else oryx_logn("failed!");
-				} else {
-					oryx_logn("failed!");
-				}
-				
-			} else {
-				oryx_logn("%s is running", worked_ge_iface_list[i].if_name);
-			}
-		}
-	}
-
+	register_ports();
+	
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }
 

@@ -89,7 +89,7 @@ finish:
 
 static struct netdev_t netdev = {
 	.handler = NULL,
-	.devname = "ens37",
+	.devname = "enp5s0f4",
 	.dispatch = netdev_pkt_handler,
 	.private = NULL,
 };

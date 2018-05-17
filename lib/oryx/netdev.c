@@ -58,7 +58,35 @@ int netdev_is_running(const char *iface) {
 	    return -1;
 	}
 
+	close (skfd);
+
 	if(ifr.ifr_flags & IFF_RUNNING) {
+	    return 1;
+	} else {
+	    return 0;
+	}
+}
+
+
+int netdev_is_up(const char *iface) {
+	int skfd = is_there_an_eth_iface_named(iface);
+	struct ifreq ifr;
+
+	if(skfd <= 0)
+		return skfd;
+	
+	strcpy(ifr.ifr_name, iface);
+
+	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+		oryx_loge(-1,
+				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
+	    close(skfd);
+	    return -1;
+	}
+
+	close (skfd);
+	
+	if(ifr.ifr_flags & IFF_UP) {
 	    return 1;
 	} else {
 	    return 0;
@@ -71,7 +99,6 @@ int netdev_up(const char *iface) {
 
 	if(skfd < 0)
 		return skfd;
-
 
 	strcpy(ifr.ifr_name, iface);
 	
@@ -91,6 +118,7 @@ int netdev_up(const char *iface) {
 	    return -1;
 	}
 
+	close (skfd);
 	return 0;
 }
 
@@ -119,6 +147,7 @@ int netdev_down(const char *iface) {
 	    return -1;
 	}
 
+	close (skfd);
 	return 0;
 }
 

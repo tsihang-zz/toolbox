@@ -227,9 +227,10 @@ void oryx_counter_init(void)
 	pthread_mutex_init(&sg_ctx->lock, NULL);
 
 	/** do a simple test */
-	struct CounterCtx ctx;
+	struct CounterCtx ctx, ctx1; 
 
 	memset(&ctx, 0, sizeof(struct CounterCtx));
+	memset(&ctx1, 0, sizeof(struct CounterCtx));
 
 	counter_id id1 = oryx_register_counter("t1", "c1", &ctx);
 	BUG_ON(id1 != 1);
@@ -277,10 +278,15 @@ void oryx_counter_init(void)
 
 	BUG_ON(id1_val != 1000);
 	BUG_ON(id2_val != 1000);
-	
+
+	counter_id id1_1 = oryx_register_counter("t1", "c1", &ctx1);
+	counter_id id2_2 = oryx_register_counter("t2", "c2", &ctx1);
+
 	oryx_release_counter(&ctx);
+	oryx_release_counter(&ctx1);
 
 	BUG_ON(ctx.h_size != 0);
+	BUG_ON(ctx1.h_size != 0);
 	
 }
 
