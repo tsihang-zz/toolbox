@@ -1,114 +1,30 @@
 #include "oryx.h"
 #include "dp_decode.h"
+
+//#define RUNNING_DPDK
+
+#if defined(RUNNING_DPDK)
 #include "dpdk.h"
+#endif
+
 
 ThreadVars g_tv[MAX_LCORES];
 DecodeThreadVars g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
 
-extern void DecodeUpdateCounters(ThreadVars *tv,
-                                const DecodeThreadVars *dtv, const Packet *p);
-
-typedef struct _dp_args_t {
-	ThreadVars tv[MAX_LCORES];
-	DecodeThreadVars dtv[MAX_LCORES];
-	PacketQueue pq[MAX_LCORES];
-}dp_private_t;
-
-
 dp_private_t dp_private_main;
-
-static dpdk_config_main_t dpdk_config_main = {
-	.nchannels = 2,		/** */		
-	.coremask = 0x0f,	/** 4 lcores. */
-	.portmask = 0x03,	/** 2 xe ports */
-	.n_rx_q_per_lcore = 1,
-	.uio_driver_name = (char *)"uio_pci_generic",
-	.num_mbufs =		DPDK_DEFAULT_NB_MBUF,
-	.cache_size =		DPDK_DEFAULT_CACHE_SIZE,
-	.data_room_size =	DPDK_DEFAULT_BUFFER_SIZE
-};
+bool force_quit = false;
 
 
-static void
-netdev_pkt_handler(u_char *argv,
-		const struct pcap_pkthdr *pcaphdr,
-		u_char *packet)
-{
-	int lcore = 0; //rte_lcore_id();
-	ThreadVars *tv = &g_tv[lcore];
-	DecodeThreadVars *dtv = &g_dtv[lcore];
-	PacketQueue *pq = &g_pq[lcore];
-	Packet *p = PacketGetFromAlloc();
-	struct netdev_t *netdev = (struct netdev_t *)argv;
+#if defined(RUNNING_DPDK)
+void dpdk_env_setup(struct vlib_main_t *vm);
+void dp_start_dpdk(struct vlib_main_t *vm);
+void dp_end_dpdk(struct vlib_main_t *vm);
 
-	SET_PKT_LEN(p, pcaphdr->len);
-	DecodeEthernet0(tv, dtv, p, 
-				packet, pcaphdr->len, pq);
-
-	DecodeUpdateCounters(tv, dtv, p); 
-
-	/** StatsINCR called within PakcetDecodeFinalize. */
-	PacketDecodeFinalize(tv, dtv, p);
-
-#if defined(HAVE_FLOW_MGR)
-	/** PKT_WANTS_FLOW is set by FlowSetupPacket in every decode routine. */
-	if (p->flags & PKT_WANTS_FLOW) {
-		//FLOWWORKER_PROFILING_START(p, PROFILE_FLOWWORKER_FLOW);
-		FlowHandlePacket(tv, dtv, p);
-		if(likely(p->flow != NULL)) {
-			DEBUG_ASSERT_FLOW_LOCKED(p->flow);
-			if (FlowUpdate0(p) == TM_ECODE_DONE) {
-				FLOWLOCK_UNLOCK(p->flow);
-				return;
-			}
-		}
-		/* if PKT_WANTS_FLOW is not set, but PKT_HAS_FLOW is, then this is a
-			* pseudo packet created by the flow manager. */
-	} else if (p->flags & PKT_HAS_FLOW) {
-		FLOWLOCK_WRLOCK(p->flow);
-		/** lock this flow. */
-	}
-
-	oryx_logd("packet %"PRIu64" has flow? %s", p->pcap_cnt, p->flow ? "yes" : "no");
-
-	/** unlock this flow. */
-	if (p->flow) {
-        DEBUG_ASSERT_FLOW_LOCKED(p->flow);
-        FLOWLOCK_UNLOCK(p->flow);
-    }
 #endif
 
-finish:
-	/** recycle packet. */
-	if(likely(p)){
-        PACKET_RECYCLE(p);
-        free(p);
-	}
-}
-
-static struct netdev_t netdev = {
-	.handler = NULL,
-	.devname = "enp5s0f4",
-	.dispatch = netdev_pkt_handler,
-	.private = NULL,
-};
-
-static struct oryx_task_t netdev_task =
-{
-	.module = THIS,
-	.sc_alias = "Netdev Task",
-	.fn_handler = netdev_cap,
-	.ul_lcore = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 0,
-	.argv = &netdev,
-	.ul_flags = 0,	/** Can not be recyclable. */
-};
-
-
 static void
-DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
+dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
 {
 	/* register counters */
 	dtv->counter_pkts = 
@@ -247,28 +163,22 @@ DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
 }
 
 static __oryx_always_inline__ 
-void perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
+void dp_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char **argv)
 {
 	tmr = tmr;
 	argc = argc;
 	argv = argv;
 }
-
-dpdk_main_t dpdk_main = {
-	.vm = NULL,
-	.conf = &dpdk_config_main,
-	.stat_poll_interval = DPDK_STATS_POLL_INTERVAL,
-	.link_state_poll_interval = DPDK_LINK_POLL_INTERVAL,
-	.dp_fn = NULL,
-	.ext_private = &dp_private_main,
-	.force_quit = false,
-};
-
-void dp_init(vlib_main_t *vm)
+				
+static void dp_init(vlib_main_t *vm)
 {
-	dpdk_main.vm = vm;
-	
+	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
+
+#if defined(RUNNING_DPDK)
+	dpdk_main.conf->priv_size = vm->extra_priv_size;
+#endif
+
 #define DATAPATH_LOGTYPE	"datapath"
 #define DATAPATH_LOGLEVEL	ORYX_LOG_DEBUG
 	oryx_log_register(DATAPATH_LOGTYPE);
@@ -286,27 +196,48 @@ void dp_init(vlib_main_t *vm)
 	SC_ATOMIC_INIT(tv->flags);
 	pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 
-	DecodeRegisterPerfCounters(dtv, tv);
+	dp_register_perf_counters(dtv, tv);
 
-	netdev_open(&netdev);
-	oryx_task_registry(&netdev_task);
+	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
+											  dp_perf_tmr_handler, 0, NULL, 3000);
 
-	
-	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-	
-	dpdk_main.perf_tmr = oryx_tmr_create (1, "perf_tmr", ul_perf_tmr_setting_flags,
-											  perf_tmr_handler, 0, (char **)&netdev, 3000);
+#if defined(RUNNING_DPDK)
+	dpdk_env_setup(vm);
+#else
+	;
+#endif
+
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }
 
-typedef struct _vlib_dataplane_main_t {
-	int (*decoder) (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
-					   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+void
+notify_dp(vlib_main_t *vm, int signum)
+{
+	vm = vm;
+	if (signum == SIGINT || signum == SIGTERM) {
+		printf("\n\nSignal %d received, preparing to exit...\n",
+				signum);
+		force_quit = true;
+	}
+}
 
-} vlib_dataplane_main_t;
+void dp_start(struct vlib_main_t *vm)
+{
+	dp_init(vm);
 
-vlib_dataplane_main_t vlib_dp_main;
+#if defined(RUNNING_DPDK)
+	dp_start_dpdk(vm);
+#else
+	dp_start_pcap(vm);
+#endif
+}
 
-
-
+void dp_end(struct vlib_main_t *vm)
+{
+#if defined(RUNNING_DPDK)
+	dp_end_dpdk(vm);
+#else
+	dp_end_pcap(vm);
+#endif
+}
 

@@ -101,6 +101,12 @@ typedef struct vlib_main_t
 #define VLIB_DP_INITIALIZED				(1 << 6)
 #define VLIB_QUIT						(1 << 31)
 	u32 ul_flags;
+
+	struct oryx_timer_t *perf_tmr;;
+	int (*dp_running_fn)(void *);
+	int (*dp_terminal_fn)(void *);
+	volatile bool force_quit;
+
 } vlib_main_t;
 
 //extern vlib_main_t vlib_main;

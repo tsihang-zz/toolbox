@@ -2,7 +2,7 @@
 
 oryx_status_t oryx_initialize(void) 
 {
-	struct oryx_fmt_buff_t fb = FMT_INITIALIZATION_VALUE;
+	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	struct timeval start, end;
 	
 	gettimeofday(&start,NULL);

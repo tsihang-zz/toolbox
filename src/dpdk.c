@@ -1,9 +1,10 @@
 #include "oryx.h"
 #include "dpdk.h"
 
-char *eal_init_argv[1024] = {0};
-int eal_init_args = 0;
-int eal_args_offset = 0;
+#if 0
+static char *eal_init_argv[1024] = {0};
+static int eal_init_args = 0;
+static int eal_args_offset = 0;
 
 extern int
 init_dpdk_env(dpdk_main_t *dm);
@@ -431,4 +432,4 @@ void dpdk_init (vlib_main_t * vm)
 
 	dpdk_config(vm);
 }
-
+#endif

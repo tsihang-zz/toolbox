@@ -341,10 +341,10 @@ check_all_ports_link_status(uint8_t port_num, uint32_t port_mask)
 
 /** ./examples/l2fwd/build/l2fwd -cC -n2 -- -p3 -q1 CT0 */
 int
-init_dpdk_env(dpdk_main_t *dm)
+init_dpdk_env(vlib_main_t *vm)
 
 {
-	vlib_main_t *vm = dm->vm;
+	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
 	struct lcore_queue_conf *qconf;
 	struct rte_eth_dev_info dev_info;

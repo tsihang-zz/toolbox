@@ -426,6 +426,12 @@ typedef struct Packet_
 #include "dp_decode_vlan.h"
 #include "dp_decode_arp.h"
 
+typedef struct _dp_args_t {
+	ThreadVars tv[MAX_LCORES];
+	DecodeThreadVars dtv[MAX_LCORES];
+	PacketQueue pq[MAX_LCORES];
+}dp_private_t;
+
 
 extern Packet *PacketGetFromAlloc(void);
 extern void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p);

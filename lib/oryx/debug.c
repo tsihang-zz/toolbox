@@ -444,7 +444,7 @@ static inline void oryx_log2_stream(FILE *fd, char *msg)
 }
 
 static const
-char *errno2_string(int err)
+char *errno2_string(int __oryx_unused__ err)
 {
 	return str(err);
 }
@@ -461,8 +461,8 @@ char *errno2_string(int err)
  * \retval 0 on success; else an error code
  */
 static int oryx_log2_buffer(
-        struct timeval *tval, int color, oryx_logopt_type type,
-                     char *buffer, size_t buffer_size,
+        struct timeval *tval, int color, oryx_logopt_type __oryx_unused__ type,
+                     char *buffer, size_t __oryx_unused__ buffer_size,
                      const char *log_format,
                      const uint32_t log_level, const char *file,
                      const unsigned int line, const char *function,

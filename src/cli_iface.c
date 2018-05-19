@@ -1,10 +1,9 @@
 #include "oryx.h"
-#include "dpdk.h"
-
 #include "vty.h"
 #include "command.h"
 #include "prefix.h"
 
+#include "common_private.h"
 #include "map_private.h"
 #include "cli_iface.h"
 
@@ -24,6 +23,7 @@ struct iface_t {
 	int if_type;
 	int is_a_panel_port;
 	void (*linkstate_poll)(struct port_t *this);
+	int  (*ethdev_up)(const char *if_name);
 };
 
 #define VTY_ERROR_PORT(prefix, alias)\
@@ -35,20 +35,6 @@ struct iface_t {
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, v->sc_alias, v->ul_id, VTY_NEWLINE)
 
 atomic_t n_intf_elements = ATOMIC_INIT(0);
-
-const struct rte_eth_conf port_conf_default = {
-	.rxmode = {
-		.split_hdr_size = 0,
-		.header_split   = 0, /**< Header Split disabled */
-		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
-		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
-		.hw_strip_crc   = 1, /**< CRC stripped by hardware */
-	},
-	.txmode = {
-		.mq_mode = ETH_MQ_TX_NONE,
-	},
-};
 
 static __oryx_always_inline__
 void mk_alias (struct port_t *entry)
@@ -124,7 +110,8 @@ void port_entry_new (struct port_t **port, const struct iface_t *iface)
 	memcpy(&(*port)->sc_alias[0], iface->if_name, strlen(iface->if_name));
 	(*port)->sc_alias_fixed = iface->if_name;
 	(*port)->type = iface->if_type;
-	(*port)->state_poll = iface->linkstate_poll;
+	(*port)->ethdev_state_poll = iface->linkstate_poll;
+	(*port)->ethdev_up = iface->ethdev_up;
 
 	/** port counters */
 	id = COUNTER_RX;
@@ -169,8 +156,8 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 
 	vty_out (vty, "		%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
 		"Mac: ", 
-		port->eth_addr.addr_bytes[0], port->eth_addr.addr_bytes[1], port->eth_addr.addr_bytes[2],
-		port->eth_addr.addr_bytes[3], port->eth_addr.addr_bytes[4], port->eth_addr.addr_bytes[5], VTY_NEWLINE);
+		port->eth_addr[0], port->eth_addr[1], port->eth_addr[2],
+		port->eth_addr[3], port->eth_addr[4], port->eth_addr[5], VTY_NEWLINE);
 	
 	vty_out (vty, "		%16s%s%s", 
 		"Duplex: ", (port->ul_flags & NETDEV_DUPLEX_FULL) ? "Full" : "Half", VTY_NEWLINE);
@@ -237,22 +224,6 @@ void port_entry_stat_output (struct port_t *port, struct vty *vty)
 
 		vty_newline(vty);
 	} 
-}
-
-static __oryx_always_inline__
-void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
-			int __oryx_unused__ argc, char __oryx_unused__**argv)
-{
-	vlib_port_main_t *vp = &vlib_port_main;	
-	int foreach_element;
-	struct port_t *p;
-
-	vec_foreach_element(vp->entry_vec, foreach_element, p){
-		if (likely(p)) {
-			if (p->state_poll)
-				p->state_poll(p);
-		}
-	}
 }
 
 static __oryx_always_inline__
@@ -592,189 +563,7 @@ DEFUN(interface_stats_clear,
 	return CMD_SUCCESS;
 }
 
-static dpdk_device_config_t *id2_devconf(u32 ul_id)
-{
-	dpdk_main_t *dm = &dpdk_main;
-	return dm->conf->dev_confs + (ul_id % dm->conf->device_config_index_by_pci_addr);
-}
-
-void port_entry_setup(struct port_t *entry)
-{
-	dpdk_main_t *dm = &dpdk_main;
-	dpdk_device_config_t *dev_conf;
-	int ret;
-	
-	switch (entry->type) {
-		case ETH_XE:
-
-			dev_conf = id2_devconf(entry->ul_id);
-			if (!dev_conf) {
-				printf ("No device config for this port %d\n", entry->ul_id);
-				exit (0);
-			}
-			
-			printf("Initializing port %u... ", (unsigned) entry->ul_id);
-			fflush(stdout);
-			/** */
-			ret = rte_eth_dev_configure (entry->ul_id, 		/** port id */
-								dev_conf->num_rx_queues,	/** nb_rx_q */
-								dev_conf->num_tx_queues,	/** nb_tx_q */
-								&port_conf_default);		/** devconf */
-			if (ret < 0) {
-				rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
-					  ret, (unsigned) entry->ul_id);
-			}
-			/** MAC */
-			rte_eth_macaddr_get(entry->ul_id, &entry->eth_addr);
-
-#if 1
-			printf ("socket ID %d\n", rte_eth_dev_socket_id(entry->ul_id));
-			/* init one RX queue */
-			fflush(stdout);
-			ret = rte_eth_rx_queue_setup (entry->ul_id,		/** port id */
-							0,								/** rx_queue_id */
-							dev_conf->num_rx_desc,			/** nb_rx_desc */
-							rte_eth_dev_socket_id(entry->ul_id),/** socket id */
-							NULL,							/** rx_conf */
-							dm->pktmbuf_pools); /** mempool */
-			if (ret < 0) {
-				rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
-					  ret, (unsigned) entry->ul_id);
-			}
-
-			/* init one TX queue on each port */
-			fflush(stdout);
-			ret = rte_eth_tx_queue_setup(entry->ul_id, 		/** port id */
-							0, 								/** tx_queue_id */
-							dev_conf->num_tx_desc,			/** nb_tx_desc */
-							rte_eth_dev_socket_id(entry->ul_id),/** socket id */
-							NULL);							/** tx_conf */
-			if (ret < 0) {
-				rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
-					ret, (unsigned) entry->ul_id);
-			}
-
-#endif
-
-			/* Start device */
-			ret = rte_eth_dev_start(entry->ul_id);
-			if (ret < 0) {
-				rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
-					  ret, (unsigned) entry->ul_id);
-			}
-			rte_eth_promiscuous_enable(entry->ul_id);
-
-			printf("done: \n");
-	
-			/** LinkS */		
-			struct rte_eth_link link;	/** defined in rte_ethdev.h */
-			rte_eth_link_get_nowait(entry->ul_id, &link);
-			if (link.link_status) {
-				printf("Port %d Link Up - speed %u "
-					"Mbps - %s\n", (uint8_t)entry->ul_id,
-					(unsigned)link.link_speed,
-					(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-					("full-duplex") : ("half-duplex\n"));
-			} else {
-				printf("Port %d Link Down\n",
-					(uint8_t)entry->ul_id);
-			}
-			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-				(unsigned) entry->ul_id,
-				entry->eth_addr.addr_bytes[0],
-				entry->eth_addr.addr_bytes[1],
-				entry->eth_addr.addr_bytes[2],
-				entry->eth_addr.addr_bytes[3],
-				entry->eth_addr.addr_bytes[4],
-				entry->eth_addr.addr_bytes[5]);
-
-			break;
-
-		case ETH_GE:
-			break;
-
-		default:
-			return;
-	}
-
-	/** make port alias. */
-	mk_alias (entry);
-}
-
-#if 0
-#define WAIT_USEC	1000000
-void netdev_all_up(void)
-{
-	int i;
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	/** startup all interface. */
-	oryx_logn("network lo is %s", netdev_is_running("lo") ? "Up" : "Down");
-
-	for (i = 0; i < (int)DIM(sw_cpu_iface_list); i ++) {
-		/** */
-		char *if_name = sw_cpu_iface_list[i].if_name;
-		int rv = netdev_is_running(if_name);
-		if(rv < 0 /** no such device */) {
-			continue;
-		} else {
-			if (rv == 0 /** not running */) {
-				oryx_logn("%s is not running, trying to up it ...", if_name);
-				rv = netdev_up(if_name);
-				if(rv == 0) {
-					usleep (WAIT_USEC);
-					/** one more time to check running status. */
-					rv = netdev_is_running(if_name);
-					if(rv == 1) {
-						oryx_logn("successed!");
-						vp->enp5s0f1_is_up = 1;
-					}
-					else oryx_logn("failed!");
-				} else {
-					oryx_logn("failed!");
-				}
-			} else {
-				oryx_logn("%s is running", if_name);
-				vp->enp5s0f1_is_up = 1;
-			}
-		}
-	}
-
-	if (!vp->enp5s0f1_is_up) {
-		oryx_loge(-1,
-			"Cannot up SW_CPU port");
-	}
-	
-	for (i = 0; i < (int)DIM(worked_ge_iface_list); i ++) {
-		/** */
-		char *if_name = worked_ge_iface_list[i].if_name;
-		int rv = netdev_is_running(if_name);
-		if(rv < 0 /** no such device */) {
-			continue;
-		} else {
-			if (rv == 0 /** not running */) {
-				oryx_logn("%s is not running, trying to up it ...", if_name);
-				rv = netdev_up(if_name);
-				if(rv == 0) {
-					/** wait for a while. */
-					usleep (WAIT_USEC);
-					/** one more time to check running status. */
-					rv = netdev_is_running(if_name);
-					if(rv == 1) oryx_logn("successed!");
-					else oryx_logn("failed!");
-				} else {
-					oryx_logn("failed!");
-				}
-				
-			} else {
-				oryx_logn("%s is running", if_name);
-			}
-		}
-	}
-}
-#endif
-
-void iface_linkstate_poll(struct port_t *this)
+void iface_ethtool_poll_linkstate(struct port_t *this)
 {
 	int rv;
 	int if_need_up_configureation = 0;
@@ -784,8 +573,11 @@ void iface_linkstate_poll(struct port_t *this)
 		/** use ethtool. */
 		rv = netdev_is_up(this->sc_alias_fixed);
 		/** up -> down */
-		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0)
+		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
 			oryx_logn("%s is down", this->sc_alias);
+			this->ul_u2d_times ++;
+			this->ul_flags |= NETDEV_POLL_UP;
+		}
 		/** down -> up */
 		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1)
 			oryx_logn("%s is up", this->sc_alias);
@@ -830,17 +622,93 @@ void iface_linkstate_poll(struct port_t *this)
 }
 
 static const struct iface_t iface_list[] = {
-	{"enp5s0f1", ETH_XE, !IS_PANLE_PORT, iface_linkstate_poll},
-	{"enp5s0f2", ETH_XE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"enp5s0f3", ETH_XE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan1",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan2",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan3",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan4",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan5",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan6",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan7",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll},
-	{"lan8",     ETH_GE, IS_PANLE_PORT,  iface_linkstate_poll}
+	{
+		"enp5s0f1",
+		ETH_XE,
+		!IS_PANLE_PORT,
+		NULL,
+		netdev_up
+	},
+	
+	{
+		"enp5s0f2",
+		ETH_XE,
+		IS_PANLE_PORT,
+		NULL,
+		netdev_up
+	},
+
+	{
+		"enp5s0f3",
+		ETH_XE,
+		IS_PANLE_PORT,
+		NULL,
+		netdev_up
+	},
+	
+	{
+		"lan1",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan2",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan3",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+	
+	{
+		"lan4",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan5",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan6",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan7",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	},
+
+	{
+		"lan8",
+		ETH_GE,
+		IS_PANLE_PORT,
+		iface_ethtool_poll_linkstate,
+		netdev_up
+	}
 };
 
 
@@ -868,6 +736,33 @@ void register_ports(void)
 		port_table_entry_add (entry);
 	}
 
+}
+
+
+static __oryx_always_inline__
+void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
+{
+	vlib_port_main_t *vp = &vlib_port_main;	
+	int foreach_element;
+	struct port_t *this;
+
+	vec_foreach_element(vp->entry_vec, foreach_element, this){
+		if (likely(this)) {
+			if (this->ethdev_state_poll)
+				this->ethdev_state_poll(this);
+
+			if(this->ul_flags & NETDEV_POLL_UP) {
+				/** up this interface right now. */
+				if(this->ethdev_up) {
+					this->ethdev_up(this->sc_alias_fixed);
+				} else {
+					oryx_loge(-1,
+						"ethdev up driver is not registered, this port will down forever.");
+				}
+			}
+		}
+	}
 }
 
 void port_init(vlib_main_t *vm)
@@ -902,10 +797,8 @@ void port_init(vlib_main_t *vm)
 	if(likely(vp->link_detect_tmr))
 		oryx_tmr_start(vp->link_detect_tmr);
 
-	//netdev_all_up();
-
 	register_ports();
-	
+
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }
 

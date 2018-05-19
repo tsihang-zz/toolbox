@@ -1,7 +1,10 @@
 #ifndef IFACE_PRIVATE_H
 #define IFACE_PRIVATE_H
 
+#include "common_private.h"
 #include "appl_private.h"
+
+#define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
 
 #define NB_APPL_N_BUCKETS	(1 << 10)
 
@@ -58,33 +61,22 @@ struct port_t {
 	/** fixed alias used to do linkstate poll, and can not be overwrite by CLI. */
 	const char *sc_alias_fixed;
 	
-#if defined(HAVE_DPDK)
-	u16 nb_tx_desc;
-	/* dpdk rte_mbuf rx and tx vectors, VLIB_FRAME_SIZE */
-	struct rte_mbuf ***tx_vectors;	/* one per worker thread */
-	struct rte_mbuf ***rx_vectors;
-	/* PMD related */
-	u16 tx_q_used;
-	u16 rx_q_used;
-	u16 nb_rx_desc;
-	u16 *cpu_socket_id_by_queue;
-	f64 time_last_link_update;
-	/* mac address */
-#endif
 	/** ethernet address for this port. */
-	struct ether_addr eth_addr;
+	char eth_addr[6];
 
 #define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
 #define NETDEV_PROMISC            (1 << 1)
 #define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
 #define NETDEV_PMD                (1 << 3)
 #define	NETDEV_LOOPBACK	  		  (1 << 4)
+#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
 
 	u32 ul_flags;
 
-	/** linkstate backup. */
-	int linkstate0;
-	
+	/** up->down counter. */
+	u32 ul_u2d_times;
+
+	/** */
 	u8 uc_speed;
 
 	u16 us_mtu;
@@ -102,7 +94,8 @@ struct port_t {
 
 	void *table;
 
-	void (*state_poll)(struct port_t *this);
+	void (*ethdev_state_poll)(struct port_t *this);
+	int (*ethdev_up)(const char *if_name);
 
 	struct CounterCtx perf_private_ctx;
 	

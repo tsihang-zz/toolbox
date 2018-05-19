@@ -12,7 +12,7 @@
 #include "command.h"
 #include "prefix.h"
 
-#include "dpdk.h"
+#include "dpdk.h"	/** RTE_CACHE_LINE_ROUNDUP */
 
 #include "dp_decode.h"
 #include "dp_main.h"
@@ -180,71 +180,15 @@ static struct oryx_task_t cli_register =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-#if 0
-static void register_port ()
-{
-	int portid = 0;
-	int dpdk_ports;
-	const int panel_port_off = ET1500_N_XE_PORTS;
-	vlib_main_t *vm = &vlib_main;
-	dpdk_main_t *dm = &dpdk_main;
-	vlib_port_main_t *vp = &vlib_port_main;
-	struct port_t *entry;
-
-	if (vm->ul_flags & VLIB_DPDK_EAL_INITIALIZED) {
-
-		if ((dpdk_ports = rte_eth_dev_count()) == 0) {
-			rte_exit(EXIT_FAILURE, "No available NIC ports!\n");
-		}
-		
-		if (dpdk_ports > MAX_PORTS) {
-			oryx_logn("Info: Using only %i of %i ports",
-				dpdk_ports, MAX_PORTS
-				);
-			dpdk_ports = MAX_PORTS;
-		}
-		
-		dm->master_lcore = rte_get_master_lcore();
-		dm->n_lcores = rte_lcore_count();
-		if (dm->n_lcores < 2) {
-			rte_exit(EXIT_FAILURE, "No available slave core!\n");
-		}
-
-		for (portid = 0; portid < dpdk_ports; portid ++) {
-
-			port_entry_new (&entry, portid, dpdk_port);
-			if (!entry) {
-				exit (0);
-			}
-			port_entry_setup(entry);
-			port_table_entry_add (entry);
-		}
-		
-		vp->ul_n_ports = dpdk_ports;
-	}
-
-	/** sw port */
-	for (portid = panel_port_off;
-		portid < (vp->ul_n_ports + ET1500_N_GE_PORTS); portid ++) {
-			port_entry_new (&entry, portid, sw_port);
-			if (!entry) {
-				exit (0);
-			}
-			port_entry_setup(entry);
-			port_table_entry_add (entry);
-	}
-}
-extern void
-notify_dp(int signum);
-#endif
-
 static void
 sig_handler(int signum) {
 
 	vlib_main_t *vm = &vlib_main;
 	
 	if (signum == SIGINT || signum == SIGTERM) {
-		//notify_dp(signum);
+		vm->force_quit = true;
+
+		notify_dp(vm, signum);
 		/** */
 		vm->ul_flags |= VLIB_QUIT;
 	}
@@ -257,8 +201,8 @@ int main (int argc, char **argv)
 	vlib_main.argc = argc;
 	vlib_main.argv = argv;
 
-	//signal(SIGINT, sig_handler);
-	//signal(SIGTERM, sig_handler);
+	signal(SIGINT, sig_handler);
+	signal(SIGTERM, sig_handler);
 
 	oryx_initialize();
 
@@ -275,32 +219,32 @@ int main (int argc, char **argv)
 	cmd_init(1);
 	vty_init(master);
 	memory_init();
-
-	//StatsInit();
-
+	
 	port_init(&vlib_main);
 	udp_init(&vlib_main);
 	appl_init(&vlib_main);
 	map_init(&vlib_main);
-
 	common_cli();
 	
-	dp_init(&vlib_main);
+	oryx_task_registry(&cli_register);
 
+	dp_start(&vlib_main);
 
-#if 0	
-	register_port();
-	dataplane_start();
+	oryx_task_launch();
+#if defined(RUNNING_DPDK)
 	RTE_LCORE_FOREACH_SLAVE(id_core) {
 		if (rte_eal_wait_lcore(id_core) < 0)
 			return -1;
 	}
 #else
-oryx_task_registry(&cli_register);
-oryx_task_launch();
-	FOREVER{
-		;
+	FOREVER {
+		/* wait for dataplane quit. */
+		if(vlib_main.force_quit)
+			break;
 	}
 #endif
+
+	dp_end(&vlib_main);
+
 	return 0;
 }

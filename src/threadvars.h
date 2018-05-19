@@ -16,7 +16,6 @@ typedef struct ThreadVars_ {
     int id;
 
     /* counters */
-
 	struct CounterCtx perf_private_ctx0;
 	
 	struct ThreadVars_ *next;

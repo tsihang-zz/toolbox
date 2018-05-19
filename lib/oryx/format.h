@@ -15,7 +15,7 @@ struct oryx_fmt_buff_t {
 	size_t fmt_buff_size;
 };
 
-#define FMT_INITIALIZATION_VALUE	{NULL, 0, 0}
+#define FMT_BUFF_INITIALIZATION	{NULL, 0, 0}
 #define FMT_DATA(fmt)	((struct oryx_fmt_buff_t *)(&fmt))->fmt_data
 
 #endif

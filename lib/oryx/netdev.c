@@ -174,6 +174,8 @@ void *netdev_cap(void *argv)
 	struct netdev_t *netdev = (struct netdev_t *)argv;
 	
 	atomic64_set(&netdev->rank, 0);
+
+	netdev_open(netdev);
 	
 	FOREVER {
 		if (!netdev->handler)

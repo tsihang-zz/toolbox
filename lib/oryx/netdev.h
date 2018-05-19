@@ -28,6 +28,7 @@ struct netdev_t {
 	u32 ul_flags;
 };
 
+int netdev_up(const char *iface);
 int netdev_exist(const char *iface);
 int netdev_is_running(const char* iface);
 int netdev_is_up(const char *iface);

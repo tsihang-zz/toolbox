@@ -42,10 +42,14 @@ SRCS-cli += \
 	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
 	cli_common.c
 
-SRCS-dpdk += \
+SRCS-dp_dpdk += \
 	dpdk.c dpdk_init.c
 
-SRCS-decode += \
+SRCS-dp_flow += \
+	dp_flow.c dp_flow_queue.c
+
+SRCS-dp += \
+	dp_main.c dp_start_pcap.c dp_start_dpdk.c dp_decode.c dp_storage.c \
 	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
 	dp_decode_arp.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
 	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c
@@ -54,19 +58,18 @@ SRCS-decode += \
 #
 SRCS-y += \
 	main.c rc4.c threadvars.c event.c\
-	dp_main.c dp_decode.c dp_flow.c dp_flow_queue.c\
-	$(SRCS-dpdk) \
+	$(SRCS-dp) \
+	$(SRCS-dp_flow) \
+	$(SRCS-dp_dpdk) \
 	$(SRCS-cli) \
-	$(SRCS-decode) \
-	dp_storage.c
 
 #CFLAGS += $(WERROR_FLAGS)
-CFLAGS_SRC := -W -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS_SRC := -W -Wstrict-prototypes
 CFLAGS_SRC += -Wmissing-declarations -Wpointer-arith
 CFLAGS_SRC += -Wcast-align -Wnested-externs
 CFLAGS_SRC += -Wformat-nonliteral -Wformat-security
 CFLAGS_SRC += -Wundef -Wwrite-strings
-#CFLAGS_SRC += -Wall -Wold-style-definition -Wcast-qual
+#CFLAGS_SRC += -Wall  -Wmissing-prototypes -Wold-style-definition -Wcast-qual
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\

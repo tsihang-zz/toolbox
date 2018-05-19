@@ -51,7 +51,7 @@
 #define DPDK_DEFAULT_HUGE_DIR "/mnt/huge"
 #define DPDK_DEFAULT_RUN_DIR "/run/et1500"
 
-#define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
+#define DPDK_SETUP_ENV_SH		"dpdk-setup-env.sh"
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 #define MAX_TX_QUEUE_PER_PORT 16
@@ -154,8 +154,6 @@ typedef struct {
 	f64 link_state_poll_interval;
 	
 	f64 stat_poll_interval;
-
-	struct oryx_timer_t *perf_tmr;
 	
 	/* Sleep for this many usec after each device poll */
 	u32 poll_sleep_usec;
@@ -168,11 +166,8 @@ typedef struct {
 	u32 n_lcores;
 	u32 n_ports;
 	u32 master_lcore;
-
-	int (*dp_fn)(void *);
-	volatile bool force_quit;
 	
-	vlib_main_t *vm;
+	//vlib_main_t *vm;
 
 	/** hold threadvars, detect_thread_ctx etc. */
 	void *ext_private;
