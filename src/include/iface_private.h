@@ -4,8 +4,6 @@
 #include "common_private.h"
 #include "appl_private.h"
 
-#define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
-
 #define NB_APPL_N_BUCKETS	(1 << 10)
 
 #define foreach_iface_speed			\

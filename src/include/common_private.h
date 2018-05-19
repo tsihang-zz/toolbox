@@ -107,6 +107,8 @@ typedef struct vlib_main_t
 	int (*dp_terminal_fn)(void *);
 	volatile bool force_quit;
 
+	int max_lcores;
+
 } vlib_main_t;
 
 //extern vlib_main_t vlib_main;
@@ -115,6 +117,7 @@ typedef struct vlib_main_t
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
 #define ET1500_N_XE_PORTS (2 + 1)
 #define ET1500_N_GE_PORTS 8
+#define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
 #define MAX_LCORES	4
 
 
