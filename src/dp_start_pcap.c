@@ -7,8 +7,13 @@ extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 extern bool force_quit;
 
-extern void DecodeUpdateCounters(ThreadVars *tv,
+extern void
+DecodeUpdateCounters(ThreadVars *tv,
                                 const DecodeThreadVars *dtv, const Packet *p);
+
+extern void
+dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
+
 void
 dp_pkt_handler(u_char *argv,
 		const struct pcap_pkthdr *pcaphdr,
@@ -125,7 +130,33 @@ static struct oryx_task_t netdev_task =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
+static __oryx_always_inline__ 
+void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
+                char **argv)
+{
+	tmr = tmr;
+	argc = argc;
+	argv = argv;
+}
+
 void dp_start_pcap(struct vlib_main_t *vm) {
+
+	u32 lcore = 0;
+	char thrgp_name[128] = {0}; 
+	ThreadVars *tv = &g_tv[lcore];
+	DecodeThreadVars *dtv = &g_dtv[lcore];
+	PacketQueue *pq = &g_pq[lcore];
+
+	sprintf (thrgp_name, "dp[%u] hd-thread", lcore);
+	tv->thread_group_name = strdup(thrgp_name);
+	SC_ATOMIC_INIT(tv->flags);
+	pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
+	dp_register_perf_counters(dtv, tv);
+
+	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
+	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
+											  dp_pcap_perf_tmr_handler, 0, NULL, 3000);
+
 	oryx_task_registry(&netdev_task);
 }
 

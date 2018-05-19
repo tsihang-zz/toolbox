@@ -56,6 +56,15 @@
 #define MAX_RX_QUEUE_PER_LCORE 16
 #define MAX_TX_QUEUE_PER_PORT 16
 
+#define MAX_PKT_BURST 32
+#define NB_MBUF   8192
+#define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
+#define MEMPOOL_CACHE_SIZE 256
+
+struct lcore_queue_conf {
+	unsigned n_rx_port;
+	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
+} __rte_cache_aligned;
 
 typedef union {
 	struct {
@@ -162,6 +171,7 @@ typedef struct {
 	
 	/* mempool */
 	struct rte_mempool *pktmbuf_pools;
+	struct rte_eth_dev_tx_buffer *tx_buffer[MAX_PORTS];
 
 	u32 n_lcores;
 	u32 n_ports;
@@ -174,9 +184,5 @@ typedef struct {
 } dpdk_main_t;
 
 extern dpdk_main_t dpdk_main;
-
-#include "dpdk_init.h"
-
-extern void dpdk_init (vlib_main_t * vm);
 
 #endif

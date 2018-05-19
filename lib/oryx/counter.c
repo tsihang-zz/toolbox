@@ -282,6 +282,8 @@ void oryx_counter_init(void)
 	counter_id id1_1 = oryx_register_counter("t1", "c1", &ctx1);
 	counter_id id2_2 = oryx_register_counter("t2", "c2", &ctx1);
 
+	printf ("id1=%d, id2=%d, id1_1=%d, id2_2=%d\n", id1, id2, id1_1, id2_2);
+	
 	oryx_release_counter(&ctx);
 	oryx_release_counter(&ctx1);
 

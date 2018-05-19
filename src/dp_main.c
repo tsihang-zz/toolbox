@@ -1,7 +1,7 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-//#define RUNNING_DPDK
+#define RUNNING_DPDK
 
 #if defined(RUNNING_DPDK)
 #include "dpdk.h"
@@ -15,15 +15,13 @@ PacketQueue g_pq[MAX_LCORES];
 dp_private_t dp_private_main;
 bool force_quit = false;
 
-
 #if defined(RUNNING_DPDK)
 void dpdk_env_setup(struct vlib_main_t *vm);
 void dp_start_dpdk(struct vlib_main_t *vm);
 void dp_end_dpdk(struct vlib_main_t *vm);
-
 #endif
 
-static void
+void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
 {
 	/* register counters */
@@ -162,54 +160,6 @@ dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
     return;
 }
 
-static __oryx_always_inline__ 
-void dp_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char **argv)
-{
-	tmr = tmr;
-	argc = argc;
-	argv = argv;
-}
-				
-static void dp_init(vlib_main_t *vm)
-{
-	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-
-#if defined(RUNNING_DPDK)
-	dpdk_main.conf->priv_size = vm->extra_priv_size;
-#endif
-
-#define DATAPATH_LOGTYPE	"datapath"
-#define DATAPATH_LOGLEVEL	ORYX_LOG_DEBUG
-	oryx_log_register(DATAPATH_LOGTYPE);
-	oryx_log_set_level_regexp(DATAPATH_LOGTYPE, DATAPATH_LOGLEVEL);
-	
-	int lcore = 0; //rte_lcore_id();
-	ThreadVars *tv = &g_tv[lcore];
-	DecodeThreadVars *dtv = &g_dtv[lcore];
-	PacketQueue *pq = &g_pq[lcore];
-
-	char thrgp_name[128] = {0};
-
-	sprintf (thrgp_name, "dp[%u] hd-thread", 0);
-	tv->thread_group_name = strdup(thrgp_name);
-	SC_ATOMIC_INIT(tv->flags);
-	pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
-
-	dp_register_perf_counters(dtv, tv);
-
-	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
-											  dp_perf_tmr_handler, 0, NULL, 3000);
-
-#if defined(RUNNING_DPDK)
-	dpdk_env_setup(vm);
-#else
-	;
-#endif
-
-	vm->ul_flags |= VLIB_DP_INITIALIZED;
-}
-
 void
 notify_dp(vlib_main_t *vm, int signum)
 {
@@ -223,7 +173,15 @@ notify_dp(vlib_main_t *vm, int signum)
 
 void dp_start(struct vlib_main_t *vm)
 {
-	dp_init(vm);
+#if defined(RUNNING_DPDK)
+	dpdk_main.conf->priv_size = vm->extra_priv_size;
+	dpdk_env_setup(vm);
+	vm->max_lcores = rte_lcore_count();
+#else
+	vm->max_lcores = MAX_LCORES;
+#endif
+	vm->ul_flags |= VLIB_DP_INITIALIZED;
+
 
 #if defined(RUNNING_DPDK)
 	dp_start_dpdk(vm);

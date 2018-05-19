@@ -120,6 +120,10 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
             DecodeIEEE8021ah0(tv, dtv, p, pkt + VLAN_HEADER_LEN,
                     len - VLAN_HEADER_LEN, pq);
             break;
+		case ETHERNET_TYPE_ARP:
+			DecodeARP0(tv, dtv, p, pkt + VLAN_HEADER_LEN,
+                    len - VLAN_HEADER_LEN, pq);
+			break;
         default:
             oryx_logd("unknown VLAN type: %" PRIx32 "", proto);
             ENGINE_SET_INVALID_EVENT(p, VLAN_UNKNOWN_TYPE);

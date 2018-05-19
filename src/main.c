@@ -28,7 +28,7 @@ extern void common_cli(void);
 /** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
 #define DPDK_BUFFER_HDR_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)) - DPDK_BUFFER_PRE_DATA_SIZE)
 
-static vlib_main_t vlib_main = {
+vlib_main_t vlib_main = {
 	.prgname = "et1500",
 	.extra_priv_size = DPDK_BUFFER_HDR_SIZE,
 };
@@ -201,6 +201,8 @@ int main (int argc, char **argv)
 	vlib_main.argc = argc;
 	vlib_main.argv = argv;
 
+	printf("%.2f\n", ratio_of(1,2));
+	
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
@@ -247,4 +249,5 @@ int main (int argc, char **argv)
 	dp_end(&vlib_main);
 
 	return 0;
+
 }

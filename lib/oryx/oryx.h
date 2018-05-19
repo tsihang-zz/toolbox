@@ -524,6 +524,11 @@ struct inet_addr {
 #define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
 #endif
 
+#ifndef ratio_of
+#define ratio_of(n,m) ((float)(n)/(m) * 100)
+#endif
+
+
 #define STRING_MAX 8096
 
 enum {LOOKUP_ID, LOOKUP_ALIAS};
