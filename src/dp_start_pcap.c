@@ -1,6 +1,7 @@
 #include "oryx.h"
 #include "dp_decode.h"
-//#include "dpdk.h"
+
+//#include "dpdk.h"
 
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
@@ -73,7 +74,7 @@ finish:
 
 static struct netdev_t netdev = {
 	.handler = NULL,
-	.devname = "enp5s0f4",
+	.devname = "ens33",
 	.dispatch = dp_pkt_handler,
 	.private = NULL,
 };
@@ -141,18 +142,28 @@ void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 
 void dp_start_pcap(struct vlib_main_t *vm) {
 
-	u32 lcore = 0;
 	char thrgp_name[128] = {0}; 
-	ThreadVars *tv = &g_tv[lcore];
-	DecodeThreadVars *dtv = &g_dtv[lcore];
-	PacketQueue *pq = &g_pq[lcore];
-
-	sprintf (thrgp_name, "dp[%u] hd-thread", lcore);
-	tv->thread_group_name = strdup(thrgp_name);
-	SC_ATOMIC_INIT(tv->flags);
-	pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
-	dp_register_perf_counters(dtv, tv);
-
+	u32 max_lcores = MAX_LCORES;
+	int i;
+	
+	ThreadVars *tv;
+	DecodeThreadVars *dtv;
+	PacketQueue *pq;
+	
+	printf ("Master Lcore @ %d/%d\n", 0,
+		max_lcores);
+		
+	for (i = 0; i < (int)max_lcores; i ++) {
+		tv = &g_tv[i];
+		dtv = &g_dtv[i];
+		pq = &g_pq[i];
+		sprintf (thrgp_name, "dp[%u] hd-thread", i);
+		tv->thread_group_name = strdup(thrgp_name);
+		SC_ATOMIC_INIT(tv->flags);
+		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
+		dp_register_perf_counters(dtv, tv);
+	}
+		
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
 											  dp_pcap_perf_tmr_handler, 0, NULL, 3000);

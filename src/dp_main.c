@@ -1,10 +1,11 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-#define RUNNING_DPDK
+//#define RUNNING_DPDK
 
 #if defined(RUNNING_DPDK)
-#include "dpdk.h"
+
+#include "dpdk.h"
 #endif
 
 

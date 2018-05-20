@@ -2,7 +2,6 @@
 #define IFACE_PRIVATE_H
 
 #include "common_private.h"
-#include "appl_private.h"
 
 #define NB_APPL_N_BUCKETS	(1 << 10)
 
@@ -46,18 +45,29 @@ enum {
 	ETH_XE
 };
 
-struct port_t {	
+struct iface_t {
+
+	/** fixed alias used to do linkstate poll, and can not be overwrite by CLI. */
+	const char *sc_alias_fixed;
+	
+	/** ETH_GE, ETH_XE, ... */
+	int type;
+
+#define IS_PANLE_PORT 1
+	/** panel port or inner port bt cpu <-> sw. */
+	int is_a_panel_port;
+
+	int (*if_poll_state)(struct iface_t *this);
+	int (*if_poll_up)(struct iface_t *this);
+
 	/** A panel interface ID. Can be translated by TO_INFACE_ID(Frame.vlan) */
 	u32 ul_id;
-	int type;
+	
 	/** for validate checking. */
 	u32 ul_vid;
 	
 	/** Port name. for example, Gn_b etc... can be overwritten by CLI. */
 	char  sc_alias[32];
-
-	/** fixed alias used to do linkstate poll, and can not be overwrite by CLI. */
-	const char *sc_alias_fixed;
 	
 	/** ethernet address for this port. */
 	char eth_addr[6];
@@ -72,7 +82,7 @@ struct port_t {
 	u32 ul_flags;
 
 	/** up->down counter. */
-	u32 ul_u2d_times;
+	u32 ul_up_down_times;
 
 	/** */
 	u8 uc_speed;
@@ -91,9 +101,6 @@ struct port_t {
 	oryx_vector belong_maps;
 
 	void *table;
-
-	void (*ethdev_state_poll)(struct port_t *this);
-	int (*ethdev_up)(const char *if_name);
 
 	struct CounterCtx perf_private_ctx;
 	
@@ -116,18 +123,20 @@ struct port_t {
 
 };
 
-static inline void iface_update_counters(struct port_t *p,
+static inline void iface_update_counters(struct iface_t *p,
 					counter_id id){
 	oryx_counter_inc(&p->perf_private_ctx, id);
 }
 					
-typedef struct {
+typedef struct vlib_port_main {
 	/* dpdk_ports + sw_ports */
 	int ul_n_ports;
 	u32 ul_flags;
 	struct oryx_timer_t *link_detect_tmr;
 	u32 link_detect_tmr_interval;
 	u32 poll_interval;
+
+	os_lock_t lock;
 	oryx_vector entry_vec;
 	struct oryx_htable_t *htable;
 
@@ -136,9 +145,21 @@ typedef struct {
 	
 }vlib_port_main_t;
 
-vlib_port_main_t vlib_port_main;
+extern vlib_port_main_t vlib_port_main;
 
 #define port_alias(p) ((p)->sc_alias)
+
+void iface_alloc (struct iface_t **);
+int iface_rename(vlib_port_main_t *vp, 
+				struct iface_t *this, const char *new_name);
+int iface_lookup_id(vlib_port_main_t *vp,
+				u32 id, struct iface_t **this);
+int iface_lookup_alias(vlib_port_main_t *vp,
+				const char *alias, struct iface_t **this);
+
+int iface_add(vlib_port_main_t *vp, struct iface_t *this);
+
+int iface_del(vlib_port_main_t *vp, struct iface_t *this);
 
 
 #endif

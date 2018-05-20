@@ -7,23 +7,8 @@
 #include "map_private.h"
 #include "cli_iface.h"
 
-#define PORT_LOCK
-#ifdef PORT_LOCK
-static INIT_MUTEX(port_lock);
-#else
-#undef do_lock(lock)
-#undef do_unlock(lock)
-#define do_lock(lock)
-#define do_unlock(lock)
-#endif
-
-struct iface_t {
-#define IS_PANLE_PORT 1
-	const char *if_name;
-	int if_type;
-	int is_a_panel_port;
-	void (*linkstate_poll)(struct port_t *this);
-	int  (*ethdev_up)(const char *if_name);
+vlib_port_main_t vlib_port_main = {
+	.lock = INIT_MUTEX_VAL,
 };
 
 #define VTY_ERROR_PORT(prefix, alias)\
@@ -35,24 +20,6 @@ struct iface_t {
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, v->sc_alias, v->ul_id, VTY_NEWLINE)
 
 atomic_t n_intf_elements = ATOMIC_INIT(0);
-
-static __oryx_always_inline__
-void mk_alias (struct port_t *entry)
-{
-
-	switch (entry->type) {
-	case ETH_GE:
-			sprintf (entry->sc_alias, "%s%u", (char *)"G0/", entry->ul_id);
-			break;
-	case ETH_XE:
-			sprintf (entry->sc_alias, "%s%u", (char *)"XG0/", entry->ul_id);
-			break;
-	default:
-			sprintf (entry->sc_alias, "%s%u", (char *)"UnknownG0/", entry->ul_id);
-			break;
-	}
-}
-
 
 static __oryx_always_inline__
 void port_free (ht_value_t v)
@@ -96,56 +63,9 @@ port_cmp (ht_value_t v1,
 	return xret;
 }
 
-void port_entry_new (struct port_t **port, const struct iface_t *iface)
-{
-	int id;
-	
-	/** create an port */
-	(*port) = kmalloc (sizeof (struct port_t), MPF_CLR, __oryx_unused_val__);
-
-	ASSERT ((*port));
-
-	(*port)->us_mtu = 1500;
-	(*port)->belong_maps = vec_init(1024);
-	memcpy(&(*port)->sc_alias[0], iface->if_name, strlen(iface->if_name));
-	(*port)->sc_alias_fixed = iface->if_name;
-	(*port)->type = iface->if_type;
-	(*port)->ethdev_state_poll = iface->linkstate_poll;
-	(*port)->ethdev_up = iface->ethdev_up;
-
-	/** port counters */
-	id = COUNTER_RX;
-	(*port)->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
-			"bytes Rx for this port", &(*port)->perf_private_ctx);
-	(*port)->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
-			"pkts Rx for this port", &(*port)->perf_private_ctx);
-
-	id = COUNTER_TX;
-	(*port)->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
-			"bytes Tx for this port", &(*port)->perf_private_ctx);
-	(*port)->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
-			"pkts Tx for this port", &(*port)->perf_private_ctx);
-
-	/**
-	 * More Counters here.
-	 * TODO ...
-	 */
-	
-	/** last step */
-	oryx_counter_get_array_range(COUNTER_RANGE_START(&(*port)->perf_private_ctx), 
-			COUNTER_RANGE_END(&(*port)->perf_private_ctx), 
-			&(*port)->perf_private_ctx);
-}
-
-static void port_entry_destroy (struct port_t *port)
-{
-	vec_free (port->belong_maps);
-	kfree (port);
-}
-
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
-void port_entry_output (struct port_t *port, struct vty *vty)
+void port_entry_output (struct iface_t *port, struct vty *vty)
 {
 
 	ASSERT (port);
@@ -195,7 +115,7 @@ void port_entry_output (struct port_t *port, struct vty *vty)
 	
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
-void port_entry_stat_output (struct port_t *port, struct vty *vty)
+void port_entry_stat_output (struct iface_t *port, struct vty *vty)
 {
 	char format[256] = {0};
 	u64 pkts[RX_TX];
@@ -212,6 +132,7 @@ void port_entry_stat_output (struct port_t *port, struct vty *vty)
 	id = COUNTER_TX;
 	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
 	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
+
 	{
 		/** find this port named 'alias'. */
 		vty_out (vty, "%15s(%u)", port->sc_alias, port->ul_id);
@@ -227,27 +148,14 @@ void port_entry_stat_output (struct port_t *port, struct vty *vty)
 }
 
 static __oryx_always_inline__
-void do_port_rename (struct port_t *port, struct prefix_t *new_alias)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	/** Delete old alias from hash table. */
-	oryx_htable_del (vp->htable, port_alias(port), strlen (port_alias(port)));
-	memset (port_alias(port), 0, strlen (port_alias(port)));
-	memcpy (port_alias(port), (char *)new_alias->v, 
-		strlen ((char *)new_alias->v));
-	/** New alias should be rewrite to hash table. */
-	oryx_htable_add (vp->htable, port_alias(port), strlen (port_alias(port)));		
-}
-
-static __oryx_always_inline__
-void port_entry_config (struct port_t *port, void __oryx_unused__ *vty_, void *arg)
+void port_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *arg)
 {
 
 	struct vty *vty = vty_;
 	struct prefix_t *var;
 	u32 ul_flags = port->ul_flags;
-	
+	vlib_port_main_t *vp = &vlib_port_main;
+
 	var = (struct prefix_t *)arg;
 
 	switch (var->cmd)
@@ -257,18 +165,13 @@ void port_entry_config (struct port_t *port, void __oryx_unused__ *vty_, void *a
 				VTY_ERROR_PORT("invalid alias", (char *)port->sc_alias);
 				break;
 			}
-			struct port_t *exist;/** check same alias. */
-			struct prefix_t lp = {
-				.cmd = LOOKUP_ALIAS,
-				.v = var->v,
-				.s = __oryx_unused_val__,
-			};
-			port_table_entry_lookup(&lp, &exist);
+			struct iface_t *exist;/** check same alias. */
+			iface_lookup_alias(vp, (const char *)var->v, &exist);
 			if (exist) {
-				VTY_ERROR_PORT("same", (char *)exist->sc_alias);
+				VTY_ERROR_PORT("alias been named by a port", (char *)exist->sc_alias);
 				break;
-			}
-			do_port_rename (port, var);
+			}	
+			iface_rename(vp, port, (const char *)var->v);
 			break;
 			
 		case INTERFACE_SET_MTU:
@@ -290,110 +193,24 @@ void port_entry_config (struct port_t *port, void __oryx_unused__ *vty_, void *a
 	}
 }
 
-static __oryx_always_inline__
-int port_table_entry_remove (struct port_t *port)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-	
-	do_lock (&port_lock);
-	int r = oryx_htable_del(vp->htable, port->sc_alias, strlen((const char *)port->sc_alias));
-	if (r == 0) {
-		vec_unset (vp->entry_vec, port->ul_id);
-	}
-	do_unlock (&port_lock);
-
-	/** Should you free port here ? */
-
-	return r;  
-}
-
-static __oryx_always_inline__
-void port_table_entry_lookup_alias (char *alias, struct port_t **p)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	(*p) = NULL;
-
-	/** ALIASE validate check. */
-	if (unlikely (!alias)) 
-		return;
-
-	void *s = oryx_htable_lookup(vp->htable, alias, strlen(alias));
-
-	if (likely (s)) {
-		/** THIS IS A VERY CRITICAL POINT. */
-		do_lock (&port_lock);
-		(*p) = (struct port_t *) container_of (s, struct port_t, sc_alias);
-		do_unlock (&port_lock);
-	}
-}
-
-static __oryx_always_inline__
-void port_table_entry_lookup_id (u32 id, struct port_t **p)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-	/** ID validate check. */
-
-	(*p) = NULL;
-
-	do_lock (&port_lock);
-	(*p) = (struct port_t *) vec_lookup_ensure (vp->entry_vec, id);
-	do_unlock (&port_lock);
-
-}
-
 void port_table_entry_lookup (struct prefix_t *lp, 
-	struct port_t **p)
+	struct iface_t **p)
 {
+	vlib_port_main_t *vp = &vlib_port_main;
 
 	ASSERT (lp);
 	ASSERT (p);
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			port_table_entry_lookup_id ((*(u32*)lp->v), p);
+			iface_lookup_id(vp, (*(u32*)lp->v), p);
 			break;
-
 		case LOOKUP_ALIAS:
-			port_table_entry_lookup_alias ((char*)lp->v, p);
+			iface_lookup_alias(vp, (const char*)lp->v, p);
 			break;
-
 		default:
 			break;
 	}
-}
-	
-__oryx_always_extern__
-int port_table_entry_add (struct port_t *port)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	ASSERT (port);
-
-	do_lock (&port_lock);
-	int r = oryx_htable_add(vp->htable, port->sc_alias, strlen((const char *)port->sc_alias));
-	if (r == 0) {
-		vec_set_index (vp->entry_vec, port->ul_id, port);
-		oryx_logn("registering interface %s ...", port->sc_alias);
-	}
-	do_unlock (&port_lock);
-
-	return r;
-}
-
-static int port_table_entry_remove_and_destroy (struct port_t *port)
-{
-
-	int r;
-
-	ASSERT (port);
-	
-	r = port_table_entry_remove (port);
-	if (likely (r)) {
-		port_entry_destroy (port);
-	}
-	
-	return r;  
 }
 
 #define PRINT_SUMMARY	\
@@ -563,11 +380,10 @@ DEFUN(interface_stats_clear,
 	return CMD_SUCCESS;
 }
 
-void iface_ethtool_poll_linkstate(struct port_t *this)
+int iface_poll_linkstate(struct iface_t *this)
 {
 	int rv;
-	int if_need_up_configureation = 0;
-	vlib_port_main_t *vp = &vlib_port_main;
+	int if_need_up_configuration = 0;
 	
 	if (this->type == ETH_GE) {
 		/** use ethtool. */
@@ -575,7 +391,7 @@ void iface_ethtool_poll_linkstate(struct port_t *this)
 		/** up -> down */
 		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
 			oryx_logn("%s is down", this->sc_alias);
-			this->ul_u2d_times ++;
+			this->ul_up_down_times ++;
 			this->ul_flags |= NETDEV_POLL_UP;
 		}
 		/** down -> up */
@@ -614,20 +430,31 @@ void iface_ethtool_poll_linkstate(struct port_t *this)
 				oryx_logn("%s error", this->sc_alias);
 				break;
 		}
-
-		if(rv && !strcmp(this->sc_alias_fixed, "enp5s0f1")) {
-			vp->enp5s0f1_is_up = rv;
-		}
 	}
+
+	return 0;
+}
+
+int iface_poll_up(struct iface_t *this)
+{
+	return netdev_up(this->sc_alias_fixed);
 }
 
 static const struct iface_t iface_list[] = {
+	{
+		"ens33",
+		ETH_XE,
+		!IS_PANLE_PORT,
+		NULL,
+		iface_poll_up
+	},
+
 	{
 		"enp5s0f1",
 		ETH_XE,
 		!IS_PANLE_PORT,
 		NULL,
-		netdev_up
+		iface_poll_up
 	},
 	
 	{
@@ -635,7 +462,7 @@ static const struct iface_t iface_list[] = {
 		ETH_XE,
 		IS_PANLE_PORT,
 		NULL,
-		netdev_up
+		iface_poll_up
 	},
 
 	{
@@ -643,71 +470,71 @@ static const struct iface_t iface_list[] = {
 		ETH_XE,
 		IS_PANLE_PORT,
 		NULL,
-		netdev_up
+		iface_poll_up
 	},
 	
 	{
 		"lan1",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan2",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan3",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 	
 	{
 		"lan4",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan5",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan6",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan7",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	},
 
 	{
 		"lan8",
 		ETH_GE,
 		IS_PANLE_PORT,
-		iface_ethtool_poll_linkstate,
-		netdev_up
+		iface_poll_linkstate,
+		iface_poll_up
 	}
 };
 
@@ -715,27 +542,36 @@ static const struct iface_t iface_list[] = {
 void register_ports(void)
 {
 	int i;
-	struct port_t *entry;
+	struct iface_t *entry;
+	struct iface_t *iface;
 	vlib_port_main_t *vp = &vlib_port_main;
 	int n_ports_now = vec_count(vp->entry_vec);
 
 	/** SW<->CPU ports, only one. */
 	for (i = 0; i < (int)DIM(iface_list); i ++) {
 
-		if (netdev_exist(iface_list[i].if_name) != 1) {
+		iface = &iface_list[i];
+		if (!netdev_exist(iface->sc_alias_fixed)) {
 			continue;
 		}
-		
-		port_entry_new (&entry, &iface_list[i]);
+
+		iface_alloc(&entry);
 		if (!entry) {
 			oryx_panic(-1, 
 				"Can not alloc memory for a port");
+		} else {
+			memcpy(&entry->sc_alias[0], iface->sc_alias_fixed, strlen(iface->sc_alias_fixed));
+			entry->sc_alias_fixed = iface->sc_alias_fixed;
+			entry->type = iface->type;
+			entry->if_poll_state = iface->if_poll_state;
+			entry->if_poll_up = iface->if_poll_up;
+			entry->ul_id = n_ports_now + i;
+			if (!iface_add(vp, entry))
+				oryx_logn("registering interface %s ... success", entry->sc_alias);
+			else
+				oryx_loge(-1, "registering interface %s ... error", entry->sc_alias);
 		}
-		
-		entry->ul_id = n_ports_now + i;
-		port_table_entry_add (entry);
 	}
-
 }
 
 
@@ -745,17 +581,20 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 {
 	vlib_port_main_t *vp = &vlib_port_main;	
 	int foreach_element;
-	struct port_t *this;
+	struct iface_t *this;
 
 	vec_foreach_element(vp->entry_vec, foreach_element, this){
 		if (likely(this)) {
-			if (this->ethdev_state_poll)
-				this->ethdev_state_poll(this);
+			
+			/** check linkstate. */
+			if (this->if_poll_state)
+				this->if_poll_state(this);
 
+			/** poll a port up if need. */
 			if(this->ul_flags & NETDEV_POLL_UP) {
 				/** up this interface right now. */
-				if(this->ethdev_up) {
-					this->ethdev_up(this->sc_alias_fixed);
+				if(this->if_poll_up) {
+					this->if_poll_up(this);
 				} else {
 					oryx_loge(-1,
 						"ethdev up driver is not registered, this port will down forever.");

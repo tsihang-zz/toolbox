@@ -59,7 +59,7 @@ static void mpm_cleanup (struct map_t *map)
 	PmqFree(&map->pmq);
 }
 
-static void map_entry_add_port (struct port_t *port, struct map_t *map, u8 from_to)
+static void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 	oryx_vector v;
 
@@ -83,7 +83,7 @@ static void map_entry_add_port (struct port_t *port, struct map_t *map, u8 from_
 	
 }
 
-static void map_entry_remove_port (struct port_t *port, struct map_t *map, u8 from_to)
+static void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 	oryx_vector v;
 	
@@ -632,7 +632,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		if (!actives) {vty_out (vty, "N/A");}
 		else {
 			int i;
-			struct port_t *p;
+			struct iface_t *p;
 			vec_foreach_element (v, i, p) {
 				if (p) {
 					vty_out (vty, "%s", p->sc_alias);
@@ -651,7 +651,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		if (!actives) vty_out (vty, "N/A%s", VTY_NEWLINE);
 		else {
 			int i;
-			struct port_t *p;
+			struct iface_t *p;
 			vec_foreach_element (v, i, p) {
 				if (p) {
 					if (p->ul_flags & NETDEV_LOOPBACK)

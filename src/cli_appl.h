@@ -1,6 +1,8 @@
 #ifndef CLI_APPL_H
 #define CLI_APPL_H
 
+#include "appl_private.h"
+
 extern atomic_t n_application_elements;
 extern oryx_vector appl_vector_table;
 

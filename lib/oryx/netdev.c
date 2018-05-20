@@ -38,7 +38,7 @@ int netdev_exist(const char *iface) {
 		if (skfd == 0/** no such device */)
 			return 0;
 		else
-			return -1;
+			return 0;
 	}
 }
 

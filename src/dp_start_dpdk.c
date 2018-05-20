@@ -1,6 +1,7 @@
 #include "oryx.h"
 #include "dp_decode.h"
-#include "dpdk.h"
+
+#include "dpdk.h"
 
 extern dp_private_t dp_private_main;
 extern ThreadVars g_tv[];
