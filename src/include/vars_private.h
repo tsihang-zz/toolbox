@@ -47,6 +47,7 @@ typedef struct DecodeThreadVars_
     counter_id counter_gre;
 	counter_id counter_arp;
     counter_id counter_vlan;
+	counter_id counter_dsa;	/** Marvell DSA. */
     counter_id counter_vlan_qinq;
     counter_id counter_ieee8021ah;
     counter_id counter_pppoe;

@@ -32,16 +32,35 @@
 
 /** These two macro means a frame. */
 #define DPDK_BUFFER_PRE_DATA_SIZE	RTE_PKTMBUF_HEADROOM		//(128)
+
+/* Max size of a single packet */
 #define DPDK_BUFFER_DATA_SIZE		RTE_MBUF_DEFAULT_DATAROOM	//(2048)
 
-/** 
- * default macros and can be overwrite by settings.yaml. 
- */
+/* Size of the data buffer in each mbuf */
 #define	DPDK_DEFAULT_BUFFER_SIZE	\
 	(DPDK_BUFFER_DATA_SIZE + DPDK_BUFFER_PRE_DATA_SIZE)
 
+/* Number of mbufs in mempool that is created */
 #define DPDK_DEFAULT_NB_MBUF   (16 << 10)
-#define DPDK_DEFAULT_CACHE_SIZE	256
+
+#define MAX_RX_QUEUE_PER_LCORE 16
+#define MAX_TX_QUEUE_PER_PORT 16
+
+/* How many packets to attempt to read from NIC in one go */
+#define DPDK_MAX_PKT_BURST 32
+
+/* How many objects (mbufs) to keep in per-lcore mempool cache */
+#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_PKT_BURST
+
+#define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
+
+/*
+ * Configurable number of RX/TX ring descriptors
+ */
+#define RTE_RX_DESC_DEFAULT 128
+#define RTE_TX_DESC_DEFAULT 512
+
+
 #define DPDK_STATS_POLL_INTERVAL      (10.0)
 #define DPDK_MIN_STATS_POLL_INTERVAL  (0.001)	/* 1msec */
 #define DPDK_LINK_POLL_INTERVAL       (3.0)
@@ -52,14 +71,6 @@
 #define DPDK_DEFAULT_RUN_DIR "/run/et1500"
 
 #define DPDK_SETUP_ENV_SH		"dpdk-setup-env.sh"
-
-#define MAX_RX_QUEUE_PER_LCORE 16
-#define MAX_TX_QUEUE_PER_PORT 16
-
-#define MAX_PKT_BURST 32
-#define NB_MBUF   8192
-#define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
-#define MEMPOOL_CACHE_SIZE 256
 
 struct lcore_queue_conf {
 	unsigned n_rx_port;
@@ -141,10 +152,16 @@ typedef struct {
 	u32 portmask;
 	u32 nchannels;
 	u32 num_mbufs;
-	u32 cache_size;
-	u32 priv_size;
-	u32 data_room_size;
+	u32 mempool_cache_size;
+	u32 mempool_priv_size;
+	u32 mempool_data_room_size;
 	u32 n_rx_q_per_lcore;
+
+	/* PCI address */
+	vlib_pci_addr_t pci_addr;
+
+	/* */
+	u8 vlan_strip_offload;
 
 	/*
 	* format interface names ala xxxEthernet%d/%d/%d instead of
@@ -152,10 +169,14 @@ typedef struct {
 	*/
 	u8 interface_name_format_decimal;
 
-	/* per-device config */
-	dpdk_device_config_t default_devconf;
-	dpdk_device_config_t *dev_confs;
-
+	struct rte_eth_conf *ethdev_default_conf;
+	
+#define DPDK_DEVICE_VLAN_STRIP_DEFAULT 0
+#define DPDK_DEVICE_VLAN_STRIP_OFF 1
+#define DPDK_DEVICE_VLAN_STRIP_ON  2
+#define _(x) uword x;
+	foreach_dpdk_device_config_item
+#undef _
 } dpdk_config_main_t;
 
 typedef struct {
@@ -177,8 +198,6 @@ typedef struct {
 	u32 n_ports;
 	u32 master_lcore;
 	
-	//vlib_main_t *vm;
-
 	/** hold threadvars, detect_thread_ctx etc. */
 	void *ext_private;
 } dpdk_main_t;

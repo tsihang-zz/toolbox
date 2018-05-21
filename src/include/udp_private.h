@@ -1,6 +1,7 @@
 #ifndef UDP_PRIVATE_H
 #define UDP_PRIVATE_H
 
+#include "common_private.h"
 
 #define UDP_PREFIX	"udp"
 /** Maximum UDP entries. */

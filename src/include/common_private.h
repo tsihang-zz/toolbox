@@ -10,6 +10,12 @@ typedef uint16_t Port;
 #define CMP_PORT(p1, p2) \
     ((p1) == (p2))
 
+enum {
+	QUA_RX,
+	QUA_TX,
+	QUA_RXTX,
+};
+
 /* Address */
 typedef struct Address_ {
     char family;

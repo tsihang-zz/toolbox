@@ -86,6 +86,7 @@ enum {
 
     /* ETHERNET EVENTS */
     ETHERNET_PKT_TOO_SMALL,         /**< ethernet packet smaller than minimum size */
+    ETHERNET_PKT_NOT_SUPPORTED,		/**< ethernet type is not supported */
 
     /* PPP EVENTS */
     PPP_PKT_TOO_SMALL,              /**< ppp packet smaller than minimum size */

@@ -388,7 +388,7 @@ void dpdk_init (vlib_main_t * vm)
 	conf->num_mbufs = conf->num_mbufs ? conf->num_mbufs : DPDK_DEFAULT_NB_MBUF;
 	conf->dev_confs = kmalloc(sizeof(dpdk_device_config_t) * MAX_PORTS,
 									MPF_CLR, __oryx_unused_val__);
-	conf->priv_size = vm->extra_priv_size;
+	conf->mempool_priv_size = vm->extra_priv_size;
 
 	/** set config values for dpdk-config, prealloc and hash_size */
 	if (ConfGet("dpdk-config.uio-driver", (const char **)&conf->uio_driver_name) == 1) {
@@ -411,10 +411,10 @@ void dpdk_init (vlib_main_t * vm)
 
 	}
 
-	if (RTE_ALIGN(dm->conf->priv_size, RTE_MBUF_PRIV_ALIGN) != dm->conf->priv_size) {
+	if (RTE_ALIGN(dm->conf->mempool_priv_size, RTE_MBUF_PRIV_ALIGN) != dm->conf->mempool_priv_size) {
 		oryx_loge(0,
-			"ERROR -->>>> mbuf priv_size=%u is not aligned\n",
-			dm->conf->priv_size);
+			"ERROR -->>>> mbuf mempool_priv_size=%u is not aligned\n",
+			dm->conf->mempool_priv_size);
 		exit (0);
 	}
 	
@@ -423,11 +423,11 @@ void dpdk_init (vlib_main_t * vm)
 	oryx_logn ("%20s%15x", "port_mask", conf->portmask);
 	oryx_logn ("%20s%15d", "num_mbufs", conf->num_mbufs);
 	oryx_logn ("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
-	oryx_logn ("%20s%15d", "cachesize", conf->cache_size);
+	oryx_logn ("%20s%15d", "cachesize", conf->mempool_cache_size);
 	oryx_logn ("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
-	oryx_logn ("%20s%15d", "priv_size", conf->priv_size);
-	oryx_logn ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(conf->priv_size));
-	oryx_logn ("%20s%15d", "datarmsiz", conf->data_room_size);
+	oryx_logn ("%20s%15d", "mempool_priv_size", conf->mempool_priv_size);
+	oryx_logn ("%20s%15d", "bhdrrouup", RTE_CACHE_LINE_ROUNDUP(conf->mempool_priv_size));
+	oryx_logn ("%20s%15d", "datarmsiz", conf->mempool_data_room_size);
 	oryx_logn ("%20s%15d", "socket_id", rte_socket_id());
 
 	dpdk_config(vm);

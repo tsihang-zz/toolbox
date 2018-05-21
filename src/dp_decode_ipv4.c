@@ -448,12 +448,15 @@ static int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options 
 static int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPV4_HEADER_LEN)) {
+		oryx_loge(-1,
+			"ipv4 pkt smaller than minimum header size %" PRIu16 "", len);
         ENGINE_SET_INVALID_EVENT(p, IPV4_PKT_TOO_SMALL);
         return -1;
     }
 
     if (unlikely(IP_GET_RAW_VER(pkt) != 4)) {
-        oryx_logd("wrong ip version %" PRIu8 "",IP_GET_RAW_VER(pkt));
+        oryx_loge(-1,
+			"wrong ip version in ip options %" PRIu8 "", IP_GET_RAW_VER(pkt));
         ENGINE_SET_INVALID_EVENT(p, IPV4_WRONG_IP_VER);
         return -1;
     }
@@ -461,16 +464,22 @@ static int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
     p->ip4h = (IPV4Hdr *)pkt;
 
     if (unlikely(IPV4_GET_HLEN(p) < IPV4_HEADER_LEN)) {
+		oryx_loge(-1,
+			"ipv4 header smaller than minimum size %" PRIu8 "", IPV4_GET_HLEN(p));
         ENGINE_SET_INVALID_EVENT(p, IPV4_HLEN_TOO_SMALL);
         return -1;
     }
 
     if (unlikely(IPV4_GET_IPLEN(p) < IPV4_GET_HLEN(p))) {
+		oryx_loge(-1,
+			"ipv4 pkt len smaller than ip header size %" PRIu8 "", IPV4_GET_IPLEN(p));
         ENGINE_SET_INVALID_EVENT(p, IPV4_IPLEN_SMALLER_THAN_HLEN);
         return -1;
     }
 
     if (unlikely(len < IPV4_GET_IPLEN(p))) {
+		oryx_loge(-1,
+			"truncated ipv4 packet %" PRIu16 "", len);
         ENGINE_SET_INVALID_EVENT(p, IPV4_TRUNC_PKT);
         return -1;
     }
@@ -500,7 +509,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 
     /* do the actual decoding */
     if (unlikely(DecodeIPV4Packet0 (p, pkt, len) < 0)) {
-        oryx_logd("decoding IPv4 packet failed");
+		dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
         p->ip4h = NULL;
         return TM_ECODE_FAILED;
     }

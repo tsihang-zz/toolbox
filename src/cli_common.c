@@ -6,7 +6,10 @@
 #include "vars_private.h"
 #include "queue_private.h"
 #include "threadvars.h"
+
+#if defined(HAVE_DPDK)
 #include "dpdk.h"
+#endif
 
 extern vlib_main_t vlib_main;
 
@@ -71,6 +74,7 @@ DEFUN(show_dp_stats,
 	u64 counter_icmpv6[MAX_LCORES] = {0};
 	u64 counter_pkts[MAX_LCORES] = {0};
 	u64 counter_bytes[MAX_LCORES] = {0};
+	u64 counter_pkts_invalid[MAX_LCORES] = {0};
 	u64 counter_eth_total = 0;
 	u64 counter_ipv4_total = 0;
 	u64 counter_ipv6_total = 0;
@@ -82,6 +86,7 @@ DEFUN(show_dp_stats,
 	u64 counter_bytes_total = 0;
 	u64 counter_arp_total = 0;
 	u64 counter_sctp_total = 0;
+	u64 counter_pkts_invalid_total = 0;
 
 	for (lcore = 0; lcore < vm->max_lcores; lcore ++) {
 		tv = &g_tv[lcore % vm->max_lcores];
@@ -109,10 +114,13 @@ DEFUN(show_dp_stats,
 			counter_arp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_arp);
 		counter_sctp_total +=
 			counter_sctp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_sctp);
+		counter_pkts_invalid_total +=
+					counter_pkts_invalid[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_invalid);
+
 	}
 
-	oryx_format(&fb, "%8s%20s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s", 
-		"Lcore", "Pkts", "Bytes", "eth", "arp", "ipv4", "ipv6", "udp", "tcp", "sctp", "icmpv4", "icmpv6");
+	oryx_format(&fb, "%8s%20s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s", 
+		"Lcore", "Pkts", "Bytes", "eth", "arp", "ipv4", "ipv6", "udp", "tcp", "sctp", "icmpv4", "icmpv6", "invalid");
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
@@ -120,12 +128,12 @@ DEFUN(show_dp_stats,
 
 		char format_pkts[20] = {0};
 		sprintf (format_pkts, "%llu(%.2f%)", counter_pkts[lcore], ratio_of(counter_pkts[lcore], counter_pkts_total));
-		oryx_format(&fb, "%8u%20s%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu",
+		oryx_format(&fb, "%8u%20s%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu",
 			lcore, 
 			format_pkts,
 			counter_bytes[lcore], counter_eth[lcore], counter_arp[lcore],
 			counter_ipv4[lcore], counter_ipv6[lcore], counter_udp[lcore], counter_tcp[lcore],
-			counter_sctp[lcore], counter_icmpv4[lcore], counter_icmpv6[lcore]);
+			counter_sctp[lcore], counter_icmpv4[lcore], counter_icmpv6[lcore], counter_pkts_invalid[lcore]);
 		vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 		oryx_format_reset(&fb);
 	}

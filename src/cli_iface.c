@@ -118,18 +118,18 @@ static __oryx_always_inline__
 void port_entry_stat_output (struct iface_t *port, struct vty *vty)
 {
 	char format[256] = {0};
-	u64 pkts[RX_TX];
-	u64 bytes[RX_TX];
+	u64 pkts[QUA_COUNTERS];
+	u64 bytes[QUA_COUNTERS];
 	int id = 0;
 	
 	if (unlikely (!port)) 
 		return;
 
-	id = COUNTER_RX;
+	id = QUA_COUNTER_RX;
 	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
 	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
 	
-	id = COUNTER_TX;
+	id = QUA_COUNTER_TX;
 	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
 	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
 
@@ -137,10 +137,10 @@ void port_entry_stat_output (struct iface_t *port, struct vty *vty)
 		/** find this port named 'alias'. */
 		vty_out (vty, "%15s(%u)", port->sc_alias, port->ul_id);
 
-		sprintf (format, "%llu/%llu", bytes[COUNTER_RX], bytes[COUNTER_TX]);
+		sprintf (format, "%llu/%llu", bytes[QUA_COUNTER_RX], bytes[QUA_COUNTER_TX]);
 		vty_out (vty, "%20s", format);
 
-		sprintf (format, "%llu/%llu", pkts[COUNTER_RX], pkts[COUNTER_TX]);
+		sprintf (format, "%llu/%llu", pkts[QUA_COUNTER_RX], pkts[QUA_COUNTER_TX]);
 		vty_out (vty, "%20s", format);
 
 		vty_newline(vty);

@@ -18,13 +18,13 @@ void iface_alloc (struct iface_t **this)
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
 
 	/** port counters */
-	id = COUNTER_RX;
+	id = QUA_COUNTER_RX;
 	(*this)->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
 			"bytes Rx for this port", &(*this)->perf_private_ctx);
 	(*this)->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
 			"pkts Rx for this port", &(*this)->perf_private_ctx);
 
-	id = COUNTER_TX;
+	id = QUA_COUNTER_TX;
 	(*this)->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
 			"bytes Tx for this port", &(*this)->perf_private_ctx);
 	(*this)->counter_pkts[id] = oryx_register_counter("port.tx.pkts",

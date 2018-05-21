@@ -2,7 +2,7 @@
 #include "vty.h"
 #include "command.h"
 #include "prefix.h"
-#include "dpdk.h"	/* struct eth_addr */
+
 #include "udp_private.h"
 #include "map_private.h"
 #include "iface_private.h"
@@ -10,6 +10,10 @@
 #include "cli_map.h"
 #include "cli_appl.h"
 #include "cli_udp.h"
+
+#if defined(HAVE_DPDK)
+#include "dpdk.h"	/* struct eth_addr */
+#endif
 
 atomic_t n_map_elements = ATOMIC_INIT(0);
 

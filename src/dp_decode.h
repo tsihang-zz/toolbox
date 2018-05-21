@@ -11,6 +11,7 @@
 #include "event.h"
 /* < protocol headers> */
 #include "ethh.h"
+#include "dsah.h"
 #include "iph.h"
 #include "tcph.h"
 #include "udph.h"
@@ -154,6 +155,7 @@ typedef struct PacketAlerts_ {
 #define GET_TCP_DST_PORT(p)  ((p)->dp)
 
 #define GET_PKT_LEN(p) ((p)->pktlen)
+#define GET_PKT(p) ((p)->pkt)
 #define GET_PKT_DATA(p) ((((p)->ext_pkt) == NULL ) ? (uint8_t *)((p) + 1) : (p)->ext_pkt)
 #define GET_PKT_DIRECT_DATA(p) (uint8_t *)((p) + 1)
 #define GET_PKT_DIRECT_MAX_SIZE(p) (default_packet_size)
@@ -161,6 +163,20 @@ typedef struct PacketAlerts_ {
 #define SET_PKT_LEN(p, len) do { \
     (p)->pktlen = (len); \
     } while (0)
+
+#define SET_PKT(p, pkt) do { \
+    (p)->pkt = (pkt); \
+    } while (0)
+
+#define SET_PKT_PHY(p, phy, qua) do { \
+	(p)->phy_port[(qua)] = (phy); \
+	} while (0)
+
+/** Set where the packet comes from (which port) */
+#define SET_PKT_SRC_PHY(p, phy) SET_PKT_PHY(p,phy,QUA_RX)
+/** Set where the packet send to (which port) */
+#define SET_PKT_DST_PHY(p, phy) SET_PKT_PHY(p,phy,QUA_TX)
+
 
 /** number of decoder events we support per packet. Power of 2 minus 1
  *  for memory layout */
@@ -241,6 +257,10 @@ typedef struct Packet_
         uint8_t code;
     };
     uint8_t proto;
+
+	/** physical rx and tx port */
+	uint8_t phy_port[QUA_RXTX];
+	
     /* make sure we can't be attacked on when the tunneled packet
      * has the exact same tuple as the lower levels */
     uint8_t recursion_level;
@@ -262,6 +282,7 @@ typedef struct Packet_
 
     /* header pointers */
     EthernetHdr *ethh;
+	MarvellDSAHdr *dsah;
     IPV4Hdr *ip4h;
     IPV6Hdr *ip6h;
     TCPHdr *tcph;
@@ -275,7 +296,6 @@ typedef struct Packet_
     GREHdr *greh;
     VLANHdr *vlanh[2];
 
-#if 1
 	/* IPv4 and IPv6 are mutually exclusive */
 	union {
 		IPV4Vars ip4vars;
@@ -293,7 +313,6 @@ typedef struct Packet_
 #define tcpvars     l4vars.tcpvars
 #define icmpv4vars  l4vars.icmpv4vars
 #define icmpv6vars  l4vars.icmpv6vars
-#endif
 
 	struct Flow_ *flow;
 
@@ -311,13 +330,13 @@ typedef struct Packet_
     int32_t level4_comp_csum;
 
     /* storage: set to pointer to heap and extended via allocation if necessary */
+	uint8_t  *pkt;
     uint32_t pktlen;
     uint8_t *ext_pkt;
 
     /* engine events */
     PacketEngineEvents events;
-
-}Packet;
+}    __attribute__((aligned(128))) Packet;
 
 #define PACKET_CLEAR_L4VARS(p) do {             \
     }while (0);
@@ -411,7 +430,19 @@ typedef struct Packet_
     ENGINE_SET_EVENT(p, e); \
 } while(0)
 
+#if defined(HAVE_DPDK)
+#include "dpdk.h"
+
+static inline Packet *
+get_priv(struct rte_mbuf *m)
+{
+	return RTE_PTR_ADD(m, sizeof(struct rte_mbuf));
+}
+
+#endif
+
 #include "dp_decode_eth.h"
+#include "dp_decode_marvell_dsa.h"
 #include "dp_decode_ipv4.h"
 #include "dp_decode_ipv6.h"
 #include "dp_decode_icmpv4.h"
@@ -432,6 +463,17 @@ typedef struct _dp_args_t {
 	PacketQueue pq[MAX_LCORES];
 }dp_private_t;
 
+static inline void dump_pkt(uint8_t *pkt, int len)
+{
+	int i = 0;
+	
+	for (i = 0; i < len; i ++){
+		if (!(i % 16))
+			printf ("\n");
+		printf("%02x ", pkt[i]);
+	}
+	printf ("\n");
+}
 
 extern Packet *PacketGetFromAlloc(void);
 extern void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p);

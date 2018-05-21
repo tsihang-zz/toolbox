@@ -1,8 +1,6 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-//#include "dpdk.h"
-
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
@@ -74,7 +72,7 @@ finish:
 
 static struct netdev_t netdev = {
 	.handler = NULL,
-	.devname = "ens33",
+	.devname = "enp5s0f4",
 	.dispatch = dp_pkt_handler,
 	.private = NULL,
 };

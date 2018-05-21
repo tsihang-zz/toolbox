@@ -1,15 +1,13 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-#include "dpdk.h"
-
 extern dp_private_t dp_private_main;
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 extern bool force_quit;
 
-extern struct lcore_queue_conf lcore_queue_conf[];
+struct lcore_queue_conf lcore_queue_conf[RTE_MAX_LCORE];
 
 extern void
 DecodeUpdateCounters(ThreadVars *tv,
@@ -18,6 +16,23 @@ DecodeUpdateCounters(ThreadVars *tv,
 extern void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 
+static char *eal_init_argv[1024] = {0};
+static int eal_init_args = 0;
+static int eal_args_offset = 0;
+
+static const struct rte_eth_conf eth_conf = {
+	.rxmode = {
+		.split_hdr_size = 0,
+		.header_split   = 0, /**< Header Split disabled */
+		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
+		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
+		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
+		.hw_strip_crc   = 1, /**< CRC stripped by hardware */
+	},
+	.txmode = {
+		.mq_mode = ETH_MQ_TX_NONE,
+	},
+};
 
 static dpdk_config_main_t dpdk_config_main = {
 	.nchannels = 2,		/** */		
@@ -26,21 +41,22 @@ static dpdk_config_main_t dpdk_config_main = {
 	.n_rx_q_per_lcore = 1,
 	.uio_driver_name = (char *)"vfio-pci",
 	.num_mbufs =		DPDK_DEFAULT_NB_MBUF,
-	.cache_size =		DPDK_DEFAULT_CACHE_SIZE,
-	.data_room_size =	DPDK_DEFAULT_BUFFER_SIZE
+	.mempool_cache_size =	DPDK_DEFAULT_MEMPOOL_CACHE_SIZE,
+	.mempool_data_room_size = DPDK_DEFAULT_BUFFER_SIZE,	
+	.mempool_priv_size = 0,
+	.num_rx_desc = RTE_RX_DESC_DEFAULT,
+	.num_tx_desc = RTE_TX_DESC_DEFAULT,
+	.num_rx_queues = 1,
+	.num_tx_queues = 1,
+	.ethdev_default_conf = &eth_conf,
 };
 
-static inline void dump_pkt(uint8_t *pkt, int len)
-{
-	int i = 0;
-	
-	for (i = 0; i < len; i ++){
-		if (!(i % 16))
-			printf ("\n");
-		printf("%02x ", pkt[i]);
-	}
-	printf ("\n");
-}
+dpdk_main_t dpdk_main = {
+	.conf = &dpdk_config_main,
+	.stat_poll_interval = DPDK_STATS_POLL_INTERVAL,
+	.link_state_poll_interval = DPDK_LINK_POLL_INTERVAL,
+	.ext_private = &dp_private_main
+};
 
 static int
 dp_dpdk_running_fn(__attribute__((unused)) void *ptr_data)
@@ -49,9 +65,10 @@ dp_dpdk_running_fn(__attribute__((unused)) void *ptr_data)
 	u32 lcore = rte_lcore_id();
 	struct lcore_queue_conf *qconf;
 	unsigned i, j, portid, nb_rx;
-	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+	struct rte_mbuf *pkts_burst[DPDK_MAX_PKT_BURST];
 	struct rte_mbuf *m;
-
+	Packet *p;
+	uint8_t *pkt;
 	ThreadVars *tv = &g_tv[lcore % RTE_MAX_LCORE];
 	DecodeThreadVars *dtv = &g_dtv[lcore % RTE_MAX_LCORE];
 	PacketQueue *pq = &g_pq[lcore % RTE_MAX_LCORE];
@@ -69,28 +86,27 @@ dp_dpdk_running_fn(__attribute__((unused)) void *ptr_data)
 			
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
-						 pkts_burst, MAX_PKT_BURST);
+						 pkts_burst, DPDK_MAX_PKT_BURST);
 
 			for (j = 0; j < nb_rx; j++) {
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 				oryx_logd(".... %d packets, pktlen = %d", nb_rx, m->pkt_len);
-				Packet *p = PacketGetFromAlloc();
-				uint8_t *packet = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+				p = get_priv(m);
+				pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
 				SET_PKT_LEN(p, m->pkt_len);
-				//dump_pkt(packet, m->pkt_len);
-				DecodeEthernet0(tv, dtv, p, packet, m->pkt_len, pq);
+				SET_PKT(p, pkt);
+				//dump_pkt(pkt, m->pkt_len);
+				DecodeEthernet0(tv, dtv, p, pkt, m->pkt_len, pq);
 				DecodeUpdateCounters(tv, dtv, p);
+				/** StatsINCR called within PakcetDecodeFinalize. */
+				PacketDecodeFinalize(tv, dtv, p);
 			}
 		}
 	}
 
 	oryx_logn ("dp_main[%d] exiting ...", lcore);
 }
-
-static char *eal_init_argv[1024] = {0};
-static int eal_init_args = 0;
-static int eal_args_offset = 0;
 
 static void
 dpdk_eal_args_format(const char *argv)
@@ -174,29 +190,6 @@ dpdk_format_eal_args (vlib_main_t *vm)
 	oryx_logn("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
 }
 
-static const struct rte_eth_conf port_conf = {
-	.rxmode = {
-		.split_hdr_size = 0,
-		.header_split   = 0, /**< Header Split disabled */
-		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
-		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
-		.hw_strip_crc   = 1, /**< CRC stripped by hardware */
-	},
-	.txmode = {
-		.mq_mode = ETH_MQ_TX_NONE,
-	},
-};
-
-/*
- * Configurable number of RX/TX ring descriptors
- */
-#define RTE_TEST_RX_DESC_DEFAULT 128
-#define RTE_TEST_TX_DESC_DEFAULT 512
-static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
-
-
 /* Check the link status of all ports in up to 9s, and print them finally */
 static void
 check_linkstatus(uint8_t port_num, uint32_t port_mask)
@@ -273,20 +266,23 @@ void dpdk_env_setup(vlib_main_t *vm)
 	dpdk_format_eal_args(vm);
 
 	oryx_logn("================ DPDK INIT ARGS =================");
-	oryx_logn("%20s%15x", "core_mask", conf->coremask);
-	oryx_logn("%20s%15x", "port_mask", conf->portmask);
-	oryx_logn("%20s%15d", "num_mbufs", conf->num_mbufs);
-	oryx_logn("%20s%15d", "nxqslcore", conf->n_rx_q_per_lcore);
-	oryx_logn("%20s%15d", "cachesize", conf->cache_size);
-	oryx_logn("%20s%15d", "priv_size", vm->extra_priv_size);
-	oryx_logn("%20s%15d", "cacheline", RTE_CACHE_LINE_SIZE);
-	oryx_logn("%20s%15d", "datarmsiz", conf->data_room_size);
+	oryx_logn("%20s%15x", "ul_core_mask", conf->coremask);
+	oryx_logn("%20s%15x", "ul_port_mask", conf->portmask);
+	oryx_logn("%20s%15d", "ul_priv_size", vm->extra_priv_size);
+	oryx_logn("%20s%15d", "n_pool_mbufs", conf->num_mbufs);
+	oryx_logn("%20s%15d", "n_rx_q_lcore", conf->n_rx_q_per_lcore);
+	oryx_logn("%20s%15d", "rte_cachelin", RTE_CACHE_LINE_SIZE);
+	oryx_logn("%20s%15d", "mp_data_room", conf->mempool_data_room_size);
+	oryx_logn("%20s%15d", "mp_cache_siz", conf->mempool_cache_size);
+	oryx_logn("%20s%15d", "mp_priv_size", conf->mempool_priv_size);
+	oryx_logn("%20s%15d", "n_rx_desc", (int)conf->num_rx_desc);
+	oryx_logn("%20s%15d", "n_tx_desc", (int)conf->num_tx_desc);
+	oryx_logn("%20s%15d", "n_rx_queu", (int)conf->num_rx_queues);
+	oryx_logn("%20s%15d", "n_tx_queu", (int)conf->num_tx_queues);
 	oryx_logn("%20s%15d", "socket_id", rte_socket_id());
 
-#if 0
-	/** real initialization. */
-	init_dpdk_env(vm);
-#else
+	ASSERT(conf->mempool_priv_size != RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)));
+
 	struct lcore_queue_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	int ret;
@@ -304,9 +300,8 @@ void dpdk_env_setup(vlib_main_t *vm)
 	vm->argv += ret;
 
 	/* create the mbuf pool */
-	dm->pktmbuf_pools = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
-		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
-		rte_socket_id());
+	dm->pktmbuf_pools = rte_pktmbuf_pool_create("mbuf_pool", conf->num_mbufs, 
+							conf->mempool_cache_size, conf->mempool_priv_size, conf->mempool_data_room_size, rte_socket_id());
 	if(likely(dm->pktmbuf_pools == NULL))
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
 	
@@ -361,17 +356,17 @@ void dpdk_env_setup(vlib_main_t *vm)
 		printf("Initializing port %u... ", (unsigned) portid);
 		fflush(stdout);
 		
-		ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
+		ret = rte_eth_dev_configure(portid, 1, 1, conf->ethdev_default_conf);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
 				  ret, (unsigned) portid);
 		
-		//rte_eth_macaddr_get(portid,&l2fwd_ports_eth_addr[portid]);
+		/** rte_eth_macaddr_get(portid,&l2fwd_ports_eth_addr[portid]); */
 
 		/* init one RX queue */
 		fflush(stdout);
 		
-		ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
+		ret = rte_eth_rx_queue_setup(portid, 0, conf->num_rx_desc,
 						 rte_eth_dev_socket_id(portid),
 						 NULL,
 						 dm->pktmbuf_pools);
@@ -381,7 +376,7 @@ void dpdk_env_setup(vlib_main_t *vm)
 
 		/* init one TX queue on each port */
 		fflush(stdout);
-		ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
+		ret = rte_eth_tx_queue_setup(portid, 0, conf->num_tx_desc,
 			  rte_eth_dev_socket_id(portid),
 			  NULL);
 		if (ret < 0)
@@ -391,22 +386,19 @@ void dpdk_env_setup(vlib_main_t *vm)
 
 		/* Initialize TX buffers */
 		dm->tx_buffer[portid] = rte_zmalloc_socket("tx_buffer",
-			  RTE_ETH_TX_BUFFER_SIZE(MAX_PKT_BURST), 0,
-			  rte_eth_dev_socket_id(portid));
+			RTE_ETH_TX_BUFFER_SIZE(DPDK_MAX_PKT_BURST), 0, rte_eth_dev_socket_id(portid));
 		if (dm->tx_buffer[portid] == NULL)
-		  rte_exit(EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
+			rte_exit(EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
 				  (unsigned) portid);
 
-		rte_eth_tx_buffer_init(dm->tx_buffer[portid], MAX_PKT_BURST);
+		rte_eth_tx_buffer_init(dm->tx_buffer[portid], DPDK_MAX_PKT_BURST);
 
 		ret = rte_eth_tx_buffer_set_err_callback(dm->tx_buffer[portid],
-			  rte_eth_tx_buffer_count_callback,
-			  NULL);
+			  rte_eth_tx_buffer_count_callback, NULL);
 		if (ret < 0)
 			  rte_exit(EXIT_FAILURE, "Cannot set error callback for "
 					  "tx buffer on port %u\n", (unsigned) portid);
 
-					  
 		/* Start device */
 		ret = rte_eth_dev_start(portid);
 		if (ret < 0)
@@ -419,17 +411,7 @@ void dpdk_env_setup(vlib_main_t *vm)
 	}
 
 	check_linkstatus(nb_ports, conf->portmask);
-
-#endif
 }
-
-
-dpdk_main_t dpdk_main = {
-	.conf = &dpdk_config_main,
-	.stat_poll_interval = DPDK_STATS_POLL_INTERVAL,
-	.link_state_poll_interval = DPDK_LINK_POLL_INTERVAL,
-	.ext_private = &dp_private_main
-};
 
 void dp_end_dpdk(struct vlib_main_t *vm)
 {
@@ -466,8 +448,6 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
 	PacketQueue *pq;
-
-	dpdk_main.conf->priv_size = vm->extra_priv_size;
 
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		max_lcores);

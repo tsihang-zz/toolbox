@@ -1,14 +1,6 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-//#define RUNNING_DPDK
-
-#if defined(RUNNING_DPDK)
-
-#include "dpdk.h"
-#endif
-
-
 ThreadVars g_tv[MAX_LCORES];
 DecodeThreadVars g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
@@ -16,7 +8,7 @@ PacketQueue g_pq[MAX_LCORES];
 dp_private_t dp_private_main;
 bool force_quit = false;
 
-#if defined(RUNNING_DPDK)
+#if defined(HAVE_DPDK)
 void dpdk_env_setup(struct vlib_main_t *vm);
 void dp_start_dpdk(struct vlib_main_t *vm);
 void dp_end_dpdk(struct vlib_main_t *vm);
@@ -38,6 +30,11 @@ dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
 	dtv->counter_ipv4 = 
 		oryx_register_counter("decoder.ipv4", 
 									NULL, &tv->perf_private_ctx0);
+
+	dtv->counter_dsa = 
+		oryx_register_counter("decoder.dsa", 
+									NULL, &tv->perf_private_ctx0);
+
 	dtv->counter_ipv6 = 
 		oryx_register_counter("decoder.ipv6", 
 									NULL, &tv->perf_private_ctx0);
@@ -174,8 +171,10 @@ notify_dp(vlib_main_t *vm, int signum)
 
 void dp_start(struct vlib_main_t *vm)
 {
-#if defined(RUNNING_DPDK)
-	dpdk_main.conf->priv_size = vm->extra_priv_size;
+	printf("===== sizeof(struct Packet)=%d ========\n", sizeof(Packet));
+
+#if defined(HAVE_DPDK)
+	dpdk_main.conf->mempool_priv_size = vm->extra_priv_size;
 	dpdk_env_setup(vm);
 	vm->max_lcores = rte_lcore_count();
 #else
@@ -184,7 +183,7 @@ void dp_start(struct vlib_main_t *vm)
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 
 
-#if defined(RUNNING_DPDK)
+#if defined(HAVE_DPDK)
 	dp_start_dpdk(vm);
 #else
 	dp_start_pcap(vm);
@@ -193,7 +192,7 @@ void dp_start(struct vlib_main_t *vm)
 
 void dp_end(struct vlib_main_t *vm)
 {
-#if defined(RUNNING_DPDK)
+#if defined(HAVE_DPDK)
 	dp_end_dpdk(vm);
 #else
 	dp_end_pcap(vm);

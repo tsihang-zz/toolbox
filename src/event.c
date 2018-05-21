@@ -80,6 +80,7 @@ const struct DecodeEvents_ DEvents[] = {
 
     /* ETHERNET EVENTS */
     { "decoder.ethernet.pkt_too_small", ETHERNET_PKT_TOO_SMALL, },
+    { "decoder.ethernet.pkt_not_supported", ETHERNET_PKT_NOT_SUPPORTED, },
 
     /* PPP EVENTS */
     { "decoder.ppp.pkt_too_small", PPP_PKT_TOO_SMALL, },

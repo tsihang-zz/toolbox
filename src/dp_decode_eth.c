@@ -18,10 +18,10 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
     if (unlikely(p->ethh == NULL))
         return TM_ECODE_FAILED;
 
-	oryx_logd("[%d] p %p pkt %p ether type %04x",
-		oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth), p, pkt, ntohs(ethh->eth_type));
+	oryx_logd("[%llu] p %p pkt %p ether type %04x",
+		oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth), p, pkt, ntoh16(ethh->eth_type));
 
-	switch (ntohs(ethh->eth_type)) {
+	switch (ntoh16(ethh->eth_type)) {
 			case ETHERNET_TYPE_IP:
 				DecodeIPv40(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 						   len - ETHERNET_HEADER_LEN, pq);
@@ -38,9 +38,6 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				DecodePPPOEDiscovery0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 									 len - ETHERNET_HEADER_LEN, pq);
 				break;
-			case ETHERNET_TYPE_0028:
-			case ETHERNET_TYPE_C028:
-			case ETHERNET_TYPE_C038:
 			case ETHERNET_TYPE_VLAN:
 			case ETHERNET_TYPE_8021QINQ:
 				DecodeVLAN0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
@@ -63,9 +60,8 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				DecodeARP0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 					 len - ETHERNET_HEADER_LEN, pq);
 				break;
-			default:
-				oryx_logn("p %p pkt %p ether type %04x not supported", p,
-						   pkt, ntohs(ethh->eth_type));
+			default:	/** trying to decode Marvell DSA frame. */
+				DecodeMarvellDSA0(tv, dtv, p, pkt + 12, len - 12, pq);
 	}
 
 	

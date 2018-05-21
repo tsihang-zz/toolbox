@@ -25,15 +25,6 @@
 #define ETHERNET_TYPE_ERSPAN          0x88BE
 #define ETHERNET_TYPE_DCE             0x8903 /* Data center ethernet,
                                               * Cisco Fabric Path */
-/** These ethernet type defined for ET1500 */
-#define ETHERNET_TYPE_0028			  0x0028
-#define ETHERNET_TYPE_003A			  0x003A
-#define ETHERNET_TYPE_0042			  0x0042
-#define ETHERNET_TYPE_C028			  0xC028/* port 1 */
-#define ETHERNET_TYPE_C030			  0xC030/* port 2 */
-#define ETHERNET_TYPE_C038			  0xC038
-#define ETHERNET_TYPE_C040			  0xC040/* port 4 */
-#define ETHERNET_TYPE_0028			  0x0028
 
 typedef struct EthernetHdr_ {
     uint8_t eth_dst[6];

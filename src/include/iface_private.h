@@ -35,9 +35,9 @@ enum interface_conf_cmd {
 };
 
 enum {
-	COUNTER_RX,
-	COUNTER_TX,
-	RX_TX
+	QUA_COUNTER_RX,
+	QUA_COUNTER_TX,
+	QUA_COUNTERS
 };
 
 enum {
@@ -105,21 +105,21 @@ struct iface_t {
 	struct CounterCtx perf_private_ctx;
 	
     /** stats/counters */
-    counter_id counter_pkts[RX_TX];
-    counter_id counter_bytes[RX_TX];
+    counter_id counter_pkts[QUA_COUNTERS];
+    counter_id counter_bytes[QUA_COUNTERS];
 	
-    counter_id counter_eth[RX_TX];
-    counter_id counter_ipv4[RX_TX];
-    counter_id counter_ipv6[RX_TX];
-    counter_id counter_tcp[RX_TX];
-    counter_id counter_udp[RX_TX];
-    counter_id counter_icmpv4[RX_TX];
-    counter_id counter_icmpv6[RX_TX];
-    counter_id counter_sctp[RX_TX];
-	counter_id counter_arp[RX_TX];
-    counter_id counter_vlan[RX_TX];
-    counter_id counter_pppoe[RX_TX];
-    counter_id counter_mpls[RX_TX];
+    counter_id counter_eth[QUA_COUNTERS];
+    counter_id counter_ipv4[QUA_COUNTERS];
+    counter_id counter_ipv6[QUA_COUNTERS];
+    counter_id counter_tcp[QUA_COUNTERS];
+    counter_id counter_udp[QUA_COUNTERS];
+    counter_id counter_icmpv4[QUA_COUNTERS];
+    counter_id counter_icmpv6[QUA_COUNTERS];
+    counter_id counter_sctp[QUA_COUNTERS];
+	counter_id counter_arp[QUA_COUNTERS];
+    counter_id counter_vlan[QUA_COUNTERS];
+    counter_id counter_pppoe[QUA_COUNTERS];
+    counter_id counter_mpls[QUA_COUNTERS];
 
 };
 

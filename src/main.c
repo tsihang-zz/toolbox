@@ -11,9 +11,6 @@
 #include "vty.h"
 #include "command.h"
 #include "prefix.h"
-
-#include "dpdk.h"	/** RTE_CACHE_LINE_ROUNDUP */
-
 #include "dp_decode.h"
 #include "dp_main.h"
 
@@ -26,11 +23,11 @@ extern void map_init(vlib_main_t *vm);
 extern void common_cli(void);
 
 /** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
-#define DPDK_BUFFER_HDR_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)) - DPDK_BUFFER_PRE_DATA_SIZE)
+#define DPDK_MBUF_PRIVATE_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)))
 
 vlib_main_t vlib_main = {
 	.prgname = "et1500",
-	.extra_priv_size = DPDK_BUFFER_HDR_SIZE,
+	.extra_priv_size = DPDK_MBUF_PRIVATE_SIZE,
 };
 
 static unsigned short int alternative_port = 12000;
@@ -202,6 +199,8 @@ int main (int argc, char **argv)
 	vlib_main.argv = argv;
 
 	printf("%.2f\n", ratio_of(1,2));
+	printf("Sizeof(struct Packet)=%d, extra_priv_size %d\n", sizeof(Packet),
+		vlib_main.extra_priv_size);
 	
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
@@ -233,10 +232,13 @@ int main (int argc, char **argv)
 	dp_start(&vlib_main);
 
 	oryx_task_launch();
-#if defined(RUNNING_DPDK)
+#if defined(HAVE_DPDK)
 	RTE_LCORE_FOREACH_SLAVE(id_core) {
 		if (rte_eal_wait_lcore(id_core) < 0)
 			return -1;
+		/* wait for dataplane quit. */
+		if(vlib_main.force_quit)
+			break;
 	}
 #else
 	FOREVER {
