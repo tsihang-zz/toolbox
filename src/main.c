@@ -232,6 +232,9 @@ int main (int argc, char **argv)
 	dp_start(&vlib_main);
 
 	oryx_task_launch();
+	sleep(1);
+	vlib_main.cli_ready = 1;
+	
 #if defined(HAVE_DPDK)
 	RTE_LCORE_FOREACH_SLAVE(id_core) {
 		if (rte_eal_wait_lcore(id_core) < 0)

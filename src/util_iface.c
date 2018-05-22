@@ -4,7 +4,9 @@
 void iface_alloc (struct iface_t **this)
 {
 	int id;
-
+	struct CounterCtx *per_private_ctx0;
+	struct iface_counter_ctx *if_counter_ctx0;
+	
 	(*this) = NULL;
 	
 	/** create an port */
@@ -17,18 +19,23 @@ void iface_alloc (struct iface_t **this)
 	(*this)->if_poll_up = netdev_up;
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
 
+	(*this)->perf_private_ctx = kmalloc(sizeof(struct CounterCtx), MPF_CLR, __oryx_unused_val__);
+	(*this)->if_counter_ctx = kmalloc(sizeof(struct iface_counter_ctx), MPF_CLR, __oryx_unused_val__);
+	per_private_ctx0 = (*this)->perf_private_ctx;
+	if_counter_ctx0 = (*this)->if_counter_ctx;
+	
 	/** port counters */
 	id = QUA_COUNTER_RX;
-	(*this)->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
-			"bytes Rx for this port", &(*this)->perf_private_ctx);
-	(*this)->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
-			"pkts Rx for this port", &(*this)->perf_private_ctx);
+	if_counter_ctx0->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
+			"bytes Rx for this port", per_private_ctx0);
+	if_counter_ctx0->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
+			"pkts Rx for this port", per_private_ctx0);
 
 	id = QUA_COUNTER_TX;
-	(*this)->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
-			"bytes Tx for this port", &(*this)->perf_private_ctx);
-	(*this)->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
-			"pkts Tx for this port", &(*this)->perf_private_ctx);
+	if_counter_ctx0->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
+			"bytes Tx for this port", per_private_ctx0);
+	if_counter_ctx0->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
+			"pkts Tx for this port", per_private_ctx0);
 
 	/**
 	 * More Counters here.
@@ -36,9 +43,9 @@ void iface_alloc (struct iface_t **this)
 	 */
 	
 	/** last step */
-	oryx_counter_get_array_range(COUNTER_RANGE_START(&(*this)->perf_private_ctx), 
-			COUNTER_RANGE_END(&(*this)->perf_private_ctx), 
-			&(*this)->perf_private_ctx);
+	oryx_counter_get_array_range(COUNTER_RANGE_START(per_private_ctx0), 
+			COUNTER_RANGE_END(per_private_ctx0), 
+			per_private_ctx0);
 }
 
 int iface_rename(vlib_port_main_t *vp, 

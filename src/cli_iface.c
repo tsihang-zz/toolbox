@@ -121,17 +121,19 @@ void port_entry_stat_output (struct iface_t *port, struct vty *vty)
 	u64 pkts[QUA_COUNTERS];
 	u64 bytes[QUA_COUNTERS];
 	int id = 0;
+	struct CounterCtx *per_private_ctx0 = port->perf_private_ctx;
+	struct iface_counter_ctx *if_counter_ctx0 = port->if_counter_ctx;
 	
 	if (unlikely (!port)) 
 		return;
 
 	id = QUA_COUNTER_RX;
-	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
-	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
+	pkts[id]  = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_pkts[id]);
+	bytes[id] = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_bytes[id]);
 	
 	id = QUA_COUNTER_TX;
-	pkts[id]  = oryx_counter_get(&port->perf_private_ctx, port->counter_pkts[id]);
-	bytes[id] = oryx_counter_get(&port->perf_private_ctx, port->counter_bytes[id]);
+	pkts[id]  = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_pkts[id]);
+	bytes[id] = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_bytes[id]);
 
 	{
 		/** find this port named 'alias'. */
@@ -440,101 +442,193 @@ int iface_poll_up(struct iface_t *this)
 	return netdev_up(this->sc_alias_fixed);
 }
 
-static const struct iface_t iface_list[] = {
-	{
-		"ens33",
-		ETH_XE,
-		!IS_PANLE_PORT,
-		NULL,
-		iface_poll_up
-	},
+static struct iface_t iface_list[] = {
 
 	{
 		"enp5s0f1",
 		ETH_XE,
-		!IS_PANLE_PORT,
+		!1,
 		NULL,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 	
 	{
 		"enp5s0f2",
 		ETH_XE,
-		IS_PANLE_PORT,
+		1,
 		NULL,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"enp5s0f3",
 		ETH_XE,
-		IS_PANLE_PORT,
+		1,
 		NULL,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 	
 	{
 		"lan1",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan2",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan3",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 	
 	{
 		"lan4",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan5",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan6",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan7",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	},
 
 	{
 		"lan8",
 		ETH_GE,
-		IS_PANLE_PORT,
+		1,
 		iface_poll_linkstate,
-		iface_poll_up
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		NULL,
+		NULL,
+		NULL
 	}
 };
 
@@ -542,34 +636,38 @@ static const struct iface_t iface_list[] = {
 void register_ports(void)
 {
 	int i;
-	struct iface_t *entry;
-	struct iface_t *iface;
+	struct iface_t *new;
+	struct iface_t *this;
 	vlib_port_main_t *vp = &vlib_port_main;
 	int n_ports_now = vec_count(vp->entry_vec);
 
 	/** SW<->CPU ports, only one. */
 	for (i = 0; i < (int)DIM(iface_list); i ++) {
 
-		iface = &iface_list[i];
-		if (!netdev_exist(iface->sc_alias_fixed)) {
-			continue;
+		this = &iface_list[i];
+		
+		/** lan1-lan8 are not vfio-pci drv port. */
+		if(this->type == ETH_GE && this->is_a_panel_port) {
+			if (!netdev_exist(this->sc_alias_fixed)) {
+				continue;
+			}
 		}
-
-		iface_alloc(&entry);
-		if (!entry) {
+		
+		iface_alloc(&new);
+		if (!new) {
 			oryx_panic(-1, 
 				"Can not alloc memory for a port");
 		} else {
-			memcpy(&entry->sc_alias[0], iface->sc_alias_fixed, strlen(iface->sc_alias_fixed));
-			entry->sc_alias_fixed = iface->sc_alias_fixed;
-			entry->type = iface->type;
-			entry->if_poll_state = iface->if_poll_state;
-			entry->if_poll_up = iface->if_poll_up;
-			entry->ul_id = n_ports_now + i;
-			if (!iface_add(vp, entry))
-				oryx_logn("registering interface %s ... success", entry->sc_alias);
+			memcpy(&new->sc_alias[0], this->sc_alias_fixed, strlen(this->sc_alias_fixed));
+			new->sc_alias_fixed = this->sc_alias_fixed;
+			new->type = this->type;
+			new->if_poll_state = this->if_poll_state;
+			new->if_poll_up = this->if_poll_up;
+			new->ul_id = n_ports_now + i;
+			if (!iface_add(vp, new))
+				oryx_logn("registering interface %s ... success", new->sc_alias);
 			else
-				oryx_loge(-1, "registering interface %s ... error", entry->sc_alias);
+				oryx_loge(-1, "registering interface %s ... error", new->sc_alias);
 		}
 	}
 }
@@ -633,10 +731,10 @@ void port_init(vlib_main_t *vm)
 							port_activity_prob_tmr_handler,
 							0, NULL, vp->link_detect_tmr_interval);
 
+	register_ports();
+
 	if(likely(vp->link_detect_tmr))
 		oryx_tmr_start(vp->link_detect_tmr);
-
-	register_ports();
 
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }

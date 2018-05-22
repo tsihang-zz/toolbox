@@ -1,4 +1,4 @@
-#include "oryx.h"#include "dp_decode.h"void StatsIncr(struct ThreadVars_ *tv, uint16_t id) {	struct CounterCtx *ctx = &tv->perf_private_ctx0;	oryx_counter_inc(ctx, id);}void DecodeUpdateCounters(ThreadVars *tv,                                const DecodeThreadVars *dtv, const Packet *p){    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);    //StatsIncr(tv, dtv->counter_pkts_per_sec);    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, GET_PKT_LEN(p));}								
+#include "oryx.h"#include "dp_decode.h"void DecodeUpdateCounters(ThreadVars *tv,                                const DecodeThreadVars *dtv, const Packet *p){    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, GET_PKT_LEN(p));}								
 /**
  * \brief Return a malloced packet.
  */static
@@ -38,12 +38,10 @@ Packet *PacketGetFromAlloc(void)
 void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 {
 
-    if (p->flags & PKT_IS_INVALID) {
-        StatsIncr(tv, dtv->counter_invalid);
+    if (p->flags & PKT_IS_INVALID) {		 oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);
         int i = 0;
         for (i = 0; i < p->events.cnt; i++) {
-            if (EVENT_IS_DECODER_PACKET_ERROR(p->events.events[i])) {
-                StatsIncr(tv, dtv->counter_invalid_events[p->events.events[i]]);
+            if (EVENT_IS_DECODER_PACKET_ERROR(p->events.events[i])) {				 oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid_events[p->events.events[i]]);
             }
         }
     }

@@ -160,6 +160,10 @@ typedef struct PacketAlerts_ {
 #define GET_PKT_DIRECT_DATA(p) (uint8_t *)((p) + 1)
 #define GET_PKT_DIRECT_MAX_SIZE(p) (default_packet_size)
 
+#define GET_PKT_SRC_PHY(p)	((p)->phy_port[QUA_RX])
+#define GET_PKT_DST_PHY(p)	((p)->phy_port[QUA_TX])
+
+
 #define SET_PKT_LEN(p, len) do { \
     (p)->pktlen = (len); \
     } while (0)
@@ -259,7 +263,7 @@ typedef struct Packet_
     uint8_t proto;
 
 	/** physical rx and tx port */
-	uint8_t phy_port[QUA_RXTX];
+	u32 phy_port[QUA_RXTX];
 	
     /* make sure we can't be attacked on when the tunneled packet
      * has the exact same tuple as the lower levels */
@@ -282,7 +286,11 @@ typedef struct Packet_
 
     /* header pointers */
     EthernetHdr *ethh;
+
 	MarvellDSAHdr *dsah;
+	/** ntoh32(this->dsah.dsa) */
+	u32 dsa;
+
     IPV4Hdr *ip4h;
     IPV6Hdr *ip6h;
     TCPHdr *tcph;

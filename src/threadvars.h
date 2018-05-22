@@ -7,6 +7,7 @@
 /** \brief Per thread variable structure */
 typedef struct ThreadVars_ {
     pthread_t t;
+	u32 lcore;
     char name[16];
     char *printable_name;
     char *thread_group_name;
@@ -15,11 +16,18 @@ typedef struct ThreadVars_ {
     /** local id */
     int id;
 
-    /* counters */
+    /* counters for this thread. */
 	struct CounterCtx perf_private_ctx0;
+
+	/** free function for this thread to free a packet. */
+	int (*free_fn)(void *);
 	
 	struct ThreadVars_ *next;
     struct ThreadVars_ *prev;
+
+	/** hold a simple statistics. */
+	u64 n_tx_packets;
+	u64 n_tx_bytes;
 
 }ThreadVars;
 

@@ -3,7 +3,6 @@
 
 #include "common_private.h"
 
-#define NB_APPL_N_BUCKETS	(1 << 10)
 
 #define foreach_iface_speed			\
   _(1G, "1,000 Gbps.")				\
@@ -45,65 +44,7 @@ enum {
 	ETH_XE
 };
 
-struct iface_t {
-
-	/** fixed alias used to do linkstate poll, and can not be overwrite by CLI. */
-	const char *sc_alias_fixed;
-	
-	/** ETH_GE, ETH_XE, ... */
-	int type;
-
-#define IS_PANLE_PORT 1
-	/** panel port or inner port bt cpu <-> sw. */
-	int is_a_panel_port;
-
-	int (*if_poll_state)(struct iface_t *this);
-	int (*if_poll_up)(struct iface_t *this);
-
-	/** A panel interface ID. Can be translated by TO_INFACE_ID(Frame.vlan) */
-	u32 ul_id;
-	
-	/** for validate checking. */
-	u32 ul_vid;
-	
-	/** Port name. for example, Gn_b etc... can be overwritten by CLI. */
-	char  sc_alias[32];
-	
-	/** ethernet address for this port. */
-	char eth_addr[6];
-
-#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
-#define NETDEV_PROMISC            (1 << 1)
-#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
-#define NETDEV_PMD                (1 << 3)
-#define	NETDEV_LOOPBACK	  		  (1 << 4)
-#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
-
-	u32 ul_flags;
-
-	/** up->down counter. */
-	u32 ul_up_down_times;
-
-	/** */
-	u8 uc_speed;
-
-	u16 us_mtu;
-
-	/** 
-	  * Deployed applications which holded by hlist. 
-	  * An vpp_deployed_appl_t entry will be find by 
-	  * hashing "appl_id%max_buckets". 
-	  * And then find that entry by matching the same $appl_id
-	  */
-	struct hlist_head hhead[NB_APPL_N_BUCKETS];
-
-	/** Map for this interface belong to. */
-	oryx_vector belong_maps;
-
-	void *table;
-
-	struct CounterCtx perf_private_ctx;
-	
+struct iface_counter_ctx {
     /** stats/counters */
     counter_id counter_pkts[QUA_COUNTERS];
     counter_id counter_bytes[QUA_COUNTERS];
@@ -120,13 +61,54 @@ struct iface_t {
     counter_id counter_vlan[QUA_COUNTERS];
     counter_id counter_pppoe[QUA_COUNTERS];
     counter_id counter_mpls[QUA_COUNTERS];
-
 };
 
-static inline void iface_update_counters(struct iface_t *p,
-					counter_id id){
-	oryx_counter_inc(&p->perf_private_ctx, id);
+struct iface_t {
+	const char *sc_alias_fixed; /** fixed alias used to do linkstate poll,
+								 *  and can not be overwrite by CLI. */
+	int type;					/** ETH_GE, ETH_XE, ... */
+	int is_a_panel_port;		/** panel port or inner port bt cpu <-> sw. */
+	int (*if_poll_state)(struct iface_t *this);
+	int (*if_poll_up)(struct iface_t *this);	
+	u32 ul_id;					/** A panel interface ID. enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
+								 *  Can be translated by TO_INFACE_ID(Frame.vlan) */
+	char  sc_alias[32];			/** Port name. 
+								 *  for example, Gn_b etc... can be overwritten by CLI. */
+	char eth_addr[6];			/** ethernet address for this port. */
+#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
+#define NETDEV_PROMISC            (1 << 1)
+#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
+#define NETDEV_PMD                (1 << 3)
+#define	NETDEV_LOOPBACK	  		  (1 << 4)
+#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
+	u32 ul_flags;
+	u32 ul_up_down_times;		/** up->down counter. */
+	u16 us_mtu;
+	oryx_vector belong_maps;	/** Map for this interface belong to. */
+	struct CounterCtx *perf_private_ctx;
+	struct iface_counter_ctx *if_counter_ctx;
+};
+
+static inline void iface_counters_add(struct iface_t *p,
+					counter_id id, u64 x){
+	oryx_counter_add(p->perf_private_ctx, id, x);
 }
+
+static inline void iface_counters_inc(struct iface_t *p,
+					counter_id id){
+	oryx_counter_inc(p->perf_private_ctx, id);
+}
+
+static inline void iface_counters_set(struct iface_t *p,
+					counter_id id, u64 x){
+	oryx_counter_set(p->perf_private_ctx, id, x);
+}
+
+static inline void iface_counters_clear(struct iface_t *p,
+					counter_id id){
+	oryx_counter_set(p->perf_private_ctx, id, 0);
+}
+
 					
 typedef struct vlib_port_main {
 	/* dpdk_ports + sw_ports */

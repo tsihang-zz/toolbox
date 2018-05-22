@@ -6,13 +6,8 @@ typedef struct MarvellDSAEthernetHdr_ {
     uint16_t eth_type;
 } __attribute__((__packed__)) MarvellDSAEthernetHdr;
 
-struct MarvellDSAMap {
-	u8 p;
-	const char *comment;
-};
-
 /** a map for dsa.port_src -> phyical port. */
-static struct MarvellDSAMap dsa_src_phy_map_list[] = {
+struct MarvellDSAMap dsa_to_phy_map_list[] = {
 	{-1, "unused"},
 	{ 5, "et1500 ge5"},
 	{ 6, "et1500 ge6"},
@@ -25,7 +20,7 @@ static struct MarvellDSAMap dsa_src_phy_map_list[] = {
 };
 
 /** a map for physical port -> dsa.port_src */
-static struct MarvellDSAMap dsa_phy_src_map_list[] = {
+struct MarvellDSAMap phy_to_dsa_map_list[] = {
 	{-1, "unused"},
 	{ 5, "dsa.port_src 5"},
 	{ 6, "dsa.port_src 6"},
@@ -36,17 +31,6 @@ static struct MarvellDSAMap dsa_phy_src_map_list[] = {
 	{ 3, "dsa.port_src 3"},
 	{ 4, "dsa.port_src 4"}
 };
-
-static inline void PrintDSA(uint32_t dsa)
-{
-	oryx_logd ("%12s%4d", "dsa_cmd:",	DSA_CMD(dsa));
-	oryx_logd ("%12s%4d", "dev_src:",	DSA_DEV_SRC(dsa));
-	oryx_logd ("%12s%4d", "prt_src:",	DSA_PORT_SRC(dsa));
-	oryx_logd ("%12s%4d", "usr_pri:",	DSA_USR_PRIO(dsa));
-	oryx_logd ("%12s%4d", "extendf:",	DSA_EXTEND(dsa));
-	oryx_logd ("%12s%4d", "vlan_id:",	DSA_VLAN_ID(dsa));
-	oryx_logd ("%12s%4d", "fromphy:",	dsa_src_phy_map_list[DSA_PORT_SRC(dsa) % DIM(dsa_src_phy_map_list)].p);
-}
 
 /**
  * \internal
@@ -64,7 +48,6 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 {
 	MarvellDSAHdr *dsah;
 	MarvellDSAEthernetHdr *dsaeth;
-	uint32_t dsa = 0;
 
 	oryx_logd("Marvell DSA ...");
 
@@ -79,10 +62,10 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 	if (unlikely(p->dsah == NULL))
 		return TM_ECODE_FAILED;
 
-	dsa = ntoh32(p->dsah->dsa);
+	p->dsa = ntoh32(p->dsah->dsa);
 
-	PrintDSA(dsa);
-	SET_PKT_SRC_PHY(p, dsa_src_phy_map_list[DSA_PORT_SRC(dsa) % DIM(dsa_src_phy_map_list)].p);
+	//PrintDSA("RX", p->dsa, QUA_RX);
+	SET_PKT_SRC_PHY(p, dsa_to_phy_map_list[DSA_SRC_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
 
 	oryx_logd("ether type %04x", ntoh16(dsaeth->eth_type));
 

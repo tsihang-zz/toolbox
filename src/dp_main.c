@@ -182,7 +182,6 @@ void dp_start(struct vlib_main_t *vm)
 #endif
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 
-
 #if defined(HAVE_DPDK)
 	dp_start_dpdk(vm);
 #else

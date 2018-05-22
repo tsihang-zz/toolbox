@@ -13,8 +13,9 @@ fi
 
 TARGET=arm64-thunderx-linuxapp-gcc
 
+dpdk-devbind.py -b vfio-pci  05:00.1
 dpdk-devbind.py -b vfio-pci  05:00.2
 dpdk-devbind.py -b vfio-pci  05:00.3
 
-#export RTE_SDK=`pwd`
-#export RTE_TARGET=$TARGET
+export RTE_SDK=`pwd`
+export RTE_TARGET=$TARGET

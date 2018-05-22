@@ -44,13 +44,14 @@
 #define DPDK_DEFAULT_NB_MBUF   (16 << 10)
 
 #define MAX_RX_QUEUE_PER_LCORE 16
-#define MAX_TX_QUEUE_PER_PORT 16
+#define MAX_TX_QUEUE_PER_LCORE 16
 
 /* How many packets to attempt to read from NIC in one go */
-#define DPDK_MAX_PKT_BURST 32
+#define DPDK_MAX_RX_BURST 32
+#define DPDK_MAX_TX_BURST 32
 
 /* How many objects (mbufs) to keep in per-lcore mempool cache */
-#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_PKT_BURST
+#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_RX_BURST
 
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 
@@ -72,10 +73,31 @@
 
 #define DPDK_SETUP_ENV_SH		"dpdk-setup-env.sh"
 
-struct lcore_queue_conf {
-	unsigned n_rx_port;
-	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
+struct tx_burst_table {
+	uint16_t n_tx_burst_len;
+	struct rte_mbuf *burst[DPDK_MAX_TX_BURST];
+};
+
+struct lcore_rx_queue {
+	uint8_t port_id;
+	uint8_t queue_id;
 } __rte_cache_aligned;
+
+struct lcore_conf {
+	unsigned n_rx_port;
+	uint16_t n_rx_queue;
+	unsigned rx_port_list[RTE_MAX_ETHPORTS];
+	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	
+	uint16_t n_tx_port;
+	uint16_t n_tx_queue;
+	unsigned tx_port_list[RTE_MAX_ETHPORTS];
+	
+	struct tx_burst_table tx_burst[RTE_MAX_ETHPORTS];
+} __rte_cache_aligned;
+
+extern struct lcore_conf lcore_conf_ctx[];
+extern struct rte_eth_conf dpdk_eth_default_conf;
 
 typedef union {
 	struct {
@@ -192,7 +214,6 @@ typedef struct {
 	
 	/* mempool */
 	struct rte_mempool *pktmbuf_pools;
-	struct rte_eth_dev_tx_buffer *tx_buffer[MAX_PORTS];
 
 	u32 n_lcores;
 	u32 n_ports;
