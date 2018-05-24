@@ -473,7 +473,7 @@ void FlowInit(Flow *f, const Packet *p)
         FLOW_SET_IPV6_DST_ADDR_FROM_PACKET(p, &f->dst);
         f->flags |= FLOW_IPV6;
     }
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     /* XXX handle default */
     else {
         printf("FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
@@ -496,7 +496,7 @@ void FlowInit(Flow *f, const Packet *p)
         SET_SCTP_SRC_PORT(p,&f->sp);
         SET_SCTP_DST_PORT(p,&f->dp);
     } /* XXX handle default */
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     else {
         printf("FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
     }

@@ -64,7 +64,7 @@ void FlowEnqueue (FlowQueue *, Flow *);
 Flow *FlowDequeue (FlowQueue *);
 
 void FlowMoveToSpare(Flow *);
-
+
 #endif /* end of if defined(HAVE_FLOW_MGR) */
 
 #endif

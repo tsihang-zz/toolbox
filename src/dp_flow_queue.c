@@ -48,7 +48,7 @@ void FlowQueueDestroy (FlowQueue *q)
  */
 void FlowEnqueue (FlowQueue *q, Flow *f)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(q == NULL || f == NULL);
 #endif
 
@@ -99,7 +99,7 @@ Flow *FlowDequeue (FlowQueue *q)
         q->bot = NULL;
     }
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(q->len == 0);
 #endif
     if (q->len > 0)

@@ -31,7 +31,7 @@ int isalldigit(const char *str);
 char *draw_color(color_t color);
 int kvpair(char *str, char **k, char **v);
 int is_numerical (char* s);
-void do_system(const char *cmd);
+int do_system(const char *cmd);
 u64 tm_elapsed_us (struct  timeval *start, struct  timeval *end);
 int tm_format(uint64_t ts, const char *tm_form, char *date, size_t len);
 

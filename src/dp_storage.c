@@ -151,7 +151,7 @@ int StorageFinalize(void)
         entry = entry->next;
     };
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     for (i = 0; i < STORAGE_MAX; i++) {
         if (storage_map[i] == NULL)
             continue;
@@ -185,7 +185,7 @@ unsigned int StorageGetSize(StorageEnum type)
 
 void *StorageGetById(const Storage *storage, const StorageEnum type, const int id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
     oryx_logd("storage %p id %d\n", storage, id);
@@ -196,7 +196,7 @@ void *StorageGetById(const Storage *storage, const StorageEnum type, const int i
 
 int StorageSetById(Storage *storage, const StorageEnum type, const int id, void *ptr)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
     oryx_logd("storage %p id %d\n", storage, id);
@@ -208,7 +208,7 @@ int StorageSetById(Storage *storage, const StorageEnum type, const int id, void 
 
 void *StorageAllocByIdPrealloc(Storage *storage, StorageEnum type, int id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
     oryx_logd("storage %p id %d\n", storage, id);
@@ -226,7 +226,7 @@ void *StorageAllocByIdPrealloc(Storage *storage, StorageEnum type, int id)
 
 void *StorageAllocById(Storage **storage, StorageEnum type, int id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
     oryx_logd("storage %p id %d\n", storage, id);
@@ -256,7 +256,7 @@ void *StorageAllocById(Storage **storage, StorageEnum type, int id)
 
 void StorageFreeById(Storage *storage, StorageEnum type, int id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
 #ifdef UNITTESTS
@@ -280,7 +280,7 @@ void StorageFreeAll(Storage *storage, StorageEnum type)
 {
     if (storage == NULL)
         return;
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
 #ifdef UNITTESTS
@@ -304,7 +304,7 @@ void StorageFree(Storage **storage, StorageEnum type)
     if (*storage == NULL)
         return;
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON(!storage_registraton_closed);
 #endif
 #ifdef UNITTESTS

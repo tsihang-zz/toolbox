@@ -199,8 +199,6 @@ int main (int argc, char **argv)
 	vlib_main.argv = argv;
 
 	printf("%.2f\n", ratio_of(1,2));
-	printf("Sizeof(struct Packet)=%d, extra_priv_size %d\n", sizeof(Packet),
-		vlib_main.extra_priv_size);
 	
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);

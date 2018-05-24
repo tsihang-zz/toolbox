@@ -31,7 +31,7 @@ int DecodeSCTP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
         return TM_ECODE_FAILED;
     }
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     oryx_logd("SCTP sp: %" PRIu32 " -> dp: %" PRIu32,
         SCTP_GET_SRC_PORT(p), SCTP_GET_DST_PORT(p));
 #endif

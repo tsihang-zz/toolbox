@@ -47,8 +47,8 @@
 #define MAX_TX_QUEUE_PER_LCORE 16
 
 /* How many packets to attempt to read from NIC in one go */
-#define DPDK_MAX_RX_BURST 32
-#define DPDK_MAX_TX_BURST 32
+#define DPDK_MAX_RX_BURST 64
+#define DPDK_MAX_TX_BURST 128
 
 /* How many objects (mbufs) to keep in per-lcore mempool cache */
 #define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_RX_BURST

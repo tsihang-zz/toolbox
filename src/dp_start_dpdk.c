@@ -17,7 +17,7 @@ extern void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 
 static char *eal_init_argv[1024] = {0};
-static int eal_init_args = 0;
+static int eal_init_argc = 0;
 static int eal_args_offset = 0;
 
 static dpdk_config_main_t dpdk_config_main = {
@@ -79,7 +79,7 @@ __forward_burst(ThreadVars *tv, DecodeThreadVars *dtv,
 }
 #endif
 
-int forward_out(ThreadVars *tv, DecodeThreadVars *dtv, 
+static inline int forward_out(ThreadVars *tv, DecodeThreadVars *dtv, 
 				Packet *p, struct rte_mbuf *mbuf, u8 rx_port, u8 tx_port, PacketQueue *pq)
 {	
 	uint16_t n_tx_try_burst;
@@ -87,14 +87,15 @@ int forward_out(ThreadVars *tv, DecodeThreadVars *dtv,
 	struct rte_mbuf **m;
 	struct lcore_conf *lconf = &lcore_conf_ctx[tv->lcore];
 	int qua = QUA_COUNTER_TX;
-	vlib_port_main_t *vp = &vlib_port_main;
 	struct iface_t *iface;
-
+	vlib_port_main_t *vp = &vlib_port_main;
+#if 0
 	iface_lookup_id(vp, tx_port, &iface);
 	if(!iface) {
 		oryx_panic(-1, "Cannot locate a tx_port[%d].", tx_port);
 	}
-	
+#endif
+
 	if(p->dsah) {
 		oryx_logd("from GE ...");
 		u32 new_dsa = 0;
@@ -121,30 +122,33 @@ int forward_out(ThreadVars *tv, DecodeThreadVars *dtv,
 	n_tx_try_burst ++;
 
 	/** Provisional satistics hold by this threadvar. */
-	tv->n_tx_bytes += GET_PKT_LEN(p);
+	tv->n_tx_bytes_prov += GET_PKT_LEN(p);
 
 	/** reach maximum burst threshold. */
 	if (likely(n_tx_try_burst == DPDK_MAX_TX_BURST)) {
 		oryx_logd("trying tx_burst ... %d\n", n_tx_try_burst);
 		m = (struct rte_mbuf **)lconf->tx_burst[tx_port].burst;
-		tv->n_tx_packets = n_tx_burst = rte_eth_tx_burst(tx_port, 0, m, n_tx_try_burst);
+		tv->n_tx_packets_prov = n_tx_burst = rte_eth_tx_burst(tx_port, 0, m, n_tx_try_burst);
 		if (unlikely(n_tx_burst < n_tx_try_burst)) {
-			oryx_logn("%d not sent \n", (n_tx_try_burst - n_tx_burst));
+			oryx_logi("%d not sent \n", (n_tx_try_burst - n_tx_burst));
 			do {
-				tv->n_tx_bytes -= m[n_tx_burst]->pkt_len;
+				tv->n_tx_bytes_prov -= m[n_tx_burst]->pkt_len;
 				rte_pktmbuf_free(m[n_tx_burst]);
 			} while (++ n_tx_burst < n_tx_try_burst);
 		}
 		
-		iface_counters_add(iface, iface->if_counter_ctx->counter_pkts[qua], tv->n_tx_packets);
-		iface_counters_add(iface, iface->if_counter_ctx->counter_bytes[qua], tv->n_tx_bytes);
+		tv->n_tx_bytes += tv->n_tx_bytes_prov;
+		tv->n_tx_packets += tv->n_tx_packets_prov;		
+		//iface_counters_add(iface, iface->if_counter_ctx->counter_pkts[qua], tv->n_tx_packets);
+		//iface_counters_add(iface, iface->if_counter_ctx->counter_bytes[qua], tv->n_tx_bytes);
 
 		n_tx_try_burst = 0;
-		tv->n_tx_bytes = 0;
-		tv->n_tx_packets = 0;
+		tv->n_tx_bytes_prov = 0;
+		tv->n_tx_packets_prov = 0;
 	}
 	/** reset counter. */
 	lconf->tx_burst[tx_port].n_tx_burst_len = n_tx_try_burst;
+	return 0;
 }
 
 #define NS_PER_US 1000
@@ -157,7 +161,6 @@ dp_dpdk_running_fn(void *ptr_data)
 {
 	vlib_main_t *vm = (vlib_main_t *)ptr_data;
 	dpdk_main_t *dm = &dpdk_main;
-	vlib_port_main_t *vp = &vlib_port_main;
 	struct lcore_conf *lconf;
 	unsigned i, j, portid, nb_rx;
 	struct rte_mbuf *rx_pkts_burst[DPDK_MAX_RX_BURST];
@@ -170,6 +173,7 @@ dp_dpdk_running_fn(void *ptr_data)
 	u32 n_rx_port = 0;
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	struct iface_t *iface;
+	vlib_port_main_t *vp = &vlib_port_main;
 	int qua = QUA_COUNTER_RX;
 	uint64_t prev_tsc, diff_tsc, cur_tsc;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
@@ -218,16 +222,18 @@ dp_dpdk_running_fn(void *ptr_data)
 		for (i = 0; i < lconf->n_rx_port; i++) {
 			
 			portid = lconf->rx_port_list[i];
-			
-			iface_lookup_id(vp, portid, &iface);
-			if(!iface) {
-				oryx_panic(-1, "Cannot locate a port.");
-			}
-		
+				
 			nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
 						 rx_pkts_burst, DPDK_MAX_RX_BURST);
 			if (nb_rx == 0)
 				continue;
+
+			tv->n_rx_packets += nb_rx;
+			
+			//iface_lookup_id(vp, portid, &iface);
+			//if(!iface) {
+				//oryx_panic(-1, "Cannot locate a port.");
+			//}
 
 			for (j = 0; j < nb_rx; j++) {
 				m = rx_pkts_burst[j];
@@ -235,23 +241,24 @@ dp_dpdk_running_fn(void *ptr_data)
 
 				p = get_priv(m);
 				pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+				tv->n_rx_bytes += m->pkt_len;
 				SET_PKT_LEN(p, m->pkt_len);
 				SET_PKT(p, pkt);
 				SET_PKT_SRC_PHY(p, portid);
-
+				//p->iface[QUA_RX] = iface;
 				/** stats */
-				iface_counters_inc(iface, iface->if_counter_ctx->counter_pkts[qua]);
-				iface_counters_add(iface, iface->if_counter_ctx->counter_bytes[qua], GET_PKT_LEN(p));
+				//iface_counters_inc(iface, iface->if_counter_ctx->counter_pkts[qua]);
+				//iface_counters_add(iface, iface->if_counter_ctx->counter_bytes[qua], GET_PKT_LEN(p));
 
-				DecodeEthernet0(tv, dtv, p, pkt, m->pkt_len, pq);
+				//DecodeEthernet0(tv, dtv, p, pkt, m->pkt_len, pq);
 
-				DecodeUpdateCounters(tv, dtv, p);
+				//DecodeUpdateCounters(tv, dtv, p);
 
 				/** StatsINCR called within PakcetDecodeFinalize. */
-				PacketDecodeFinalize(tv, dtv, p);
+				//PacketDecodeFinalize(tv, dtv, p);
 			
 				u32 rx_port = portid;
-				u32 tx_port = 1;
+				u32 tx_port = portid;	/** loopback. */
 				SET_PKT_DST_PHY(p, tx_port);
 				forward_out(tv, dtv, p, m, rx_port, tx_port, pq);
 			}
@@ -259,6 +266,7 @@ dp_dpdk_running_fn(void *ptr_data)
 	}
 
 	oryx_logn ("dp_main[%d] exiting ...", tv->lcore);
+	return 0;
 }
 
 static void
@@ -266,7 +274,7 @@ dpdk_eal_args_format(const char *argv)
 {
 	char *t = kmalloc(strlen(argv) + 1, MPF_CLR, __oryx_unused_val__);
 	sprintf (t, "%s%c", argv, 0);
-	eal_init_argv[eal_init_args ++] = t;
+	eal_init_argv[eal_init_argc ++] = t;
 }
 
 static void
@@ -274,7 +282,7 @@ dpdk_eal_args_2string(char *format_buffer) {
 	int i;
 	int l = 0;
 	
-	for (i = 0; i < eal_init_args; i ++) {
+	for (i = 0; i < eal_init_argc; i ++) {
 		l += sprintf (format_buffer + l, "%s ", eal_init_argv[i]);
 	}
 }
@@ -337,10 +345,10 @@ dpdk_format_eal_args (vlib_main_t *vm)
 	char eal_args_format_buffer[1024] = {0};
 	dpdk_eal_args_2string(eal_args_format_buffer);
 
-	vm->argc = eal_init_args;	
+	vm->argc = eal_init_argc;	
 	vm->argv = eal_init_argv;
 
-	oryx_logn("eal args[%d]= %s", eal_init_args, eal_args_format_buffer);
+	oryx_logn("eal args[%d]= %s", eal_init_argc, eal_args_format_buffer);
 }
 
 /* Check the link status of all ports in up to 9s, and print them finally */
@@ -492,7 +500,7 @@ void dpdk_env_setup(vlib_main_t *vm)
 	/* Initialize the port/queue configuration of each logical core */
 	for (portid = 0; portid < nb_ports; portid ++) {
 		/* skip ports that are not enabled */
-		if (conf->portmask & (1 << portid) == 0)
+		if ((conf->portmask & (1 << portid)) == 0)
 			continue;
 
 		/* get the lcore_id for this port */
@@ -517,7 +525,7 @@ void dpdk_env_setup(vlib_main_t *vm)
 	/* Initialise each port */
 	for (portid = 0; portid < nb_ports; portid++) {
 		/* skip ports that are not enabled */
-		if (conf->portmask & (1 << portid) == 0)
+		if ((conf->portmask & (1 << portid)) == 0)
 			continue;
 		
 		/* init port */
@@ -600,6 +608,7 @@ void dp_dpdk_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 static int dp_dpdk_free(void *mbuf)
 {
 	mbuf = mbuf;
+	return 0;
 }
 
 void dp_start_dpdk(struct vlib_main_t *vm) {
@@ -610,7 +619,6 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
-	PacketQueue *pq;
 	
 	vm->max_lcores = rte_lcore_count();
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
@@ -619,7 +627,6 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	for (i = 0; i < vm->max_lcores; i ++) {
 		tv = &g_tv[i];
 		dtv = &g_dtv[i];
-		pq = &g_pq[i];
 		sprintf (thrgp_name, "dp[%u] hd-thread", i);
 		tv->thread_group_name = strdup(thrgp_name);
 		SC_ATOMIC_INIT(tv->flags);

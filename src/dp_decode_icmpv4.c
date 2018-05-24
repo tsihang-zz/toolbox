@@ -96,7 +96,7 @@ static int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
     }
 
     /* debug print */
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     char s[16], d[16];
     PrintInet(AF_INET, &(p->icmpv4vars.emb_ip4_src), s, sizeof(s));
     PrintInet(AF_INET, &(p->icmpv4vars.emb_ip4_dst), d, sizeof(d));

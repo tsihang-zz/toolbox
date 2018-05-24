@@ -556,7 +556,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
         return TM_ECODE_FAILED;
     }
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     if (SCLogDebugEnabled()) { /* only convert the addresses if debug is really enabled */
         /* debug print */
         char s[46], d[46];

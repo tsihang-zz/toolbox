@@ -1,6 +1,6 @@
 #include "oryx.h"
 #include "dp_decode.h"
-
+
 /* Generic validation
  *
  * [--type--][--len---]
@@ -262,7 +262,7 @@ static int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options 
 {
     uint16_t plen = len;
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     if (SCLogDebugEnabled()) {
         uint16_t i;
         char buf[256] = "";
@@ -528,7 +528,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 #endif
     /* do hdr test, process hdr rules */
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     if (SCLogDebugEnabled()) { /* only convert the addresses if debug is really enabled */
         /* debug print */
         char s[16], d[16];

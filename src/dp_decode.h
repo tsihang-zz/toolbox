@@ -341,6 +341,7 @@ typedef struct Packet_
 	uint8_t  *pkt;
     uint32_t pktlen;
     uint8_t *ext_pkt;
+	void *iface[QUA_RXTX];	/** rx and tx iface for this packet. */
 
     /* engine events */
     PacketEngineEvents events;

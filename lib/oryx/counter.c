@@ -162,7 +162,7 @@ int oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
 */
 void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
 	BUG_ON ((id < 1) || (id > ctx->size));
 #endif
 	atomic64_inc(&ctx->head[id].value);
@@ -173,7 +173,7 @@ void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
  */
 void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON ((id < 1) || (id > ctx->size));
 #endif
 	atomic64_add(&ctx->head[id].value, x);
@@ -186,7 +186,7 @@ void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
  */
 void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
 		BUG_ON ((id < 1) || (id > ctx->size));
 #endif
 
@@ -207,7 +207,7 @@ void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
  */
 u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 {
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     BUG_ON ((id < 1) || (id > ctx->size));
 #endif
     return (u64)atomic64_read(&ctx->head[id].value);

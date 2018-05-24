@@ -26,8 +26,13 @@ typedef struct ThreadVars_ {
     struct ThreadVars_ *prev;
 
 	/** hold a simple statistics. */
+	u64 n_tx_packets_prov;
+	u64 n_tx_bytes_prov;
+	
 	u64 n_tx_packets;
 	u64 n_tx_bytes;
+	u64 n_rx_packets;
+	u64 n_rx_bytes;
 
 }ThreadVars;
 

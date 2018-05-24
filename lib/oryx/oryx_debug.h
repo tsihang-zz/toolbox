@@ -287,6 +287,7 @@ extern u32 oryx_log_global_log_level;
 			}																		\
 		} while(0)
 
+#if defined(BUILD_DEBUG)
 /**
  * \brief Macro used to log DEBUG messages. Comes under the debugging subsystem,
  *		  and hence will be enabled only in the presence of the DEBUG macro.
@@ -366,7 +367,87 @@ extern u32 oryx_log_global_log_level;
 #define oryx_logE(err_code, ...) __oryx_loge__(ORYX_LOG_EMERGENCY, \
         __FILE__, __FUNCTION__, __LINE__, \
         err_code, __VA_ARGS__)
+#else
+/**
+ * \brief Macro used to log DEBUG messages. Comes under the debugging subsystem,
+ *		  and hence will be enabled only in the presence of the DEBUG macro.
+ *
+ * \retval ... Takes as argument(s), a printf style format message
+ */
+#define oryx_logd(...)
 
+/**
+ * \brief Macro used to log INFORMATIONAL messages.
+ *
+ * \retval ... Takes as argument(s), a printf style format message
+ */
+#define oryx_logi(...)
+					
+/**
+ * \brief Macro used to log NOTICE messages.
+ *
+ * \retval ... Takes as argument(s), a printf style format message
+ */
+#define oryx_logn(...) __oryx_log__(ORYX_LOG_NOTICE, \
+        __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+
+/**
+ * \brief Macro used to log WARNING messages.
+ *
+ * \retval err_code Error code that has to be logged along with the
+ *                  warning message
+ * \retval ...      Takes as argument(s), a printf style format message
+ */
+#define oryx_logw(err_code, ...) __oryx_loge__(ORYX_LOG_WARNING, \
+        __FILE__, __FUNCTION__, __LINE__, \
+        err_code, __VA_ARGS__)
+
+/**
+ * \brief Macro used to log ERROR messages.
+ *
+ * \retval err_code Error code that has to be logged along with the
+ *                  error message
+ * \retval ...      Takes as argument(s), a printf style format message
+ */
+#define oryx_loge(err_code, ...) __oryx_loge__(ORYX_LOG_ERROR, \
+        __FILE__, __FUNCTION__, __LINE__, \
+        err_code, __VA_ARGS__)
+
+/**
+ * \brief Macro used to log CRITICAL messages.
+ *
+ * \retval err_code Error code that has to be logged along with the
+ *                  critical message
+ * \retval ...      Takes as argument(s), a printf style format message
+ */
+#define oryx_logc(err_code, ...) __oryx_loge__(ORYX_LOG_CRITICAL, \
+        __FILE__, __FUNCTION__, __LINE__, \
+        err_code, __VA_ARGS__)
+
+/**
+ * \brief Macro used to log ALERT messages.
+ *
+ * \retval err_code Error code that has to be logged along with the
+ *                  alert message
+ * \retval ...      Takes as argument(s), a printf style format message
+ */
+#define oryx_loga(err_code, ...) __oryx_loge__(ORYX_LOG_ALERT, \
+        __FILE__, __FUNCTION__, __LINE__, \
+        err_code, __VA_ARGS__)
+
+/**
+ * \brief Macro used to log EMERGENCY messages.
+ *
+ * \retval err_code Error code that has to be logged along with the
+ *                  emergency message
+ * \retval ...      Takes as argument(s), a printf style format message
+ */
+#define oryx_logE(err_code, ...) __oryx_loge__(ORYX_LOG_EMERGENCY, \
+        __FILE__, __FUNCTION__, __LINE__, \
+        err_code, __VA_ARGS__)
+
+
+#endif
 void
 oryx_panic(int exit_code, const char *format, ...);
 

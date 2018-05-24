@@ -92,6 +92,10 @@ DEFUN(show_dp_stats,
 		tv = &g_tv[lcore % vm->max_lcores];
 		dtv = &g_dtv[lcore % vm->max_lcores];
 
+		vty_out(vty, "%18s%18d%s", "lcore:", lcore, VTY_NEWLINE);
+		vty_out(vty, "%18s%18llu%s", "n_rx_packets:", tv->n_rx_packets, VTY_NEWLINE);
+		vty_out(vty, "%18s%18llu%s", "n_tx_packets:", tv->n_tx_packets, VTY_NEWLINE);
+
 		counter_pkts_total += 
 			counter_pkts[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_pkts);
 		counter_bytes_total += 
@@ -142,10 +146,49 @@ DEFUN(show_dp_stats,
 	return CMD_SUCCESS;
 }
 
+DEFUN(clear_dp_stats,
+	clear_dp_stats_cmd,
+	"clear dp_stats",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
+{
+	int lcore = 0;
+	ThreadVars *tv;
+	DecodeThreadVars *dtv;
+	vlib_main_t *vm = &vlib_main;
+
+	for (lcore = 0; lcore < vm->max_lcores; lcore ++) {
+		tv = &g_tv[lcore % vm->max_lcores];
+		dtv = &g_dtv[lcore % vm->max_lcores];
+
+		tv->n_rx_bytes = 0;
+		tv->n_rx_packets = 0;
+		tv->n_tx_bytes = 0;
+		tv->n_tx_packets = 0;
+		
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv4, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv6, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_tcp, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_udp, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv4, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv6, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_arp, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_sctp, 0);
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_invalid, 0);
+
+	}
+
+	return CMD_SUCCESS;
+}
+
 void common_cli(void)
 {
 	ThreadVars *tv;
 	
 	install_element (CONFIG_NODE, &set_log_level_cmd);
 	install_element (CONFIG_NODE, &show_dp_stats_cmd);
+	install_element (CONFIG_NODE, &clear_dp_stats_cmd);
 }

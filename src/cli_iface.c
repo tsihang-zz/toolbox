@@ -112,6 +112,25 @@ void port_entry_output (struct iface_t *port, struct vty *vty)
 
 }
 
+static __oryx_always_inline__
+void port_entry_stat_clear (struct iface_t *port, struct vty *vty)
+{
+	int id = 0;
+	struct CounterCtx *per_private_ctx0 = port->perf_private_ctx;
+	struct iface_counter_ctx *if_counter_ctx0 = port->if_counter_ctx;
+	
+	if (unlikely (!port)) 
+		return;
+
+	id = QUA_COUNTER_RX;
+	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_pkts[id], 0);
+	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_bytes[id], 0);
+	
+	id = QUA_COUNTER_TX;
+	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_pkts[id], 0);
+	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_bytes[id], 0);
+}
+
 	
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
@@ -276,6 +295,36 @@ DEFUN(show_interfacce_stats,
     return CMD_SUCCESS;
 }
 
+DEFUN(clear_interface_stats,
+	clear_interface_stats_cmd,
+	"clear interface stats [WORD]",
+	KEEP_QUITE_STR
+	KEEP_QUITE_CSTR
+	KEEP_QUITE_STR
+	KEEP_QUITE_CSTR
+	KEEP_QUITE_STR
+	KEEP_QUITE_CSTR
+	KEEP_QUITE_STR
+	KEEP_QUITE_CSTR)
+{
+	vlib_port_main_t *vp = &vlib_port_main;
+	vty_out(vty, "Trying to display %d elements ...%s", 
+			vec_active(vp->entry_vec), VTY_NEWLINE);
+
+	if (argc == 0) {
+		foreach_port_func1_param1 (
+			argv[0], port_entry_stat_clear, vty);
+	}
+	else {
+		split_foreach_port_func1_param1 (
+			argv[0], port_entry_stat_clear, vty);
+	}
+	
+	PRINT_SUMMARY;
+
+	return CMD_SUCCESS;
+}
+
 DEFUN(interface_alias,
       interface_alias_cmd,
       "interface WORD alias WORD",
@@ -343,33 +392,6 @@ DEFUN(interface_looback,
 	vlib_port_main_t *vp = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_LOOPBACK,
-		.v = (char *)argv[1],
-		.s = __oryx_unused_val__,
-	};
-	
-	split_foreach_port_func1_param2 (
-		argv[0], port_entry_config, vty, (void *)&var);
-
-	PRINT_SUMMARY;
-	
-	return CMD_SUCCESS;
-}
-
-DEFUN(interface_stats_clear,
-      interface_stats_clear_cmd,
-      "clear interface stats WORD",
-      KEEP_QUITE_STR
-      KEEP_QUITE_CSTR
-      KEEP_QUITE_STR
-      KEEP_QUITE_CSTR
-      KEEP_QUITE_STR
-      KEEP_QUITE_CSTR
-      KEEP_QUITE_STR
-      KEEP_QUITE_CSTR)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-	struct prefix_t var = {
-		.cmd = INTERFACE_CLEAR_STATS,
 		.v = (char *)argv[1],
 		.s = __oryx_unused_val__,
 	};
@@ -719,10 +741,10 @@ void port_init(vlib_main_t *vm)
 	    
 	install_element (CONFIG_NODE, &show_interface_cmd);
 	install_element (CONFIG_NODE, &show_interfacce_stats_cmd);
+	install_element (CONFIG_NODE, &clear_interface_stats_cmd);
 	install_element (CONFIG_NODE, &interface_alias_cmd);
 	install_element (CONFIG_NODE, &interface_mtu_cmd);
 	install_element (CONFIG_NODE, &interface_looback_cmd);
-	install_element (CONFIG_NODE, &interface_stats_clear_cmd);
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 

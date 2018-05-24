@@ -95,7 +95,7 @@ static void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
     }
 
     /* debug print */
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     char s[46], d[46];
     PrintInet(AF_INET6, (const void *)p->icmpv6vars.emb_ip6_src, s, sizeof(s));
     PrintInet(AF_INET6, (const void *)p->icmpv6vars.emb_ip6_dst, d, sizeof(d));
@@ -434,7 +434,7 @@ int DecodeICMPV60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
         }
     }
 
-#ifdef DEBUG
+#if defined(BUILD_DEBUG)
     if (ENGINE_ISSET_EVENT(p, ICMPV6_UNKNOWN_CODE))
         oryx_logd("Unknown Code, ICMPV6_UNKNOWN_CODE");
 

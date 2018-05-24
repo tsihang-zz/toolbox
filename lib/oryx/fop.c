@@ -267,11 +267,13 @@ int tm_format(uint64_t ts, const char *tm_form, char *date, size_t len)
 }
 
 __oryx_always_extern__
-void do_system(const char *cmd)
+int do_system(const char *cmd)
 {
     if (likely(cmd)) {
 	    __oryx_noreturn__(system(cmd));
     }
+
+	return 0;
 }
 
 __oryx_always_extern__
