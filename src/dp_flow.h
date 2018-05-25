@@ -144,7 +144,14 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
 
 #endif	/** end of if defined(HAVE_FLOW_MGR */
 
-void FlowSetupPacket(Packet *p);
+static inline void FlowSetupPacket(Packet *p)
+{
+#if defined(HAVE_FLOW_MGR)
+    p->flags |= PKT_WANTS_FLOW;
+    p->flow_hash = FlowGetHash(p);
+#endif
+}
+
 
 
 #endif	/** end of ifndef DP_FLOW_H */

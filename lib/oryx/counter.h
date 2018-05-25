@@ -3,6 +3,13 @@
 
 typedef u32 counter_id;
 
+#if defined(COUNTER_USE_ATOMIC)
+typedef atomic64_t cu64;
+#else
+typedef u64 cu64;
+#endif
+
+
 /**
  * \brief Different kinds of qualifier that can be used to modify the behaviour
  *        of the counter to be registered
@@ -15,7 +22,9 @@ enum {
 
     STATS_TYPE_Q_MAX = 5,
 };
-	
+
+
+
 struct counter_t {
 
 	/** alias for this counter. */
@@ -31,8 +40,8 @@ struct counter_t {
     counter_id gid;
 
     /* counter value(s). thread-safety. */
-    atomic64_t value;     /**< sum of updates/increments, or 'set' value */
-    atomic64_t updates;   /**< number of updates (for avg) */
+    cu64 value;     /**< sum of updates/increments, or 'set' value */
+    cu64 updates;   /**< number of updates (for avg) */
 
     /* when using type STATS_TYPE_Q_FUNC this function is called once
      * to get the counter value, regardless of how many threads there are. */

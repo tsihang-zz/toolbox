@@ -34,6 +34,8 @@ typedef struct ThreadVars_ {
 	u64 n_rx_packets;
 	u64 n_rx_bytes;
 
+	/** decode ops. */
+	void *d_ops;
 }ThreadVars;
 
 #endif

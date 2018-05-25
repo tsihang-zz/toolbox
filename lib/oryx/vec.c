@@ -52,22 +52,6 @@ vec_copy (oryx_vector v)
   return new;
 }
 
-/* Check assigned index, and if it runs short double index pointer */
-void
-vec_ensure (oryx_vector v, unsigned int num)
-{
-  if (v->alloced > num)
-    return;
-
-  v->index = krealloc (v->index, sizeof (void *) * (v->alloced * 2),
-  					MPF_NOFLGS, __oryx_unused_val__);
-  memset (&v->index[v->alloced], 0, sizeof (void *) * v->alloced);
-  v->alloced *= 2;
-  
-  if (v->alloced <= num)
-    vec_ensure (v, num);
-}
-
 /* This function only returns next empty slot index.  It dose not mean
    the slot's index memory is assigned, please call vec_ensure()
    after calling this function. */
@@ -117,23 +101,6 @@ vec_set_index (oryx_vector v, unsigned int i, void *val)
   return i;
 }
 
-/* Look up oryx_vector.  */
-void *
-vec_lookup (oryx_vector v, unsigned int i)
-{
-  if (i >= v->active)
-    return NULL;
-  return v->index[i];
-}
-
-/* Lookup oryx_vector, ensure it. */
-void *
-vec_lookup_ensure (oryx_vector v, unsigned int i)
-{
-  vec_ensure (v, i);
-  return v->index[i];
-}
-
 /* Unset value at specified index slot. */
 void
 vec_unset (oryx_vector v, unsigned int i)
@@ -149,20 +116,6 @@ vec_unset (oryx_vector v, unsigned int i)
       while (i && v->index[--i] == NULL && v->active--) 
 	;				/* Is this ugly ? */
     }
-}
-
-/* Count the number of not emplty slot. */
-unsigned int
-vec_count (oryx_vector v)
-{
-  unsigned int i;
-  unsigned count = 0;
-
-  for (i = 0; i < v->active; i++) 
-    if (v->index[i] != NULL)
-      count++;
-
-  return count;
 }
 
 void *vec_last (oryx_vector v)
@@ -189,5 +142,29 @@ void *vec_first (oryx_vector v)
         }
             
     return first;
+}
+
+/* Check assigned index, and if it runs short double index pointer */
+void
+vec_ensure (oryx_vector v, unsigned int num)
+{
+  if (v->alloced > num)
+    return;
+
+  v->index = krealloc (v->index, sizeof (void *) * (v->alloced * 2),
+  					MPF_NOFLGS, __oryx_unused_val__);
+  memset (&v->index[v->alloced], 0, sizeof (void *) * v->alloced);
+  v->alloced *= 2;
+  
+  if (v->alloced <= num)
+    vec_ensure (v, num);
+}
+
+/* Lookup oryx_vector, ensure it. */
+void *
+vec_lookup_ensure (oryx_vector v, unsigned int i)
+{
+  vec_ensure (v, i);
+  return v->index[i];
 }
 

@@ -49,22 +49,44 @@ typedef struct _oryx_vector *oryx_vector;
 
 /* Prototypes. */
 extern oryx_vector vec_init (unsigned int size);
-extern void vec_ensure (oryx_vector v, unsigned int num);
 extern int vec_empty_slot (oryx_vector v);
 extern int vec_set (oryx_vector v, void *val);
 extern int vec_set_index (oryx_vector v, unsigned int i, void *val);
 extern void vec_unset (oryx_vector v, unsigned int i);
-extern unsigned int vec_count (oryx_vector v);
 extern void vec_only_wrapper_free (oryx_vector v);
 extern void vec_only_index_free (void *index);
 extern void vec_free (oryx_vector v);
 extern oryx_vector vec_copy (oryx_vector v);
-
-extern void *vec_lookup (oryx_vector, unsigned int);
-extern void *vec_lookup_ensure (oryx_vector, unsigned int);
-
 void *vec_first (oryx_vector v);
 void *vec_last (oryx_vector v);
+void
+vec_ensure (oryx_vector v, unsigned int num);
+void *
+vec_lookup_ensure (oryx_vector v, unsigned int i);
+
+/* Look up oryx_vector.  */
+static inline void *
+vec_lookup (oryx_vector v, unsigned int i)
+{
+  if (i >= v->active)
+    return NULL;
+  return v->index[i];
+}
+
+/* Count the number of not emplty slot. */
+static inline unsigned int
+vec_count (oryx_vector v)
+{
+  unsigned int i;
+  unsigned count = 0;
+
+  for (i = 0; i < v->active; i++) 
+    if (v->index[i] != NULL)
+      count++;
+
+  return count;
+}
+
 
 #define vec_foreach_element(oryx_vector, foreach_element, element)\
 	for (foreach_element = 0, element = NULL;\

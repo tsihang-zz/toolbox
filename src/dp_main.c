@@ -171,22 +171,14 @@ notify_dp(vlib_main_t *vm, int signum)
 
 void dp_start(struct vlib_main_t *vm)
 {
-	printf("===== sizeof(struct Packet)=%d ========\n", sizeof(Packet));
-
-#if defined(HAVE_DPDK)
-	dpdk_main.conf->mempool_priv_size = vm->extra_priv_size;
-	dpdk_env_setup(vm);
-	vm->max_lcores = rte_lcore_count();
-#else
-	vm->max_lcores = MAX_LCORES;
-#endif
-	vm->ul_flags |= VLIB_DP_INITIALIZED;
-
 #if defined(HAVE_DPDK)
 	dp_start_dpdk(vm);
 #else
+	vm->nb_lcores = MAX_LCORES;
 	dp_start_pcap(vm);
 #endif
+
+	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }
 
 void dp_end(struct vlib_main_t *vm)

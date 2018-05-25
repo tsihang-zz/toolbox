@@ -1,14 +1,25 @@
 #include "oryx.h"
 #include "dp_decode.h"
+#include "dp_flow.h"
+#include "dp_decode_tcp.h"
+#include "dp_decode_udp.h"
+#include "dp_decode_sctp.h"
+#include "dp_decode_gre.h"
+#include "dp_decode_icmpv4.h"
+#include "dp_decode_icmpv6.h"
+#include "dp_decode_ipv4.h"
+#include "dp_decode_ipv6.h"
+#include "dp_decode_pppoe.h"
+#include "dp_decode_mpls.h"
+#include "dp_decode_arp.h"
+#include "dp_decode_vlan.h"
+#include "dp_decode_marvell_dsa.h"
+#include "dp_decode_eth.h"
 
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 extern bool force_quit;
-
-extern void
-DecodeUpdateCounters(ThreadVars *tv,
-                                const DecodeThreadVars *dtv, const Packet *p);
 
 extern void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
@@ -62,7 +73,6 @@ dp_pkt_handler(u_char *argv,
     }
 #endif
 
-finish:
 	/** recycle packet. */
 	if(likely(p)){
         PACKET_RECYCLE(p);
@@ -115,6 +125,7 @@ void *dp_libpcap_running_fn(void *argv)
 	}
 
 	oryx_task_deregistry_id(pthread_self());
+	return NULL;
 }
 
 static struct oryx_task_t netdev_task =
@@ -141,7 +152,7 @@ void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 void dp_start_pcap(struct vlib_main_t *vm) {
 
 	char thrgp_name[128] = {0}; 
-	u32 max_lcores = MAX_LCORES;
+	u32 nb_lcores = MAX_LCORES;
 	int i;
 	
 	ThreadVars *tv;
@@ -149,9 +160,9 @@ void dp_start_pcap(struct vlib_main_t *vm) {
 	PacketQueue *pq;
 	
 	printf ("Master Lcore @ %d/%d\n", 0,
-		max_lcores);
+		nb_lcores);
 		
-	for (i = 0; i < (int)max_lcores; i ++) {
+	for (i = 0; i < (int)nb_lcores; i ++) {
 		tv = &g_tv[i];
 		dtv = &g_dtv[i];
 		pq = &g_pq[i];

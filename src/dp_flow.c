@@ -716,11 +716,5 @@ void FlowHandlePacket(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 }
 #endif
 
-void FlowSetupPacket(Packet *p)
-{
-#if defined(HAVE_FLOW_MGR)
-    p->flags |= PKT_WANTS_FLOW;
-    p->flow_hash = FlowGetHash(p);
-#endif
-}
+
 

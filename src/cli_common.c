@@ -88,9 +88,9 @@ DEFUN(show_dp_stats,
 	u64 counter_sctp_total = 0;
 	u64 counter_pkts_invalid_total = 0;
 
-	for (lcore = 0; lcore < vm->max_lcores; lcore ++) {
-		tv = &g_tv[lcore % vm->max_lcores];
-		dtv = &g_dtv[lcore % vm->max_lcores];
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		tv = &g_tv[lcore % vm->nb_lcores];
+		dtv = &g_dtv[lcore % vm->nb_lcores];
 
 		vty_out(vty, "%18s%18d%s", "lcore:", lcore, VTY_NEWLINE);
 		vty_out(vty, "%18s%18llu%s", "n_rx_packets:", tv->n_rx_packets, VTY_NEWLINE);
@@ -128,7 +128,7 @@ DEFUN(show_dp_stats,
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
-	for (lcore = 0; lcore < vm->max_lcores; lcore ++) {
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
 
 		char format_pkts[20] = {0};
 		sprintf (format_pkts, "%llu(%.2f%)", counter_pkts[lcore], ratio_of(counter_pkts[lcore], counter_pkts_total));
@@ -157,9 +157,9 @@ DEFUN(clear_dp_stats,
 	DecodeThreadVars *dtv;
 	vlib_main_t *vm = &vlib_main;
 
-	for (lcore = 0; lcore < vm->max_lcores; lcore ++) {
-		tv = &g_tv[lcore % vm->max_lcores];
-		dtv = &g_dtv[lcore % vm->max_lcores];
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		tv = &g_tv[lcore % vm->nb_lcores];
+		dtv = &g_dtv[lcore % vm->nb_lcores];
 
 		tv->n_rx_bytes = 0;
 		tv->n_rx_packets = 0;

@@ -6,7 +6,6 @@
 #include "common_private.h"
 #include "vars_private.h"
 #include "queue_private.h"
-
 #include "threadvars.h"
 #include "event.h"
 /* < protocol headers> */
@@ -447,30 +446,78 @@ get_priv(struct rte_mbuf *m)
 {
 	return RTE_PTR_ADD(m, sizeof(struct rte_mbuf));
 }
-
 #endif
 
-#include "dp_decode_eth.h"
-#include "dp_decode_marvell_dsa.h"
-#include "dp_decode_ipv4.h"
-#include "dp_decode_ipv6.h"
-#include "dp_decode_icmpv4.h"
-#include "dp_decode_icmpv6.h"
-#include "dp_decode_udp.h"
-#include "dp_decode_tcp.h"
-#include "dp_decode_sctp.h"
-#include "dp_decode_gre.h"
-#include "dp_decode_mpls.h"
-#include "dp_decode_ppp.h"
-#include "dp_decode_pppoe.h"
-#include "dp_decode_vlan.h"
-#include "dp_decode_arp.h"
+typedef int (*decode_eth_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int	(*decode_arp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_dsa_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+				 uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int	(*decode_vlan_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_mpls_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_ppp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_pppoe_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_ipv4_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_ipv6_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_gre_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_icmpv4_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_icmpv6_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_tcp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_udp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+
+typedef int (*decode_sctp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
 typedef struct _dp_args_t {
-	ThreadVars tv[MAX_LCORES];
-	DecodeThreadVars dtv[MAX_LCORES];
-	PacketQueue pq[MAX_LCORES];
+   ThreadVars tv[MAX_LCORES];
+   DecodeThreadVars dtv[MAX_LCORES];
+   PacketQueue pq[MAX_LCORES];
 }dp_private_t;
+
+struct eth_decode_ops {
+   decode_eth_t    decode_eth;
+   decode_arp_t    decode_arp;
+   decode_dsa_t    decode_dsa;
+   decode_ipv4_t   decode_ip4;
+   decode_ipv6_t   decode_ip6;
+   decode_gre_t    decode_gre;
+   decode_icmpv4_t decode_icmp4;
+   decode_icmpv6_t decode_icmp6;
+   decode_tcp_t    decode_tcp;
+   decode_udp_t    decode_udp;
+   decode_sctp_t   decode_sctp;
+   decode_vlan_t   decode_vlan;
+   decode_mpls_t   decode_mpls;
+   decode_ppp_t    decode_ppp;
+   decode_pppoe_t  decode_pppoe_session;
+   decode_pppoe_t  decode_pppoe_disc;
+};
+
 
 static inline void dump_pkt(uint8_t *pkt, int len)
 {
@@ -482,6 +529,69 @@ static inline void dump_pkt(uint8_t *pkt, int len)
 		printf("%02x ", pkt[i]);
 	}
 	printf ("\n");
+}
+
+#if 0
+#include "dp_decode_udp.h"
+#include "dp_decode_tcp.h"
+#include "dp_decode_sctp.h"
+#include "dp_decode_gre.h"
+#include "dp_decode_icmpv4.h"
+#include "dp_decode_icmpv6.h"
+#include "dp_decode_mpls.h"
+#include "dp_decode_ppp.h"
+#include "dp_decode_pppoe.h"
+#include "dp_decode_arp.h"
+#include "dp_decode_marvell_dsa.h"
+#include "dp_decode_ipv4.h"
+#include "dp_decode_ipv6.h"
+#include "dp_decode_vlan.h"
+#include "dp_decode_eth.h"
+#endif
+
+struct MarvellDSAMap {
+	u8 p;
+	const char *comment;
+};
+
+static inline void DecodeUpdateCounters(ThreadVars *tv,
+                                const DecodeThreadVars *dtv, const Packet *p)
+{
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, GET_PKT_LEN(p));
+}
+
+/**
+ 
+* \brief Finalize decoding of a packet
+ 
+*
+ 
+* This function needs to be call at the end of decode
+ 
+* functions when decoding has been succesful.
+ 
+*
+ 
+*/
+static inline void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
+
+{
+
+    
+	if (p->flags & PKT_IS_INVALID) {
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);
+		int i = 0;
+	
+	for (i = 0; i < p->events.cnt; i++) {
+			if (EVENT_IS_DECODER_PACKET_ERROR(p->events.events[i])) {
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid_events[p->events.events[i]]);
+			}
+		}
+	  
+	}
 }
 
 extern Packet *PacketGetFromAlloc(void);

@@ -157,63 +157,6 @@ int oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
     return 0;
 }
 
-/**
-* \brief Increments the counter
-*/
-void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
-{
-#if defined(BUILD_DEBUG)
-	BUG_ON ((id < 1) || (id > ctx->size));
-#endif
-	atomic64_inc(&ctx->head[id].value);
-	atomic64_inc(&ctx->head[id].updates);
-}
-/**
- * \brief Adds a value of type uint64_t to the local counter.
- */
-void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
-{
-#if defined(BUILD_DEBUG)
-    BUG_ON ((id < 1) || (id > ctx->size));
-#endif
-	atomic64_add(&ctx->head[id].value, x);
-	atomic64_inc(&ctx->head[id].updates);
-    return;
-}
-
-/**
- * \brief Sets a value of type double to the local counter
- */
-void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
-{
-#if defined(BUILD_DEBUG)
-		BUG_ON ((id < 1) || (id > ctx->size));
-#endif
-
-    if ((ctx->head[id].type == STATS_TYPE_Q_MAXIMUM) &&
-            (x > (u64)atomic64_read(&ctx->head[id].value))) {
-		atomic64_set(&ctx->head[id].value, x);
-    } else if (ctx->head[id].type == STATS_TYPE_Q_NORMAL) {
-		atomic64_set(&ctx->head[id].value, x);
-    }
-
-	atomic64_inc(&ctx->head[id].updates);
-
-    return;
-}
-
-/**
- * \brief Get the value of the local copy of the counter that hold this id.
- */
-u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
-{
-#if defined(BUILD_DEBUG)
-    BUG_ON ((id < 1) || (id > ctx->size));
-#endif
-    return (u64)atomic64_read(&ctx->head[id].value);
-}
-
-
 void oryx_counter_init(void)
 {
 	BUG_ON(sg_ctx != NULL);

@@ -131,11 +131,17 @@ extern vlib_port_main_t vlib_port_main;
 
 #define port_alias(p) ((p)->sc_alias)
 
+static inline int iface_lookup_id(vlib_port_main_t *vp,
+				u32 id, struct iface_t **this)
+{
+	(*this) = NULL;
+	(*this) = (struct iface_t *) vec_lookup (vp->entry_vec, id);
+	return 0;
+}
+
 void iface_alloc (struct iface_t **);
 int iface_rename(vlib_port_main_t *vp, 
 				struct iface_t *this, const char *new_name);
-int iface_lookup_id(vlib_port_main_t *vp,
-				u32 id, struct iface_t **this);
 int iface_lookup_alias(vlib_port_main_t *vp,
 				const char *alias, struct iface_t **this);
 

@@ -61,16 +61,6 @@ int iface_rename(vlib_port_main_t *vp,
 	return 0;
 }
 
-int iface_lookup_id(vlib_port_main_t *vp,
-				u32 id, struct iface_t **this)
-{
-	(*this) = NULL;
-	do_lock (&vp->lock);
-	(*this) = (struct iface_t *) vec_lookup_ensure (vp->entry_vec, id);
-	do_unlock (&vp->lock);
-	return 0;
-}
-
 int iface_lookup_alias(vlib_port_main_t *vp,
 				const char *alias, struct iface_t **this)
 {

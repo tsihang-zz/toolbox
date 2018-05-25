@@ -53,6 +53,9 @@
 /* How many objects (mbufs) to keep in per-lcore mempool cache */
 #define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_RX_BURST
 
+#define NS_PER_US 1000
+#define US_PER_MS 1000
+#define MS_PER_S 1000
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 
 /*
@@ -78,25 +81,36 @@ struct tx_burst_table {
 	struct rte_mbuf *burst[DPDK_MAX_TX_BURST];
 };
 
-struct lcore_rx_queue {
+struct lcore_queue {
 	uint8_t port_id;
 	uint8_t queue_id;
+	uint8_t lcore_id;
 } __rte_cache_aligned;
 
-struct lcore_conf {
+struct LcoreConfigContext {
+	/** Count of rx port for this lcore, hold by rx_port_list */
 	unsigned n_rx_port;
+	/** Count of rx queue for this lcore, hold by rx_queue_list */
 	uint16_t n_rx_queue;
+	/** Rx ports list for this lcore */
 	unsigned rx_port_list[RTE_MAX_ETHPORTS];
-	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
-	
+	/** Rx queues list for this lcore */
+	struct lcore_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+
+	/** Count of tx port for this lcore, hold by tx_port_list */
 	uint16_t n_tx_port;
+	/** Count of tx queue for this lcore, hold by tx_queue_list */
 	uint16_t n_tx_queue;
+	/** Tx ports list for this lcore */
 	unsigned tx_port_list[RTE_MAX_ETHPORTS];
-	
+	/** Tx queues list for this lcore */
+	struct lcore_queue tx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+
+	/* Tx buffers. */
 	struct tx_burst_table tx_burst[RTE_MAX_ETHPORTS];
 } __rte_cache_aligned;
 
-extern struct lcore_conf lcore_conf_ctx[];
+extern struct LcoreConfigContext lconf_ctx[];
 extern struct rte_eth_conf dpdk_eth_default_conf;
 
 typedef union {
@@ -214,6 +228,7 @@ typedef struct {
 	
 	/* mempool */
 	struct rte_mempool *pktmbuf_pools;
+	struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
 	u32 n_lcores;
 	u32 n_ports;
