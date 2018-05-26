@@ -89,22 +89,26 @@ struct iface_t {
 	struct iface_counter_ctx *if_counter_ctx;
 };
 
-static inline void iface_counters_add(struct iface_t *p,
+static __oryx_always_inline__
+void iface_counters_add(struct iface_t *p,
 					counter_id id, u64 x){
 	oryx_counter_add(p->perf_private_ctx, id, x);
 }
 
-static inline void iface_counters_inc(struct iface_t *p,
+static __oryx_always_inline__
+void iface_counters_inc(struct iface_t *p,
 					counter_id id){
 	oryx_counter_inc(p->perf_private_ctx, id);
 }
 
-static inline void iface_counters_set(struct iface_t *p,
+static __oryx_always_inline__
+void iface_counters_set(struct iface_t *p,
 					counter_id id, u64 x){
 	oryx_counter_set(p->perf_private_ctx, id, x);
 }
 
-static inline void iface_counters_clear(struct iface_t *p,
+static __oryx_always_inline__
+void iface_counters_clear(struct iface_t *p,
 					counter_id id){
 	oryx_counter_set(p->perf_private_ctx, id, 0);
 }
@@ -131,7 +135,7 @@ extern vlib_port_main_t vlib_port_main;
 
 #define port_alias(p) ((p)->sc_alias)
 
-static inline int iface_lookup_id(vlib_port_main_t *vp,
+static __oryx_always_inline__ int iface_lookup_id(vlib_port_main_t *vp,
 				u32 id, struct iface_t **this)
 {
 	(*this) = NULL;

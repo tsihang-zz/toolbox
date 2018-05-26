@@ -84,7 +84,7 @@ int FlowStorageRegister(const char *name, const unsigned int size, void *(*Alloc
  hashlittle() has to dance around fitting the key bytes into registers.
 --------------------------------------------------------------------
 */
-static inline uint32_t hashword(
+static __oryx_always_inline__ uint32_t hashword(
 const uint32_t *k,                   /* the key, an array of uint32_t values */
 size_t          length,               /* the length of the key, in uint32_ts */
 uint32_t        initval)         /* the previous hash, or an arbitrary value */
@@ -129,7 +129,7 @@ uint32_t        initval)         /* the previous hash, or an arbitrary value */
  *           detect-engine-address-ipv6.c's AddressIPv6GtU32 is likely
  *           what you are looking for.
  */
-static inline int FlowHashRawAddressIPv6GtU32(const uint32_t *a, const uint32_t *b)
+static __oryx_always_inline__ int FlowHashRawAddressIPv6GtU32(const uint32_t *a, const uint32_t *b)
 {
     int i;
 
@@ -186,7 +186,7 @@ Flow *FlowAlloc(void)
  *
  *  For ICMP we only consider UNREACHABLE errors atm.
  */
-static inline uint32_t FlowGetHash(const Packet *p)
+static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
 {
     uint32_t hash = 0;
 
@@ -289,7 +289,7 @@ static inline uint32_t FlowGetHash(const Packet *p)
  *  \retval 1 true
  *  \retval 0 false
  */
-static inline int FlowCreateCheck(const Packet *p)
+static __oryx_always_inline__ int FlowCreateCheck(const Packet *p)
 {
     if (PKT_IS_ICMPV4(p)) {
         if (ICMPV4_IS_ERROR_MSG(p)) {
@@ -300,7 +300,7 @@ static inline int FlowCreateCheck(const Packet *p)
     return 1;
 }
 
-static inline void FlowUpdateCounter(ThreadVars *tv, DecodeThreadVars *dtv,
+static __oryx_always_inline__ void FlowUpdateCounter(ThreadVars *tv, DecodeThreadVars *dtv,
         uint8_t proto)
 {
 #ifdef UNITTESTS
@@ -400,7 +400,7 @@ static Flow *FlowGetNew(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p)
     return f;
 }
 
-static inline int FlowCompare(Flow *f, const Packet *p)
+static __oryx_always_inline__ int FlowCompare(Flow *f, const Packet *p)
 {
     if (p->proto == IPPROTO_ICMP) {
         return FlowCompareICMPv4(f, p);
@@ -512,7 +512,7 @@ void FlowInit(Flow *f, const Packet *p)
  *
  *  \param f flow to decrease use count for
  */
-static inline void FlowIncrUsecnt(Flow *f)
+static __oryx_always_inline__ void FlowIncrUsecnt(Flow *f)
 {
     if (f == NULL)
         return;
@@ -525,7 +525,7 @@ static inline void FlowIncrUsecnt(Flow *f)
  *
  *  \param f flow to decrease use count for
  */
-static inline void FlowDecrUsecnt(Flow *f)
+static __oryx_always_inline__ void FlowDecrUsecnt(Flow *f)
 {
     if (f == NULL)
         return;
@@ -536,7 +536,7 @@ static inline void FlowDecrUsecnt(Flow *f)
 /** \brief Reference the flow, bumping the flows use_cnt
  *  \note This should only be called once for a destination
  *        pointer */
-static inline void FlowReference(Flow **d, Flow *f)
+static __oryx_always_inline__ void FlowReference(Flow **d, Flow *f)
 {
     if (likely(f != NULL)) {
 #ifdef DEBUG_VALIDATION

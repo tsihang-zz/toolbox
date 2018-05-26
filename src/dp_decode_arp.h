@@ -5,8 +5,8 @@
  * \brief Function to decode GRE packets
  */
 
-static inline int __oryx_hot__
-DecodeARP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeARP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     uint16_t header_len = GRE_HDR_LEN;
 

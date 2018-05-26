@@ -4,7 +4,8 @@
 extern struct MarvellDSAMap dsa_to_phy_map_list[];
 extern struct MarvellDSAMap phy_to_dsa_map_list[];
 
-static inline void PrintDSA(const char *comment, uint32_t dsa, u8 rx_tx)
+static __oryx_always_inline__
+void PrintDSA(const char *comment, uint32_t dsa, u8 rx_tx)
 {
 	printf ("=================== %s ===================\n", comment);
 	printf ("%12s%4d\n", "cmd:",	DSA_CMD(dsa));
@@ -37,8 +38,8 @@ typedef struct MarvellDSAEthernetHdr_ {
  * \param pq pointer to the packet queue
  *
  */
-static inline int __oryx_hot__
-DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	MarvellDSAHdr *dsah;
 	MarvellDSAEthernetHdr *dsaeth;

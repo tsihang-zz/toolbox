@@ -114,18 +114,6 @@ format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
 }
 #endif
 
-static TmEcode LogVersion(void)
-{
-#ifdef REVISION
-    oryx_logn("This is %s version %s (rev %s)", PROG_NAME, PROG_VER, xstr(REVISION));
-#elif defined RELEASE
-    oryx_logn("This is %s version %s RELEASE", PROG_NAME, PROG_VER);
-#else
-    oryx_logn("This is %s version %s", PROG_NAME, PROG_VER);
-#endif
-    return TM_ECODE_OK;
-}
-
 static __oryx_always_inline__ 
 void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char __oryx_unused__**argv)
@@ -195,9 +183,6 @@ int main (int argc, char **argv)
 {
 	uint32_t id_core;
 
-	vlib_main.argc = argc;
-	vlib_main.argv = argv;
-
 	printf("%.2f\n", ratio_of(1,2));
 	
 	signal(SIGINT, sig_handler);
@@ -205,7 +190,6 @@ int main (int argc, char **argv)
 
 	oryx_initialize();
 
-	LogVersion();
 
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");

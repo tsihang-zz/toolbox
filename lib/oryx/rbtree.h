@@ -31,7 +31,7 @@
   rbtree, if necessary.
 
 -----------------------------------------------------------------------
-static inline struct page * rb_search_page_cache(struct inode * inode,
+static __oryx_always_inline__ struct page * rb_search_page_cache(struct inode * inode,
                          unsigned long offset)
 {
     struct rb_node * n = inode->i_rb_page_cache.rb_node;
@@ -51,7 +51,7 @@ static inline struct page * rb_search_page_cache(struct inode * inode,
     return NULL;
 }
 
-static inline struct page * __rb_insert_page_cache(struct inode * inode,
+static __oryx_always_inline__ struct page * __rb_insert_page_cache(struct inode * inode,
                            unsigned long offset,
                            struct rb_node * node)
 {
@@ -77,7 +77,7 @@ static inline struct page * __rb_insert_page_cache(struct inode * inode,
     return NULL;
 }
 
-static inline struct page * rb_insert_page_cache(struct inode * inode,
+static __oryx_always_inline__ struct page * rb_insert_page_cache(struct inode * inode,
                          unsigned long offset,
                          struct rb_node * node)
 {
@@ -130,11 +130,11 @@ extern "C" {
 #define rb_set_red(r)  do { (r)->color = RB_RED; } while (0)
 #define rb_set_black(r)  do { (r)->color=RB_BLACK; } while (0)
 
-    static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
+    static __oryx_always_inline__ void rb_set_parent(struct rb_node *rb, struct rb_node *p)
     {
         rb->rb_parent = p;
     }
-    static inline void rb_set_color(struct rb_node *rb, int color)
+    static __oryx_always_inline__ void rb_set_color(struct rb_node *rb, int color)
     {
         rb->color = color;
     }
@@ -148,7 +148,7 @@ extern "C" {
 #define RB_EMPTY_NODE(node)    (rb_parent(node) == node)
 #define RB_CLEAR_NODE(node)    (rb_set_parent(node, node))
 
-    static inline void rb_init_node(struct rb_node *rb)
+    static __oryx_always_inline__ void rb_init_node(struct rb_node *rb)
     {
         rb->rb_parent = NULL;
         rb->color = RB_RED;
@@ -156,7 +156,7 @@ extern "C" {
         rb->rb_left = NULL;
         RB_CLEAR_NODE(rb);
     }
-    static inline struct rb_root *rb_create(rb_compare_f1 cmp)
+    static __oryx_always_inline__ struct rb_root *rb_create(rb_compare_f1 cmp)
     {
         struct rb_root *root = (struct rb_root *) malloc(sizeof(*root));
 	 //struct rb_root *root = (struct rb_root *)oryx_alloc(sizeof(*root)):
@@ -164,13 +164,13 @@ extern "C" {
         root->rb_node = NULL;
         return root;
     }
-    static inline void rb_init(struct rb_root *root, rb_compare_f1 cmp)
+    static __oryx_always_inline__ void rb_init(struct rb_root *root, rb_compare_f1 cmp)
     {
         root->rb_node = NULL;
         root->cmp = cmp;
     }
 
-    static inline int rb_empty(struct rb_root *root)
+    static __oryx_always_inline__ int rb_empty(struct rb_root *root)
     {
         return RB_EMPTY_ROOT(root);
     }
@@ -199,7 +199,7 @@ extern "C" {
     extern void rb_replace_node(struct rb_node *victim, struct rb_node *new1,
                                 struct rb_root *root);
 
-    static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
+    static __oryx_always_inline__ void rb_link_node(struct rb_node *node, struct rb_node *parent,
                                     struct rb_node **rb_link)
     {
         node->rb_parent = parent;

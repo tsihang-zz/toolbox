@@ -23,7 +23,8 @@ oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
 /**
 * \brief Get the value of the local copy of the counter that hold this id.
 */
-static inline u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
+static __oryx_always_inline__
+u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON ((id < 1) || (id > ctx->size));
@@ -40,7 +41,8 @@ static inline u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 /**
 * \brief Increments the counter
 */
-static inline void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
+static __oryx_always_inline__
+void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
 {
 #if defined(BUILD_DEBUG)
   BUG_ON ((id < 1) || (id > ctx->size));
@@ -56,7 +58,8 @@ static inline void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
 /**
 * \brief Adds a value of type uint64_t to the local counter.
 */
-static inline void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
+static __oryx_always_inline__
+void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
 {
 #if defined(BUILD_DEBUG)
   BUG_ON ((id < 1) || (id > ctx->size));
@@ -75,7 +78,8 @@ static inline void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x
 /**
 * \brief Sets a value of type double to the local counter
 */
-static inline void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
+static __oryx_always_inline__
+void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
 {
 #if defined(BUILD_DEBUG)
 	  BUG_ON ((id < 1) || (id > ctx->size));

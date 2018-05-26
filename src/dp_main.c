@@ -6,7 +6,7 @@ DecodeThreadVars g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
 
 dp_private_t dp_private_main;
-bool force_quit = false;
+volatile bool force_quit = false;
 
 #if defined(HAVE_DPDK)
 void dpdk_env_setup(struct vlib_main_t *vm);

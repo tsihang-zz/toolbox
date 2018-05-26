@@ -87,7 +87,7 @@ struct stats_trunk_t {
 typedef struct vlib_main_t
 {
 	int argc;
-	char **argv;
+	char *argv[1024];
 	/* Name for e.g. syslog. */
 	const char *prgname;
 	int log_level;
@@ -126,8 +126,12 @@ typedef struct vlib_main_t
 #define ET1500_N_XE_PORTS (2 + 1)
 #define ET1500_N_GE_PORTS 8
 #define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
-#define MAX_LCORES	4
 
+#if defined(HAVE_DPDK)
+#define MAX_LCORES	RTE_MAX_LCORE
+#else
+#define MAX_LCORES	4
+#endif
 
 #endif
 

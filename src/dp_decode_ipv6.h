@@ -30,7 +30,8 @@
  * \brief Function to decode IPv4 in IPv6 packets
  *
  */
-static inline void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+static __oryx_always_inline__
+void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
 
     if (unlikely(plen < IPV4_HEADER_LEN)) {
@@ -61,7 +62,8 @@ static inline void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packe
  * \brief Function to decode IPv6 in IPv6 packets
  *
  */
-static inline int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
 
     if (unlikely(plen < IPV6_HEADER_LEN)) {
@@ -86,7 +88,8 @@ static inline int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet
     return TM_ECODE_OK;
 }
 
-static inline void DecodeIPv6FragHeader(Packet *p, uint8_t *pkt,
+static __oryx_always_inline__
+void DecodeIPv6FragHeader(Packet *p, uint8_t *pkt,
                           uint16_t hdrextlen, uint16_t plen,
                           uint16_t prev_hdrextlen)
 {
@@ -126,8 +129,8 @@ static inline void DecodeIPv6FragHeader(Packet *p, uint8_t *pkt,
             p->ip6eh.fh_data_len);
 }
 
-static inline void
-DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__ 
+void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     uint8_t *orig_pkt = pkt;
     uint8_t nh = 0; /* careful, 0 is actually a real type */
@@ -535,7 +538,8 @@ DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
     return;
 }
 
-static inline int DecodeIPv6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len)
+static __oryx_always_inline__
+int DecodeIPv6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPV6_HEADER_LEN)) {
         return -1;
@@ -561,8 +565,8 @@ static inline int DecodeIPv6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packe
     return 0;
 }
 
-static inline int __oryx_hot__
-DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("IPv6");
 	

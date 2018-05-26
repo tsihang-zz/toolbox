@@ -70,7 +70,7 @@ void MpmACRegister(void);
 #define MPM_AC_CUDA_MODULE_NAME "ac_cuda"
 #define MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME "ac_cuda_cb"
 
-static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
+static __oryx_always_inline__ void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled) {
         while (!p->cuda_pkt_vars.cuda_done) {

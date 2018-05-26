@@ -275,8 +275,8 @@ int MpmAddSidsResize(PrefilterRuleStore *pmq, uint32_t new_size);
  *  \param sids_size number of Signature IDs in sids array.
  *
  */
-static inline void
-MpmAddSids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
+static __oryx_always_inline__
+void MpmAddSids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
 {
     if (sids_size == 0)
         return;

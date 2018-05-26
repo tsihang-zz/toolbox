@@ -65,8 +65,8 @@ void *
 vec_lookup_ensure (oryx_vector v, unsigned int i);
 
 /* Look up oryx_vector.  */
-static inline void *
-vec_lookup (oryx_vector v, unsigned int i)
+static __oryx_always_inline__
+void * vec_lookup (oryx_vector v, unsigned int i)
 {
   if (i >= v->active)
     return NULL;
@@ -74,8 +74,8 @@ vec_lookup (oryx_vector v, unsigned int i)
 }
 
 /* Count the number of not emplty slot. */
-static inline unsigned int
-vec_count (oryx_vector v)
+static __oryx_always_inline__
+unsigned int vec_count (oryx_vector v)
 {
   unsigned int i;
   unsigned count = 0;

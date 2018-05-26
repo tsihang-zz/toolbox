@@ -1,7 +1,8 @@
 #ifndef DP_DECODE_VLAN_H
 #define DP_DECODE_VLAN_H
 
-static inline uint16_t DecodeVLANGetId(const Packet *p, uint8_t layer)
+static __oryx_always_inline__
+uint16_t DecodeVLANGetId(const Packet *p, uint8_t layer)
 {
     if (unlikely(layer > 1))
         return 0;
@@ -14,7 +15,8 @@ static inline uint16_t DecodeVLANGetId(const Packet *p, uint8_t layer)
     return 0;
 }
 
-static inline uint16_t DecodeVLANGetId0(const Packet *p, uint8_t layer)
+static __oryx_always_inline__
+uint16_t DecodeVLANGetId0(const Packet *p, uint8_t layer)
 {
     if (unlikely(layer > 1))
         return 0;
@@ -32,7 +34,8 @@ static inline uint16_t DecodeVLANGetId0(const Packet *p, uint8_t layer)
 #define VLAN_GET_ID2(p)             DecodeVLANGetId((p), 1)
 
 #if 0
-static inline int DecodeIEEE8021ah0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeIEEE8021ah0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ieee8021ah);
 
@@ -68,8 +71,8 @@ static inline int DecodeIEEE8021ah0(ThreadVars *tv, DecodeThreadVars *dtv, Packe
  * \param pq pointer to the packet queue
  *
  */
-static inline int __oryx_hot__
-DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     uint32_t proto;
 

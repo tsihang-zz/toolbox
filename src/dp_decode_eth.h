@@ -1,8 +1,8 @@
 #ifndef DP_DECODE_ETHERNET_H
 #define DP_DECODE_ETHERNET_H
 
-static inline int __oryx_hot__
-DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+static __oryx_always_inline__
+int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
    EthernetHdr *ethh;
@@ -47,6 +47,7 @@ DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			   DecodeMPLS0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 						  len - ETHERNET_HEADER_LEN, pq);
 			   break;
+		#if 0
 		   case ETHERNET_TYPE_DCE:
 			   if (unlikely(len < ETHERNET_DCE_HEADER_LEN)) {
 				   ENGINE_SET_INVALID_EVENT(p, DCE_PKT_TOO_SMALL);
@@ -55,6 +56,7 @@ DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 					   len - ETHERNET_DCE_HEADER_LEN, pq);
 			   }
 			   break;
+		#endif
 		   case ETHERNET_TYPE_ARP:
 			   DecodeARP0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 					len - ETHERNET_HEADER_LEN, pq);

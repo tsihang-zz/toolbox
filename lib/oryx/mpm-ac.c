@@ -59,7 +59,8 @@ static void ACGetConfig (void)
  *
  * \retval The state id, of the newly created state.
  */
-static inline int ACReallocState(SCACCtx *ctx, uint32_t cnt)
+static __oryx_always_inline__
+int ACReallocState(SCACCtx *ctx, uint32_t cnt)
 {
     void *ptmp;
     int64_t size = 0;
@@ -141,7 +142,8 @@ ASSERT (ptmp);
     ctx->output_table = ptmp;
 }
 
-static inline int SCACInitNewState(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+int SCACInitNewState(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;;
 
@@ -217,7 +219,8 @@ ASSERT (ptmp);
  *                    need it to updated the output table for this pattern.
  * \param mpm_ctx     Pointer to the mpm context.
  */
-static inline void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
+static __oryx_always_inline__
+void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
                              MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
@@ -257,7 +260,8 @@ static inline void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pi
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static inline void SCACCreateGotoTable(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACCreateGotoTable(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     uint32_t i = 0;
@@ -278,7 +282,8 @@ static inline void SCACCreateGotoTable(MpmCtx *mpm_ctx)
     return;
 }
 
-static inline void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     uint32_t u = 0;
@@ -299,7 +304,8 @@ static inline void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
     return;
 }
 
-static inline int SCACStateQueueIsEmpty(StateQueue *q)
+static __oryx_always_inline__
+int SCACStateQueueIsEmpty(StateQueue *q)
 {
     if (q->top == q->bot)
         return 1;
@@ -307,7 +313,8 @@ static inline int SCACStateQueueIsEmpty(StateQueue *q)
         return 0;
 }
 
-static inline void SCACEnqueue(StateQueue *q, int32_t state)
+static __oryx_always_inline__
+void SCACEnqueue(StateQueue *q, int32_t state)
 {
     int i = 0;
 
@@ -331,7 +338,8 @@ static inline void SCACEnqueue(StateQueue *q, int32_t state)
     return;
 }
 
-static inline int32_t SCACDequeue(StateQueue *q)
+static __oryx_always_inline__
+int32_t SCACDequeue(StateQueue *q)
 {
     if (q->bot == STATE_QUEUE_CONTAINER_SIZE)
         q->bot = 0;
@@ -386,7 +394,8 @@ static inline int32_t SCACDequeue(StateQueue *q)
  * \param src_state Second state for the union operation.
  * \param mpm_ctx Pointer to the mpm context.
  */
-static inline void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
+static __oryx_always_inline__
+void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
                                         MpmCtx *mpm_ctx)
 {
     void *ptmp;
@@ -431,7 +440,8 @@ static inline void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static inline void SCACCreateFailureTable(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACCreateFailureTable(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     int ascii_code = 0;
@@ -488,7 +498,8 @@ ASSERT (ctx->failure_table);
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static inline void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     int ascii_code = 0;
@@ -578,7 +589,8 @@ static inline void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
     return;
 }
 
-static inline void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     int ascii_code = 0;
@@ -608,7 +620,8 @@ static inline void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
     return;
 }
 
-static inline void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
+static __oryx_always_inline__
+void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
 {
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     uint32_t state = 0;

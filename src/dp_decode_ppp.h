@@ -1,8 +1,8 @@
 #ifndef DP_DECODE_PPP_H
 #define DP_DECODE_PPP_H
 
-static inline int __oryx_hot__
-DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ppp);
 

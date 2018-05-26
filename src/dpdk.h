@@ -27,31 +27,50 @@
 #include <rte_ring.h>
 #include <rte_version.h>
 #include <rte_ethdev.h>
+#include <rte_ip.h>
+#include <rte_tcp.h>
+#include <rte_udp.h>
+#include <rte_hash.h>
+#include <rte_string_fns.h>
 
 #include "common_private.h"
 
-/** These two macro means a frame. */
+
 #define DPDK_BUFFER_PRE_DATA_SIZE	RTE_PKTMBUF_HEADROOM		//(128)
 
-/* Max size of a single packet */
+/*
+ * Max size of a single packet
+ */
 #define DPDK_BUFFER_DATA_SIZE		RTE_MBUF_DEFAULT_DATAROOM	//(2048)
 
-/* Size of the data buffer in each mbuf */
+/*
+ * Size of the data buffer in each mbuf. These two macro means a frame
+ */
 #define	DPDK_DEFAULT_BUFFER_SIZE	\
 	(DPDK_BUFFER_DATA_SIZE + DPDK_BUFFER_PRE_DATA_SIZE)
 
+/*
+ * This expression is used to calculate the number of mbufs needed
+ * depending on user input, taking  into account memory for rx and
+ * tx hardware rings, cache per lcore and mtable per port per lcore.
+ * RTE_MAX is used to ensure that NB_MBUF never goes below a minimum
+ * value of 8192
+ */
 /* Number of mbufs in mempool that is created */
 #define DPDK_DEFAULT_NB_MBUF   (16 << 10)
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 #define MAX_TX_QUEUE_PER_LCORE 16
 
-/* How many packets to attempt to read from NIC in one go */
-#define DPDK_MAX_RX_BURST 64
-#define DPDK_MAX_TX_BURST 128
+#define MAX_TX_QUEUE_PER_PORT RTE_MAX_ETHPORTS
+#define MAX_RX_QUEUE_PER_PORT 128
 
-/* How many objects (mbufs) to keep in per-lcore mempool cache */
-#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	DPDK_MAX_RX_BURST
+#define NB_SOCKETS        8
+
+/*
+ * How many objects (mbufs) to keep in per-lcore mempool cache
+ */
+#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	256
 
 #define NS_PER_US 1000
 #define US_PER_MS 1000
@@ -64,30 +83,40 @@
 #define RTE_RX_DESC_DEFAULT 128
 #define RTE_TX_DESC_DEFAULT 512
 
+/*
+ * How many packets to attempt to read from NIC in one go
+ */
+#define DPDK_MAX_RX_BURST 32
+#define DPDK_MAX_TX_BURST 32
+
 
 #define DPDK_STATS_POLL_INTERVAL      (10.0)
 #define DPDK_MIN_STATS_POLL_INTERVAL  (0.001)	/* 1msec */
 #define DPDK_LINK_POLL_INTERVAL       (3.0)
 #define DPDK_MIN_LINK_POLL_INTERVAL   (0.001)	/* 1msec */
 
-/** DO not change DEFAULT_HUGE_DIR. see dpdk-mount-hugedir.sh in conf/ */
+/*
+ * DO not change DEFAULT_HUGE_DIR. see dpdk-mount-hugedir.sh in conf
+ */
 #define DPDK_DEFAULT_HUGE_DIR "/mnt/huge"
 #define DPDK_DEFAULT_RUN_DIR "/run/et1500"
 
 #define DPDK_SETUP_ENV_SH		"dpdk-setup-env.sh"
 
-struct tx_burst_table {
-	uint16_t n_tx_burst_len;
-	struct rte_mbuf *burst[DPDK_MAX_TX_BURST];
+#define HASH_ENTRY_NUMBER_DEFAULT	4
+
+struct mbuf_table {
+	uint16_t len;
+	struct rte_mbuf *m_table[DPDK_MAX_TX_BURST];
 };
 
-struct lcore_queue {
+struct lcore_rx_queue {
 	uint8_t port_id;
 	uint8_t queue_id;
-	uint8_t lcore_id;
 } __rte_cache_aligned;
 
-struct LcoreConfigContext {
+struct lcore_conf {
+
 	/** Count of rx port for this lcore, hold by rx_port_list */
 	unsigned n_rx_port;
 	/** Count of rx queue for this lcore, hold by rx_queue_list */
@@ -95,23 +124,21 @@ struct LcoreConfigContext {
 	/** Rx ports list for this lcore */
 	unsigned rx_port_list[RTE_MAX_ETHPORTS];
 	/** Rx queues list for this lcore */
-	struct lcore_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
 
 	/** Count of tx port for this lcore, hold by tx_port_list */
 	uint16_t n_tx_port;
 	/** Count of tx queue for this lcore, hold by tx_queue_list */
 	uint16_t n_tx_queue;
 	/** Tx ports list for this lcore */
-	unsigned tx_port_list[RTE_MAX_ETHPORTS];
+	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 	/** Tx queues list for this lcore */
-	struct lcore_queue tx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	uint16_t tx_queue_id[MAX_TX_QUEUE_PER_PORT];
 
 	/* Tx buffers. */
-	struct tx_burst_table tx_burst[RTE_MAX_ETHPORTS];
+	struct mbuf_table tx_mbufs[RTE_MAX_ETHPORTS];
 } __rte_cache_aligned;
 
-extern struct LcoreConfigContext lconf_ctx[];
-extern struct rte_eth_conf dpdk_eth_default_conf;
 
 typedef union {
 	struct {
@@ -191,6 +218,8 @@ typedef struct {
 	u32 mempool_cache_size;
 	u32 mempool_priv_size;
 	u32 mempool_data_room_size;
+
+	/** unused */
 	u32 n_rx_q_per_lcore;
 
 	/* PCI address */
@@ -238,6 +267,19 @@ typedef struct {
 	void *ext_private;
 } dpdk_main_t;
 
+static __oryx_always_inline__
+void log_usage(void)
+{
+	/** run env-setup script. bind vfio-pci and mount hugedir.*/
+	oryx_loge(0,
+		"Make sure that you have run %s to setup dpdk enviroment before startup this application.", DPDK_SETUP_ENV_SH);
+	sleep(1);
+}
+
 extern dpdk_main_t dpdk_main;
+extern struct lcore_conf lcore_conf[RTE_MAX_LCORE];
+extern struct rte_eth_conf dpdk_eth_default_conf;
+/* A tsc-based timer responsible for triggering statistics printout */
+extern uint64_t timer_period;
 
 #endif

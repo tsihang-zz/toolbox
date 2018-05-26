@@ -441,8 +441,8 @@ typedef struct Packet_
 #if defined(HAVE_DPDK)
 #include "dpdk.h"
 
-static inline Packet *
-get_priv(struct rte_mbuf *m)
+static __oryx_always_inline__
+Packet * get_priv(struct rte_mbuf *m)
 {
 	return RTE_PTR_ADD(m, sizeof(struct rte_mbuf));
 }
@@ -519,7 +519,8 @@ struct eth_decode_ops {
 };
 
 
-static inline void dump_pkt(uint8_t *pkt, int len)
+static __oryx_always_inline__
+void dump_pkt(uint8_t *pkt, int len)
 {
 	int i = 0;
 	
@@ -554,7 +555,7 @@ struct MarvellDSAMap {
 	const char *comment;
 };
 
-static inline void DecodeUpdateCounters(ThreadVars *tv,
+static __oryx_always_inline__ void DecodeUpdateCounters(ThreadVars *tv,
                                 const DecodeThreadVars *dtv, const Packet *p)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
@@ -576,7 +577,7 @@ static inline void DecodeUpdateCounters(ThreadVars *tv,
 *
  
 */
-static inline void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
+static __oryx_always_inline__ void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 
 {
 
@@ -584,12 +585,13 @@ static inline void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, P
 	if (p->flags & PKT_IS_INVALID) {
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);
 		int i = 0;
-	
+#if defined(DECODE_EVENT)
 	for (i = 0; i < p->events.cnt; i++) {
 			if (EVENT_IS_DECODER_PACKET_ERROR(p->events.events[i])) {
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid_events[p->events.events[i]]);
 			}
 		}
+#endif
 	  
 	}
 }

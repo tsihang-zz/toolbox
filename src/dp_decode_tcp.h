@@ -68,7 +68,8 @@ typedef struct TCPOptSackRecord_ {
  * \retval csum For validation 0 will be returned for success, for calculation
  *    this will be the checksum.
  */
-static inline uint16_t TCPChecksum0(uint16_t *shdr, uint16_t *pkt,
+static __oryx_always_inline__
+uint16_t TCPChecksum0(uint16_t *shdr, uint16_t *pkt,
                                    uint16_t tlen, uint16_t init)
 {
     uint16_t pad = 0;
@@ -133,7 +134,8 @@ static inline uint16_t TCPChecksum0(uint16_t *shdr, uint16_t *pkt,
  * \retval csum For validation 0 will be returned for success, for calculation
  *    this will be the checksum.
  */
-static inline uint16_t TCPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
+static __oryx_always_inline__
+uint16_t TCPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
                                      uint16_t tlen, uint16_t init)
 {
     uint16_t pad = 0;
@@ -192,7 +194,8 @@ static inline uint16_t TCPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
 	(dst).len	= (src).len; \
 	(dst).data = (src).data
 
-static inline int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
+static __oryx_always_inline__
+int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
 {
  uint8_t tcp_opt_cnt = 0;
  TCPOpt tcp_opts[TCP_OPTMAX];
@@ -305,7 +308,8 @@ static inline int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
  return 0;
 }
 
-static inline int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
+static __oryx_always_inline__
+int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
 {
 	if (unlikely(len < TCP_HEADER_LEN)) {
 	 ENGINE_SET_INVALID_EVENT(p, TCP_PKT_TOO_SMALL);
@@ -343,8 +347,8 @@ static inline int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint1
 	return 0;
 }
 
-static inline int __oryx_hot__
-DecodeTCP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeTCP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
  oryx_logd("TCP");
 

@@ -79,7 +79,8 @@
  *
  * \retval csum Checksum for the ICMP packet
  */
-static inline uint16_t ICMPV4CalculateChecksum0(uint16_t *pkt, uint16_t tlen)
+static __oryx_always_inline__
+uint16_t ICMPV4CalculateChecksum0(uint16_t *pkt, uint16_t tlen)
 {
     uint16_t pad = 0;
     uint32_t csum = pkt[0];
@@ -127,7 +128,8 @@ static inline uint16_t ICMPV4CalculateChecksum0(uint16_t *pkt, uint16_t tlen)
 /**
  * Note, this is the IP header, plus a bit of the original packet, not the whole thing!
  */
-static inline int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
+static __oryx_always_inline__
+int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
 {
     /** Check the sizes, the header must fit at least */
     if (len < IPV4_HEADER_LEN) {
@@ -232,8 +234,8 @@ static inline int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t
 /** DecodeICMPV4
  *  \brief Main ICMPv4 decoding function
  */
-static inline int __oryx_hot__
-DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_icmpv4);
 	

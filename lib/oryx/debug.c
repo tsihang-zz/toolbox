@@ -428,7 +428,8 @@ oryx_log_set_default(FILE *default_log)
  * \param fd  Pointer to the file descriptor
  * \param msg Pointer to the character string that should be logged
  */
-static inline void oryx_log2_stream(FILE *fd, char *msg)
+static __oryx_always_inline__
+void oryx_log2_stream(FILE *fd, char *msg)
 {
     /* Would only happen if the log file failed to re-open during rotation. */
     if (fd == NULL) {

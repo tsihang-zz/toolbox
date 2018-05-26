@@ -360,7 +360,7 @@ static void SCHSSetAllocators(void)
  *
  * \retval hash A 32 bit unsigned hash.
  */
-static inline uint32_t SCHSInitHashRaw(uint8_t *pat, uint16_t patlen)
+static __oryx_always_inline__ uint32_t SCHSInitHashRaw(uint8_t *pat, uint16_t patlen)
 {
     uint32_t hash = patlen * pat[0];
     if (patlen > 1)
@@ -381,7 +381,7 @@ static inline uint32_t SCHSInitHashRaw(uint8_t *pat, uint16_t patlen)
  *
  * \retval hash A 32 bit unsigned hash.
  */
-static inline SCHSPattern *SCHSInitHashLookup(SCHSCtx *ctx, uint8_t *pat,
+static __oryx_always_inline__ SCHSPattern *SCHSInitHashLookup(SCHSCtx *ctx, uint8_t *pat,
                                               uint16_t patlen, uint16_t offset,
                                               uint16_t depth, char __oryx_unused__ flags,
                                               uint32_t pid)
@@ -414,7 +414,7 @@ static inline SCHSPattern *SCHSInitHashLookup(SCHSCtx *ctx, uint8_t *pat,
  *
  * \retval p Pointer to the newly created pattern.
  */
-static inline SCHSPattern *SCHSAllocPattern(MpmCtx *mpm_ctx)
+static __oryx_always_inline__ SCHSPattern *SCHSAllocPattern(MpmCtx *mpm_ctx)
 {
     SCHSPattern *p = malloc(sizeof(SCHSPattern));
     if (unlikely(p == NULL)) {
@@ -436,7 +436,7 @@ static inline SCHSPattern *SCHSAllocPattern(MpmCtx *mpm_ctx)
  * \param p       Pointer to the SCHSPattern instance to be freed.
  * \param free    Free the above pointer or not.
  */
-static inline void SCHSFreePattern(MpmCtx *mpm_ctx, SCHSPattern *p)
+static __oryx_always_inline__ void SCHSFreePattern(MpmCtx *mpm_ctx, SCHSPattern *p)
 {
     if (p != NULL && p->original_pat != NULL) {
         free(p->original_pat);
@@ -455,7 +455,7 @@ static inline void SCHSFreePattern(MpmCtx *mpm_ctx, SCHSPattern *p)
     }
 }
 
-static inline uint32_t SCHSInitHash(SCHSPattern *p)
+static __oryx_always_inline__ uint32_t SCHSInitHash(SCHSPattern *p)
 {
     uint32_t hash = p->len * p->original_pat[0];
     if (p->len > 1)
@@ -464,7 +464,7 @@ static inline uint32_t SCHSInitHash(SCHSPattern *p)
     return (hash % INIT_HASH_SIZE);
 }
 
-static inline int SCHSInitHashAdd(SCHSCtx *ctx, SCHSPattern *p)
+static __oryx_always_inline__ int SCHSInitHashAdd(SCHSCtx *ctx, SCHSPattern *p)
 {
     uint32_t hash = SCHSInitHash(p);
 

@@ -184,7 +184,7 @@
  * Functions without this attribute will be hidden. */
 #if defined(__GNUC__)
 #define __oryx_always_extern__		__attribute__((visibility("default")))
-#define	__oryx_always_inline__		inline //__attribute__((always_inline))
+#define	__oryx_always_inline__		inline __attribute__((always_inline))
 #define	__oryx_unused__				__attribute__((unused))
 #define __oryx_noreturn__(fn)		__attribute__((noreturn))fn
 #define __oryx_hot__				__attribute__((hot))

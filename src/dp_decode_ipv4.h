@@ -64,7 +64,8 @@ enum IPV4OptionFlags {
  * \retval csum For validation 0 will be returned for success, for calculation
  *    this will be the checksum.
  */
-static inline uint16_t IPV4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
+static __oryx_always_inline__
+uint16_t IPV4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
 {
     uint32_t csum = init;
 
@@ -122,7 +123,8 @@ static inline uint16_t IPV4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
  *
  * See: RFC 791
  */
-static inline int IPV4OptValidateGeneric(Packet *p, const IPV4Opt *o)
+static __oryx_always_inline__
+int IPV4OptValidateGeneric(Packet *p, const IPV4Opt *o)
 {
     switch (o->type) {
         /* See: RFC 4782 */
@@ -168,7 +170,8 @@ static inline int IPV4OptValidateGeneric(Packet *p, const IPV4Opt *o)
  *
  * See: RFC 791
  */
-static inline int IPV4OptValidateRoute(Packet *p, const IPV4Opt *o)
+static __oryx_always_inline__
+int IPV4OptValidateRoute(Packet *p, const IPV4Opt *o)
 {
     uint8_t ptr;
 
@@ -205,7 +208,8 @@ static inline int IPV4OptValidateRoute(Packet *p, const IPV4Opt *o)
  *
  * See: RFC 781
  */
-static inline int IPV4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
+static __oryx_always_inline__
+int IPV4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
 {
     uint8_t ptr;
     uint8_t flag;
@@ -254,7 +258,8 @@ static inline int IPV4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
  * See: draft-ietf-cipso-ipsecurity-01.txt
  * See: FIPS 188 (tags 6 & 7)
  */
-static inline int IPV4OptValidateCIPSO(Packet *p, const IPV4Opt *o)
+static __oryx_always_inline__
+int IPV4OptValidateCIPSO(Packet *p, const IPV4Opt *o)
 {
 //    uint32_t doi;
     uint8_t *tag;
@@ -371,7 +376,8 @@ typedef struct IPV4Options_ {
 /**
  * Decode/Validate IPv4 Options.
  */
-static inline int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
+static __oryx_always_inline__
+int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
 {
     uint16_t plen = len;
 
@@ -558,7 +564,8 @@ static inline int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4O
 }
 
 
-static inline int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
+static __oryx_always_inline__
+int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPV4_HEADER_LEN)) {
 		oryx_loge(-1,
@@ -613,8 +620,8 @@ static inline int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
     return 0;
 }
 
-static inline int __oryx_hot__
-DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+static __oryx_always_inline__
+int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("IPv4");
 

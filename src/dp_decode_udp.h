@@ -25,7 +25,8 @@
  * \retval csum For validation 0 will be returned for success, for calculation
  *    this will be the checksum.
  */
-static inline uint16_t UDPV4Checksum0(uint16_t *shdr, uint16_t *pkt,
+static __oryx_always_inline__
+uint16_t UDPV4Checksum0(uint16_t *shdr, uint16_t *pkt,
                                      uint16_t tlen, uint16_t init)
 {
     uint16_t pad = 0;
@@ -92,7 +93,8 @@ static inline uint16_t UDPV4Checksum0(uint16_t *shdr, uint16_t *pkt,
  * \retval csum For validation 0 will be returned for success, for calculation
  *    this will be the checksum.
  */
-static inline uint16_t UDPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
+static __oryx_always_inline__
+uint16_t UDPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
                                      uint16_t tlen, uint16_t init)
 {
     uint16_t pad = 0;
@@ -148,7 +150,8 @@ static inline uint16_t UDPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
         return csum_u16;
 }
 
-static inline int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16_t len)
+static __oryx_always_inline__
+int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16_t len)
 {
 	if (unlikely(len < UDP_HEADER_LEN)) {
 	 ENGINE_SET_INVALID_EVENT(p, UDP_HLEN_TOO_SMALL);
@@ -178,8 +181,8 @@ static inline int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16
 	 return 0;
 }
  
- static inline int __oryx_hot__
- DecodeUDP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+ static __oryx_always_inline__
+ int DecodeUDP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
  {
 	 oryx_logd("UDP");
  

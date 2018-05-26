@@ -19,7 +19,8 @@
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
-extern bool force_quit;
+extern volatile bool force_quit;
+
 
 extern void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);

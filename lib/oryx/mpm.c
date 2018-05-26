@@ -522,7 +522,7 @@ int MpmAddPatternCI(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,
  *
  * \retval hash A 32 bit unsigned hash.
  */
-static inline uint32_t MpmInitHashRaw(uint8_t *pat, uint16_t patlen)
+static __oryx_always_inline__ uint32_t MpmInitHashRaw(uint8_t *pat, uint16_t patlen)
 {
     uint32_t hash = patlen * pat[0];
     if (patlen > 1)
@@ -543,7 +543,7 @@ static inline uint32_t MpmInitHashRaw(uint8_t *pat, uint16_t patlen)
  *
  * \retval hash A 32 bit unsigned hash.
  */
-static inline MpmPattern *MpmInitHashLookup(MpmCtx *ctx, uint8_t *pat,
+static __oryx_always_inline__ MpmPattern *MpmInitHashLookup(MpmCtx *ctx, uint8_t *pat,
                                                   uint16_t patlen, char flags,
                                                   uint32_t pid)
 {
@@ -579,7 +579,7 @@ static inline MpmPattern *MpmInitHashLookup(MpmCtx *ctx, uint8_t *pat,
  *
  * \retval p Pointer to the newly created pattern.
  */
-static inline MpmPattern *MpmAllocPattern(MpmCtx *mpm_ctx)
+static __oryx_always_inline__ MpmPattern *MpmAllocPattern(MpmCtx *mpm_ctx)
 {
     MpmPattern *p = kmalloc(sizeof(MpmPattern), MPF_CLR, __oryx_unused_val__);
     if (unlikely(p == NULL)) {
@@ -627,7 +627,7 @@ void MpmFreePattern(MpmCtx *mpm_ctx, MpmPattern *p)
     return;
 }
 
-static inline uint32_t MpmInitHash(MpmPattern *p)
+static __oryx_always_inline__ uint32_t MpmInitHash(MpmPattern *p)
 {
     uint32_t hash = p->len * p->original_pat[0];
     if (p->len > 1)
@@ -636,7 +636,7 @@ static inline uint32_t MpmInitHash(MpmPattern *p)
     return (hash % MPM_INIT_HASH_SIZE);
 }
 
-static inline int MpmInitHashAdd(MpmCtx *ctx, MpmPattern *p)
+static __oryx_always_inline__ int MpmInitHashAdd(MpmCtx *ctx, MpmPattern *p)
 {
     uint32_t hash = MpmInitHash(p);
 
