@@ -88,31 +88,53 @@ struct iface_t {
 	struct CounterCtx *perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
+#define iface_alias(p) ((p)->sc_alias)
+#define iface_id(p)	   ((p)->ul_id)
+#define iface_perf(p)  ((p)->perf_private_ctx)
 
+#if defined(BUILD_DEBUG)
 static __oryx_always_inline__
 void iface_counters_add(struct iface_t *p,
 					counter_id id, u64 x){
-	oryx_counter_add(p->perf_private_ctx, id, x);
+#if defined(BUILD_DEBUG)
+	BUG_ON (p == NULL);
+#endif
+	oryx_counter_add(p->perf_private_ctx, id, x);	
 }
 
 static __oryx_always_inline__
 void iface_counters_inc(struct iface_t *p,
 					counter_id id){
+#if defined(BUILD_DEBUG)
+	BUG_ON (p == NULL);
+#endif
 	oryx_counter_inc(p->perf_private_ctx, id);
 }
 
 static __oryx_always_inline__
 void iface_counters_set(struct iface_t *p,
 					counter_id id, u64 x){
+#if defined(BUILD_DEBUG)
+	BUG_ON (p == NULL);
+#endif
 	oryx_counter_set(p->perf_private_ctx, id, x);
 }
 
 static __oryx_always_inline__
 void iface_counters_clear(struct iface_t *p,
 					counter_id id){
+#if defined(BUILD_DEBUG)
+	BUG_ON (p == NULL);
+#endif
 	oryx_counter_set(p->perf_private_ctx, id, 0);
 }
+#else
 
+#define iface_counters_add(p,id,x)\
+	oryx_counter_add(iface_perf((p)), (id), (x));
+#define iface_counters_inc(p,id,x)\
+	oryx_counter_inc(iface_perf((p)), (id));
+#endif
 					
 typedef struct vlib_port_main {
 	/* dpdk_ports + sw_ports */
@@ -132,8 +154,6 @@ typedef struct vlib_port_main {
 }vlib_port_main_t;
 
 extern vlib_port_main_t vlib_port_main;
-
-#define port_alias(p) ((p)->sc_alias)
 
 static __oryx_always_inline__ int iface_lookup_id(vlib_port_main_t *vp,
 				u32 id, struct iface_t **this)

@@ -52,12 +52,12 @@ int iface_rename(vlib_port_main_t *vp,
 				struct iface_t *this, const char *new_name)
 {
 	/** Delete old alias from hash table. */
-	oryx_htable_del (vp->htable, port_alias(this), strlen (port_alias(this)));
-	memset (port_alias(this), 0, strlen (port_alias(this)));
-	memcpy (port_alias(this), (char *)new_name, 
+	oryx_htable_del (vp->htable, iface_alias(this), strlen (iface_alias(this)));
+	memset (iface_alias(this), 0, strlen (iface_alias(this)));
+	memcpy (iface_alias(this), (char *)new_name, 
 		strlen ((char *)new_name));
 	/** New alias should be rewrite to hash table. */
-	oryx_htable_add (vp->htable, port_alias(this), strlen (port_alias(this)));	
+	oryx_htable_add (vp->htable, iface_alias(this), strlen (iface_alias(this)));	
 	return 0;
 }
 

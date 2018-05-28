@@ -171,6 +171,11 @@ notify_dp(vlib_main_t *vm, int signum)
 
 void dp_start(struct vlib_main_t *vm)
 {
+	int i;
+	ThreadVars *tv;
+	DecodeThreadVars *dtv;
+	char thrgp_name[128] = {0}; 
+
 #if defined(HAVE_DPDK)
 	dp_start_dpdk(vm);
 #else
@@ -178,6 +183,17 @@ void dp_start(struct vlib_main_t *vm)
 	dp_start_pcap(vm);
 #endif
 
+	/** init thread vars for dataplane. */
+	for (i = 0; i < vm->nb_lcores; i ++) {
+		tv = &g_tv[i];
+		dtv = &g_dtv[i];
+		sprintf (thrgp_name, "dp[%u] hd-thread", i);
+		tv->thread_group_name = strdup(thrgp_name);
+		SC_ATOMIC_INIT(tv->flags);
+		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
+		dp_register_perf_counters(dtv, tv);
+	}
+	
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }
 

@@ -78,10 +78,12 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 
 	oryx_logd("VLAN");
 
-    if (p->vlan_idx == 0)
+    if (p->vlan_idx == 0){
         oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_vlan);
-    else if (p->vlan_idx == 1)
+    }
+    else if (p->vlan_idx == 1) {
         oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_vlan_qinq);
+    }
 
     if(len < VLAN_HEADER_LEN)    {
         ENGINE_SET_INVALID_EVENT(p, VLAN_HEADER_TOO_SMALL);

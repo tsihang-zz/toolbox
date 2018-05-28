@@ -28,6 +28,17 @@ extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
+static __oryx_always_inline__
+u32 calc_hash(uint8_t *pkt, size_t pkt_len)
+{
+	int i = 0;
+	u32 h;
+
+	for (i = 0; i < pkt_len; i += 4) {
+		h += *(uint32_t *)&pkt[i];
+	}
+	return h;
+}
 
 /* Send burst of packets on an output interface */
 static __oryx_always_inline__
@@ -155,8 +166,8 @@ main_loop(__attribute__((unused)) void *ptr_data)
 		return 0;
 	}
 
-	while (!vm->cli_ready) {
-		printf("lcore %d wait for CLI ...\n", tv->lcore);
+	while (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
+		printf("lcore %d wait for dataplane ...\n", tv->lcore);
 		sleep(1);
 	}
 
@@ -235,24 +246,24 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			for (j = 0; j < nb_rx; j++) {
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+				pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
 				pkt_len = m->pkt_len;
+				p = GET_MBUF_PRIVATE(Packet, m);
+				
 				iface_counters_add(iface, iface->if_counter_ctx->counter_bytes[qua], pkt_len);
-			
-				pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);				
-				p = get_priv(m);
 				SET_PKT_LEN(p, pkt_len);
 				SET_PKT(p, pkt);
 				SET_PKT_SRC_PHY(p, portid);
 
 				tv->n_rx_bytes += pkt_len;
-			
-				//DecodeEthernet0(tv, dtv, p, pkt, pkt_len, pq);
-				//DecodeUpdateCounters(tv, dtv, p);
+
+				/** it costs a lot when calling Packet from mbuf. */
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
-			    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));
-    			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));
-    			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, GET_PKT_LEN(p));
-				//PacketDecodeFinalize(tv, dtv, p);
+			    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
+    			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, pkt_len);
+    			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, pkt_len);				
+				DecodeEthernet0(tv, dtv, p, pkt, pkt_len, pq);
+				PacketDecodeFinalize(tv, dtv, p);
 			}		
 #endif
 			no_opt_send_packets(tv, nb_rx, pkts_burst, portid, qconf);

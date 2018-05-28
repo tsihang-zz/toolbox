@@ -151,29 +151,12 @@ void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 }
 
 void dp_start_pcap(struct vlib_main_t *vm) {
-
-	char thrgp_name[128] = {0}; 
 	u32 nb_lcores = MAX_LCORES;
-	int i;
-	
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
-	PacketQueue *pq;
-	
+
+	vm->nb_lcores = MAX_LCORES;
 	printf ("Master Lcore @ %d/%d\n", 0,
-		nb_lcores);
-		
-	for (i = 0; i < (int)nb_lcores; i ++) {
-		tv = &g_tv[i];
-		dtv = &g_dtv[i];
-		pq = &g_pq[i];
-		sprintf (thrgp_name, "dp[%u] hd-thread", i);
-		tv->thread_group_name = strdup(thrgp_name);
-		SC_ATOMIC_INIT(tv->flags);
-		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
-		dp_register_perf_counters(dtv, tv);
-	}
-		
+		vm->nb_lcores);
+	
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
 											  dp_pcap_perf_tmr_handler, 0, NULL, 3000);

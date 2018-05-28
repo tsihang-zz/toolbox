@@ -86,7 +86,7 @@
 /*
  * How many packets to attempt to read from NIC in one go
  */
-#define DPDK_MAX_RX_BURST 32
+#define DPDK_MAX_RX_BURST 64
 #define DPDK_MAX_TX_BURST 32
 
 

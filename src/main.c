@@ -190,7 +190,6 @@ int main (int argc, char **argv)
 
 	oryx_initialize();
 
-
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
@@ -211,11 +210,9 @@ int main (int argc, char **argv)
 	
 	oryx_task_registry(&cli_register);
 
-	dp_start(&vlib_main);
-
 	oryx_task_launch();
 	sleep(1);
-	vlib_main.cli_ready = 1;
+	dp_start(&vlib_main);
 	
 #if defined(HAVE_DPDK)
 	RTE_LCORE_FOREACH_SLAVE(id_core) {

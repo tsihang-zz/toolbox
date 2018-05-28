@@ -38,6 +38,7 @@ u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 #endif
 
 
+#if defined(BUILD_DEBUG)
 /**
 * \brief Increments the counter
 */
@@ -74,7 +75,15 @@ void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
 #endif
   return;
 }
+#else
+#define oryx_counter_inc(ctx,id)\
+	(ctx)->head[(id)].value += 1;\
+	(ctx)->head[(id)].updates += 1;
 
+#define oryx_counter_add(ctx,id,x)\
+	(ctx)->head[(id)].value += (x);\
+	(ctx)->head[(id)].updates += 1;
+#endif
 /**
 * \brief Sets a value of type double to the local counter
 */
@@ -108,4 +117,5 @@ void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
 
   return;
 }
+
 

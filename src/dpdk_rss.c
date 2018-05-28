@@ -43,12 +43,15 @@ struct lcore_params {
 
 static struct lcore_params lcore_params_array[MAX_LCORE_PARAMS];
 static struct lcore_params lcore_params_array_default[] = {
+/* start lcore 1 */	
 	{0, 0, 1},
 	{0, 1, 1},
 	{0, 2, 1},
+/* start lcore 2 */	
 	{1, 0, 2},
 	{1, 1, 2},
 	{1, 2, 2},
+/* start lcore 3 */	
 	{2, 0, 3},
 	{2, 1, 3},
 	{2, 2, 3},

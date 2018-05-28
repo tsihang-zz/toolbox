@@ -590,7 +590,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
                 IPV6_GET_CLASS(p), IPV6_GET_FLOW(p), IPV6_GET_NH(p), IPV6_GET_PLEN(p),
                 IPV6_GET_HLIM(p));
     }
-#endif /* DEBUG */
+#endif /* BUILD_DEBUG */
 
     /* now process the Ext headers and/or the L4 Layer */
     switch(IPV6_GET_NH(p)) {

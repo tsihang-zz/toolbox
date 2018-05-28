@@ -40,7 +40,7 @@
     (p)->level3_comp_csum = -1; \
 } while (0)
 
-enum IPV4OptionFlags {
+enum IPv4OptionFlags {
     IPV4_OPT_FLAG_EOL = 0,
     IPV4_OPT_FLAG_NOP,
     IPV4_OPT_FLAG_RR,
@@ -65,7 +65,7 @@ enum IPV4OptionFlags {
  *    this will be the checksum.
  */
 static __oryx_always_inline__
-uint16_t IPV4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
+uint16_t IPv4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
 {
     uint32_t csum = init;
 
@@ -124,7 +124,7 @@ uint16_t IPV4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
  * See: RFC 791
  */
 static __oryx_always_inline__
-int IPV4OptValidateGeneric(Packet *p, const IPV4Opt *o)
+int IPv4OptValidateGeneric(Packet *p, const IPV4Opt *o)
 {
     switch (o->type) {
         /* See: RFC 4782 */
@@ -171,7 +171,7 @@ int IPV4OptValidateGeneric(Packet *p, const IPV4Opt *o)
  * See: RFC 791
  */
 static __oryx_always_inline__
-int IPV4OptValidateRoute(Packet *p, const IPV4Opt *o)
+int IPv4OptValidateRoute(Packet *p, const IPV4Opt *o)
 {
     uint8_t ptr;
 
@@ -209,7 +209,7 @@ int IPV4OptValidateRoute(Packet *p, const IPV4Opt *o)
  * See: RFC 781
  */
 static __oryx_always_inline__
-int IPV4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
+int IPv4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
 {
     uint8_t ptr;
     uint8_t flag;
@@ -259,7 +259,7 @@ int IPV4OptValidateTimestamp(Packet *p, const IPV4Opt *o)
  * See: FIPS 188 (tags 6 & 7)
  */
 static __oryx_always_inline__
-int IPV4OptValidateCIPSO(Packet *p, const IPV4Opt *o)
+int IPv4OptValidateCIPSO(Packet *p, const IPV4Opt *o)
 {
 //    uint32_t doi;
     uint8_t *tag;
@@ -361,7 +361,7 @@ int IPV4OptValidateCIPSO(Packet *p, const IPV4Opt *o)
 }
 
 
-typedef struct IPV4Options_ {
+typedef struct IPv4Options_ {
     IPV4Opt o_rr;
     IPV4Opt o_qs;
     IPV4Opt o_ts;
@@ -371,13 +371,13 @@ typedef struct IPV4Options_ {
     IPV4Opt o_sid;
     IPV4Opt o_ssrr;
     IPV4Opt o_rtralt;
-} IPV4Options;
+} IPv4Options;
 
 /**
  * Decode/Validate IPv4 Options.
  */
 static __oryx_always_inline__
-int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
+int DecodeIPv4Options(Packet *p, uint8_t *pkt, uint16_t len, IPv4Options *opts)
 {
     uint16_t plen = len;
 
@@ -453,7 +453,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateTimestamp(p, &opt)) {
+                    } else if (IPv4OptValidateTimestamp(p, &opt)) {
                         return -1;
                     }
                     opts->o_ts = opt;
@@ -464,7 +464,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateRoute(p, &opt) != 0) {
+                    } else if (IPv4OptValidateRoute(p, &opt) != 0) {
                         return -1;
                     }
                     opts->o_rr = opt;
@@ -475,7 +475,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateGeneric(p, &opt)) {
+                    } else if (IPv4OptValidateGeneric(p, &opt)) {
                         return -1;
                     }
                     opts->o_qs = opt;
@@ -486,7 +486,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateGeneric(p, &opt)) {
+                    } else if (IPv4OptValidateGeneric(p, &opt)) {
                         return -1;
                     }
                     opts->o_sec = opt;
@@ -497,7 +497,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateRoute(p, &opt) != 0) {
+                    } else if (IPv4OptValidateRoute(p, &opt) != 0) {
                         return -1;
                     }
                     opts->o_lsrr = opt;
@@ -508,7 +508,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateCIPSO(p, &opt) != 0) {
+                    } else if (IPv4OptValidateCIPSO(p, &opt) != 0) {
                         return -1;
                     }
                     opts->o_cipso = opt;
@@ -519,7 +519,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateGeneric(p, &opt)) {
+                    } else if (IPv4OptValidateGeneric(p, &opt)) {
                         return -1;
                     }
                     opts->o_sid = opt;
@@ -530,7 +530,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateRoute(p, &opt) != 0) {
+                    } else if (IPv4OptValidateRoute(p, &opt) != 0) {
                         return -1;
                     }
                     opts->o_ssrr = opt;
@@ -541,7 +541,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
                         ENGINE_SET_EVENT(p,IPV4_OPT_DUPLICATE);
                         /* Warn - we can keep going */
                         break;
-                    } else if (IPV4OptValidateGeneric(p, &opt)) {
+                    } else if (IPv4OptValidateGeneric(p, &opt)) {
                         return -1;
                     }
                     opts->o_rtralt = opt;
@@ -565,7 +565,7 @@ int DecodeIPV4Options(Packet *p, uint8_t *pkt, uint16_t len, IPV4Options *opts)
 
 
 static __oryx_always_inline__
-int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeIPv4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPV4_HEADER_LEN)) {
 		oryx_loge(-1,
@@ -612,7 +612,7 @@ int DecodeIPV4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
     /* save the options len */
     uint8_t ip_opt_len = IPV4_GET_HLEN(p) - IPV4_HEADER_LEN;
     if (ip_opt_len > 0) {
-        IPV4Options opts;
+        IPv4Options opts;
         memset(&opts, 0x00, sizeof(opts));
         DecodeIPV4Options(p, pkt + IPV4_HEADER_LEN, ip_opt_len, &opts);
     }
@@ -630,7 +630,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     oryx_logd("pkt %p len %"PRIu16"", pkt, len);
 
     /* do the actual decoding */
-    if (unlikely(DecodeIPV4Packet0 (p, pkt, len) < 0)) {
+    if (unlikely(DecodeIPv4Packet0 (p, pkt, len) < 0)) {
 		dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
         p->ip4h = NULL;
         return TM_ECODE_FAILED;
@@ -660,7 +660,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
                 IPV4_GET_IPPROTO(p), IPV4_GET_IPOFFSET(p), IPV4_GET_RF(p),
                 IPV4_GET_DF(p), IPV4_GET_MF(p), IPV4_GET_IPID(p));
     }
-#endif /* DEBUG */
+#endif /* BUILD_DEBUG */
 
     /* check what next decoder to invoke */
     switch (IPV4_GET_IPPROTO(p)) {

@@ -12,16 +12,15 @@
 #endif
 
 extern vlib_main_t vlib_main;
+extern ThreadVars g_tv[];
+extern DecodeThreadVars g_dtv[];
+extern PacketQueue g_pq[];
 
 int
 loglevel_unformat(const char *level_str);
 
 const char *
 loglevel_format(u32 loglevel);
-
-extern	ThreadVars g_tv[];
-extern 	DecodeThreadVars g_dtv[];
-extern	PacketQueue g_pq[];
 
 DEFUN(set_log_level,
       set_log_level_cmd,
@@ -88,13 +87,14 @@ DEFUN(show_dp_stats,
 	u64 counter_sctp_total = 0;
 	u64 counter_pkts_invalid_total = 0;
 
+	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
+		vty_out(vty, "Dataplane is not ready%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
 		tv = &g_tv[lcore % vm->nb_lcores];
 		dtv = &g_dtv[lcore % vm->nb_lcores];
-
-		vty_out(vty, "%18s%18d%s", "lcore:", lcore, VTY_NEWLINE);
-		vty_out(vty, "%18s%18llu%s", "n_rx_packets:", tv->n_rx_packets, VTY_NEWLINE);
-		vty_out(vty, "%18s%18llu%s", "n_tx_packets:", tv->n_tx_packets, VTY_NEWLINE);
 
 		counter_pkts_total += 
 			counter_pkts[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_pkts);
@@ -123,26 +123,104 @@ DEFUN(show_dp_stats,
 
 	}
 
-	oryx_format(&fb, "%8s%20s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s", 
-		"Lcore", "Pkts", "Bytes", "eth", "arp", "ipv4", "ipv6", "udp", "tcp", "sctp", "icmpv4", "icmpv6", "invalid");
+	oryx_format_reset(&fb);
+	oryx_format(&fb, "%12s", " ");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		char lcore_str[32];
+		sprintf(lcore_str, "lcore%d", lcore);
+		oryx_format(&fb, "%20s", lcore_str);
+	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
+	oryx_format(&fb, "%12s", "core_ratio");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-
 		char format_pkts[20] = {0};
-		sprintf (format_pkts, "%llu(%.2f%)", counter_pkts[lcore], ratio_of(counter_pkts[lcore], counter_pkts_total));
-		oryx_format(&fb, "%8u%20s%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu%8llu",
-			lcore, 
-			format_pkts,
-			counter_bytes[lcore], counter_eth[lcore], counter_arp[lcore],
-			counter_ipv4[lcore], counter_ipv6[lcore], counter_udp[lcore], counter_tcp[lcore],
-			counter_sctp[lcore], counter_icmpv4[lcore], counter_icmpv6[lcore], counter_pkts_invalid[lcore]);
-		vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
-		oryx_format_reset(&fb);
+		sprintf (format_pkts, "%.2f%s", ratio_of(counter_pkts[lcore], counter_pkts_total), "%");
+		oryx_format(&fb, "%20s", format_pkts);
 	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "pkts");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_pkts[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "bytes");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_bytes[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ethernet");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_eth[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ipv4");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_ipv4[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ipv6");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_ipv6[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "tcp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_tcp[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "udp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_udp[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "sctp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_sctp[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "arp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_arp[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "icmpv4");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_icmpv4[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "icmpv6");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_icmpv6[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);	
 
 	oryx_format_free(&fb);
+
 	return CMD_SUCCESS;
 }
 

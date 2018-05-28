@@ -441,11 +441,15 @@ typedef struct Packet_
 #if defined(HAVE_DPDK)
 #include "dpdk.h"
 
+#if 0
 static __oryx_always_inline__
 Packet * get_priv(struct rte_mbuf *m)
 {
 	return RTE_PTR_ADD(m, sizeof(struct rte_mbuf));
 }
+#endif
+#define GET_MBUF_PRIVATE(type,m)\
+	((type *)RTE_PTR_ADD((m), sizeof(struct rte_mbuf)));
 #endif
 
 typedef int (*decode_eth_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
@@ -555,7 +559,9 @@ struct MarvellDSAMap {
 	const char *comment;
 };
 
-static __oryx_always_inline__ void DecodeUpdateCounters(ThreadVars *tv,
+#if defined(BUILD_DEBUG)
+static __oryx_always_inline__
+void DecodeUpdateCounters(ThreadVars *tv,
                                 const DecodeThreadVars *dtv, const Packet *p)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
@@ -565,23 +571,14 @@ static __oryx_always_inline__ void DecodeUpdateCounters(ThreadVars *tv,
 }
 
 /**
- 
 * \brief Finalize decoding of a packet
- 
-*
- 
 * This function needs to be call at the end of decode
- 
 * functions when decoding has been succesful.
- 
-*
- 
 */
-static __oryx_always_inline__ void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
+static __oryx_always_inline__
+void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 
 {
-
-    
 	if (p->flags & PKT_IS_INVALID) {
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);
 		int i = 0;
@@ -592,10 +589,21 @@ static __oryx_always_inline__ void PacketDecodeFinalize(ThreadVars *tv, DecodeTh
 			}
 		}
 #endif
-	  
 	}
 }
 
-extern Packet *PacketGetFromAlloc(void);
-extern void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p);
+#else
+
+#define DecodeUpdateCounters(tv,dtv,p)\
+    oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);\
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));\
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, GET_PKT_LEN(p));\
+    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, GET_PKT_LEN(p));
+
+#define PacketDecodeFinalize(tv,dtv,p)\
+	if (p->flags & PKT_IS_INVALID) {\
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);\
+	}
+#endif
+
 #endif

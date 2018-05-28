@@ -54,13 +54,6 @@ void dp_dpdk_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 	argv = argv;
 }
 
-static int dp_dpdk_free(void *mbuf)
-{
-	mbuf = mbuf;
-	return 0;
-}
-
-
 static const char *enp5s0fx[] = {
 	"enp5s0f1",
 	"enp5s0f2",
@@ -98,10 +91,6 @@ extern void dpdk_format_eal_args (vlib_main_t *vm);
 
 void dp_start_dpdk(struct vlib_main_t *vm) {
 	dpdk_main_t *dm = &dpdk_main;
-	int i;
-	char thrgp_name[128] = {0}; 
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
 
 	dm->conf->mempool_priv_size = vm->extra_priv_size;	
 	dp_dpdk_check_port(vm);
@@ -111,23 +100,12 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);
 	
-	for (i = 0; i < vm->nb_lcores; i ++) {
-		tv = &g_tv[i];
-		dtv = &g_dtv[i];
-		sprintf (thrgp_name, "dp[%u] hd-thread", i);
-		tv->thread_group_name = strdup(thrgp_name);
-		SC_ATOMIC_INIT(tv->flags);
-		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
-		dp_register_perf_counters(dtv, tv);
-		tv->free_fn = dp_dpdk_free;
-	}
-	
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
 											  dp_dpdk_perf_tmr_handler, 0, NULL, 3000);
 
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(main_loop, vm, SKIP_MASTER);
+	rte_eal_mp_remote_launch(main_loop, vm, CALL_MASTER);
 }
 
 
