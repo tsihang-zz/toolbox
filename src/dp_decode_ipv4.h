@@ -665,27 +665,22 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     /* check what next decoder to invoke */
     switch (IPV4_GET_IPPROTO(p)) {
         case IPPROTO_TCP:
-			oryx_logd("DecodeEthernet TCP");
             DecodeTCP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_UDP:
-			oryx_logd("DecodeEthernet UDP");
             DecodeUDP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_ICMP:
-			oryx_logd("DecodeEthernet ICMPv4");
             DecodeICMPv40(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                          IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_GRE:
-			oryx_logd("DecodeEthernet GRE");
             DecodeGRE0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
         case IPPROTO_SCTP:
-			oryx_logd("DecodeEthernet SCTP");
             DecodeSCTP0(tv, dtv, p, pkt + IPV4_GET_HLEN(p),
                       IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p), pq);
             break;
@@ -717,7 +712,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
             break;
 	#endif
         case IPPROTO_ICMPV6:
-			oryx_logd("DecodeEthernet ICMPv6");
+			oryx_logd("ICMPv6");
             ENGINE_SET_INVALID_EVENT(p, IPV4_WITH_ICMPV6);
             break;
     }

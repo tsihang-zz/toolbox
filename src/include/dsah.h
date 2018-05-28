@@ -68,7 +68,7 @@ typedef union MarvellDSAHdr_ {
 
 
 /** DSA header length */
-#define DSA_HEADER_LEN (4 + 2 /** eth_type*/)
+#define DSA_HEADER_LEN (12 + 4 + 2 /** eth_type*/)
 
 /** DSA extend header length */
 #define DSA_EXTEND_HEADER_LEN 8

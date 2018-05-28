@@ -18,21 +18,9 @@ enum appl_type_t {
 };
 
 enum {
-	L4_PORT_SRC,
-	L4_PORT_DST,
-	L4_PORTS,
-};
-
-enum {
-	L3_IP_ADDR_SRC,
-	L3_IP_ADDR_DST,
-	L3_IP_ADDR,
-};
-
-enum {
-	L2_ETHERNET_ADDR_SRC,
-	L2_ETHERNET_ADDR_DST,
-	L2_ETHERNET,
+	HD_SRC,
+	HD_DST,
+	SRC_DST,
 };
 
 /** vlan=0 is reserved by system, we use this for "any" VLAN.*/
@@ -57,12 +45,12 @@ struct appl_signature_t {
 	/**
 	  * ip address for this application.
 	  */
-	struct prefix_ipv4 ip4[L3_IP_ADDR];
+	struct prefix_ipv4 ip4[SRC_DST];
 
 	/**
 	  * l4 port for this application.
 	  */
-	u16 us_port[L4_PORTS];
+	u16 us_port[SRC_DST];
 
 	/**
 	  * Protocol
@@ -146,9 +134,9 @@ struct appl_t {
 typedef struct {
 	int ul_n_appls;
 	u32 ul_flags;
+	os_lock_t lock;
 	oryx_vector entry_vec;
 	struct oryx_htable_t *htable;
-	
 }vlib_appl_main_t;
 
 vlib_appl_main_t vlib_appl_main;

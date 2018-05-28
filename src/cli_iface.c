@@ -469,13 +469,12 @@ static struct iface_t iface_list[] = {
 	{
 		"enp5s0f1",
 		ETH_XE,
-		!1,
+		NETDEV_MARVELL_DSA,
 		NULL,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -486,13 +485,12 @@ static struct iface_t iface_list[] = {
 	{
 		"enp5s0f2",
 		ETH_XE,
-		1,
+		NETDEV_PANEL,
 		NULL,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -503,13 +501,12 @@ static struct iface_t iface_list[] = {
 	{
 		"enp5s0f3",
 		ETH_XE,
-		1,
+		NETDEV_PANEL,
 		NULL,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -520,13 +517,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan1",
 		ETH_GE,
-		1,
+		NETDEV_PANEL | NETDEV_MARVELL_DSA,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -537,13 +533,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan2",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -554,13 +549,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan3",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -571,13 +565,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan4",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -588,13 +581,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan5",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -605,13 +597,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan6",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -622,13 +613,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan7",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -639,13 +629,12 @@ static struct iface_t iface_list[] = {
 	{
 		"lan8",
 		ETH_GE,
-		1,
+		NETDEV_PANEL,
 		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
 		{0,0,0,0,0,0},
-		0,
 		0,
 		0,
 		NULL,
@@ -669,7 +658,7 @@ void register_ports(void)
 		this = &iface_list[i];
 		
 		/** lan1-lan8 are not vfio-pci drv port. */
-		if(this->type == ETH_GE && this->is_a_panel_port) {
+		if(this->type == ETH_GE && this->ul_flags & NETDEV_PANEL) {
 			if (!netdev_exist(this->sc_alias_fixed)) {
 				continue;
 			}
@@ -686,6 +675,7 @@ void register_ports(void)
 			new->if_poll_state = this->if_poll_state;
 			new->if_poll_up = this->if_poll_up;
 			new->ul_id = n_ports_now + i;
+			new->ul_flags = this->ul_flags;
 			if (!iface_add(vp, new))
 				oryx_logn("registering interface %s ... success", new->sc_alias);
 			else

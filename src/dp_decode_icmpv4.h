@@ -237,6 +237,8 @@ int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
 static __oryx_always_inline__
 int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
+	oryx_logd("ICMPv4");
+	
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_icmpv4);
 	
     if (len < ICMPV4_HEADER_LEN) {

@@ -32,6 +32,8 @@ int DecodeSCTPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
 static __oryx_always_inline__
 int DecodeSCTP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
+	oryx_logd("SCTP");
+
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
 
     if (unlikely(DecodeSCTPPacket(tv, p,pkt,len) < 0)) {

@@ -33,7 +33,8 @@
 static __oryx_always_inline__
 void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
-
+	oryx_logd("IPv4InIPv6");
+	
     if (unlikely(plen < IPV4_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, IPV4_IN_IPV6_PKT_TOO_SMALL);
         return;
@@ -65,6 +66,7 @@ void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 static __oryx_always_inline__
 int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
+	oryx_logd("IPv6InIPv6");
 
     if (unlikely(plen < IPV6_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, IPV6_IN_IPV6_PKT_TOO_SMALL);

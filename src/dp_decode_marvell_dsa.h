@@ -21,6 +21,8 @@ void PrintDSA(const char *comment, uint32_t dsa, u8 rx_tx)
 }
 
 typedef struct MarvellDSAEthernetHdr_ {
+    uint8_t eth_dst[6];
+    uint8_t eth_src[6];
     MarvellDSAHdr dsah;
     uint16_t eth_type;
 } __attribute__((__packed__)) MarvellDSAEthernetHdr;
@@ -53,16 +55,16 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 	}
 
 	dsaeth = (MarvellDSAEthernetHdr *)&pkt[0];
-	dsah = p->dsah = (MarvellDSAHdr *)&pkt[0];
+	dsah = p->dsah = (MarvellDSAHdr *)&pkt[12];
 	if (unlikely(p->dsah == NULL))
 		return TM_ECODE_FAILED;
 
-	p->dsa = ntoh32(p->dsah->dsa);
+	p->dsa = ntoh32(dsah->dsa);
 
 	//PrintDSA("RX", p->dsa, QUA_RX);
 	//SET_PKT_SRC_PHY(p, dsa_to_phy_map_list[DSA_SRC_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
 
-	oryx_logd("ether type %04x", ntoh16(dsaeth->eth_type));
+	oryx_logd("dsa %08x, ether_type %04x", p->dsa, ntoh16(dsaeth->eth_type));
 
 	switch (ntoh16(dsaeth->eth_type)) {
 			case ETHERNET_TYPE_IP:
@@ -96,10 +98,13 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 					 len - DSA_HEADER_LEN, pq);
 				break;
 			default:
-				oryx_loge(-1, "p %p pkt %p ether_type %04x not supported", p,
-						   pkt, ntohs(dsaeth->eth_type));
-				ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_NOT_SUPPORTED);
+		#if defined(BUILD_DEBUG)
+				oryx_loge(-1, "p %p pkt %p dsa %08x ether_type %04x not supported", p,
+						   pkt, p->dsa, ntoh16(dsaeth->eth_type));
 				dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
+		#endif
+				ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_NOT_SUPPORTED);
+				break;
 	}
 
 	return 0;

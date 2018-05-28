@@ -61,8 +61,14 @@ int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			   DecodeARP0(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 					len - ETHERNET_HEADER_LEN, pq);
 			   break;
-		   default:    /** trying to decode Marvell DSA frame. */
-			   DecodeMarvellDSA0(tv, dtv, p, pkt + 12, len - 12, pq);
+		   default:	   		
+	#if defined(BUILD_DEBUG)
+		   		oryx_loge(-1, "p %p pkt %p ether_type %04x not supported", p,
+						   pkt, ntoh16(ethh->eth_type));
+				dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
+	#endif				
+				ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_NOT_SUPPORTED);
+				break;
    }
 
    return 0;

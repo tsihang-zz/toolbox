@@ -21,7 +21,7 @@ extern oryx_vector appl_vector_table;
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = appl_table_entry_lookup_i (atoi(token));\
+					appl_table_entry_lookup_i (atoi(token), &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -72,7 +72,7 @@ extern oryx_vector appl_vector_table;
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = appl_table_entry_lookup_i (atoi(token));\
+					appl_table_entry_lookup_i (atoi(token), &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -123,7 +123,7 @@ extern oryx_vector appl_vector_table;
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = appl_table_entry_lookup_i (atoi(token));\
+					appl_table_entry_lookup_i (atoi(token), &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\

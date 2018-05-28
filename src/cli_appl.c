@@ -8,205 +8,16 @@
 
 #include "rc4.h"
 
+vlib_appl_main_t vlib_appl_main = {
+	.lock = INIT_MUTEX_VAL,
+};
+
 atomic_t n_application_elements = ATOMIC_INIT(0);
 oryx_vector appl_vector_table;
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
 			atomic_read(&n_application_elements), (int)vec_count(appl_vector_table), VTY_NEWLINE);
-
-/** This element is busy ??
-a stub function for applications check. */
-#define THIS_ELEMENT_IS_INUNSE(elm) 0
-
-//#define APPL_DEBUG
-
-#define APPL_LOCK
-#ifdef APPL_LOCK
-static INIT_MUTEX(appl_lock);
-#else
-#undef do_lock(lock)
-#undef do_unlock(lock)
-#define do_lock(lock)
-#define do_unlock(lock)
-#endif
-
-void appl_entry_format (struct appl_t *appl, 
-	u32 __oryx_unused__*rule_id, char *unused_var, 
-	char __oryx_unused__*vlan, 
-	char __oryx_unused__*sip, 
-	char __oryx_unused__*dip, 
-	char __oryx_unused__*sp, 
-	char __oryx_unused__*dp, 
-	char __oryx_unused__*proto)
-{
-
-	u8 action = APPL_DEFAULT_ACTIONS;
-	struct appl_signature_t *as;
-	
-	if (!appl) return;
-
-	as = appl->instance;
-	if (!as) return;
-
-	if (vlan) {
-		if (isalldigit (vlan)) 
-			as->us_vlan = atoi (vlan);
-		else {
-			/** default is ANY_VLAN */
-			as->us_vlan = ANY_VLAN; /** To avoid warnings. */
-		}
-	}
-	
-	if (sip) str2prefix_ipv4 (sip, &as->ip4[L4_PORT_SRC]);
-	if (dip) str2prefix_ipv4 (dip, &as->ip4[L4_PORT_DST]);
-
-	/** Format TCP/UDP Port. */
-	if (sp) {
-		u8 p = L4_PORT_SRC;
-		if (isalldigit (sp)) {
-			as->us_port[p]  = atoi (sp);
-		}
-		else {
-			/** default is ANY_PORT */
-			as->us_port[p] = ANY_PORT; /** To avoid warnings. */
-		}
-	}
-	
-	if (dp) {
-		u8 p = L4_PORT_DST;
-		if (isalldigit (dp)) {
-			as->us_port[p]  = atoi (dp);
-		}
-		else {
-			/** default is ANY_PORT */
-			as->us_port[p] = ANY_PORT; /** To avoid warnings. */
-		}
-	}
-	
-	/** Format TCP/UDP Protocol. */
-	if (proto) {
-		if (isalldigit (proto)) {
-			as->uc_proto  = atoi (proto);
-		}
-		else {
-			/** default is ANY_PROTO */
-			as->uc_proto  = ANY_PROTO; /** To avoid warnings. */
-		}
-	}
-}
-
-void appl_entry_new (struct appl_t **appl, char *alias, u32 __oryx_unused__ type)
-{
-	/** create an appl */
-	(*appl) = kmalloc (sizeof (struct appl_t), MPF_CLR, __oryx_unused_val__);
-	ASSERT ((*appl));
-	
-	/** make appl alias. */
-	sprintf ((char *)&(*appl)->sc_alias[0], "%s", ((alias != NULL) ? alias: APPL_PREFIX));
-	(*appl)->ul_type = APPL_TYPE_STREAM;
-	(*appl)->ul_id = APPL_INVALID_ID;
-	(*appl)->ul_flags = APPL_DEFAULT_ACTIONS;
-	(*appl)->ull_create_time = time(NULL);
-	
-	(*appl)->instance = kmalloc (sizeof (struct appl_signature_t), MPF_CLR, __oryx_unused_val__);
-	ASSERT ((*appl)->instance);
-	
-	struct appl_signature_t *as = (*appl)->instance;
-	as->us_vlan = ANY_VLAN;
-	as->uc_proto = ANY_PROTO;
-	as->us_port[L4_PORT_SRC] = as->us_port[L4_PORT_DST] = ANY_PORT;
-	as->udp = vec_init (12);
-}
-
-void appl_entry_destroy (struct appl_t *appl)
-{
-	kfree (appl->instance);
-	kfree (appl);
-}
-
-void appl_table_entry_lookup (char *alias, struct appl_t **appl)
-{
-	vlib_appl_main_t *vp = &vlib_appl_main;
-	(*appl) = NULL;
-	
-	if (!alias) return;
-
-	void *s = oryx_htable_lookup (vp->htable,
-		alias, strlen((const char *)alias));
-
-	if (s) {
-		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
-	}
-}
-
-
-struct appl_t *appl_table_entry_lookup_i (u32 id)
-{
-	vlib_appl_main_t *vp = &vlib_appl_main;
-	return (struct appl_t *) vec_lookup (vp->entry_vec, id);
-}
-
-int appl_table_entry_remove (struct appl_t *appl)
-{
-	vlib_appl_main_t *vp = &vlib_appl_main;
-	if (!appl ||
-		(appl && 
-		appl->ul_id == APPL_INVALID_ID/** Delete appl from oryx_vector */)) {
-		return 0;
-	}
-	
-	if (likely(THIS_ELEMENT_IS_INUNSE(appl))) {
-		return 0;
-	}
-	
-	do_lock (&appl_lock);
-	
-	int r = oryx_htable_del(vp->htable, appl->sc_alias, strlen((const char *)appl->sc_alias));
-
-	if (r == 0 /** success */) {
-		vec_unset (vp->entry_vec, appl->ul_id);
-	}
-
-	do_unlock (&appl_lock);
-	
-	/** Should you free appl here ? */
-	
-	return 0;  
-}
-
-
-int appl_table_entry_remove_and_destroy (struct appl_t *appl)
-{
-	/** Delete appl from oryx_vector */
-	appl_table_entry_remove (appl);
-	appl_entry_destroy(appl);
-	
-	return 0;  
-}
-
-int appl_table_entry_add (struct appl_t *appl)
-{
-	vlib_appl_main_t *vp = &vlib_appl_main;
-	
-	if (appl->ul_id != APPL_INVALID_ID 	/** THIS APPL ??? */) {
-		appl = appl;
-		/** What should do here ??? */
-	} 
-
-	do_lock (&appl_lock);
-	
-	/** Add appl->sc_alias to hash table for controlplane fast lookup */
-	int r = oryx_htable_add(vp->htable, appl->sc_alias, strlen((const char *)appl->sc_alias));
-	if (r == 0 /** success*/) {
-		/** Add appl to a oryx_vector table for dataplane fast lookup. */
-		appl->ul_id = vec_set (vp->entry_vec, appl);
-	}
-
-	do_unlock (&appl_lock);
-	return r;
-}
-
 
 #if 0
 /** add a user defined pattern to existent APPL */
@@ -323,8 +134,8 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	if (appl->ul_type == APPL_TYPE_STREAM) {
 		struct appl_signature_t *as;
 		struct prefix *p;
-		u8 pfx_buf[L3_IP_ADDR][INET_ADDRSTRLEN];
-		u8 port_buf[L4_PORTS][16];
+		u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
+		u8 port_buf[SRC_DST][16];
 		u8 proto_buf[32];
 		
 		as = appl->instance;
@@ -333,21 +144,21 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 		char tmstr[100];
 		tm_format (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 		
-		p = (struct prefix *)&as->ip4[L3_IP_ADDR_SRC];
-		prefix2str_ (p, (char *)&pfx_buf[L3_IP_ADDR_SRC][0], INET_ADDRSTRLEN);
+		p = (struct prefix *)&as->ip4[HD_SRC];
+		prefix2str_ (p, (char *)&pfx_buf[HD_SRC][0], INET_ADDRSTRLEN);
 
-		p = (struct prefix *)&as->ip4[L3_IP_ADDR_DST];
-		prefix2str_ (p, (char *)&pfx_buf[L3_IP_ADDR_DST][0], INET_ADDRSTRLEN);
+		p = (struct prefix *)&as->ip4[HD_DST];
+		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
 
 		u8 uc_port;
 
-		uc_port = L4_PORT_SRC;
+		uc_port = HD_SRC;
 		if ((as->us_port[uc_port] == 0))
 			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
 		else 
 			sprintf ((char *)&port_buf[uc_port][0], "%d", as->us_port[uc_port]);
 		
-		uc_port = L4_PORT_DST;
+		uc_port = HD_DST;
 		if ((as->us_port[uc_port] == 0))
 			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
 		else 
@@ -359,7 +170,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 			sprintf ((char *)&proto_buf[0], "%d", as->uc_proto);
 
 		vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%8s%23s%s", 
-			appl->sc_alias, appl->ul_id, pfx_buf[L3_IP_ADDR_SRC], pfx_buf[L3_IP_ADDR_DST], port_buf[L4_PORT_SRC], port_buf[L4_PORT_DST], proto_buf, 
+			appl->sc_alias, appl->ul_id, pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
 			CLI_UNDEF_VAL, tmstr, VTY_NEWLINE);
 
 	}
@@ -403,14 +214,14 @@ DEFUN(no_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_appl_main_t *vp = &vlib_appl_main;
 	if (argc == 0) {
 		foreach_application_func1_param0 (argv[0], 
-			appl_table_entry_remove_and_destroy);
+			appl_table_entry_del);
 	}
 	else {
 		split_foreach_application_func1_param0 (argv[0], 
-			appl_table_entry_remove_and_destroy);
+			appl_table_entry_del);
 	}
 
 	PRINT_SUMMARY;
@@ -425,7 +236,7 @@ DEFUN(new_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_appl_main_t *vp = &vlib_appl_main;
 	struct appl_t *appl;
 
 	appl_table_entry_lookup ((char *)argv[0], &appl);
@@ -442,9 +253,8 @@ DEFUN(new_application,
 			/** An application without body. */
 			
 			/** Add appl to hash table. */
-			if (appl_table_entry_add (appl)) {
+			if (appl_table_entry_add (vp, appl)) {
 				VTY_ERROR_APPLICATION("add", (char *)argv[0]);
-				appl_entry_destroy (appl);
 				kfree (appl->instance);
 				kfree (appl);
 			}
@@ -476,7 +286,7 @@ DEFUN(new_application1,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_appl_main_t *vp = &vlib_appl_main;
 	struct appl_t *appl;
 
 	appl_table_entry_lookup ((char *)argv[0], &appl);
@@ -499,7 +309,7 @@ DEFUN(new_application1,
 			(char *)argv[6])	/** PROTO */;
 		
 		/** Add appl to hash table. */
-		if (appl_table_entry_add (appl)) {
+		if (appl_table_entry_add (vp, appl)) {
 			VTY_ERROR_APPLICATION("add", (char *)argv[0]);
 			kfree (appl->instance);
 			kfree (appl);

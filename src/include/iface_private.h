@@ -67,7 +67,18 @@ struct iface_t {
 	const char *sc_alias_fixed; /** fixed alias used to do linkstate poll,
 								 *  and can not be overwrite by CLI. */
 	int type;					/** ETH_GE, ETH_XE, ... */
-	int is_a_panel_port;		/** panel port or inner port bt cpu <-> sw. */
+
+#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
+#define NETDEV_PROMISC            (1 << 1)
+#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
+#define NETDEV_PMD                (1 << 3)
+#define	NETDEV_LOOPBACK	  		  (1 << 4)
+#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
+#define NETDEV_MARVELL_DSA		  (1 << 6)	/** marvell dsa frame. */
+#define NETDEV_PANEL			  (1 << 7)	/** is a panel port or not. 
+											  cpu <-> sw */
+	u32 ul_flags;
+
 	int (*if_poll_state)(struct iface_t *this);
 	int (*if_poll_up)(struct iface_t *this);	
 	u32 ul_id;					/** A panel interface ID. enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
@@ -75,13 +86,6 @@ struct iface_t {
 	char  sc_alias[32];			/** Port name. 
 								 *  for example, Gn_b etc... can be overwritten by CLI. */
 	char eth_addr[6];			/** ethernet address for this port. */
-#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
-#define NETDEV_PROMISC            (1 << 1)
-#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
-#define NETDEV_PMD                (1 << 3)
-#define	NETDEV_LOOPBACK	  		  (1 << 4)
-#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
-	u32 ul_flags;
 	u32 ul_up_down_times;		/** up->down counter. */
 	u16 us_mtu;
 	oryx_vector belong_maps;	/** Map for this interface belong to. */
@@ -91,6 +95,7 @@ struct iface_t {
 #define iface_alias(p) ((p)->sc_alias)
 #define iface_id(p)	   ((p)->ul_id)
 #define iface_perf(p)  ((p)->perf_private_ctx)
+#define iface_support_marvell_dsa(p) ((p)->ul_flags & NETDEV_MARVELL_DSA)
 
 #if defined(BUILD_DEBUG)
 static __oryx_always_inline__

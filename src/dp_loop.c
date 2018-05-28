@@ -92,6 +92,8 @@ void simple_forward(ThreadVars *tv,
 	
 	/** calc dst_port */
 	tx_port_id = (rx_port_id);
+	/** a test for ge port. */
+	tx_port_id = 1;
 	send_single_packet(tv, qconf, m, tx_port_id);
 }
 
@@ -262,7 +264,11 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			    oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
     			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_avg_pkt_size, pkt_len);
     			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_max_pkt_size, pkt_len);				
-				DecodeEthernet0(tv, dtv, p, pkt, pkt_len, pq);
+				if(iface_support_marvell_dsa(iface)) {
+					DecodeMarvellDSA0(tv, dtv, p, pkt, pkt_len, pq);
+				}else {
+					DecodeEthernet0(tv, dtv, p, pkt, pkt_len, pq);
+				}
 				PacketDecodeFinalize(tv, dtv, p);
 			}		
 #endif

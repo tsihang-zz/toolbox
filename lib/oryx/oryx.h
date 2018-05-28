@@ -586,7 +586,6 @@ do {							\
     }							\
 } while (0)
 
-oryx_status_t oryx_initialize(void);
 
 #include "oryx_error.h"
 #include "oryx_format.h"
@@ -603,6 +602,8 @@ oryx_status_t oryx_initialize(void);
 #include "oryx_counters.h"
 #include "conf.h"
 #include "conf-yaml-loader.h"
+
+extern oryx_status_t oryx_initialize(void);
 
 #endif	/* ORYX_H */
 
