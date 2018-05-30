@@ -251,15 +251,14 @@ void rss_parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
 	uint16_t ether_type;
 	void *l3;
 	int hdr_len;
-	struct ipv4_hdr *ipv4_hdr;
-	struct ipv6_hdr *ipv6_hdr;
+	struct ipv4_hdr *ipv4h;
+	struct ipv6_hdr *ipv6h;
 	ThreadVars *tv = &g_tv[lconf->lcore_id];
 	DecodeThreadVars *dtv = &g_dtv[lconf->lcore_id];
 
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, m->pkt_len);
 	
-
 	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_eth);
@@ -267,33 +266,33 @@ void rss_parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
 	ether_type = eth_hdr->ether_type;
 	l3 = (uint8_t *)eth_hdr + sizeof(struct ether_hdr);
 	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
-		ipv4_hdr = (struct ipv4_hdr *)l3;
-		hdr_len = (ipv4_hdr->version_ihl & IPV4_HDR_IHL_MASK) *
+		ipv4h = (struct ipv4_hdr *)l3;
+		hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
 			  IPV4_IHL_MULTIPLIER;
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
 		if (hdr_len == sizeof(struct ipv4_hdr)) {
 			packet_type |= RTE_PTYPE_L3_IPV4;
-			if (ipv4_hdr->next_proto_id == IPPROTO_TCP){
+			if (ipv4h->next_proto_id == IPPROTO_TCP){
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
 				packet_type |= RTE_PTYPE_L4_TCP;
 			}
-			else if (ipv4_hdr->next_proto_id == IPPROTO_UDP){
+			else if (ipv4h->next_proto_id == IPPROTO_UDP){
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_udp);
 				packet_type |= RTE_PTYPE_L4_UDP;
 			}
-			else if (ipv4_hdr->next_proto_id == IPPROTO_SCTP){
+			else if (ipv4h->next_proto_id == IPPROTO_SCTP){
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
 				packet_type |= RTE_PTYPE_L4_SCTP;
 			}
 		} else
 			packet_type |= RTE_PTYPE_L3_IPV4_EXT;
 	} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
-		ipv6_hdr = (struct ipv6_hdr *)l3;
-		if (ipv6_hdr->proto == IPPROTO_TCP)
+		ipv6h = (struct ipv6_hdr *)l3;
+		if (ipv6h->proto == IPPROTO_TCP)
 			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
-		else if (ipv6_hdr->proto == IPPROTO_UDP)
+		else if (ipv6h->proto == IPPROTO_UDP)
 			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_UDP;
-		else if (ipv6_hdr->proto == IPPROTO_SCTP)
+		else if (ipv6h->proto == IPPROTO_SCTP)
 			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_SCTP;
 		else
 			packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
@@ -424,15 +423,24 @@ rss_cb_parse_ptype0(uint8_t port __rte_unused, uint16_t queue __rte_unused,
 {
 	unsigned i;
 	struct lcore_conf *lconf = (struct lcore_conf*)user_param;
+	struct iface_t *iface;
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	iface_lookup_id(vp, port, &iface);
 
 #if defined(BUILD_DEBUG)
+	BUG_ON(iface == NULL);
 	if(nb_pkts) {
 		oryx_logd("port=%d, queue=%d, lcore=%d", port, queue, lconf->lcore_id);
 	}
 #endif
 
-	for (i = 0; i < nb_pkts; ++i) {
-		rss_parse_ptype0(pkts[i], lconf);	
+	if (iface_support_marvell_dsa(iface)) {
+		/** Marvell DSA frame decode. */
+	} else {
+		for (i = 0; i < nb_pkts; ++i) {
+			rss_parse_ptype0(pkts[i], lconf);	
+		}
 	}
 	
 	return nb_pkts;
@@ -456,7 +464,7 @@ rss_cb_parse_ptype1(uint8_t port __rte_unused, uint16_t queue __rte_unused,
 
 
 static __oryx_always_inline__
-uint8_t em_get_ipv4_dst_port(void *ipv4h, uint8_t portid, void *lookup_struct)
+uint8_t em_get_ipv4_dst_port(void *ipv4h, void *lookup_struct)
 {
 	int ret = 0;
 	union ipv4_5tuple_host key;
@@ -481,66 +489,14 @@ uint8_t em_get_ipv4_dst_port(void *ipv4h, uint8_t portid, void *lookup_struct)
 
 	/* Find destination port */
 	//ret = rte_hash_lookup(ipv4_l3fwd_lookup_struct, (const void *)&key);
-	//return (uint8_t)((ret < 0) ? portid : ipv4_l3fwd_out_if[ret]);
-	return 1;
+	//return (uint8_t)((ret < 0) ? 0 : ipv4_l3fwd_out_if[ret]);
+	return 0;
 }
-
-uint64_t lcore_rx_port_queue_stats_of_pkts [MAX_PORTS][MAX_LCORES][MAX_RX_QUEUE_PER_LCORE];
-uint64_t lcore_rx_port_queue_stats_of_bytes[MAX_PORTS][MAX_LCORES][MAX_RX_QUEUE_PER_LCORE];
-uint64_t lcore_tx_port_queue_stats_of_pkts [MAX_PORTS][MAX_LCORES][MAX_RX_QUEUE_PER_LCORE];
-uint64_t lcore_tx_port_queue_stats_of_bytes[MAX_PORTS][MAX_LCORES][MAX_RX_QUEUE_PER_LCORE];
 
 void dp_dpdk_perf_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 	int __oryx_unused__ argc, char **argv)
 {	
-#if 0
-	struct iface_t *iface;
-	vlib_port_main_t *vp = &vlib_port_main;
-	vlib_main_t *vm = (vlib_main_t *)argv;
-	int qua = QUA_COUNTER_RX;
-	int lcore;
-	int port;
-	int queue;
-	uint64_t nb_rx_pkts;
-	uint64_t nb_rx_bytes;
-	uint64_t nb_tx_pkts;
-	uint64_t nb_tx_bytes;
-
-	for (port = 0; port < vp->ul_n_ports; port ++) {
-		iface_lookup_id(vp, port, &iface);
-		if(iface == NULL) continue;
-		nb_rx_bytes = nb_rx_pkts = nb_tx_bytes = nb_tx_pkts = 0;
-		for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-			nb_rx_pkts += oryx_counter_get(iface_perf(iface),
-				iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore]);
-			nb_rx_bytes += oryx_counter_get(iface_perf(iface),
-				iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore]);
-
-			nb_tx_pkts += oryx_counter_get(iface_perf(iface),
-				iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][lcore]);
-			nb_tx_bytes += oryx_counter_get(iface_perf(iface),
-				iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_TX][lcore]);
-		}
-
-		/** flush to interface. */
-		iface_counters_set(iface, 
-			iface->if_counter_ctx->counter_pkts[QUA_COUNTER_RX], nb_rx_pkts);
-		iface_counters_set(iface,
-			iface->if_counter_ctx->counter_bytes[QUA_COUNTER_RX], nb_rx_bytes);
-
-		iface_counters_set(iface, 
-			iface->if_counter_ctx->counter_pkts[QUA_COUNTER_TX], nb_tx_pkts);
-		iface_counters_set(iface,
-			iface->if_counter_ctx->counter_bytes[QUA_COUNTER_TX], nb_tx_bytes);
-
-//#if defined(BUILD_DEBUG)
-		oryx_logn("%12s%15d", "Port: ", port);
-		oryx_logn("%12s%15llu%15llu", "Rx: ", nb_rx_pkts, nb_rx_bytes);
-		oryx_logn("%12s%15llu%15llu", "Tx: ", nb_tx_pkts, nb_tx_bytes);
-		oryx_logn("\n");
-//#endif
-	}
-#endif
+	argv = argv;
 }
 
 /* Send burst of packets on an output interface */
@@ -570,7 +526,6 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 	oryx_logd("tx_port_id=%d lcore %d, tx_pkts %d", tx_port_id, tv->lcore, n_tx_pkts);
 #endif
 
-	lcore_tx_port_queue_stats_of_pkts[tx_port_id][qconf->lcore_id][tx_queue_id] += n_tx_pkts;
 	iface_counters_add(iface, iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][qconf->lcore_id], n_tx_pkts);
 
 	return 0;
@@ -599,7 +554,7 @@ int send_single_packet(ThreadVars *tv, struct lcore_conf *qconf,
 
 static __oryx_always_inline__
 void simple_forward(ThreadVars *tv,
-		struct rte_mbuf *m, uint8_t rx_port_id, struct lcore_conf *qconf)
+		struct rte_mbuf *m, struct iface_t *iface, struct lcore_conf *qconf)
 {
 	uint8_t tx_port_id = -1;
 	Packet *p;
@@ -627,14 +582,13 @@ void simple_forward(ThreadVars *tv,
 #endif
 
 		/** fetch dst_port */
-		tx_port_id = em_get_ipv4_dst_port(ipv4h, rx_port_id,
-						qconf->ipv4_lookup_struct);
+		tx_port_id = em_get_ipv4_dst_port(ipv4h, qconf->ipv4_lookup_struct);
 
 #if defined(BUILD_DEBUG)
 		struct udp_hdr *udph = rte_pktmbuf_mtod_offset(m, struct udp_hdr *,
 						   (sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr)));		
 		oryx_logd("rx_port_id %d sip=%08x dip=%08x proto=%02x sp=%u dp=%u\n",
-				rx_port_id, ipv4h->src_addr, ipv4h->dst_addr, ipv4h->next_proto_id, udph->src_port, udph->dst_port);
+				iface_id(iface), ipv4h->src_addr, ipv4h->dst_addr, ipv4h->next_proto_id, udph->src_port, udph->dst_port);
 #endif
 
 	}
@@ -653,7 +607,16 @@ void no_opt_send_packets(ThreadVars *tv,
 			uint8_t rx_port_id, struct lcore_conf *qconf)
 {
 	int32_t j = 0;
+	struct iface_t *iface;
+	vlib_port_main_t *vp = &vlib_port_main;
 
+	iface_lookup_id(vp, rx_port_id, &iface);
+
+#if defined(BUILD_DEBUG)
+	BUG_ON(iface == NULL);
+#endif
+
+#if 0
 	/* Prefetch first packets */
 	for (j = 0; j < PREFETCH_OFFSET && j < nb_rx; j++)
 		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[j], void *));
@@ -665,12 +628,13 @@ void no_opt_send_packets(ThreadVars *tv,
 	for (j = 0; j < (nb_rx - PREFETCH_OFFSET); j++) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[
 				j + PREFETCH_OFFSET], void *));
-		simple_forward(tv, pkts_burst[j], rx_port_id, qconf);
+		simple_forward(tv, pkts_burst[j], iface, qconf);
 	}
+#endif
 
 	/* Forward remaining prefetched packets */
 	for (; j < nb_rx; j++)
-		simple_forward(tv, pkts_burst[j], rx_port_id, qconf);
+		simple_forward(tv, pkts_burst[j], iface, qconf);
 }
 
 /* main processing loop */
@@ -685,8 +649,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	uint8_t rx_port_id, tx_port_id, rx_queue_id, tx_queue_id;
 	struct lcore_conf *qconf;
 	ThreadVars *tv;
-	DecodeThreadVars *dtv;
-	PacketQueue *pq;
 	struct iface_t *iface;
 	vlib_port_main_t *vp = &vlib_port_main;
 	int qua = QUA_COUNTER_RX;
@@ -702,8 +664,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	lcore_id = rte_lcore_id();
 
 	tv = &g_tv[lcore_id];
-	dtv = &g_dtv[lcore_id];
-	pq = &g_pq[lcore_id];
 	qconf = &lcore_conf[lcore_id];
 	tv->lcore = lcore_id;
 
@@ -782,9 +742,7 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				continue;
 
 			/** port ID -> iface */
-			iface_lookup_id(vp, rx_port_id, &iface);
-			
-			lcore_rx_port_queue_stats_of_pkts[rx_port_id][lcore_id][rx_queue_id] += nb_rx;
+			iface_lookup_id(vp, rx_port_id, &iface);			
 			iface_counters_add(iface, iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore_id], nb_rx);
 			
 			for (j = 0; j < nb_rx; j++) {
@@ -797,7 +755,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				SET_PKT_LEN(p, pkt_len);
 				SET_PKT(p, pkt);
 				SET_PKT_SRC_PHY(p, rx_port_id); 
-				lcore_rx_port_queue_stats_of_bytes[rx_port_id][lcore_id][rx_queue_id] += pkt_len;
 				iface_counters_add(iface, iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore_id], pkt_len);
 				/** which port this packet should be send out. */
 				tx_port_id = 1;

@@ -92,14 +92,15 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);
-	
+
+#if 0		
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
 											  dp_dpdk_perf_tmr_handler, 1, (char **)vm, 3000);
 
 	if(likely(vm->perf_tmr))
 	  oryx_tmr_start(vm->perf_tmr);
-
+#endif
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(main_loop, vm, CALL_MASTER);
 }
