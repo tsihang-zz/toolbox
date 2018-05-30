@@ -45,22 +45,8 @@ enum {
 };
 
 struct iface_counter_ctx {
-    /** stats/counters */
-    counter_id counter_pkts[QUA_COUNTERS];
-    counter_id counter_bytes[QUA_COUNTERS];
-	
-    counter_id counter_eth[QUA_COUNTERS];
-    counter_id counter_ipv4[QUA_COUNTERS];
-    counter_id counter_ipv6[QUA_COUNTERS];
-    counter_id counter_tcp[QUA_COUNTERS];
-    counter_id counter_udp[QUA_COUNTERS];
-    counter_id counter_icmpv4[QUA_COUNTERS];
-    counter_id counter_icmpv6[QUA_COUNTERS];
-    counter_id counter_sctp[QUA_COUNTERS];
-	counter_id counter_arp[QUA_COUNTERS];
-    counter_id counter_vlan[QUA_COUNTERS];
-    counter_id counter_pppoe[QUA_COUNTERS];
-    counter_id counter_mpls[QUA_COUNTERS];
+	counter_id lcore_counter_pkts[QUA_COUNTERS][MAX_LCORES];
+	counter_id lcore_counter_bytes[QUA_COUNTERS][MAX_LCORES];
 };
 
 struct iface_t {
@@ -92,55 +78,18 @@ struct iface_t {
 	struct CounterCtx *perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
-#define iface_alias(p) ((p)->sc_alias)
-#define iface_id(p)	   ((p)->ul_id)
-#define iface_perf(p)  ((p)->perf_private_ctx)
+#define iface_alias(p) (p)->sc_alias
+#define iface_id(p)	   (p)->ul_id
+#define iface_perf(p)  (p)->perf_private_ctx
 #define iface_support_marvell_dsa(p) ((p)->ul_flags & NETDEV_MARVELL_DSA)
 
-#if defined(BUILD_DEBUG)
-static __oryx_always_inline__
-void iface_counters_add(struct iface_t *p,
-					counter_id id, u64 x){
-#if defined(BUILD_DEBUG)
-	BUG_ON (p == NULL);
-#endif
-	oryx_counter_add(p->perf_private_ctx, id, x);	
-}
-
-static __oryx_always_inline__
-void iface_counters_inc(struct iface_t *p,
-					counter_id id){
-#if defined(BUILD_DEBUG)
-	BUG_ON (p == NULL);
-#endif
-	oryx_counter_inc(p->perf_private_ctx, id);
-}
-
-static __oryx_always_inline__
-void iface_counters_set(struct iface_t *p,
-					counter_id id, u64 x){
-#if defined(BUILD_DEBUG)
-	BUG_ON (p == NULL);
-#endif
-	oryx_counter_set(p->perf_private_ctx, id, x);
-}
-
-static __oryx_always_inline__
-void iface_counters_clear(struct iface_t *p,
-					counter_id id){
-#if defined(BUILD_DEBUG)
-	BUG_ON (p == NULL);
-#endif
-	oryx_counter_set(p->perf_private_ctx, id, 0);
-}
-#else
-
 #define iface_counters_add(p,id,x)\
-	oryx_counter_add(iface_perf((p)), (id), (x));
+	oryx_counter_add(iface_perf((p)),(id),(x));
 #define iface_counters_inc(p,id,x)\
-	oryx_counter_inc(iface_perf((p)), (id));
-#endif
-					
+	oryx_counter_inc(iface_perf((p)),(id));
+#define iface_counters_set(p,id,x)\
+	oryx_counter_set(iface_perf((p)),(id),(x));
+
 typedef struct vlib_port_main {
 	/* dpdk_ports + sw_ports */
 	int ul_n_ports;
@@ -165,6 +114,10 @@ static __oryx_always_inline__ int iface_lookup_id(vlib_port_main_t *vp,
 {
 	(*this) = NULL;
 	(*this) = (struct iface_t *) vec_lookup (vp->entry_vec, id);
+
+#if defined(BUILD_DEBUG)
+	BUG_ON((*this) == NULL || (*this->ul_id) != id);
+#endif	
 	return 0;
 }
 

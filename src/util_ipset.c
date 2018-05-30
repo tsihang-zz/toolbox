@@ -1,8 +1,6 @@
 #include "oryx.h"
 #include "prefix.h"
-#include "appl_private.h"
 #include "util_ipset.h"
-#include "rfc.h"
 
 void appl_entry_format (struct appl_t *appl, 
 	u32 __oryx_unused__*rule_id, char *unused_var, 
@@ -93,9 +91,8 @@ void appl_entry_new (struct appl_t **appl,
 	as->udp = vec_init (12);
 }
 
-void appl_table_entry_lookup (char *alias, struct appl_t **appl)
+void appl_entry_lookup (vlib_appl_main_t *vp, const char *alias, struct appl_t **appl)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
 	(*appl) = NULL;
 	
 	if (!alias) return;
@@ -107,17 +104,14 @@ void appl_table_entry_lookup (char *alias, struct appl_t **appl)
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
 	}
 }
-void appl_table_entry_lookup_i (u32 id, struct appl_t **appl)
+void appl_entry_lookup_i (vlib_appl_main_t *vp, u32 id, struct appl_t **appl)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
 	(*appl) = NULL;
 	(*appl) = vec_lookup (vp->entry_vec, id);
 }
 
-int appl_table_entry_del (struct appl_t *appl)
+int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
-
 	if (!appl ||
 		(appl && 
 		appl->ul_id == APPL_INVALID_ID/** Delete appl from oryx_vector */)) {
@@ -142,7 +136,7 @@ int appl_table_entry_del (struct appl_t *appl)
 	return 0;  
 }
 
-int appl_table_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
+int appl_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
 {
 	BUG_ON(appl->ul_id != APPL_INVALID_ID);
 
@@ -159,118 +153,54 @@ int appl_table_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
 	return r;
 }
 
-#if 0
-/*******************************************************************************
- @Function Name:   acl_sync_ruleg_ipv4
- @Description:     sync group's ipv4 five tuple rule into search nodes
- @param: group_id  input:  group id
- @return:          uint8_t RETURN_TRUE:success RETURN_FALSE:failed
-********************************************************************************/
-uint8_t ipset_flush(vlib_appl_main_t *am, vlib_rfc_main_t *rm)
+void appl_table_entry_lookup (struct prefix_t *lp, 
+				struct appl_t **a)
 {
-    uint32_t i, com;
-    acl_rule_set_t *ruleset;
-    int ret;
-    uint8_t ip_ver = 4;
-    rfc_node_t *search_node = NULL;
-	int fe = 0;
-	struct appl_t *v = NULL;
-    
-    search_node = (rfc_node_t*)&rm->search;
-    memset(search_node, 0, sizeof(rfc_node_t));
+	vlib_appl_main_t *am = &vlib_appl_main;
 
-    /* format acl rules */
-    ruleset = &rm->ipset;
-    ipv4_filtset.n_filts = 0;
-    search_node->f2r.n_filt = 0;
+	ASSERT (lp);
+	ASSERT (a);
+	(*a) = NULL;
+	
+	switch (lp->cmd) {
+		case LOOKUP_ID:
+			appl_entry_lookup_i(am, (*(u32*)lp->v), a);
+			break;
+		case LOOKUP_ALIAS:
+			appl_entry_lookup(am, (const char*)lp->v, a);
+			break;
+		default:
+			break;
+	}
+}
 
-	/** foreach appl.instance in signature. */
-	vec_foreach_element(appl_vector_table, fe, v){
-		if(likely(v)) {
-			struct appl_signature_t *as;
-			as = v->instance;
-			if (likely(as)) {
-	/**
-    uint8_t       sip_mask;
-    uint8_t       dip_mask;
-    uint8_t       start_proto;
-    uint8_t       end_proto;
-    uint32_t      start_sport;
-    uint32_t      end_sport;
-    uint32_t      start_dport;
-    uint32_t      end_dport;
-    uint32_t      start_vid;
-    uint32_t      end_vid;
-    rfc_ip_addr_t start_sip;
-    rfc_ip_addr_t end_sip;
-    rfc_ip_addr_t start_dip;
-    rfc_ip_addr_t end_dip;
-    rfc_ip_addr_t sip;
-    rfc_ip_addr_t dip;
-	*/
-#if 0
-				struct prefix *p;
-				int qua;
-				rfc_5tuple_t t;
-				memset (&t, 0, sizeof(t));			
+int appl_table_entry_deep_lookup(const char *argv, 
+				struct appl_t **appl)
+{	
+	struct appl_t *v;
+	
+	struct prefix_t lp_al = {
+		.cmd = LOOKUP_ALIAS,
+		.s = strlen ((char *)argv),
+		.v = (char *)argv,
+	};
 
-				/** format src ip and port */
-				qua = HD_SRC;	
-				p = &as->ip4[qua];
-				t.sip_mask = p->prefixlen;
-				t.sip.addr_v4 = p->u.prefix4;
-				t.start_sport = t.end_sport = as->us_port[qua];
-
-				/** format dst ip and port */
-				qua = HD_DST;	
-				p = &as->ip4[qua];
-				t.dip_mask = p->prefixlen;
-				t.dip.addr_v4 = p->u.prefix4;
-				t.start_dport = t.end_dport = as->us_port[qua];
-
-				/** format protocol */
-				t.start_proto = t.end_proto = as->uc_proto;
-#endif				
-			}
+	appl_table_entry_lookup (&lp_al, &v);
+	if (unlikely (!v)) {
+		/** try id lookup if alldigit input. */
+		if (isalldigit ((char *)argv)) {
+			u32 id = atoi((char *)argv);
+			struct prefix_t lp_id = {
+				.cmd = LOOKUP_ID,
+				.v = (void *)&id,
+				.s = strlen ((char *)argv),
+			};
+			appl_table_entry_lookup (&lp_id, &v);
 		}
 	}
-	
-    /* encode phase0 */
-    for (com = 0; com < DIM_P0_MAX; com++)
-    {
-        ret = rfc_set_phase0_dim_cell(rm, &search_node->p0_node[com], com);
-        if (ret < 0) 
-        {
-            goto sync_error;
-        }
-    }
-    
-    /* encode phase1 */
-    com = 0;
-    ret = rfc_set_phase1_dim_cell(&search_node->p1_node[0], com, ip_ver);
-    if (ret < 0) 
-    {
-        oryx_loge(-1, "rule phase 1 com [%d] cell entry is full\n", com);
-        goto sync_error;
-    }
-    
-    com = 1;
-    ret = rfc_set_phase1_dim_cell(&search_node->p1_node[1], com, ip_ver);
-    if (ret < 0) 
-    {
-        oryx_loge(-1, "rule phase 1 com [%d] cell entry is full\n", com);
-        goto sync_error;
-    }
-    
-    /* encode phase2 */
-    ret =  rfc_set_phase2_cell(&search_node->p2_node);
-    if (ret < 0) 
-    {
-        goto sync_error;
-    }
+	(*appl) = v;
 
-    return 1;
-sync_error:
-    return 0;
+	return 0;
 }
-#endif
+
+

@@ -12,9 +12,9 @@
 //#define EQS_SIZE	    5000
 #define EQS_SIZE	    50000
 #define P0_CELL_ENTRY_SIZE  65536
-//#define P1_CELL_ENTRY_SIZE  600000
+#define P1_CELL_ENTRY_SIZE  600000
 //#define P1_CELL_ENTRY_SIZE  2000000
-#define P1_CELL_ENTRY_SIZE  10000000
+//#define P1_CELL_ENTRY_SIZE  10000000
 #define P2_CELL_ENTRY_SIZE  P1_CELL_ENTRY_SIZE
 
 #define RFC_INVALID_RULE_ID 65535
@@ -226,6 +226,6 @@ typedef struct _vlib_rfc_main_t {
 	rfc_5tuple_t ipset[RFC_IPSET_MAX_ID];
 }vlib_rfc_main_t;
 
-vlib_rfc_main_t rfc_main;
+extern vlib_rfc_main_t vlib_rfc_main;
 
 #endif

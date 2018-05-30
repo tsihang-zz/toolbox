@@ -7,7 +7,7 @@ static list_eq_t* pnoder_eqs = NULL;
 
 filtset_t ipv4_filtset;
 
-vlib_rfc_main_t rfc_main;
+vlib_rfc_main_t vlib_rfc_main;
 
 static __oryx_always_inline__
 void bmpset(uint32_t *tbmp, uint32_t i, bool value)

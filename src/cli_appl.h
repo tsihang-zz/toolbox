@@ -4,8 +4,6 @@
 #include "appl_private.h"
 
 extern atomic_t n_application_elements;
-extern oryx_vector appl_vector_table;
-
 
 #define split_foreach_application_func1_param0(argv_x, func)\
 		const char *split = ",";/** split tokens */\
@@ -13,6 +11,8 @@ extern oryx_vector appl_vector_table;
 		char *save = NULL;\
 		char alias_list[128] = {0};\
 		int foreach_element;\
+		oryx_vector vec = vlib_appl_main.entry_vec;\
+		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
 		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
@@ -20,8 +20,13 @@ extern oryx_vector appl_vector_table;
 			if (token) {\
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
-					/** Lookup by ID. */\
-					appl_table_entry_lookup_i (atoi(token), &v);\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.v = (void *)&id,\
+						.s = strlen (token),\
+					};\
+					appl_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -32,8 +37,14 @@ extern oryx_vector appl_vector_table;
 					}\
 					else {\
 	lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						appl_table_entry_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						appl_table_entry_lookup (&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\
@@ -46,7 +57,7 @@ extern oryx_vector appl_vector_table;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(appl_vector_table, foreach_element, v){\
+				vec_foreach_element(vec, foreach_element, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
 						atomic_inc(&n_application_elements);\
@@ -64,6 +75,8 @@ extern oryx_vector appl_vector_table;
 		char *save = NULL;\
 		char alias_list[128] = {0};\
 		int foreach_element;\
+		oryx_vector vec = vlib_appl_main.entry_vec;\
+		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
 		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
@@ -72,7 +85,13 @@ extern oryx_vector appl_vector_table;
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					appl_table_entry_lookup_i (atoi(token), &v);\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.v = (void *)&id,\
+						.s = strlen (token),\
+					};\
+					appl_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -83,8 +102,14 @@ extern oryx_vector appl_vector_table;
 					}\
 					else {\
 	lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						appl_table_entry_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						appl_table_entry_lookup(&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\
@@ -97,7 +122,7 @@ extern oryx_vector appl_vector_table;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(appl_vector_table, foreach_element, v){\
+				vec_foreach_element(vec, foreach_element, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0);\
 						atomic_inc(&n_application_elements);\
@@ -115,6 +140,8 @@ extern oryx_vector appl_vector_table;
 		char *save = NULL;\
 		char alias_list[128] = {0};\
 		int foreach_element;\
+		oryx_vector vec = vlib_appl_main.entry_vec;\
+		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
 		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
@@ -123,7 +150,13 @@ extern oryx_vector appl_vector_table;
 				struct appl_t *v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					appl_table_entry_lookup_i (atoi(token), &v);\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.v = (void *)&id,\
+						.s = strlen (token),\
+					};\
+					appl_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -134,8 +167,14 @@ extern oryx_vector appl_vector_table;
 					}\
 					else {\
 	lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						appl_table_entry_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						appl_table_entry_lookup(&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\
@@ -148,7 +187,7 @@ extern oryx_vector appl_vector_table;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(appl_vector_table, foreach_element, v){\
+				vec_foreach_element(vec, foreach_element, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
 						atomic_inc(&n_application_elements);\
@@ -162,9 +201,10 @@ extern oryx_vector appl_vector_table;
 	
 #define foreach_application_func1_param0(argv_x, func)\
 		int foreach_element;\
+		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\
 		struct appl_t *v;\
-		vec_foreach_element(appl_vector_table, foreach_element, v){\
+		vec_foreach_element(am->entry_vec, foreach_element, v){\
 			if (v) {\
 				func (v);\
 				atomic_inc(&n_application_elements);\
@@ -173,9 +213,10 @@ extern oryx_vector appl_vector_table;
 	
 #define foreach_application_func1_param1(argv_x, func, param0)\
 		int foreach_element;\
+		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\
 		struct appl_t *v;\
-		vec_foreach_element(appl_vector_table, foreach_element, v){\
+		vec_foreach_element(am->entry_vec, foreach_element, v){\
 			if (v) {\
 				func (v, param0);\
 				atomic_inc(&n_application_elements);\

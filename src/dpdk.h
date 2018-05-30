@@ -32,6 +32,9 @@
 #include <rte_udp.h>
 #include <rte_hash.h>
 #include <rte_string_fns.h>
+#include <rte_vect.h>
+#include <rte_hash.h>
+#include <rte_hash_crc.h>
 
 #include "common_private.h"
 
@@ -116,7 +119,8 @@ struct lcore_rx_queue {
 } __rte_cache_aligned;
 
 struct lcore_conf {
-
+	unsigned lcore_id;
+	
 	/** Count of rx port for this lcore, hold by rx_port_list */
 	unsigned n_rx_port;
 	/** Count of rx queue for this lcore, hold by rx_queue_list */
@@ -137,8 +141,14 @@ struct lcore_conf {
 
 	/* Tx buffers. */
 	struct mbuf_table tx_mbufs[RTE_MAX_ETHPORTS];
-} __rte_cache_aligned;
 
+	void *ipv4_lookup_struct;
+	void *ipv6_lookup_struct;
+
+	void *tv;
+	void *dtv;
+	void *pq;
+} __rte_cache_aligned;
 
 typedef union {
 	struct {

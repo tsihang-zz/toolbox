@@ -25,7 +25,6 @@
 
 #include <stddef.h>
 
-#if 1
 /* struct for oryx_vector */
 struct _oryx_vector 
 {
@@ -92,6 +91,5 @@ unsigned int vec_count (oryx_vector v)
 	for (foreach_element = 0, element = NULL;\
 		foreach_element <= (int)vec_active(oryx_vector); \
 		element = (typeof(*element) *)vec_slot(oryx_vector, foreach_element), foreach_element++)
-		
-#endif
+
 #endif /* _ZEBRA_VECTOR_H */

@@ -21,13 +21,15 @@
 
 #define US_PER_SEC (US_PER_MS * MS_PER_S)
 
-extern dp_private_t dp_private_main;
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
+
 extern void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 extern void dpdk_env_setup(vlib_main_t *vm);
+void dp_dpdk_perf_tmr_handler(struct oryx_timer_t *tmr,
+	int __oryx_unused__ argc, char **argv);
 
 void dp_end_dpdk(struct vlib_main_t *vm)
 {
@@ -43,15 +45,6 @@ void dp_end_dpdk(struct vlib_main_t *vm)
 		printf(" Done\n");
 	}
 	printf("Bye...\n");
-}
-
-static __oryx_always_inline__ 
-void dp_dpdk_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char **argv)
-{
-	tmr = tmr;
-	argc = argc;
-	argv = argv;
 }
 
 static const char *enp5s0fx[] = {
@@ -72,7 +65,7 @@ static int dp_dpdk_check_port(struct vlib_main_t *vm)
 	}
 	
 	/* register to vlib_port_main. */
-	for (portid = 0; portid < vm->nb_ports; portid ++) {
+	for (portid = 0; portid < vm->nb_dpdk_ports; portid ++) {
 		iface_lookup_id(vp, portid, &this);
 		if(!this) {
 			oryx_panic(-1, "no such ethdev.");
@@ -102,7 +95,10 @@ void dp_start_dpdk(struct vlib_main_t *vm) {
 	
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
-											  dp_dpdk_perf_tmr_handler, 0, NULL, 3000);
+											  dp_dpdk_perf_tmr_handler, 1, (char **)vm, 3000);
+
+	if(likely(vm->perf_tmr))
+	  oryx_tmr_start(vm->perf_tmr);
 
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(main_loop, vm, CALL_MASTER);

@@ -1,6 +1,8 @@
 #ifndef MAP_PRIVATE_H
 #define MAP_PRIVATE_H
 
+#include "route_private.h"
+
 #define MAP_PREFIX	"map"
 #define MAX_MAPS (1 << 2)
 
@@ -194,19 +196,28 @@ just creating an application with combind criterias like below and added it to m
 #define map_alias(map) ((map)->sc_alias)
 
 typedef struct {
-	int ul_n_maps;
+	int ul_maps;
 	u32 ul_flags;
+
+	struct list_head map_priority_list;
+	
+	os_lock_t lock;
+
+	volatile u32 vector_runtime;
+	
 	oryx_vector entry_vec[VECTOR_TABLES];
+	struct oryx_htable_t *htable;
 	
 	/** fast tracinging. unused actually. */
 	struct map_t *lowest_map;
 	struct map_t *highest_map;
 
-	struct oryx_htable_t *htable;
+	struct em_route_ipv4 em_route4;
+	void *dpdk_ipv4_em_lookup_struct;
 	
 }vlib_map_main_t;
 
-vlib_map_main_t vlib_map_main;
+extern vlib_map_main_t vlib_map_main;
 
 #if 0
 struct map_table_t {

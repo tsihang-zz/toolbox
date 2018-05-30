@@ -1,6 +1,8 @@
 #ifndef APPL_PRIVATE_H
 #define APPL_PRIVATE_H
 
+#include "prefix.h"
+
 #define APPL_PREFIX	"appl"
 #define MAX_APPLICATIONS (1 << 6)	/** 1 million */
 #define APPL_INVALID_ID		(MAX_APPLICATIONS)
@@ -126,11 +128,6 @@ struct appl_t {
 #define appl_slot(u) ((u)->ul_id)
 #define appl_alias(u) ((u)->sc_alias)
 
-#define appl_entry_lock(appl)\
-	(pthread_mutex_lock(&appl->ol_lock))
-#define appl_entry_unlock(appl)\
-	(pthread_mutex_unlock(&appl->ol_lock))
-
 typedef struct {
 	int ul_n_appls;
 	u32 ul_flags;
@@ -139,7 +136,7 @@ typedef struct {
 	struct oryx_htable_t *htable;
 }vlib_appl_main_t;
 
-vlib_appl_main_t vlib_appl_main;
+extern vlib_appl_main_t vlib_appl_main;
 
 
 #endif

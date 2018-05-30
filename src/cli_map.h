@@ -30,7 +30,13 @@ extern atomic_t n_map_elements;
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = map_table_entry_lookup_i (atoi(token));\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.s = strlen (token),\
+						.v = (void *)&id,\
+					};\
+					map_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -41,8 +47,14 @@ extern atomic_t n_map_elements;
 					}\
 					else {\
 	lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						map_table_entry_exact_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						map_table_entry_lookup (&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\
@@ -95,7 +107,13 @@ extern atomic_t n_map_elements;
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = map_table_entry_lookup_i (atoi(token));\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.s = strlen (token),\
+						.v = (void *)&id,\
+					};\
+					map_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -106,8 +124,14 @@ extern atomic_t n_map_elements;
 					}\
 					else {\
 	lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						map_table_entry_exact_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						map_table_entry_lookup (&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\
@@ -161,7 +185,13 @@ extern atomic_t n_map_elements;
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					v = map_table_entry_lookup_i (atoi(token));\
+					u32 id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.s = strlen (token),\
+						.v = (void *)&id,\
+					};\
+					map_table_entry_lookup(&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -172,8 +202,14 @@ extern atomic_t n_map_elements;
 					}\
 					else {\
 		lookup_by_alias_exactly:\
+						token = token;\
 						/** Lookup by ALIAS exactly. */\
-						map_table_entry_exact_lookup (token, &v);\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						map_table_entry_lookup (&lp, &v);\
 						if (unlikely(!v)) {\
 							goto lookup_next;\
 						}\

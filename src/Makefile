@@ -52,7 +52,7 @@ SRCS-dp_flow += \
 	dp_flow.c dp_flow_queue.c
 
 SRCS-dp += \
-	rfc.c dp_main.c dp_start_pcap.c dp_start_dpdk.c dp_loop.c dp_decode.c dp_storage.c \
+	rfc.c dp_main.c dp_route.c dp_start_pcap.c dp_start_dpdk.c dp_loop.c dp_decode.c dp_storage.c \
 	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
 	dp_decode_arp.c dp_decode_marvell_dsa.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
 	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c
@@ -76,7 +76,8 @@ CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK
+		  -DHAVE_DPDK\
+		  -DHAVE_DPDK_BUILT_IN_PARSER
 		  
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/include\

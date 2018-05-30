@@ -3,7 +3,7 @@
 #include "command.h"
 #include "prefix.h"
 #include "common_private.h"
-#include "appl_private.h"
+#include "util_ipset.h"
 #include "cli_appl.h"
 
 #include "rc4.h"
@@ -13,47 +13,10 @@ vlib_appl_main_t vlib_appl_main = {
 };
 
 atomic_t n_application_elements = ATOMIC_INIT(0);
-oryx_vector appl_vector_table;
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-			atomic_read(&n_application_elements), (int)vec_count(appl_vector_table), VTY_NEWLINE);
-
-#if 0
-/** add a user defined pattern to existent APPL */
-int appl_entry_add_udp (struct appl_t *appl, struct udp_t *udp)
-{
-
-	int foreach_signature;
-	
-
-	struct udp_t *u;
-	struct appl_signature_t *as;
-
-	as = appl->instance;
-	if (as) {
-		/** check existent. */
-		vec_foreach_element (as->udp, foreach_signature, u) {
-			if (!u) continue;
-			if (u->ul_id  == udp->ul_id){
-				printf ("[ERROR]  Same UDP, %s\n", udp->sc_alias);
-				return -1;
-			}
-			printf ("!!!!!!!!!!!!--->    %s",  u->sc_alias);
-		}
-		int i = vector_set_index (as->udp, udp->ul_id, udp);
-
-		vec_foreach_element (as->udp, foreach_signature, u) {
-			/** debug */
-			if (u)
-			printf ("!!!!!!!!!!!! %s %s %u, %d\n", appl->sc_alias, u->sc_alias, appl->ul_id, i);
-		}
-	
-	}
-	return 0;
-}
-#endif
-
+			atomic_read(&n_application_elements), (int)vec_count(am->entry_vec), VTY_NEWLINE);
 
 static __oryx_always_inline__
 void appl_free (void __oryx_unused__ *v)
@@ -121,7 +84,6 @@ int prefix2str_(const struct prefix *p, char *str, int size)
 	}
 	return 0;
 }
-		
 
 /** if a null appl specified, appl_entry_output display all */
 static int appl_entry_output (struct appl_t *appl, struct vty *vty)
@@ -177,6 +139,11 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	return 0;
 }
 
+static int appl_table_entry_remove (struct appl_t *a)
+{
+	vlib_appl_main_t *am = &vlib_appl_main;
+	return appl_entry_del(am, a);
+}
 
 DEFUN(show_application,
       show_application_cmd,
@@ -186,9 +153,10 @@ DEFUN(show_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
+	vlib_appl_main_t *am = &vlib_appl_main;
+	
 	/** display all stream applications. */
-	vty_out (vty, "Trying to display %d application elements ...%s", vec_active(appl_vector_table), VTY_NEWLINE);
+	vty_out (vty, "Trying to display %d application elements ...%s", vec_active(am->entry_vec), VTY_NEWLINE);
 	vty_out (vty, "%24s%4s%20s%20s%10s%10s%10s%8s%23s%s", 
 		"ALIAS", "ID", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "CREAT-TIME", VTY_NEWLINE);
 	
@@ -214,14 +182,14 @@ DEFUN(no_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
 	if (argc == 0) {
-		foreach_application_func1_param0 (argv[0], 
-			appl_table_entry_del);
+		foreach_application_func1_param0(argv[0], 
+			appl_table_entry_remove);
 	}
 	else {
-		split_foreach_application_func1_param0 (argv[0], 
-			appl_table_entry_del);
+		split_foreach_application_func1_param0(argv[0], 
+			appl_table_entry_remove);
 	}
 
 	PRINT_SUMMARY;
@@ -236,28 +204,29 @@ DEFUN(new_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
 	struct appl_t *appl;
 
-	appl_table_entry_lookup ((char *)argv[0], &appl);
+	appl_table_entry_deep_lookup((const char *)argv[0], &appl);
 	if (likely(appl)) {
 		VTY_ERROR_APPLICATION ("same", (char *)argv[0]);
 		appl_entry_output (appl, vty);
-	} else {
-			appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
-			if (unlikely (!appl)) {
-				VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
-				return CMD_SUCCESS;
-			}
+		return CMD_SUCCESS;
+	} 
 
-			/** An application without body. */
-			
-			/** Add appl to hash table. */
-			if (appl_table_entry_add (vp, appl)) {
-				VTY_ERROR_APPLICATION("add", (char *)argv[0]);
-				kfree (appl->instance);
-				kfree (appl);
-			}
+	appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
+	if (unlikely (!appl)) {
+		VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
+		return CMD_SUCCESS;
+	}
+
+	/** An application without body. */
+	
+	/** Add appl to hash table. */
+	if (appl_entry_add (am, appl)) {
+		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+		kfree (appl->instance);
+		kfree (appl);
 	}
 			
     return CMD_SUCCESS;
@@ -286,34 +255,35 @@ DEFUN(new_application1,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
 	struct appl_t *appl;
 
-	appl_table_entry_lookup ((char *)argv[0], &appl);
+	appl_table_entry_deep_lookup((const char *)argv[0], &appl);
 	if (likely(appl)) {
 		VTY_ERROR_APPLICATION ("same", (char *)argv[0]);
 		appl_entry_output (appl, vty);
-	} else {
-		appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
-		if (unlikely (!appl)) {
-			VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
-			return CMD_SUCCESS;
-		}
-		
-		appl_entry_format (appl, NULL, "unused var", 
-			(char *)argv[1]	/** VLAN */, 
-			(char *)argv[2]	/** IPSRC */, 
-			(char *)argv[3]	/** IPDST */, 
-			(char *)argv[4]	/** PORTSRC */, 
-			(char *)argv[5]	/** PORTDST */, 
-			(char *)argv[6])	/** PROTO */;
-		
-		/** Add appl to hash table. */
-		if (appl_table_entry_add (vp, appl)) {
-			VTY_ERROR_APPLICATION("add", (char *)argv[0]);
-			kfree (appl->instance);
-			kfree (appl);
-		}
+		return CMD_SUCCESS;
+	}
+
+	appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
+	if (unlikely (!appl)) {
+		VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
+		return CMD_SUCCESS;
+	}
+	
+	appl_entry_format (appl, NULL, "unused var", 
+		(char *)argv[1]	/** VLAN */, 
+		(char *)argv[2]	/** IPSRC */, 
+		(char *)argv[3]	/** IPDST */, 
+		(char *)argv[4]	/** PORTSRC */, 
+		(char *)argv[5]	/** PORTDST */, 
+		(char *)argv[6])	/** PROTO */;
+	
+	/** Add appl to hash table. */
+	if (appl_entry_add (am, appl)) {
+		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+		kfree (appl->instance);
+		kfree (appl);
 	}
 			
     return CMD_SUCCESS;
@@ -348,6 +318,7 @@ DEFUN(set_application_desensitize,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
+	vlib_appl_main_t *am = &vlib_appl_main;
 	split_foreach_application_func1_param2 (argv[0], 
 		appl_entry_desenitize, vty, (char *)argv[1]);
 
@@ -358,18 +329,16 @@ DEFUN(set_application_desensitize,
 
 void appl_init(vlib_main_t *vm)
 {
-	vlib_appl_main_t *vp = &vlib_appl_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
 	
-	vp->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	am->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			appl_hval, appl_cmp, appl_free, 0);
-	vp->entry_vec = vec_init (MAX_APPLICATIONS);
+	am->entry_vec = vec_init (MAX_APPLICATIONS);
 	
-	if (vp->htable == NULL || vp->entry_vec == NULL) {
+	if (am->htable == NULL || am->entry_vec == NULL) {
 		printf ("vlib application main init error!\n");
 		exit(0);
 	}
-
-	appl_vector_table = vlib_appl_main.entry_vec;
 	
 	install_element (CONFIG_NODE, &show_application_cmd);
 	install_element (CONFIG_NODE, &new_application_cmd);

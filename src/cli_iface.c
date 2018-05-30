@@ -5,6 +5,7 @@
 
 #include "common_private.h"
 #include "map_private.h"
+#include "util_iface.h"
 #include "cli_iface.h"
 
 vlib_port_main_t vlib_port_main = {
@@ -113,58 +114,84 @@ void port_entry_output (struct iface_t *port, struct vty *vty)
 }
 
 static __oryx_always_inline__
-void port_entry_stat_clear (struct iface_t *port, struct vty *vty)
+void port_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 {
 	int id = 0;
-	struct CounterCtx *per_private_ctx0 = port->perf_private_ctx;
-	struct iface_counter_ctx *if_counter_ctx0 = port->if_counter_ctx;
+	int lcore;
 	
-	if (unlikely (!port)) 
+	if (unlikely (!iface)) 
 		return;
 
-	id = QUA_COUNTER_RX;
-	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_pkts[id], 0);
-	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_bytes[id], 0);
-	
-	id = QUA_COUNTER_TX;
-	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_pkts[id], 0);
-	oryx_counter_set(per_private_ctx0, if_counter_ctx0->counter_bytes[id], 0);
+	for (lcore = 0; lcore < MAX_LCORES; lcore ++) {
+		oryx_counter_set(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore], 0);
+		oryx_counter_set(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore], 0);
+
+		oryx_counter_set(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][lcore], 0);
+		oryx_counter_set(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_TX][lcore], 0);
+	}
+
 }
 
 	
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
-void port_entry_stat_output (struct iface_t *port, struct vty *vty)
+void port_entry_stat_output (struct iface_t *iface, struct vty *vty)
 {
+	int lcore;
+	uint64_t nb_rx_pkts;
+	uint64_t nb_rx_bytes;
+	uint64_t nb_tx_pkts;
+	uint64_t nb_tx_bytes;
+
 	char format[256] = {0};
-	u64 pkts[QUA_COUNTERS];
-	u64 bytes[QUA_COUNTERS];
-	int id = 0;
-	struct CounterCtx *per_private_ctx0 = port->perf_private_ctx;
-	struct iface_counter_ctx *if_counter_ctx0 = port->if_counter_ctx;
 	
-	if (unlikely (!port)) 
+	if (unlikely (!iface)) 
 		return;
 
-	id = QUA_COUNTER_RX;
-	pkts[id]  = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_pkts[id]);
-	bytes[id] = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_bytes[id]);
+	nb_rx_bytes = nb_rx_pkts = nb_tx_bytes = nb_tx_pkts = 0;
 	
-	id = QUA_COUNTER_TX;
-	pkts[id]  = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_pkts[id]);
-	bytes[id] = oryx_counter_get(per_private_ctx0, if_counter_ctx0->counter_bytes[id]);
+	for (lcore = 0; lcore < MAX_LCORES; lcore ++) {
+		nb_rx_pkts += oryx_counter_get(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore]);
+		nb_rx_bytes += oryx_counter_get(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore]);
+
+		nb_tx_pkts += oryx_counter_get(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][lcore]);
+		nb_tx_bytes += oryx_counter_get(iface_perf(iface),
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_TX][lcore]);
+	}
 
 	{
 		/** find this port named 'alias'. */
-		vty_out (vty, "%15s(%u)", port->sc_alias, port->ul_id);
-
-		sprintf (format, "%llu/%llu", bytes[QUA_COUNTER_RX], bytes[QUA_COUNTER_TX]);
+	
+		sprintf (format, "%s(%02u)", iface_alias(iface), iface_id(iface));
 		vty_out (vty, "%20s", format);
 
-		sprintf (format, "%llu/%llu", pkts[QUA_COUNTER_RX], pkts[QUA_COUNTER_TX]);
+		sprintf (format, "%lu%s", nb_rx_pkts, nb_rx_pkts ? "/" : "");
+		vty_out (vty, "%20s", format);
+
+		sprintf (format, "%lu%s", nb_tx_pkts, nb_tx_pkts ? "/" : "");
 		vty_out (vty, "%20s", format);
 
 		vty_newline(vty);
+
+		if (nb_rx_bytes) {
+			sprintf (format, "%lu", nb_rx_bytes);
+			vty_out (vty, "%40s", format);
+		}
+		
+		if (nb_tx_bytes) {
+			sprintf (format, "%lu", nb_tx_bytes);
+			vty_out (vty, "%20s", format);
+		}
+
+		if (nb_rx_bytes || nb_tx_bytes)
+			vty_newline(vty);
 	} 
 }
 
@@ -279,7 +306,7 @@ DEFUN(show_interfacce_stats,
 	vlib_port_main_t *vp = &vlib_port_main;
 	vty_out(vty, "Trying to display %d elements ...%s", 
 			vec_active(vp->entry_vec), VTY_NEWLINE);
-	vty_out(vty, "%15s%20s%20s%s", "Port", "Bytes(I/O)", "Packets(I/O)", VTY_NEWLINE);
+	vty_out(vty, "%20s%20s%20s%s", "Port", "Rx(p/b)", "Tx(p/b)", VTY_NEWLINE);
 	
 	if (argc == 0) {
 		foreach_port_func1_param1 (
@@ -716,7 +743,6 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 
 void port_init(vlib_main_t *vm)
 {
-
 	vlib_port_main_t *vp = &vlib_port_main;
 
 	vp->link_detect_tmr_interval = 3;

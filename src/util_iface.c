@@ -23,7 +23,8 @@ void iface_alloc (struct iface_t **this)
 	(*this)->if_counter_ctx = kmalloc(sizeof(struct iface_counter_ctx), MPF_CLR, __oryx_unused_val__);
 	per_private_ctx0 = (*this)->perf_private_ctx;
 	if_counter_ctx0 = (*this)->if_counter_ctx;
-	
+
+#if 0
 	/** port counters */
 	id = QUA_COUNTER_RX;
 	if_counter_ctx0->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
@@ -36,6 +37,22 @@ void iface_alloc (struct iface_t **this)
 			"bytes Tx for this port", per_private_ctx0);
 	if_counter_ctx0->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
 			"pkts Tx for this port", per_private_ctx0);
+#endif
+	
+	int lcore;
+	char lcore_stats_name[1024];
+	for (id = QUA_COUNTER_RX; id < QUA_COUNTERS; id ++) {
+		for (lcore = 0; lcore < MAX_LCORES; lcore ++) {		
+			sprintf(lcore_stats_name, "port.%s.bytes.lcore%d", id == QUA_COUNTER_RX ? "rx" : "tx", lcore);
+			if_counter_ctx0->lcore_counter_bytes[id][lcore] = oryx_register_counter(strdup(lcore_stats_name), 
+					"NULL", per_private_ctx0);
+		
+			sprintf(lcore_stats_name, "port.%s.pkts.lcore%d", id == QUA_COUNTER_RX ? "rx" : "tx", lcore);
+			if_counter_ctx0->lcore_counter_pkts[id][lcore] = oryx_register_counter(strdup(lcore_stats_name), 
+					"NULL", per_private_ctx0);
+		}
+	}
+
 
 	/**
 	 * More Counters here.
@@ -82,6 +99,7 @@ int iface_add(vlib_port_main_t *vp, struct iface_t *this)
 	int r = oryx_htable_add(vp->htable, this->sc_alias, strlen((const char *)this->sc_alias));
 	if (r == 0) {
 		vec_set_index (vp->entry_vec, this->ul_id, this);
+		vp->ul_n_ports ++;
 	}
 	do_unlock (&vp->lock);
 	return r;
@@ -93,6 +111,7 @@ int iface_del(vlib_port_main_t *vp, struct iface_t *this)
 	int r = oryx_htable_del(vp->htable, this->sc_alias, strlen((const char *)this->sc_alias));
 	if (r == 0) {
 		vec_unset (vp->entry_vec, this->ul_id);
+		vp->ul_n_ports --;
 	}
 	do_unlock (&vp->lock);
 	return r;

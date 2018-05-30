@@ -5,7 +5,7 @@
 #define ORYX_LOG_LEVEL	ORYX_LOG_DEBUG
 #endif
 
-u32 oryx_log_global_log_level = ORYX_LOG_INFO;
+u32 oryx_log_global_log_level = ORYX_LOG_DEBUG;
 
 /** Get the Current Thread Id */
 #ifdef OS_FREEBSD

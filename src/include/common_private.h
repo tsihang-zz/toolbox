@@ -114,8 +114,7 @@ typedef struct vlib_main_t
 	volatile bool force_quit;
 
 	int nb_lcores;
-	int nb_ports;
-	int cli_ready;
+	int nb_dpdk_ports;
 
 } vlib_main_t;
 

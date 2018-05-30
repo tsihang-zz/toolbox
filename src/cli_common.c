@@ -123,6 +123,10 @@ DEFUN(show_dp_stats,
 
 	}
 
+	vty_out(vty, "==== summary%s", VTY_NEWLINE);
+	vty_out(vty, "%12s%16llu%s", "Total_Pkts:", counter_pkts_total, VTY_NEWLINE);
+	vty_out(vty, "%12s%16llu%s", "Total_Bytes:", counter_bytes_total, VTY_NEWLINE);
+	
 	oryx_format_reset(&fb);
 	oryx_format(&fb, "%12s", " ");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
@@ -239,11 +243,6 @@ DEFUN(clear_dp_stats,
 		tv = &g_tv[lcore % vm->nb_lcores];
 		dtv = &g_dtv[lcore % vm->nb_lcores];
 
-		tv->n_rx_bytes = 0;
-		tv->n_rx_packets = 0;
-		tv->n_tx_bytes = 0;
-		tv->n_tx_packets = 0;
-		
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);

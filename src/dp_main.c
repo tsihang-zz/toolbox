@@ -5,7 +5,6 @@ ThreadVars g_tv[MAX_LCORES];
 DecodeThreadVars g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
 
-dp_private_t dp_private_main;
 volatile bool force_quit = false;
 
 #if defined(HAVE_DPDK)
