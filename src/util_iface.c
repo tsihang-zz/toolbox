@@ -26,13 +26,13 @@ void iface_alloc (struct iface_t **this)
 
 #if 0
 	/** port counters */
-	id = QUA_COUNTER_RX;
+	id = QUA_RX;
 	if_counter_ctx0->counter_bytes[id] = oryx_register_counter("port.rx.bytes", 
 			"bytes Rx for this port", per_private_ctx0);
 	if_counter_ctx0->counter_pkts[id] = oryx_register_counter("port.rx.pkts",
 			"pkts Rx for this port", per_private_ctx0);
 
-	id = QUA_COUNTER_TX;
+	id = QUA_TX;
 	if_counter_ctx0->counter_bytes[id] = oryx_register_counter("port.tx.bytes", 
 			"bytes Tx for this port", per_private_ctx0);
 	if_counter_ctx0->counter_pkts[id] = oryx_register_counter("port.tx.pkts",
@@ -41,13 +41,13 @@ void iface_alloc (struct iface_t **this)
 	
 	int lcore;
 	char lcore_stats_name[1024];
-	for (id = QUA_COUNTER_RX; id < QUA_COUNTERS; id ++) {
+	for (id = QUA_RX; id < QUA_RXTX; id ++) {
 		for (lcore = 0; lcore < MAX_LCORES; lcore ++) {		
-			sprintf(lcore_stats_name, "port.%s.bytes.lcore%d", id == QUA_COUNTER_RX ? "rx" : "tx", lcore);
+			sprintf(lcore_stats_name, "port.%s.bytes.lcore%d", id == QUA_RX ? "rx" : "tx", lcore);
 			if_counter_ctx0->lcore_counter_bytes[id][lcore] = oryx_register_counter(strdup(lcore_stats_name), 
 					"NULL", per_private_ctx0);
 		
-			sprintf(lcore_stats_name, "port.%s.pkts.lcore%d", id == QUA_COUNTER_RX ? "rx" : "tx", lcore);
+			sprintf(lcore_stats_name, "port.%s.pkts.lcore%d", id == QUA_RX ? "rx" : "tx", lcore);
 			if_counter_ctx0->lcore_counter_pkts[id][lcore] = oryx_register_counter(strdup(lcore_stats_name), 
 					"NULL", per_private_ctx0);
 		}

@@ -2,8 +2,9 @@
 #include "appl_private.h"
 /** This element is busy ??
 a stub function for applications check. */
-#define THIS_ELEMENT_IS_INUNSE(elm) 0void appl_entry_format (struct appl_t *appl, 
-	u32 __oryx_unused__*rule_id, char *unused_var, 
+#define THIS_ELEMENT_IS_INUNSE(elm) 0
+void appl_entry_format (struct appl_t *appl, 
+	u32 __oryx_unused__*rule_id, const char *unused_var, 
 	char __oryx_unused__*vlan, 
 	char __oryx_unused__*sip, 
 	char __oryx_unused__*dip, 

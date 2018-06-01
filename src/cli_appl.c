@@ -115,16 +115,16 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 		u8 uc_port;
 
 		uc_port = HD_SRC;
-		if ((as->us_port[uc_port] == 0))
+		if ((as->port_start[uc_port] == 0))
 			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
 		else 
-			sprintf ((char *)&port_buf[uc_port][0], "%d", as->us_port[uc_port]);
+			sprintf ((char *)&port_buf[uc_port][0], "%d", as->port_start[uc_port]);
 		
 		uc_port = HD_DST;
-		if ((as->us_port[uc_port] == 0))
+		if ((as->port_start[uc_port] == 0))
 			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
 		else 
-			sprintf ((char *)&port_buf[uc_port][0], "%d", as->us_port[uc_port]);
+			sprintf ((char *)&port_buf[uc_port][0], "%d", as->port_start[uc_port]);
 
 		if ((as->uc_proto == 0))
 			sprintf ((char *)&proto_buf[0], "%s", "any");
@@ -132,7 +132,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 			sprintf ((char *)&proto_buf[0], "%d", as->uc_proto);
 
 		vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%8s%23s%s", 
-			appl->sc_alias, appl->ul_id, pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
+			appl_alias(appl), appl_id(appl), pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
 			CLI_UNDEF_VAL, tmstr, VTY_NEWLINE);
 
 	}
@@ -277,7 +277,7 @@ DEFUN(new_application1,
 		(char *)argv[3]	/** IPDST */, 
 		(char *)argv[4]	/** PORTSRC */, 
 		(char *)argv[5]	/** PORTDST */, 
-		(char *)argv[6])	/** PROTO */;
+		(char *)argv[6])/** PROTO */;
 	
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {

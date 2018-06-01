@@ -162,6 +162,9 @@ typedef struct PacketAlerts_ {
 #define GET_PKT_SRC_PHY(p)	((p)->phy_port[QUA_RX])
 #define GET_PKT_DST_PHY(p)	((p)->phy_port[QUA_TX])
 
+#define SET_PKT_FLAGS(p,flag) do { \
+    (p)->flags |= (flag); \
+    } while (0)
 
 #define SET_PKT_LEN(p, len) do { \
     (p)->pktlen = (len); \
@@ -232,6 +235,7 @@ typedef struct PacketEngineEvents_ {
 
 #define PKT_PSEUDO_DETECTLOG_FLUSH      (1<<27)     /**< Detect/log flush for protocol upgrade */
 
+#define PKT_DSA_NOT_INGRESS				(1<<28)		/**< Marvell DSA */
 
 /** \brief return 1 if the packet is a pseudo packet */
 #define PKT_IS_PSEUDOPKT(p) \

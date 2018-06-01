@@ -203,11 +203,13 @@ int main (int argc, char **argv)
 	memory_init();
 	
 	port_init(&vlib_main);
+
+	dp_init_dpdk(&vlib_main);
+
 	udp_init(&vlib_main);
 	appl_init(&vlib_main);
 	map_init(&vlib_main);
 	common_cli();
-	
 	oryx_task_registry(&cli_register);
 
 	oryx_task_launch();

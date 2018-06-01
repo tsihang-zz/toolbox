@@ -2,6 +2,7 @@
 #include "common_private.h"
 #include "iface_private.h"
 #include "util_map.h"
+#include "dpdk_classify.h"
 
 extern volatile oryx_vector map_curr_table;
 
@@ -65,7 +66,7 @@ int vector_has_this_appl (oryx_vector v, struct appl_t *appl)
 	vec_foreach_element (v, foreach, u) {
 		if (!u) continue;
 		else {
-			if (u->ul_id  == appl->ul_id)
+			if (u->ul_id  == appl_id(appl))
 				return 1;
 		}
 	}
@@ -73,11 +74,12 @@ int vector_has_this_appl (oryx_vector v, struct appl_t *appl)
 }
 
 __oryx_always_extern__
-int map_entry_add_appl (struct appl_t __oryx_unused__*appl, struct map_t __oryx_unused__*map)
+int map_entry_add_appl (struct appl_t __oryx_unused__*appl, struct map_t __oryx_unused__*map , 
+	void (*download)(struct map_t *, struct appl_t *))
 {
-
 	int xret = 0;
 	oryx_vector v = map->appl_set;
+	struct appl_signature_t *sig = appl->instance;
 	
 	xret = vector_has_this_appl (v, appl);
 	
@@ -86,8 +88,45 @@ int map_entry_add_appl (struct appl_t __oryx_unused__*appl, struct map_t __oryx_
 	else {
 		if (xret == 0 /** no such element. */)
 			if (likely(v)) {
-				vec_set_index (v, appl->ul_id, appl);
+				vec_set_index (v, appl_id(appl), appl);
 				oryx_logn ("installing ... %s  done!", appl_alias(appl));
+				download(map, appl);
+			}
+	}
+
+	return xret;
+}
+
+__oryx_always_extern__
+int map_entry_add_appl0 (struct appl_t __oryx_unused__*appl, struct map_t __oryx_unused__*map , 
+	const char *hit_action, void (*dfn)(struct map_t *, struct appl_t *))
+{
+	int xret = 0;
+	oryx_vector v = map->appl_set;
+	struct appl_signature_t *sig = appl->instance;
+	action_t action = {
+		.act = 0,
+	};
+	
+	xret = vector_has_this_appl (v, appl);
+	
+	if (xret < 0 /** critical error */)
+		xret  = -1;
+	else {
+		if (xret == 0 /** no such element. */)
+			if (likely(v)) {
+				vec_set_index (v, appl_id(appl), appl);
+				oryx_logn ("installing ... %s  done!", appl_alias(appl));
+				if(!strncmp(hit_action, "p", 1)) {
+					action.act |= CRITERIA_FLAGS_PASS;
+				}
+				if(!strncmp(hit_action, "d", 1)) {
+					action.act &= ~CRITERIA_FLAGS_PASS;
+					action.act |= CRITERIA_FLAGS_DROP;
+				}
+
+				map->appl_set_action[appl_id(appl)].act = action.act;
+				dfn(map, appl);
 			}
 	}
 
@@ -108,7 +147,7 @@ int map_entry_remove_appl (struct appl_t *appl, struct map_t *map)
 		if (xret == 1 /** find same element. */)
 			if (likely(v)) {
 				/** remove appl from LPM table. */
-				vec_unset (v, appl->ul_id);
+				vec_unset (v, appl_id(appl));
 				oryx_logn ("uninstalling ... %s  done!", appl_alias(appl));
 			}
 	}
@@ -403,5 +442,32 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 	(*map) = v;
 
 	return 0;
+}
+
+/** em, lpm or acl. */
+void em_download_appl(struct map_t *map, struct appl_t *appl) {
+	vlib_map_main_t *mm = &vlib_map_main;
+	/** upload this appl to */
+	union em_route entry;
+	int hv = 0;
+	struct appl_signature_t *sig = appl->instance;
+	
+	memset(&entry, 0, sizeof(entry));
+	entry.v4.key.ip_src = ntoh32(sig->ip4[HD_SRC].prefix.s_addr);
+	entry.v4.key.ip_dst = ntoh32(sig->ip4[HD_DST].prefix.s_addr);
+	entry.v4.key.port_src = sig->port_start[HD_SRC];
+	entry.v4.key.port_dst = sig->port_start[HD_DST];
+	entry.v4.key.proto = sig->uc_proto;
+
+	hv = em_add_hash_key(&entry);
+	if(hv < 0) {
+		oryx_loge(-1,
+			"(%d) add hash key error", hv);
+	} else {
+		//em_map_hash_key(hv, map);
+		/** [key && map ]*/
+		oryx_logn("(%d) add hash key ... %08x %08x %5d %5d %02x", hv,
+			entry.v4.key.ip_src, entry.v4.key.ip_dst, entry.v4.key.port_src, entry.v4.key.port_dst, entry.v4.key.proto);
+	}
 }
 

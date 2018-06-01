@@ -124,14 +124,14 @@ void port_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 
 	for (lcore = 0; lcore < MAX_LCORES; lcore ++) {
 		oryx_counter_set(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore], 0);
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore], 0);
 		oryx_counter_set(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore], 0);
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][lcore], 0);
 
 		oryx_counter_set(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][lcore], 0);
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][lcore], 0);
 		oryx_counter_set(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_TX][lcore], 0);
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][lcore], 0);
 	}
 
 }
@@ -156,14 +156,14 @@ void port_entry_stat_output (struct iface_t *iface, struct vty *vty)
 	
 	for (lcore = 0; lcore < MAX_LCORES; lcore ++) {
 		nb_rx_pkts += oryx_counter_get(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_RX][lcore]);
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore]);
 		nb_rx_bytes += oryx_counter_get(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_RX][lcore]);
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][lcore]);
 
 		nb_tx_pkts += oryx_counter_get(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_pkts[QUA_COUNTER_TX][lcore]);
+			iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][lcore]);
 		nb_tx_bytes += oryx_counter_get(iface_perf(iface),
-			iface->if_counter_ctx->lcore_counter_bytes[QUA_COUNTER_TX][lcore]);
+			iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][lcore]);
 	}
 
 	{

@@ -122,15 +122,23 @@ typedef struct vlib_main_t
 
 #define CONFIG_PATH	"conf"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
+#define PORT_START_ID	(1)
 #define ET1500_N_XE_PORTS (2 + 1)
 #define ET1500_N_GE_PORTS 8
 #define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
+#define SW_PORT_OFFSET	(ET1500_N_XE_PORTS - PORT_START_ID)
 
 #if defined(HAVE_DPDK)
 #define MAX_LCORES	RTE_MAX_LCORE
 #else
 #define MAX_LCORES	4
 #endif
+
+/** Create IPv4 address */
+#define IPv4(a,b,c,d) ((uint32_t)(((a) & 0xff) << 24) | \
+					   (((b) & 0xff) << 16) | \
+					   (((c) & 0xff) << 8)  | \
+					   ((d) & 0xff))
 
 #endif
 

@@ -3,7 +3,7 @@
 #include "util_ipset.h"
 
 void appl_entry_format (struct appl_t *appl, 
-	u32 __oryx_unused__*rule_id, char *unused_var, 
+	u32 __oryx_unused__*rule_id, const char *unused_var, 
 	char __oryx_unused__*vlan, 
 	char __oryx_unused__*sip, 
 	char __oryx_unused__*dip, 
@@ -36,22 +36,23 @@ void appl_entry_format (struct appl_t *appl,
 	if (sp) {
 		u8 p = HD_SRC;
 		if (isalldigit (sp)) {
-			as->us_port[p]  = atoi (sp);
+			as->port_start[p] = as->port_end[p] = atoi (sp);
 		}
 		else {
 			/** default is ANY_PORT */
-			as->us_port[p] = ANY_PORT; /** To avoid warnings. */
+			as->port_start[p] = as->port_end[p] = ANY_PORT; /** To avoid warnings. */
+			
 		}
 	}
 	
 	if (dp) {
 		u8 p = HD_DST;
 		if (isalldigit (dp)) {
-			as->us_port[p]  = atoi (dp);
+			as->port_start[p] = as->port_end[p] = atoi (dp);
 		}
 		else {
 			/** default is ANY_PORT */
-			as->us_port[p] = ANY_PORT; /** To avoid warnings. */
+			as->port_start[p] = as->port_end[p] = ANY_PORT; /** To avoid warnings. */
 		}
 	}
 	
@@ -87,7 +88,8 @@ void appl_entry_new (struct appl_t **appl,
 	struct appl_signature_t *as = (*appl)->instance;
 	as->us_vlan = ANY_VLAN;
 	as->uc_proto = ANY_PROTO;
-	as->us_port[HD_SRC] = as->us_port[HD_DST] = ANY_PORT;
+	as->port_start[HD_SRC] = as->port_end[HD_SRC] = ANY_PORT;
+	as->port_start[HD_DST] = as->port_end[HD_DST] = ANY_PORT;
 	as->udp = vec_init (12);
 }
 
@@ -114,7 +116,7 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 {
 	if (!appl ||
 		(appl && 
-		appl->ul_id == APPL_INVALID_ID/** Delete appl from oryx_vector */)) {
+		appl_id(appl) == APPL_INVALID_ID/** Delete appl from oryx_vector */)) {
 		return 0;
 	}
 	
@@ -123,9 +125,9 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 	}
 	
 	do_lock (&vp->lock);
-	int r = oryx_htable_del(vp->htable, appl->sc_alias, strlen((const char *)appl->sc_alias));
+	int r = oryx_htable_del(vp->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
-		vec_unset (vp->entry_vec, appl->ul_id);
+		vec_unset (vp->entry_vec, appl_id(appl));
 	}
 	do_unlock (&vp->lock);
 	/** Should you free appl here ? */
@@ -138,15 +140,15 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 
 int appl_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
 {
-	BUG_ON(appl->ul_id != APPL_INVALID_ID);
+	BUG_ON(appl_id(appl) != APPL_INVALID_ID);
 
 	do_lock (&vp->lock);
 	
-	/** Add appl->sc_alias to hash table for controlplane fast lookup */
-	int r = oryx_htable_add(vp->htable, appl->sc_alias, strlen((const char *)appl->sc_alias));
+	/** Add appl_alias(appl) to hash table for controlplane fast lookup */
+	int r = oryx_htable_add(vp->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success*/) {
 		/** Add appl to a oryx_vector table for dataplane fast lookup. */
-		appl->ul_id = vec_set (vp->entry_vec, appl);
+		appl_id(appl) = vec_set (vp->entry_vec, appl);
 	}
 
 	do_unlock (&vp->lock);

@@ -45,14 +45,15 @@ struct appl_signature_t {
 	/** TODO. */	
 	
 	/**
-	  * ip address for this application.
+	  * ip address for this application. In big endian.
 	  */
 	struct prefix_ipv4 ip4[SRC_DST];
 
 	/**
-	  * l4 port for this application.
+	  * l4 port (start and end) for this application. In little endian.
 	  */
-	u16 us_port[SRC_DST];
+	u16 port_start[SRC_DST];
+	u16 port_end[SRC_DST];
 
 	/**
 	  * Protocol
@@ -93,7 +94,7 @@ struct appl_t {
 	void *instance;
 
 	/** 
-	  * Defined by appl_action_type_t.
+	  * Defined by cerital_action_type_t.
 	  * and default ACTIONS defined for an APPL is in APPL_DEFAULT_ACTIONS. 
 	  */
 	u32 ul_flags;
@@ -125,7 +126,7 @@ struct appl_t {
 	os_lock_t ol_lock;
 };
 
-#define appl_slot(u) ((u)->ul_id)
+#define appl_id(u) ((u)->ul_id)
 #define appl_alias(u) ((u)->sc_alias)
 
 typedef struct {

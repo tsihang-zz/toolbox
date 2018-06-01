@@ -1,6 +1,5 @@
 #include "oryx.h"
-#include "dpdk.h"
-#include "dp_route.h"
+#include "dpdk_classify.h"
 
 extern volatile bool force_quit;
 
@@ -32,6 +31,52 @@ struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 /* mask of enabled ports */
 uint32_t enabled_port_mask;
 
+#define CHECK_INTERVAL 100 /* 100ms */
+#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+
+#define MAX_JUMBO_PKT_LEN  9600
+#define MEMPOOL_CACHE_SIZE 256
+
+static const char short_options[] =
+	"p:"  /* portmask */
+	"P"   /* promiscuous */
+	"L"   /* enable long prefix match */
+	"E"   /* enable exact match */
+	;
+
+#define CMD_LINE_OPT_CONFIG "config"
+#define CMD_LINE_OPT_ETH_DEST "eth-dest"
+#define CMD_LINE_OPT_NO_NUMA "no-numa"
+#define CMD_LINE_OPT_IPV6 "ipv6"
+#define CMD_LINE_OPT_ENABLE_JUMBO "enable-jumbo"
+#define CMD_LINE_OPT_HASH_ENTRY_NUM "hash-entry-num"
+#define CMD_LINE_OPT_PARSE_PTYPE "parse-ptype"
+enum {
+	/* long options mapped to a short option */
+
+	/* first long only option value must be >= 256, so that we won't
+	 * conflict with short options */
+	CMD_LINE_OPT_MIN_NUM = 256,
+	CMD_LINE_OPT_CONFIG_NUM,
+	CMD_LINE_OPT_ETH_DEST_NUM,
+	CMD_LINE_OPT_NO_NUMA_NUM,
+	CMD_LINE_OPT_IPV6_NUM,
+	CMD_LINE_OPT_ENABLE_JUMBO_NUM,
+	CMD_LINE_OPT_HASH_ENTRY_NUM_NUM,
+	CMD_LINE_OPT_PARSE_PTYPE_NUM,
+};
+
+static const struct option lgopts[] = {
+	{CMD_LINE_OPT_CONFIG, 1, 0, CMD_LINE_OPT_CONFIG_NUM},
+	{CMD_LINE_OPT_ETH_DEST, 1, 0, CMD_LINE_OPT_ETH_DEST_NUM},
+	{CMD_LINE_OPT_NO_NUMA, 0, 0, CMD_LINE_OPT_NO_NUMA_NUM},
+	{CMD_LINE_OPT_IPV6, 0, 0, CMD_LINE_OPT_IPV6_NUM},
+	{CMD_LINE_OPT_ENABLE_JUMBO, 0, 0, CMD_LINE_OPT_ENABLE_JUMBO_NUM},
+	{CMD_LINE_OPT_HASH_ENTRY_NUM, 1, 0, CMD_LINE_OPT_HASH_ENTRY_NUM_NUM},
+	{CMD_LINE_OPT_PARSE_PTYPE, 0, 0, CMD_LINE_OPT_PARSE_PTYPE_NUM},
+	{NULL, 0, 0, 0}
+};
+
 struct lcore_params {
 	uint8_t port_id;
 	uint8_t queue_id;
@@ -60,11 +105,6 @@ static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
 
 static struct rte_mempool * pktmbuf_pool[NB_SOCKETS];
 
-extern uint16_t
-rss_cb_parse_ptype0(uint8_t port __rte_unused, uint16_t queue __rte_unused,
-		  struct rte_mbuf *pkts[], uint16_t nb_pkts,
-		  uint16_t max_pkts __rte_unused,
-		  void *user_param __rte_unused);
 
 static int
 check_lcore_params(void)
@@ -293,49 +333,6 @@ parse_config(const char *q_arg)
 	return 0;
 }
 
-#define MAX_JUMBO_PKT_LEN  9600
-#define MEMPOOL_CACHE_SIZE 256
-
-static const char short_options[] =
-	"p:"  /* portmask */
-	"P"   /* promiscuous */
-	"L"   /* enable long prefix match */
-	"E"   /* enable exact match */
-	;
-
-#define CMD_LINE_OPT_CONFIG "config"
-#define CMD_LINE_OPT_ETH_DEST "eth-dest"
-#define CMD_LINE_OPT_NO_NUMA "no-numa"
-#define CMD_LINE_OPT_IPV6 "ipv6"
-#define CMD_LINE_OPT_ENABLE_JUMBO "enable-jumbo"
-#define CMD_LINE_OPT_HASH_ENTRY_NUM "hash-entry-num"
-#define CMD_LINE_OPT_PARSE_PTYPE "parse-ptype"
-enum {
-	/* long options mapped to a short option */
-
-	/* first long only option value must be >= 256, so that we won't
-	 * conflict with short options */
-	CMD_LINE_OPT_MIN_NUM = 256,
-	CMD_LINE_OPT_CONFIG_NUM,
-	CMD_LINE_OPT_ETH_DEST_NUM,
-	CMD_LINE_OPT_NO_NUMA_NUM,
-	CMD_LINE_OPT_IPV6_NUM,
-	CMD_LINE_OPT_ENABLE_JUMBO_NUM,
-	CMD_LINE_OPT_HASH_ENTRY_NUM_NUM,
-	CMD_LINE_OPT_PARSE_PTYPE_NUM,
-};
-
-static const struct option lgopts[] = {
-	{CMD_LINE_OPT_CONFIG, 1, 0, CMD_LINE_OPT_CONFIG_NUM},
-	{CMD_LINE_OPT_ETH_DEST, 1, 0, CMD_LINE_OPT_ETH_DEST_NUM},
-	{CMD_LINE_OPT_NO_NUMA, 0, 0, CMD_LINE_OPT_NO_NUMA_NUM},
-	{CMD_LINE_OPT_IPV6, 0, 0, CMD_LINE_OPT_IPV6_NUM},
-	{CMD_LINE_OPT_ENABLE_JUMBO, 0, 0, CMD_LINE_OPT_ENABLE_JUMBO_NUM},
-	{CMD_LINE_OPT_HASH_ENTRY_NUM, 1, 0, CMD_LINE_OPT_HASH_ENTRY_NUM_NUM},
-	{CMD_LINE_OPT_PARSE_PTYPE, 0, 0, CMD_LINE_OPT_PARSE_PTYPE_NUM},
-	{NULL, 0, 0, 0}
-};
-
 /* Parse the argument given in the command line of the application */
 static int
 parse_args(int argc, char **argv)
@@ -507,11 +504,8 @@ init_mem()
 			else
 				printf("Allocated mbuf pool on socket %d\n",
 					socketid);
-			setup_hash(socketid);
+			classify_setup_em (socketid);
 		}
-		qconf = &lcore_conf[lcore_id];
-		qconf->ipv4_lookup_struct = ipv4_l3fwd_em_lookup_struct[socketid];
-		qconf->ipv6_lookup_struct = ipv6_l3fwd_em_lookup_struct[socketid];
 	}
 	return 0;
 }
@@ -520,8 +514,6 @@ init_mem()
 static void
 check_all_ports_link_status(uint8_t port_num, uint32_t port_mask)
 {
-#define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
 	uint8_t portid, count, all_ports_up, print_flag = 0;
 	struct rte_eth_link link;
 
@@ -586,15 +578,225 @@ signal_handler(int signum)
 }
 
 #if defined(HAVE_DPDK_BUILT_IN_PARSER)
-static int
-prepare_ptype_parser(uint8_t portid, uint16_t queueid, void *usr_param)
+static __oryx_always_inline__
+void parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
+{
+	struct ether_hdr *eth_hdr;
+	uint32_t packet_type = RTE_PTYPE_UNKNOWN;
+	uint16_t ether_type;
+	void *l3;
+	int hdr_len;
+	struct ipv4_hdr *ipv4h;
+	struct ipv6_hdr *ipv6h;
+	ThreadVars *tv = &g_tv[lconf->lcore_id];
+	DecodeThreadVars *dtv = &g_dtv[lconf->lcore_id];
+
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
+	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, m->pkt_len);
+	
+	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
+
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_eth);
+
+	ether_type = eth_hdr->ether_type;
+	l3 = (uint8_t *)eth_hdr + sizeof(struct ether_hdr);
+	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
+		ipv4h = (struct ipv4_hdr *)l3;
+		hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
+			  IPV4_IHL_MULTIPLIER;
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
+		if (hdr_len == sizeof(struct ipv4_hdr)) {
+			packet_type |= RTE_PTYPE_L3_IPV4;
+			if (ipv4h->next_proto_id == IPPROTO_TCP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
+				packet_type |= RTE_PTYPE_L4_TCP;
+			}
+			else if (ipv4h->next_proto_id == IPPROTO_UDP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_udp);
+				packet_type |= RTE_PTYPE_L4_UDP;
+			}
+			else if (ipv4h->next_proto_id == IPPROTO_SCTP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
+				packet_type |= RTE_PTYPE_L4_SCTP;
+			}
+		} else
+			packet_type |= RTE_PTYPE_L3_IPV4_EXT;
+	} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
+		ipv6h = (struct ipv6_hdr *)l3;
+		if (ipv6h->proto == IPPROTO_TCP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
+		else if (ipv6h->proto == IPPROTO_UDP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_UDP;
+		else if (ipv6h->proto == IPPROTO_SCTP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_SCTP;
+		else
+			packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
+	}
+
+	m->packet_type = packet_type;
+}
+
+static void parse_ptype1(struct rte_mbuf *m)
+{
+	struct ether_hdr *eth_hdr;
+	uint32_t packet_type = RTE_PTYPE_UNKNOWN;
+	uint16_t ether_type;
+
+	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
+	ether_type = eth_hdr->ether_type;
+	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4))
+		packet_type |= RTE_PTYPE_L3_IPV4_EXT_UNKNOWN;
+	else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6))
+		packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
+
+	m->packet_type = packet_type;
+}
+
+static int check_ptype0(int portid)
+{
+  int i, ret;
+  int ptype_l3_ipv4 = 0;
+  int ptype_l3_ipv6 = 0;
+  int ptype_l3_ipv4_ext = 0;
+  int ptype_l3_ipv6_ext = 0;
+  int ptype_l4_tcp = 0;
+  int ptype_l4_udp = 0;
+  uint32_t ptype_mask = RTE_PTYPE_L3_MASK | RTE_PTYPE_L4_MASK;
+
+  ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, NULL, 0);
+  if (ret <= 0)
+	  return 0;
+
+  uint32_t ptypes[ret];
+
+  ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, ptypes, ret);
+  for (i = 0; i < ret; ++i) {
+	  switch (ptypes[i]) {
+	  case RTE_PTYPE_L3_IPV4:
+	  	  ptype_l3_ipv4 = 1;
+	  	  break;
+	  case RTE_PTYPE_L3_IPV6:
+	  	  ptype_l3_ipv6 = 1;
+	  	  break;
+	  case RTE_PTYPE_L3_IPV4_EXT:
+		  ptype_l3_ipv4_ext = 1;
+		  break;
+	  case RTE_PTYPE_L3_IPV6_EXT:
+		  ptype_l3_ipv6_ext = 1;
+		  break;
+	  case RTE_PTYPE_L4_TCP:
+		  ptype_l4_tcp = 1;
+		  break;
+	  case RTE_PTYPE_L4_UDP:
+		  ptype_l4_udp = 1;
+		  break;
+	  }
+  }
+
+  if(ptype_l3_ipv4 == 0)
+  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV4\n", portid);
+  if(ptype_l3_ipv6 == 0)
+  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV6\n", portid);
+  if (ptype_l3_ipv4_ext == 0)
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV4_EXT\n", portid);
+  if (ptype_l3_ipv6_ext == 0)
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV6_EXT\n", portid);
+  if (!ptype_l3_ipv4_ext || !ptype_l3_ipv6_ext)
+	  return 0;
+  if (ptype_l4_tcp == 0)
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L4_TCP\n", portid);
+  if (ptype_l4_udp == 0)
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L4_UDP\n", portid);
+  if (ptype_l4_tcp && ptype_l4_udp)
+	  return 1;
+
+  return 0;
+}
+
+static int check_ptype1(int portid)
+{
+  int i, ret;
+  int ptype_l3_ipv4 = 0, ptype_l3_ipv6 = 0;
+  uint32_t ptype_mask = RTE_PTYPE_L3_MASK;
+
+  ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, NULL, 0);
+  if (ret <= 0)
+	  return 0;
+
+  uint32_t ptypes[ret];
+
+  ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, ptypes, ret);
+  for (i = 0; i < ret; ++i) {
+	  if (ptypes[i] & RTE_PTYPE_L3_IPV4)
+		  ptype_l3_ipv4 = 1;
+	  if (ptypes[i] & RTE_PTYPE_L3_IPV6)
+		  ptype_l3_ipv6 = 1;
+  }
+
+  if (ptype_l3_ipv4 == 0)
+	  printf("port %d cannot parse RTE_PTYPE_L3_IPV4\n", portid);
+
+  if (ptype_l3_ipv6 == 0)
+	  printf("port %d cannot parse RTE_PTYPE_L3_IPV6\n", portid);
+
+  if (ptype_l3_ipv4 && ptype_l3_ipv6)
+	  return 1;
+
+  return 0;
+
+}
+
+static uint16_t cb_parse_ptype0(uint8_t port __rte_unused, uint16_t queue __rte_unused,
+		  struct rte_mbuf *pkts[], uint16_t nb_pkts,
+		  uint16_t max_pkts __rte_unused,
+		  void *user_param __rte_unused)
+{
+	unsigned i;
+	struct lcore_conf *lconf = (struct lcore_conf*)user_param;
+	struct iface_t *iface;
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	iface_lookup_id(vp, port, &iface);
+
+#if defined(BUILD_DEBUG)
+	BUG_ON(iface == NULL);
+	if(nb_pkts) {
+		oryx_logd("port=%d, queue=%d, lcore=%d", port, queue, lconf->lcore_id);
+	}
+#endif
+
+	if (iface_support_marvell_dsa(iface)) {
+		/** Marvell DSA frame decode. */
+	} else {
+		for (i = 0; i < nb_pkts; ++i) {
+			rss_parse_ptype0(pkts[i], lconf);	
+		}
+	}
+	
+	return nb_pkts;
+}
+
+static uint16_t cb_parse_ptype1(uint8_t port __rte_unused, uint16_t queue __rte_unused,
+		struct rte_mbuf *pkts[], uint16_t nb_pkts,
+		uint16_t max_pkts __rte_unused,
+		void *user_param __rte_unused)
+{
+  unsigned i;
+
+  for (i = 0; i < nb_pkts; ++i)
+	  rss_parse_ptype1(pkts[i]);
+
+  return nb_pkts;
+}
+		
+int prepare_ptype_parser(uint8_t portid, uint16_t queueid, void *usr_param)
 {
 	oryx_logn("registering ptype parser ...");
 	
 	if (parse_ptype) {
 		oryx_logd("Port %d: softly parse packet type info\n", portid);
 		if (rte_eth_add_rx_callback(portid, queueid,
-					    rss_cb_parse_ptype0,
+					    cb_parse_ptype0,
 					    usr_param))
 			return 1;
 
@@ -603,7 +805,7 @@ prepare_ptype_parser(uint8_t portid, uint16_t queueid, void *usr_param)
 		return 0;
 	}
 
-	if (rss_check_ptype0(portid))
+	if (check_ptype0(portid))
 		return 1;
 
 	oryx_logw(0, "port %d cannot parse packet type, please add --%s\n",
@@ -837,7 +1039,7 @@ dpdk_env_setup(vlib_main_t *vm)
 	}
 
 
-	check_all_ports_link_status((uint8_t)nb_ports, enabled_port_mask);
+	//check_all_ports_link_status((uint8_t)nb_ports, enabled_port_mask);
 
 #if 0
 	ret = 0;

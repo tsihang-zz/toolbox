@@ -6,6 +6,7 @@
 #include "udp_private.h"
 #include "iface_private.h"
 #include "util_map.h"
+#include "dpdk_classify.h"
 #include "cli_iface.h"
 #include "cli_udp.h"
 #include "cli_appl.h"
@@ -409,8 +410,7 @@ DEFUN(new_map,
     return CMD_SUCCESS;
 }
 
-static void map_install_udp (struct vty *vty, 
-	char __oryx_unused__ *pass_drop, char *alias, struct map_t *map)
+static void map_install_udp (char __oryx_unused__ *pass_drop, char *alias, struct map_t *map)
 {
 
 	void *backup_mpm_ptr;
@@ -447,12 +447,9 @@ static void map_install_udp (struct vty *vty,
 		/** After swapped, cleanup previous mpmctx. */
 		MpmDestroyCtx (&map->mpm_ctx[(map->mpm_index + 1)%MPM_TABLES]);
 	}
-
-	vty_out (vty, "%d, %p -->  %p%s", vec_count(map->udp_set), backup_mpm_ptr, map->mpm_runtime_ctx, VTY_NEWLINE);
-
 }
 
-static void map_uninstall_udp (struct vty *vty, char *alias, struct map_t *map)
+static void map_uninstall_udp (char *alias, struct map_t *map)
 {
 	void *backup_mpm_ptr;
 	u8 do_swap = 0;
@@ -489,15 +486,11 @@ static void map_uninstall_udp (struct vty *vty, char *alias, struct map_t *map)
 		/** After swapped, cleanup previous mpmctx. */
 		MpmDestroyCtx (&map->mpm_ctx[(map->mpm_index + 1)%MPM_TABLES]);
 	}
-
-	vty_out (vty, "%d, %p -->  %p%s", vec_count(map->udp_set), backup_mpm_ptr, map->mpm_runtime_ctx, VTY_NEWLINE);
 }
 
-
-DEFUN(map_application_udp,
-      map_application_udp_cmd,
-      "map WORD (pass|drop) (application|udp) WORD",
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
+DEFUN(map_application,
+      map_application_cmd,
+      "map WORD (pass|drop) application WORD",
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -514,12 +507,8 @@ DEFUN(map_application_udp,
 		return CMD_SUCCESS;
 	}
 
-	if (!strncmp (argv[2], "u", 1)) {
-		map_install_udp (vty, (char *)argv[1], (char *)argv[3], map);
-	}else {
-		split_foreach_application_func1_param1 (argv[3],
-						map_entry_add_appl, map);
-	}
+	split_foreach_application_func1_param3 (argv[2],
+					map_entry_add_appl0, map, argv[1], em_download_appl);
 
 	PRINT_SUMMARY;
 	
@@ -527,10 +516,9 @@ DEFUN(map_application_udp,
 }
 
 
-DEFUN(no_map_application_udp,
-      no_map_application_udp_cmd,
-      "no map WORD (application|udp) WORD",
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
+DEFUN(no_map_applicatio,
+      no_map_application_cmd,
+      "no map WORD application WORD",
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -546,12 +534,8 @@ DEFUN(no_map_application_udp,
 		return CMD_SUCCESS;
 	}
 
-	if (!strncmp (argv[1], "u", 1)) {
-		map_uninstall_udp (vty, (char *)argv[2], map);
-	}else {
-		split_foreach_application_func1_param1 (argv[2],
-				map_entry_remove_appl, map);
-	}
+	split_foreach_application_func1_param1 (argv[1],
+			map_entry_remove_appl, map);
 
 	PRINT_SUMMARY;
 	
@@ -757,8 +741,8 @@ void map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &show_map_cmd);
 	install_element (CONFIG_NODE, &new_map_cmd);
 	install_element (CONFIG_NODE, &no_map_cmd);
-	install_element (CONFIG_NODE, &no_map_application_udp_cmd);
-	install_element (CONFIG_NODE, &map_application_udp_cmd);
+	install_element (CONFIG_NODE, &no_map_application_cmd);
+	install_element (CONFIG_NODE, &map_application_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_highest_lowest_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_cmd);
 

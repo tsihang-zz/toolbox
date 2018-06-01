@@ -82,14 +82,27 @@ extern int
 main_loop(__attribute__((unused)) void *dummy);
 extern void dpdk_format_eal_args (vlib_main_t *vm);
 
-void dp_start_dpdk(struct vlib_main_t *vm) {
+
+void dp_init_dpdk(struct vlib_main_t *vm)
+{
 	dpdk_main_t *dm = &dpdk_main;
 
 	dm->conf->mempool_priv_size = vm->extra_priv_size;	
 	dp_dpdk_check_port(vm);
 	dpdk_format_eal_args(vm);
 	dpdk_env_setup(vm);
-	
+}
+
+void dp_start_dpdk(struct vlib_main_t *vm) {
+#if 0
+	dpdk_main_t *dm = &dpdk_main;
+
+	dm->conf->mempool_priv_size = vm->extra_priv_size;	
+	dp_dpdk_check_port(vm);
+	dpdk_format_eal_args(vm);
+	dpdk_env_setup(vm);
+#endif
+
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);
 

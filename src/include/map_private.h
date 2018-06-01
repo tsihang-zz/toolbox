@@ -1,7 +1,6 @@
 #ifndef MAP_PRIVATE_H
 #define MAP_PRIVATE_H
 
-#include "route_private.h"
 
 #define MAP_PREFIX	"map"
 #define MAX_MAPS (1 << 2)
@@ -91,6 +90,9 @@ struct traffic_dpo_t {
 	void (*dpo_fn)(void *packet, void *map);
 };
 
+typedef struct _action_t {
+	uint8_t act;
+}action_t;
 
 /**
 Packets matching multiple maps in a configuration are sent to the map with the highest
@@ -131,23 +133,21 @@ prioritizing their rules.
 	*/
 	oryx_vector port_list[MAP_N_PORTS];
 
-	/** 
-	  * APPL set for current map. Attentions: all applications in one map have "OR" relationship.
-	How Flow Mapping handles a case where a packet matches multiple applications in the same map?
-	In cases like this, the packet is sent to all configured
-destinations when the first pass application is matched (assuming there were no matching
-drop rules �C drop rules have higher priority)
-	For example, a confiigured map named "Pass_HTTP" within 3 applications below:
-	appl1= "Source Address=192.168.1.1";
-	appl2= "Source Port=80";
-	appl3= "VLAN=100".
-	In this case, when a packet whose "Source Address=192.168.1.1" && "Source Port=80" && "VLAN=100"
-will be send once to destinations.
-	If you only want to send packet to one destiation, 
-just creating an application with combind criterias like below and added it to map.
-	applx= "Source Address=192.168.1.1, Source Port=80, VLAN=100"
-	*/
-	oryx_vector appl_set;
+	action_t	appl_set_action[1024];	/** action = appl_set_action[appl_id] */
+
+	oryx_vector appl_set;		/** APPL set for current map. Attentions: all applications in one map have "OR" relationship.
+	 							 * How Flow Mapping handles a case where a packet matches multiple applications in the same map?
+	 							 * In cases like this, the packet is sent to all configured destinations 
+	 							 * when the first pass application is matched (assuming there were no matching 
+	 							 * drop rules �C drop rules have higher priority)
+	 							 * For example, a confiigured map named "Pass_HTTP" within 3 applications below:
+	 							 * appl1= "Source Address=192.168.1.1";
+	 							 * appl2= "Source Port=80";
+	 						 	 * appl3= "VLAN=100".
+	 							 * In this case, when a packet whose "Source Address=192.168.1.1" && "Source Port=80" && "VLAN=100"
+     							 * will be send once to destinations.
+	 							 * If you only want to send packet to one destiation, just creating an application 
+	 							 * with combind criterias like below and added it to map. applx= "Source Address=192.168.1.1, Source Port=80, VLAN=100" */
 
 	/**
 	  * A copy of User-Defined Pattern from UDP Management.
@@ -210,11 +210,7 @@ typedef struct {
 	
 	/** fast tracinging. unused actually. */
 	struct map_t *lowest_map;
-	struct map_t *highest_map;
-
-	struct em_route_ipv4 em_route4;
-	void *dpdk_ipv4_em_lookup_struct;
-	
+	struct map_t *highest_map;	
 }vlib_map_main_t;
 
 extern vlib_map_main_t vlib_map_main;

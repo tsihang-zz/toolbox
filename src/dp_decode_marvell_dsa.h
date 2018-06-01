@@ -4,20 +4,30 @@
 extern struct MarvellDSAMap dsa_to_phy_map_list[];
 extern struct MarvellDSAMap phy_to_dsa_map_list[];
 
+#define DSA_TO_PANEL_GE_ID(dsa)\
+	dsa_to_phy_map_list[DSA_PORT(dsa)].p
+
+#define DSA_TO_GLOBAL_PORT_ID(dsa)\
+	(DSA_TO_PANEL_GE_ID((dsa)) + SW_PORT_OFFSET)
+
+#define PANEL_GE_ID_TO_DSA(pid)\
+	phy_to_dsa_map_list[pid].p
+
 static __oryx_always_inline__
-void PrintDSA(const char *comment, uint32_t dsa, u8 rx_tx)
+void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
 {
 	printf ("=================== %s ===================\n", comment);
-	printf ("%12s%4d\n", "cmd:",	DSA_CMD(dsa));
-	printf ("%12s%4d\n", "dev:",	DSA_SRC_DEV(dsa));
-	printf ("%12s%4d\n", "port:",	DSA_SRC_PORT(dsa));
-	printf ("%12s%4d\n", "pri:",	DSA_PRI(dsa));
-	printf ("%12s%4d\n", "extend:",	DSA_EXTEND(dsa));
-	printf ("%12s%4d\n", "R1:",		DSA_R1(dsa));
-	printf ("%12s%4d\n", "R2:",		DSA_R2(dsa));
-	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(dsa));
+	printf ("%12s%8x\n", "dsa:",    cpu_dsa);
+	printf ("%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
+	printf ("%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
+	printf ("%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
+	printf ("%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
+	printf ("%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
+	printf ("%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
+	printf ("%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
+	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
 	printf ("%12s%4d\n", rx_tx == QUA_RX ? "fm_phy" : "to_phy",
-									dsa_to_phy_map_list[DSA_SRC_PORT(dsa)].p);
+									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 
 typedef struct MarvellDSAEthernetHdr_ {
@@ -62,7 +72,7 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 	p->dsa = ntoh32(dsah->dsa);
 
 	//PrintDSA("RX", p->dsa, QUA_RX);
-	//SET_PKT_SRC_PHY(p, dsa_to_phy_map_list[DSA_SRC_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
+	//SET_PKT_SRC_PHY(p, dsa_to_phy_map_list[DSA_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
 
 	oryx_logd("dsa %08x, ether_type %04x", p->dsa, ntoh16(dsaeth->eth_type));
 

@@ -34,19 +34,13 @@ enum interface_conf_cmd {
 };
 
 enum {
-	QUA_COUNTER_RX,
-	QUA_COUNTER_TX,
-	QUA_COUNTERS
-};
-
-enum {
 	ETH_GE,
 	ETH_XE
 };
 
 struct iface_counter_ctx {
-	counter_id lcore_counter_pkts[QUA_COUNTERS][MAX_LCORES];
-	counter_id lcore_counter_bytes[QUA_COUNTERS][MAX_LCORES];
+	counter_id lcore_counter_pkts[QUA_RXTX][MAX_LCORES];
+	counter_id lcore_counter_bytes[QUA_RXTX][MAX_LCORES];
 };
 
 struct iface_t {
@@ -85,7 +79,7 @@ struct iface_t {
 
 #define iface_counters_add(p,id,x)\
 	oryx_counter_add(iface_perf((p)),(id),(x));
-#define iface_counters_inc(p,id,x)\
+#define iface_counters_inc(p,id)\
 	oryx_counter_inc(iface_perf((p)),(id));
 #define iface_counters_set(p,id,x)\
 	oryx_counter_set(iface_perf((p)),(id),(x));

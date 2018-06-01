@@ -30,11 +30,17 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
-#include <rte_hash.h>
 #include <rte_string_fns.h>
 #include <rte_vect.h>
+
+/** for exact match */
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
+/** for longest prefixe match */
+#include <rte_lpm.h>
+#include <rte_lpm6.h>
+/** for access control list. */
+#include <rte_acl.h>
 
 #include "common_private.h"
 
@@ -291,5 +297,6 @@ extern struct lcore_conf lcore_conf[RTE_MAX_LCORE];
 extern struct rte_eth_conf dpdk_eth_default_conf;
 /* A tsc-based timer responsible for triggering statistics printout */
 extern uint64_t timer_period;
+
 
 #endif
