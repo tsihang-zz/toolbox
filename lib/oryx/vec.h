@@ -63,6 +63,7 @@ vec_ensure (oryx_vector v, unsigned int num);
 void *
 vec_lookup_ensure (oryx_vector v, unsigned int i);
 
+#if defined(BUILD_DEBUG)
 /* Look up oryx_vector.  */
 static __oryx_always_inline__
 void * vec_lookup (oryx_vector v, unsigned int i)
@@ -71,6 +72,11 @@ void * vec_lookup (oryx_vector v, unsigned int i)
     return NULL;
   return v->index[i];
 }
+#else
+#define vec_lookup(v,i)\
+	((v)->index[(i)])
+
+#endif
 
 /* Count the number of not emplty slot. */
 static __oryx_always_inline__

@@ -169,6 +169,7 @@ void classify_setup_em(const int socketid)
 		.key_len = sizeof(union ipv4_5tuple_host),
 		.hash_func = ipv4_hash_crc,
 		.hash_func_init_val = 0,
+		.socket_id = socketid,
 	};
 
 	struct rte_hash_parameters ipv6_l3fwd_hash_params = {
@@ -177,6 +178,7 @@ void classify_setup_em(const int socketid)
 		.key_len = sizeof(union ipv6_5tuple_host),
 		.hash_func = ipv6_hash_crc,
 		.hash_func_init_val = 0,
+		.socket_id = socketid,
 	};
 
 	char s[64];

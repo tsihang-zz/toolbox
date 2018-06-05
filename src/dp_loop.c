@@ -59,7 +59,7 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 	}
 
 #if defined(BUILD_DEBUG)
-	oryx_logd("tx_port_id=%d lcore %d, tx_pkts %d", tx_port_id, tv->lcore, n_tx_pkts);
+	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d", tx_port_id, tx_queue_id, tv->lcore, n_tx_pkts);
 #endif
 
 	iface_counters_add(iface, iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], n_tx_pkts);
@@ -74,7 +74,6 @@ int send_single_packet(ThreadVars *tv, struct lcore_conf *qconf,
 {
 	uint16_t len;
 
-	
 	len = qconf->tx_mbufs[tx_port_id].len;
 	qconf->tx_mbufs[tx_port_id].m_table[len] = m;
 	len++;
@@ -101,14 +100,44 @@ void dsa_tag_strip(struct rte_mbuf *m)
 }
 
 static __oryx_always_inline__
+int dsa_tag_insert(struct rte_mbuf **m, uint32_t new_cpu_dsa)
+{
+	MarvellDSAEthernetHdr *nh;
+	struct ether_hdr *oh;
+
+	/* Can't insert header if mbuf is shared */
+	if (rte_mbuf_refcnt_read(*m) > 1) {
+		struct rte_mbuf *copy;
+
+		copy = rte_pktmbuf_clone(*m, (*m)->pool);
+		if (unlikely(copy == NULL))
+			return -ENOMEM;
+		rte_pktmbuf_free(*m);
+		*m = copy;
+	}
+
+	oh = rte_pktmbuf_mtod(*m, struct ether_hdr *);
+	nh = (MarvellDSAEthernetHdr *)
+		rte_pktmbuf_prepend(*m, sizeof(MarvellDSAHdr));
+	if (nh == NULL)
+		return -ENOSPC;
+
+	memmove(nh, oh, 2 * ETHER_ADDR_LEN);
+	nh->dsah.dsa = rte_cpu_to_be_32(new_cpu_dsa);
+	
+	return 0;
+}
+
+
+static __oryx_always_inline__
 uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 {
 	uint32_t new_cpu_dsa = 0; /** this packet received from a panel sw virtual port ,
-	                           * and also send to a panel sw virtual port, here just update the dsa tag.	*/
+	                           * and also send to a panel sw virtual port, here just update the dsa tag. */
 
-	SET_DSA_CMD(new_cpu_dsa, DSA_CMD_EGRESS); /** which port this packet should be send out. */
-	SET_DSA_PORT(new_cpu_dsa, tx_virtual_port_id); /* update dsa.port */
-	SET_DSA_CFI(new_cpu_dsa, DSA_CFI(cpu_tag));/* update dsa.C dsa.R1, dsa.R2 */
+	SET_DSA_CMD(new_cpu_dsa, DSA_CMD_EGRESS); 		/** which port this packet should be send out. */
+	SET_DSA_PORT(new_cpu_dsa, tx_virtual_port_id);  /** update dsa.port */
+	SET_DSA_CFI(new_cpu_dsa, DSA_CFI(cpu_tag));		/** update dsa.C dsa.R1, dsa.R2 */
 	SET_DSA_R1(new_cpu_dsa, DSA_R1(cpu_tag));
 	SET_DSA_PRI(new_cpu_dsa, DSA_PRI(cpu_tag));
 	SET_DSA_R0(new_cpu_dsa, DSA_R0(cpu_tag));
@@ -121,21 +150,17 @@ uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 }
 
 static __oryx_always_inline__
-void simple_forward(ThreadVars *tv, Packet *p,
+void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		struct rte_mbuf *m, struct iface_t *rx_cpu_iface, struct lcore_conf *qconf)
 {
-	uint8_t tx_port_id = -1;
-	uint8_t tx_virtual_port_id = -1;
+	uint8_t tx_port_id = -1, tx_panel_port_id = -1;
 	struct ipv4_hdr *ipv4h;
 	uint8_t dst_port;
 	uint32_t tcp_or_udp;
 	uint32_t l3_ptypes;
-	MarvellDSAEthernetHdr *dsaeth;
 	vlib_port_main_t *vp = &vlib_port_main;
-	struct iface_t *tx_sw_iface;
+	struct iface_t *tx_panel_iface;
 	
-	dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
-
 #if defined(BUILD_DEBUG)
 	BUG_ON(rx_cpu_iface == NULL);
 #endif
@@ -163,7 +188,7 @@ void simple_forward(ThreadVars *tv, Packet *p,
 #endif
 
 		/** exact match */
-		//tx_port_id = em_get_ipv4_dst_port(ipv4h);
+		tx_panel_port_id = em_get_ipv4_dst_port(ipv4h);
 
 		/** lpm */
 		//tx_port_id = lpm_get_ipv4_dst_port(ipv4h, rx_cpu_iface, qconf->ipv4_lookup_struct);
@@ -171,40 +196,46 @@ void simple_forward(ThreadVars *tv, Packet *p,
 #if defined(BUILD_DEBUG)
 		struct udp_hdr *udph = rte_pktmbuf_mtod_offset(m, struct udp_hdr *,
 						   (sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr)));		
-		oryx_logn("rx_port_id %d  tx_port_id %d",
-				iface_id(rx_cpu_iface), tx_port_id);
+		oryx_logn("rx_port_id %d  tx_panel_port_id %d",
+				iface_id(rx_cpu_iface), tx_panel_port_id);
 #endif
 
 	}
 
-	tx_port_id = 1;
-	if (tx_port_id > SW_PORT_OFFSET) {
-		tx_virtual_port_id = PANEL_GE_ID_TO_DSA(tx_port_id);
-		iface_lookup_id(vp, tx_port_id, &tx_sw_iface);
-
-#if defined(BUILD_DEBUG)
-		BUG_ON(tx_sw_iface == NULL);
-#endif
-		iface_counters_inc(tx_sw_iface, tx_sw_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][tv->lcore]);
-		iface_counters_add(tx_sw_iface, tx_sw_iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][tv->lcore], GET_PKT_LEN(p));
-
-		if (p->dsa) {
-			dsaeth->dsah.dsa = rte_cpu_to_be_32(dsa_tag_update(p->dsa, tx_virtual_port_id));
-
+	tx_panel_port_id = 1;	/** send to xe */
+	tx_panel_port_id = 5;   /** send to ge */
+	if (DSA_IS_INGRESS(p->dsa)) {
+		MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
+		if (tx_panel_port_id > SW_PORT_OFFSET) /** SW -> SW */ {
+			uint32_t new_cpu_dsa = dsa_tag_update(p->dsa, PANEL_GE_ID_TO_DSA(tx_panel_port_id));		
+			iface_lookup_id(vp, tx_panel_port_id, &tx_panel_iface);
+		#if defined(BUILD_DEBUG)
+			BUG_ON(tx_panel_iface == NULL);
+		#endif
+			iface_counters_inc(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][tv->lcore]);
+			iface_counters_add(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][tv->lcore], pkt_len);
+			dsaeth->dsah.dsa = rte_cpu_to_be_32(new_cpu_dsa);
+			tx_port_id = 0;	/** tx_port_id 0 is a cpu interface connected with SW unit. */
 		} else {
-			/** this packet came from panel XE port, prepare and insert a DSA TAG before send it to 
-			 * panel sw virtual ports. */
-		}
-		
-		/** tx_port 0 is a cpu interface connected with SW unit. */
-		tx_port_id = 0;
-	}
-	else {	
-		tx_port_id = 1;
-		if(p->dsa)
+			/* SW -> XE */
 			dsa_tag_strip(m);
-		else {
-			/** do nothing. */
+			tx_port_id = tx_panel_port_id;
+		}
+	} else {
+		if (tx_panel_port_id > SW_PORT_OFFSET) /* XE -> SW */ {
+			/* add a dsa tag */
+			uint32_t new_cpu_dsa = dsa_tag_update(0, PANEL_GE_ID_TO_DSA(tx_panel_port_id));
+			dsa_tag_insert(&m, new_cpu_dsa);
+			iface_lookup_id(vp, tx_panel_port_id, &tx_panel_iface);
+		#if defined(BUILD_DEBUG)
+			BUG_ON(tx_panel_iface == NULL);
+		#endif
+			iface_counters_inc(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][tv->lcore]);
+			iface_counters_add(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][tv->lcore], pkt_len);
+			tx_port_id = 0; /** tx_port_id 0 is a cpu interface connected with SW unit. */
+		} else {
+			/* XE -> XE */
+			tx_port_id = tx_panel_port_id;
 		}
 	}
 	
@@ -245,10 +276,76 @@ void no_opt_send_packets(ThreadVars *tv,
 	/* Forward remaining prefetched packets */
 	for (; j < nb_rx; j++) {
 		p = GET_MBUF_PRIVATE(Packet, pkts_burst[j]);
-		simple_forward(tv, p, pkts_burst[j], rx_cpu_iface, qconf);
+		simple_forward(tv, p, pkts_burst[j]->pkt_len, pkts_burst[j], rx_cpu_iface, qconf);
 	}
 }
 
+static __oryx_always_inline__
+void standard_eth_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+				  uint8_t *pkt, uint16_t pkt_len, PacketQueue *pq, struct rte_mbuf *m, struct iface_t *rx_cpu_iface)
+{
+	oryx_logd("Standard ethernet ...");
+	struct ether_hdr *ethh;
+	struct ipv4_hdr *ipv4h;
+	struct ipv6_hdr *ipv6h;
+	uint32_t packet_type = RTE_PTYPE_UNKNOWN;
+	uint16_t ether_type;
+	void *l3;
+	int hdr_len;
+	vlib_port_main_t *vp = &vlib_port_main;
+	struct iface_t *rx_sw_iface;
+
+	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
+	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
+
+	ethh = rte_pktmbuf_mtod(m, struct ether_hdr *);
+	ether_type = ethh->ether_type;
+
+#if defined(BUILD_DEBUG)
+		oryx_logn("%s pkt_len %d virtual_port %d rx_port_id %d ether_type %04x",
+			"ingress",
+			pkt_len,
+			m->port,
+			GET_PKT_SRC_PHY(p),
+			rte_be_to_cpu_16(ether_type));
+#endif
+	l3 = (uint8_t *)ethh + sizeof(struct ether_hdr);
+	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
+		ipv4h = (struct ipv4_hdr *)l3;
+		hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
+			  IPV4_IHL_MULTIPLIER;
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
+		if (hdr_len == sizeof(struct ipv4_hdr)) {
+			packet_type |= RTE_PTYPE_L3_IPV4;
+			if (ipv4h->next_proto_id == IPPROTO_TCP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
+				packet_type |= RTE_PTYPE_L4_TCP;
+			}
+			else if (ipv4h->next_proto_id == IPPROTO_UDP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_udp);
+				packet_type |= RTE_PTYPE_L4_UDP;
+			}
+			else if (ipv4h->next_proto_id == IPPROTO_SCTP){
+				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
+				packet_type |= RTE_PTYPE_L4_SCTP;
+			}
+		} else
+			packet_type |= RTE_PTYPE_L3_IPV4_EXT;
+	} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
+		ipv6h = (struct ipv6_hdr *)l3;
+		if (ipv6h->proto == IPPROTO_TCP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
+		else if (ipv6h->proto == IPPROTO_UDP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_UDP;
+		else if (ipv6h->proto == IPPROTO_SCTP)
+			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_SCTP;
+		else
+			packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
+	}
+	m->packet_type = packet_type;
+
+}
+ 
 static __oryx_always_inline__
 void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				  uint8_t *pkt, uint16_t pkt_len, PacketQueue *pq, struct rte_mbuf *m, struct iface_t *rx_cpu_iface)
@@ -266,6 +363,9 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	MarvellDSAEthernetHdr *dsaeth;
 	struct iface_t *rx_sw_iface;
 
+	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
+	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
+
 	dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
 	p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
 
@@ -280,13 +380,12 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 		DSA_TO_PANEL_GE_ID(p->dsa));
 	PrintDSA("RX", p->dsa, QUA_RX);
 #endif
+
 	if (!DSA_IS_INGRESS(p->dsa)) {
 		SET_PKT_FLAGS(p, PKT_IS_INVALID | PKT_DSA_NOT_INGRESS);
+		return;
 	}
-
-	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
-
-	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);	
+	
 	iface_lookup_id(vp, DSA_TO_GLOBAL_PORT_ID(p->dsa), &rx_sw_iface);
 #if defined(BUILD_DEBUG)
 	BUG_ON(rx_sw_iface == NULL);
@@ -450,6 +549,10 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			if (nb_rx == 0)
 				continue;
 
+#if defined(BUILD_DEBUG)
+			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d",
+				rx_port_id, rx_queue_id, tv->lcore);
+#endif			
 			/** port ID -> iface */
 			iface_lookup_id(vp, rx_port_id, &rx_cpu_iface);			
 			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
@@ -469,71 +572,22 @@ main_loop(__attribute__((unused)) void *ptr_data)
 					SET_PKT(p, pkt);
 					SET_PKT_SRC_PHY(p, rx_port_id); 
 					marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-					simple_forward(tv, p, m, rx_cpu_iface,qconf);
+					simple_forward(tv, p, pkt_len, m, rx_cpu_iface,qconf);
 				}				
 			} else {
 				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 				for (j = 0; j < nb_rx; j++) {
-					oryx_logd("Ethernet ...");	
 					m = pkts_burst[j];
 					rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
-					pkt_len = m->pkt_len;
-					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
-
-					oryx_logn("virtual port %d", m->port);
 					/** it costs a lot when calling Packet from mbuf. */
 					p = GET_MBUF_PRIVATE(Packet, m);
+					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+					pkt_len = m->pkt_len;
 					SET_PKT_LEN(p, pkt_len);
 					SET_PKT(p, pkt);
 					SET_PKT_SRC_PHY(p, rx_port_id); 
-					iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][lcore_id], pkt_len);
-				
-					ethh = rte_pktmbuf_mtod(m, struct ether_hdr *);
-					ether_type = ethh->ether_type;
-					
-//#if defined(BUILD_DEBUG)
-					oryx_logn("pkt_len %d virtual_port %d ether_type %04x, rx_port_id %d",
-						m->pkt_len,
-						m->port,
-						ntoh16(ether_type),
-						rx_port_id);
-//#endif					
-					l3 = (uint8_t *)ethh + sizeof(struct ether_hdr);
-					if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
-						ipv4h = (struct ipv4_hdr *)l3;
-						hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
-							  IPV4_IHL_MULTIPLIER;
-						oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
-						if (hdr_len == sizeof(struct ipv4_hdr)) {
-							packet_type |= RTE_PTYPE_L3_IPV4;
-							if (ipv4h->next_proto_id == IPPROTO_TCP){
-								oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
-								packet_type |= RTE_PTYPE_L4_TCP;
-							}
-							else if (ipv4h->next_proto_id == IPPROTO_UDP){
-								oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_udp);
-								packet_type |= RTE_PTYPE_L4_UDP;
-							}
-							else if (ipv4h->next_proto_id == IPPROTO_SCTP){
-								oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
-								packet_type |= RTE_PTYPE_L4_SCTP;
-							}
-						} else
-							packet_type |= RTE_PTYPE_L3_IPV4_EXT;
-					} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
-						ipv6h = (struct ipv6_hdr *)l3;
-						if (ipv6h->proto == IPPROTO_TCP)
-							packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
-						else if (ipv6h->proto == IPPROTO_UDP)
-							packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_UDP;
-						else if (ipv6h->proto == IPPROTO_SCTP)
-							packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_SCTP;
-						else
-							packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
-					}
-					m->packet_type = packet_type;
-					simple_forward(tv, p, m, rx_cpu_iface, qconf);
+					standard_eth_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
+					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
 				}
 			}
 			//no_opt_send_packets(tv, nb_rx, pkts_burst, rx_cpu_iface, rx_sw_iface /**always null*/, qconf);
