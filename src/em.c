@@ -20,6 +20,7 @@ uint32_t hash_entry_number = HASH_ENTRY_NUMBER_DEFAULT;
 
 struct rte_hash *ipv4_l3fwd_em_lookup_struct[NB_SOCKETS];
 struct rte_hash *ipv6_l3fwd_em_lookup_struct[NB_SOCKETS];
+uint32_t g_em_appl_to_map_lookup_table[EM_HASH_ENTRIES] = {0};
 
 static inline uint32_t
 ipv4_hash_crc(const void *data, __rte_unused uint32_t data_len,
@@ -151,11 +152,16 @@ void convert_ipv4_5tuple(struct 	   ipv4_5tuple *key1,
 	key2->pad1 = 0;
 }
 
-int em_add_hash_key(union em_route *entry)
+int em_add_hash_key(struct em_route *entry)
 {
+	int ret;
 	union ipv4_5tuple_host newkey;	
-	convert_ipv4_5tuple(&entry->v4.key, &newkey);
-	return rte_hash_add_key(ipv4_l3fwd_em_lookup_struct[0], (void *) &newkey);
+	convert_ipv4_5tuple(&entry->u.k4, &newkey);
+	ret = rte_hash_add_key(ipv4_l3fwd_em_lookup_struct[0], (void *) &newkey);
+	if (ret >= 0) {
+		g_em_appl_to_map_lookup_table[ret] = entry->id;
+	}
+	return ret;
 }
 
 /*

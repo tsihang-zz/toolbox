@@ -5,7 +5,7 @@
 
 
 static __oryx_always_inline__
-uint8_t lpm_get_ipv4_dst_port(void *ipv4_hdr,  void *rx_port, void *lookup_struct)
+uint8_t lpm_get_ipv4_dst_port(void *ipv4_hdr,  void *dpdk_port, void *lookup_struct)
 {
 	uint32_t next_hop;
 	struct rte_lpm *ipv4_l3fwd_lookup_struct =
@@ -18,7 +18,7 @@ uint8_t lpm_get_ipv4_dst_port(void *ipv4_hdr,  void *rx_port, void *lookup_struc
 
 
 static __oryx_always_inline__
-uint8_t lpm_get_ipv6_dst_port(void *ipv6_hdr,  void *rx_port, void *lookup_struct)
+uint8_t lpm_get_ipv6_dst_port(void *ipv6_hdr,  void *dpdk_port, void *lookup_struct)
 {
 	uint32_t next_hop;
 	struct rte_lpm6 *ipv6_l3fwd_lookup_struct =

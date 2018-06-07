@@ -69,6 +69,7 @@ struct iface_t {
 	u32 ul_up_down_times;		/** up->down counter. */
 	u16 us_mtu;
 	oryx_vector belong_maps;	/** Map for this interface belong to. */
+	uint32_t map_mask;			/** Map mask for this interface belong to. */
 	struct CounterCtx *perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };

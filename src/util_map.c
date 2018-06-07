@@ -9,21 +9,31 @@ extern volatile oryx_vector map_curr_table;
 void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 	oryx_vector v;
+	uint32_t *panel_port_mask = NULL;
 
 	/** Map.Port */
-	v = map->port_list[from_to % MAP_N_PORTS];
+	v = map->port_list[from_to % QUA_RXTX];
 	vec_set_index (v, port->ul_id, (void *)port);
+
+	if(from_to == QUA_RX) {
+		map->rx_panel_port_mask = (1 << iface_id(port));
+	}
+
+	if(from_to == QUA_TX) {
+		map->tx_panel_port_mask = (1 << iface_id(port));
+	}
 	
 	/** Port.Map */
 	v = port->belong_maps;
-	vec_set_index (v, map->ul_id, (void *)map);
+	vec_set_index (v, map_id(map), (void *)map);
+	port->map_mask |= (1 << map_id(map));
 
-	printf ("%s -> %s, and now %d maps ->>> ", port->sc_alias, map->sc_alias, vec_active (port->belong_maps));
+	printf ("%s -> %s, and now %d maps ->>> ", iface_alias(port), map_alias(map), vec_active (port->belong_maps));
 	int i = 0;
 	struct map_t *m;
 	v = port->belong_maps;
 	vec_foreach_element (v, i, m) {
-		printf ("%s ", m->sc_alias);
+		printf ("%s ", map_alias(m));
 	}
 
 	printf ("\n");
@@ -34,11 +44,12 @@ void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 	oryx_vector v;
 	
-	v = map->port_list[from_to % MAP_N_PORTS];
+	v = map->port_list[from_to % QUA_RXTX];
 	/** Map.Port. */
 	vec_unset (v, port->ul_id);
 	/** Port.Map */
-	vec_unset (port->belong_maps, map->ul_id);
+	vec_unset (port->belong_maps, map_id(map));
+	port->map_mask &= ~(1 << map_id(map));
 }
 
 static __oryx_always_inline__
@@ -235,9 +246,9 @@ int map_entry_install_and_compile_udp (struct map_t *map)
 		vec_foreach_element(u->patterns, j, p) {
 			if (!p) continue;
 
-			ul_pid = mkpid (map->ul_id, u->ul_id, p->ul_id);
+			ul_pid = mkpid (map_id(map), u->ul_id, p->ul_id);
 			/** overwrite. */
-			ul_sid = mksid (map->ul_id, u->ul_id, p->ul_id);
+			ul_sid = mksid (map_id(map), u->ul_id, p->ul_id);
 			printf ("controlpalne ->  u->ul_id =%u, p->ul_id =%u, mksid =%u\n", u->ul_id, p->ul_id, ul_sid);
 			
 			if (p->ul_flags & PATTERN_FLAGS_NOCASE)
@@ -264,7 +275,7 @@ void map_entry_add_udp_to_pass_quat (struct udp_t *udp, struct map_t *map)
 	quat = QUA_PASS;
 	quat_vec = udp->qua[quat];
 
-	vec_set_index (quat_vec, map_slot(map), map);
+	vec_set_index (quat_vec, map_id(map), map);
 }
 
 __oryx_always_extern__
@@ -276,7 +287,7 @@ void map_entry_add_udp_to_drop_quat (struct udp_t *udp, struct map_t *map)
 	quat = QUA_DROP;
 	quat_vec = udp->qua[quat];
 
-	vec_set_index (quat_vec, map_slot(map), map);
+	vec_set_index (quat_vec, map_id(map), map);
 }
 
 __oryx_always_extern__
@@ -294,7 +305,7 @@ void map_entry_setup_udp_quat (struct udp_t *udp, u8 quat, struct map_t *map)
 			ASSERT(0);
 	}
 
-	vec_set_index (quat_vec, map_slot(map), map);
+	vec_set_index (quat_vec, map_id(map), map);
 }
 
 __oryx_always_extern__
@@ -306,12 +317,12 @@ void map_entry_unsetup_udp_quat (struct udp_t *udp, struct map_t *map)
 	
 	quat = QUA_DROP;
 	quat_vec = udp->qua[quat];
-	vec_unset (quat_vec, map_slot(map));
+	vec_unset (quat_vec, map_id(map));
 
 
 	quat = QUA_PASS;
 	quat_vec = udp->qua[quat];
-	vec_unset (quat_vec, map_slot(map));
+	vec_unset (quat_vec, map_id(map));
 
 }
 
@@ -351,11 +362,11 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 	/** make alias. */
 	sprintf ((char *)&(*map)->sc_alias[0], "%s", ((alias != NULL) ? alias: MAP_PREFIX));
 
-	(*map)->port_list[MAP_N_PORTS_FROM] = vec_init (MAX_PORTS);
-	(*map)->port_list[MAP_N_PORTS_TO] = vec_init (MAX_PORTS);
+	(*map)->port_list[QUA_RX] = vec_init (MAX_PORTS);
+	(*map)->port_list[QUA_TX] = vec_init (MAX_PORTS);
 	
-	(*map)->port_list_str[MAP_N_PORTS_FROM] = strdup (from);
-	(*map)->port_list_str[MAP_N_PORTS_TO] = strdup(to);
+	(*map)->port_list_str[QUA_RX] = strdup (from);
+	(*map)->port_list_str[QUA_TX] = strdup(to);
 	/** Need Map's ul_id, so have to remove map_entry_split_and_mapping_port to map_table_entry_add. */
 
 	oryx_thread_mutex_create(&(*map)->ol_lock);
@@ -365,8 +376,8 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 
 void map_entry_destroy (struct map_t *map)
 {
-	vec_free (map->port_list[MAP_N_PORTS_FROM]);
-	vec_free (map->port_list[MAP_N_PORTS_TO]);
+	vec_free (map->port_list[QUA_RX]);
+	vec_free (map->port_list[QUA_TX]);
 	vec_free (map->appl_set);
 	vec_free (map->udp_set);
 	
@@ -392,7 +403,12 @@ void map_entry_lookup (vlib_map_main_t *mm, char *alias, struct map_t **map)
 
 void map_entry_lookup_i (vlib_map_main_t *mm, u32 id, struct map_t **m)
 {
-	(*m) = vec_lookup (map_curr_table, id);
+	BUG_ON(map_curr_table == NULL);
+	BUG_ON(id > vec_active(map_curr_table));
+	
+	if (vec_active(map_curr_table)) {
+		(*m) = vec_lookup (map_curr_table, id);
+	}
 }
 
 void map_table_entry_lookup (struct prefix_t *lp, 
@@ -444,20 +460,20 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 	return 0;
 }
 
-/** em, lpm or acl. */
 void em_download_appl(struct map_t *map, struct appl_t *appl) {
 	vlib_map_main_t *mm = &vlib_map_main;
 	/** upload this appl to */
-	union em_route entry;
+	struct em_route entry;
 	int hv = 0;
 	struct appl_signature_t *sig = appl->instance;
 	
 	memset(&entry, 0, sizeof(entry));
-	entry.v4.key.ip_src = ntoh32(sig->ip4[HD_SRC].prefix.s_addr);
-	entry.v4.key.ip_dst = ntoh32(sig->ip4[HD_DST].prefix.s_addr);
-	entry.v4.key.port_src = sig->port_start[HD_SRC];
-	entry.v4.key.port_dst = sig->port_start[HD_DST];
-	entry.v4.key.proto = sig->uc_proto;
+	entry.u.k4.ip_src = ntoh32(sig->ip4[HD_SRC].prefix.s_addr);
+	entry.u.k4.ip_dst = ntoh32(sig->ip4[HD_DST].prefix.s_addr);
+	entry.u.k4.port_src = sig->port_start[HD_SRC];
+	entry.u.k4.port_dst = sig->port_start[HD_DST];
+	entry.u.k4.proto = sig->uc_proto;
+	entry.id = map_id(map);
 
 	hv = em_add_hash_key(&entry);
 	if(hv < 0) {
@@ -467,7 +483,42 @@ void em_download_appl(struct map_t *map, struct appl_t *appl) {
 		//em_map_hash_key(hv, map);
 		/** [key && map ]*/
 		oryx_logn("(%d) add hash key ... %08x %08x %5d %5d %02x", hv,
-			entry.v4.key.ip_src, entry.v4.key.ip_dst, entry.v4.key.port_src, entry.v4.key.port_dst, entry.v4.key.proto);
+			entry.u.k4.ip_src, entry.u.k4.ip_dst,
+			entry.u.k4.port_src, entry.u.k4.port_dst,
+			entry.u.k4.proto);
+	}
+}
+
+void acl_download_appl(struct map_t *map, struct appl_t *appl) {
+	vlib_map_main_t *mm = &vlib_map_main;
+	/** upload this appl to */
+	struct acl_route entry;
+	int hv = 0;
+	struct appl_signature_t *sig = appl->instance;
+	
+	memset(&entry, 0, sizeof(entry));
+	entry.u.k4.ip_src		= ntoh32(sig->ip4[HD_SRC].prefix.s_addr);
+	entry.u.k4.ip_dst		= ntoh32(sig->ip4[HD_DST].prefix.s_addr);
+	entry.u.k4.port_src		= sig->port_start[HD_SRC];
+	entry.u.k4.port_dst		= sig->port_start[HD_DST];
+	entry.u.k4.proto		= sig->uc_proto;
+	entry.ip_src_mask		= sig->ip4[HD_SRC].prefixlen;
+	entry.ip_dst_mask		= sig->ip4[HD_DST].prefixlen;
+	entry.port_src_mask		= sig->port_end[HD_SRC];
+	entry.port_dst_mask		= sig->port_end[HD_DST];
+	entry.proto_mask		= sig->proto_mask;
+	entry.id				= map_id(map);
+
+	hv = acl_add_entry(&entry);
+	if(hv < 0) {
+		oryx_loge(-1,
+			"(%d) add acl error", hv);
+	} else {
+		/** [key && map ]*/
+		oryx_logn("(%d) download ACL rule ... %08x %08x %5d %5d %02x", hv,
+			entry.u.k4.ip_src, entry.u.k4.ip_dst,
+			entry.u.k4.port_src, entry.u.k4.port_dst,
+			entry.u.k4.proto);
 	}
 }
 

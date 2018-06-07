@@ -159,8 +159,11 @@ typedef struct PacketAlerts_ {
 #define GET_PKT_DIRECT_DATA(p) (uint8_t *)((p) + 1)
 #define GET_PKT_DIRECT_MAX_SIZE(p) (default_packet_size)
 
-#define GET_PKT_SRC_PHY(p)	((p)->phy_port[QUA_RX])
-#define GET_PKT_DST_PHY(p)	((p)->phy_port[QUA_TX])
+#define GET_PKT_RX_PORT(p)	((p)->dpdk_port[QUA_RX])
+#define GET_PKT_TX_PORT(p)	((p)->dpdk_port[QUA_TX])
+
+#define GET_PKT_RX_PANEL_PORT(p) ((p)->panel_port[QUA_RX]);
+#define GET_PKT_TX_PANEL_PORT(p) ((p)->panel_port[QUA_TX]);
 
 #define SET_PKT_FLAGS(p,flag) do { \
     (p)->flags |= (flag); \
@@ -174,15 +177,23 @@ typedef struct PacketAlerts_ {
     (p)->pkt = (pkt); \
     } while (0)
 
-#define SET_PKT_PHY(p, phy, qua) do { \
-	(p)->phy_port[(qua)] = (phy); \
+#define SET_PKT_DPDK_PORT(p, port_id, qua) do { \
+	(p)->dpdk_port[(qua)] = (port_id); \
+	} while (0)
+
+#define SET_PKT_PANEL_PORT(p, panel_port_id, qua) do { \
+	(p)->panel_port[(qua)] = (panel_port_id); \
 	} while (0)
 
 /** Set where the packet comes from (which port) */
-#define SET_PKT_SRC_PHY(p, phy) SET_PKT_PHY(p,phy,QUA_RX)
+#define SET_PKT_RX_PORT(p, rx_port_id) SET_PKT_DPDK_PORT(p,rx_port_id,QUA_RX)
 /** Set where the packet send to (which port) */
-#define SET_PKT_DST_PHY(p, phy) SET_PKT_PHY(p,phy,QUA_TX)
+#define SET_PKT_TX_PORT(p, tx_port_id) SET_PKT_DPDK_PORT(p,tx_port_id,QUA_TX)
 
+/** Set where the packet comes from (which panel port) */
+#define SET_PKT_RX_PANEL_PORT(p, rx_panel_port_id) SET_PKT_PANEL_PORT(p,rx_panel_port_id,QUA_RX)
+/** Set where the packet send to (which panel port) */
+#define SET_PKT_TX_PANEL_PORT(p, tx_panel_port_id) SET_PKT_PANEL_PORT(p,tx_panel_port_id,QUA_TX)
 
 /** number of decoder events we support per packet. Power of 2 minus 1
  *  for memory layout */
@@ -266,7 +277,8 @@ typedef struct Packet_
     uint8_t proto;
 
 	/** physical rx and tx port */
-	u32 phy_port[QUA_RXTX];
+	u32 dpdk_port[QUA_RXTX];
+	u32 panel_port[QUA_RXTX];
 	
     /* make sure we can't be attacked on when the tunneled packet
      * has the exact same tuple as the lower levels */

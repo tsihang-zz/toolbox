@@ -5,6 +5,7 @@
 
 extern struct rte_hash *ipv4_l3fwd_em_lookup_struct[];
 extern struct rte_hash *ipv6_l3fwd_em_lookup_struct[];
+extern uint32_t g_em_appl_to_map_lookup_table[];
 
 extern rte_xmm_t mask0;
 extern rte_xmm_t mask1;
@@ -49,17 +50,13 @@ union ipv6_5tuple_host {
 	xmm_t xmm[XMM_NUM_IN_IPV6_5TUPLE];
 };
 
-union em_route {
-	struct {
-		struct ipv4_5tuple key;
-		uint32_t map_id; /** map entry is a traffic direction
-							which has a set of in_ports and out_ports. */
-	}v4;
-	struct {
-		struct ipv6_5tuple key;
-		uint32_t map_id; /** map entry is a traffic direction
-							which has a set of in_ports and out_ports. */
-	}v6;	
+struct em_route {
+	union {
+		struct ipv4_5tuple k4;
+		struct ipv6_5tuple k6;
+	}u;
+	uint32_t id;/** map entry id is a traffic direction
+					which has a set of in_ports and out_ports. */
 };
 
 static __oryx_always_inline__
@@ -71,7 +68,7 @@ xmm_t em_mask_key(void *key, xmm_t mask)
 }
 
 static __oryx_always_inline__
-uint8_t em_get_ipv4_dst_port(void *ipv4h)
+uint32_t em_get_ipv4_dst_port(void *ipv4h)
 {
 	int ret = 0;
 	union ipv4_5tuple_host key;
@@ -98,13 +95,13 @@ uint8_t em_get_ipv4_dst_port(void *ipv4h)
 			key.ip_src, key.ip_dst, key.proto, key.port_src, key.port_dst);
 #endif
 
-	return (uint8_t)((ret < 0) ? EM_HASH_ENTRIES : ret);//ipv4_l3fwd_out_if[ret]);
+	return (uint32_t)((ret < 0) ? EM_HASH_ENTRIES : g_em_appl_to_map_lookup_table[ret]);
 }
 
 
 void classify_setup_em(const int socketid);
 
-int em_add_hash_key(union em_route *entry);
+int em_add_hash_key(struct em_route *entry);
 
 #endif
 

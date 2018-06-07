@@ -505,6 +505,7 @@ init_mem()
 				printf("Allocated mbuf pool on socket %d\n",
 					socketid);
 			classify_setup_em (socketid);
+			classify_setup_acl(socketid);
 		}
 	}
 	return 0;

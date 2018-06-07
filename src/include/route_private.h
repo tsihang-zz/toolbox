@@ -2,15 +2,18 @@
 #define ROUTE_PRIVATE_H
 
 /** THIS IS a FIXED structure for EM  LPM and ACL. DO NOT CHANGE. */
-
+/* BIG ENDIAN */
 struct ipv4_5tuple {
 	uint32_t ip_dst;
 	uint32_t ip_src;
 	uint16_t port_dst;
 	uint16_t port_src;
 	uint8_t  proto;
-	//uint8_t  rx_port_id;
-	//uint16_t vlan_id;
+	union {
+		uint16_t  rx_port_id: 4;
+		uint16_t  vlan: 12;
+		uint16_t  pad0;
+	}u;
 } __attribute__((__packed__));
 
 #define IPV6_ADDR_LEN 16
@@ -20,8 +23,11 @@ struct ipv6_5tuple {
 	uint16_t port_dst;
 	uint16_t port_src;
 	uint8_t  proto;
-	//uint8_t  rx_port_id;
-	//uint16_t vlan_id;
+	union {
+		uint16_t  rx_port_id: 4;
+		uint16_t  vlan: 12;
+		uint16_t  pad0;
+	}u;
 } __attribute__((__packed__));
 
 

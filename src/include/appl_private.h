@@ -59,6 +59,7 @@ struct appl_signature_t {
 	  * Protocol
 	  */
 	u8 uc_proto;
+	u8 proto_mask;
 
 	/**
 	  * User-Defined Pattern for this appl signature.

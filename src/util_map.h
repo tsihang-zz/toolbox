@@ -23,6 +23,8 @@ void map_table_entry_lookup (struct prefix_t *lp,
 	struct map_t **m);
 
 void em_download_appl(struct map_t *map, struct appl_t *appl);
+void acl_download_appl(struct map_t *map, struct appl_t *appl);
+
 	
 
 #endif

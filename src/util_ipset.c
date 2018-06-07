@@ -2,13 +2,13 @@
 #include "prefix.h"
 #include "util_ipset.h"
 
-void appl_entry_format (struct appl_t *appl, 
-	u32 __oryx_unused__*rule_id, const char *unused_var, 
-	char __oryx_unused__*vlan, 
-	char __oryx_unused__*sip, 
-	char __oryx_unused__*dip, 
-	char __oryx_unused__*sp, 
-	char __oryx_unused__*dp, 
+void appl_entry_format (struct appl_t *appl,
+	u32 __oryx_unused__*rule_id, const char *unused_var,
+	char __oryx_unused__*vlan,
+	char __oryx_unused__*sip,
+	char __oryx_unused__*dip,
+	char __oryx_unused__*sp,
+	char __oryx_unused__*dp,
 	char __oryx_unused__*proto)
 {
 
@@ -40,8 +40,10 @@ void appl_entry_format (struct appl_t *appl,
 		}
 		else {
 			/** default is ANY_PORT */
-			as->port_start[p] = as->port_end[p] = ANY_PORT; /** To avoid warnings. */
-			
+			if (!strncmp(sp, "a", 1)) {
+				as->port_start[p] = 1;
+				as->port_end[p] = 65535; /** To avoid warnings. */
+			}
 		}
 	}
 	
@@ -52,7 +54,10 @@ void appl_entry_format (struct appl_t *appl,
 		}
 		else {
 			/** default is ANY_PORT */
-			as->port_start[p] = as->port_end[p] = ANY_PORT; /** To avoid warnings. */
+			if (!strncmp(dp, "a", 1)) {
+				as->port_start[p] = 1;
+				as->port_end[p] = 65535; /** To avoid warnings. */
+			}
 		}
 	}
 	
@@ -63,7 +68,10 @@ void appl_entry_format (struct appl_t *appl,
 		}
 		else {
 			/** default is ANY_PROTO */
-			as->uc_proto  = ANY_PROTO; /** To avoid warnings. */
+			if (!strncmp(dp, "a", 1)) {
+				as->uc_proto  = ANY_PROTO; /** To avoid warnings. */
+				as->proto_mask = 0xFF;
+			}
 		}
 	}
 }

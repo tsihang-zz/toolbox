@@ -17,17 +17,17 @@
 #include "dp_decode_eth.h"
 
 #include "iface_private.h"
+#include "map_private.h"
 
 #include "dpdk_classify.h"
-
-/* Configure how many packets ahead to prefetch, when reading packets */
-#define PREFETCH_OFFSET	  3
 
 extern volatile bool force_quit;
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
+/* Configure how many packets ahead to prefetch, when reading packets */
+#define PREFETCH_OFFSET	  3
 
 void dp_dpdk_perf_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 	int __oryx_unused__ argc, char **argv)
@@ -86,6 +86,99 @@ int send_single_packet(ThreadVars *tv, struct lcore_conf *qconf,
 
 	qconf->tx_mbufs[tx_port_id].len = len;
 	return 0;
+}
+
+static __oryx_always_inline__
+void acl_send_one_packet(ThreadVars *tv, struct lcore_conf *qconf,
+		struct rte_mbuf *m, uint32_t res)
+{
+	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
+
+	tx_port_id = 1;
+	
+	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
+	if (likely(res != 0)) {
+		/* forward packets */
+		send_single_packet(tv, qconf, m,
+			tx_port_id);
+	} else{
+		/* in the ACL list, drop it */
+		rte_pktmbuf_free(m);
+	}
+}
+		
+static __oryx_always_inline__
+void acl_send_packets(ThreadVars *tv, struct lcore_conf *qconf,
+		struct rte_mbuf **m, uint32_t *res, int num)
+{
+	int i;
+
+	/* Prefetch first packets */
+	for (i = 0; i < PREFETCH_OFFSET && i < num; i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(
+				m[i], void *));
+	}
+
+	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(m[
+				i + PREFETCH_OFFSET], void *));
+		acl_send_one_packet(tv, qconf, m[i], res[i]);
+	}
+
+	/* Process left packets */
+	for (; i < num; i++)
+		acl_send_one_packet(tv, qconf, m[i], res[i]);
+}
+
+static __oryx_always_inline__
+void acl_prepare_one_packet(struct rte_mbuf **pkts_in, struct acl_search_t *acl,
+	int index)
+{
+	struct rte_mbuf *pkt = pkts_in[index];
+
+	oryx_logn ("pkt_type %d", pkt->packet_type);
+	
+	if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
+		/* Fill acl structure */
+		acl->data_ipv4[acl->num_ipv4] = MBUF_IPV4_2PROTO(pkt);
+		acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+
+	} 
+	else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
+		/* Fill acl structure */
+		acl->data_ipv6[acl->num_ipv6] = MBUF_IPV6_2PROTO(pkt);
+		acl->m_ipv6[(acl->num_ipv6)++] = pkt;
+	}
+	else {
+		/* Unknown type, drop the packet */
+		rte_pktmbuf_free(pkt);
+	}
+}
+
+static __oryx_always_inline__
+void acl_prepare_acl_parameter(struct rte_mbuf **pkts_in, struct acl_search_t *acl,
+	int nb_rx)
+{
+	int i;
+
+	acl->num_ipv4 = 0;
+	acl->num_ipv6 = 0;
+
+	/* Prefetch first packets */
+	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(
+				pkts_in[i], void *));
+	}
+
+	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
+				i + PREFETCH_OFFSET], void *));
+		acl_prepare_one_packet(pkts_in, acl, i);
+	}
+
+	/* Process left packets */
+	for (; i < nb_rx; i++)
+		acl_prepare_one_packet(pkts_in, acl, i);
 }
 
 static __oryx_always_inline__
@@ -154,11 +247,15 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		struct rte_mbuf *m, struct iface_t *rx_cpu_iface, struct lcore_conf *qconf)
 {
 	uint8_t tx_port_id = -1, tx_panel_port_id = -1;
+	uint8_t rx_port_id = -1, rx_panel_port_id = -1;
+	uint32_t mapid;
+	struct map_t *map = NULL;
 	struct ipv4_hdr *ipv4h;
 	uint8_t dst_port;
 	uint32_t tcp_or_udp;
 	uint32_t l3_ptypes;
 	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_map_main_t *mm = &vlib_map_main;
 	struct iface_t *tx_panel_iface;
 	
 #if defined(BUILD_DEBUG)
@@ -170,6 +267,9 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		rte_pktmbuf_free(m);
 		return;
 	}
+
+	rx_port_id = GET_PKT_RX_PORT(p);
+	rx_panel_port_id = GET_PKT_RX_PANEL_PORT(p);
 	
 	tcp_or_udp = m->packet_type & (RTE_PTYPE_L4_TCP | RTE_PTYPE_L4_UDP);
 	l3_ptypes = m->packet_type & RTE_PTYPE_L3_MASK;
@@ -179,31 +279,37 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		/* Handle IPv4 headers.*/
 		ipv4h = rte_pktmbuf_mtod_offset(m, struct ipv4_hdr *,
 						   sizeof(struct ether_hdr));
-#if defined(DO_RFC_1812_CHECKS)
-		/* Check to make sure the packet is valid (RFC1812) */
-		if (is_valid_ipv4_pkt(ipv4h, m->pkt_len) < 0) {
-			rte_pktmbuf_free(m);
-			return;
-		}
-#endif
-
 		/** exact match */
-		tx_panel_port_id = em_get_ipv4_dst_port(ipv4h);
-
+ 		mapid = em_get_ipv4_dst_port(ipv4h);
+		if (mapid != EM_HASH_ENTRIES) {
+			oryx_logn("#### mapid %d ####", mapid);
+			struct prefix_t lp_id = {
+				.cmd = LOOKUP_ID,
+				.v = (void *)&mapid,
+				.s = sizeof(mapid),
+			};
+			map_table_entry_lookup (&lp_id, &map);
+		} else {
+			/** match fail */
+		}
+		
 		/** lpm */
 		//tx_port_id = lpm_get_ipv4_dst_port(ipv4h, rx_cpu_iface, qconf->ipv4_lookup_struct);
+	}
 
-#if defined(BUILD_DEBUG)
-		struct udp_hdr *udph = rte_pktmbuf_mtod_offset(m, struct udp_hdr *,
-						   (sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr)));		
-		oryx_logn("rx_port_id %d  tx_panel_port_id %d",
-				iface_id(rx_cpu_iface), tx_panel_port_id);
-#endif
-
+	if (!map) {
+		oryx_logn("no map for rx_panel_port %d", rx_panel_port_id);
+		rte_pktmbuf_free(m);
+		return;
+	}
+	if (!(map->rx_panel_port_mask & (1 << rx_panel_port_id))){
+		oryx_logn("rx_panel_port_id %d is not in this map", rx_panel_port_id);
+		rte_pktmbuf_free(m);
+		return;
 	}
 
 	tx_panel_port_id = 1;	/** send to xe */
-	tx_panel_port_id = 5;   /** send to ge */
+	tx_panel_port_id = 6;   /** send to ge */
 	if (DSA_IS_INGRESS(p->dsa)) {
 		MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
 		if (tx_panel_port_id > SW_PORT_OFFSET) /** SW -> SW */ {
@@ -216,6 +322,7 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 			iface_counters_add(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][tv->lcore], pkt_len);
 			dsaeth->dsah.dsa = rte_cpu_to_be_32(new_cpu_dsa);
 			tx_port_id = 0;	/** tx_port_id 0 is a cpu interface connected with SW unit. */
+			oryx_logn("m->port %d", m->port);
 		} else {
 			/* SW -> XE */
 			dsa_tag_strip(m);
@@ -223,8 +330,9 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		}
 	} else {
 		if (tx_panel_port_id > SW_PORT_OFFSET) /* XE -> SW */ {
+			uint32_t tx_panel_ge_id = tx_panel_port_id - SW_PORT_OFFSET;
 			/* add a dsa tag */
-			uint32_t new_cpu_dsa = dsa_tag_update(0, PANEL_GE_ID_TO_DSA(tx_panel_port_id));
+			uint32_t new_cpu_dsa = dsa_tag_update(0, PANEL_GE_ID_TO_DSA(tx_panel_ge_id));
 			dsa_tag_insert(&m, new_cpu_dsa);
 			iface_lookup_id(vp, tx_panel_port_id, &tx_panel_iface);
 		#if defined(BUILD_DEBUG)
@@ -232,52 +340,23 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 		#endif
 			iface_counters_inc(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][tv->lcore]);
 			iface_counters_add(tx_panel_iface, tx_panel_iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][tv->lcore], pkt_len);
-			tx_port_id = 0; /** tx_port_id 0 is a cpu interface connected with SW unit. */
+			tx_port_id = m->port; /** tx_port_id 0 is a cpu interface connected with SW unit. */
+			PrintDSA("TX", new_cpu_dsa, QUA_TX);
+			dump_pkt((uint8_t *)rte_pktmbuf_mtod(m, void *), m->pkt_len);
+			
 		} else {
 			/* XE -> XE */
 			tx_port_id = tx_panel_port_id;
 		}
 	}
-	
+
+//#if defined(BUILD_DEBUG)
+	oryx_logn("%20s%4d", "tx_port_id: ", tx_port_id);
+	oryx_logn("%20s%4d", "tx_panel_port_id: ", tx_panel_port_id);
+	oryx_logn("%20s%4d%s", "Map: ", mapid, map?map_alias(map):"unknown");
+//#endif
+
 	send_single_packet(tv, qconf, m, tx_port_id);
-}
-
-/*
- * Buffer non-optimized handling of packets, invoked
- * from main_loop.
- */
-static __oryx_always_inline__
-void no_opt_send_packets(ThreadVars *tv,
-			int nb_rx, struct rte_mbuf **pkts_burst,
-			struct iface_t *rx_cpu_iface, struct iface_t *rx_sw_iface, struct lcore_conf *qconf)
-{
-	int32_t j = 0;
-	Packet *p;
-#if defined(BUILD_DEBUG)
-	BUG_ON(rx_cpu_iface == NULL);
-#endif
-
-#if 0
-	/* Prefetch first packets */
-	for (j = 0; j < PREFETCH_OFFSET && j < nb_rx; j++)
-		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[j], void *));
-
-	/*
-	 * Prefetch and forward already prefetched
-	 * packets.
-	 */
-	for (j = 0; j < (nb_rx - PREFETCH_OFFSET); j++) {
-		rte_prefetch0(rte_pktmbuf_mtod(pkts_burst[
-				j + PREFETCH_OFFSET], void *));
-		simple_forward(tv, pkts_burst[j], iface, qconf);
-	}
-#endif
-
-	/* Forward remaining prefetched packets */
-	for (; j < nb_rx; j++) {
-		p = GET_MBUF_PRIVATE(Packet, pkts_burst[j]);
-		simple_forward(tv, p, pkts_burst[j]->pkt_len, pkts_burst[j], rx_cpu_iface, qconf);
-	}
 }
 
 static __oryx_always_inline__
@@ -292,23 +371,26 @@ void standard_eth_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	uint16_t ether_type;
 	void *l3;
 	int hdr_len;
+	uint8_t rx_port_id = -1, rx_panel_port_id = -1;
 	vlib_port_main_t *vp = &vlib_port_main;
-	struct iface_t *rx_sw_iface;
 
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
 	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
 
 	ethh = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	ether_type = ethh->ether_type;
+	rx_panel_port_id = rx_port_id = GET_PKT_RX_PORT(p);
+	SET_PKT_RX_PANEL_PORT(p, rx_panel_port_id);
 
-#if defined(BUILD_DEBUG)
-		oryx_logn("%s pkt_len %d virtual_port %d rx_port_id %d ether_type %04x",
-			"ingress",
-			pkt_len,
-			m->port,
-			GET_PKT_SRC_PHY(p),
-			rte_be_to_cpu_16(ether_type));
-#endif
+
+//#if defined(BUILD_DEBUG)
+	oryx_logn("%20s%4d", "m->port: ", m->port);
+	oryx_logn("%20s%4d", "rx_port_id: ", rx_port_id);
+	oryx_logn("%20s%4d", "rx_panel_port_id: ", rx_panel_port_id);
+	oryx_logn("%20s%4x", "eth_type: ", rte_be_to_cpu_16(ether_type));
+	dump_pkt((uint8_t *)rte_pktmbuf_mtod(m, void *), m->pkt_len);
+//#endif
+
 	l3 = (uint8_t *)ethh + sizeof(struct ether_hdr);
 	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
 		ipv4h = (struct ipv4_hdr *)l3;
@@ -361,40 +443,40 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	int hdr_len;
 	vlib_port_main_t *vp = &vlib_port_main;
 	MarvellDSAEthernetHdr *dsaeth;
-	struct iface_t *rx_sw_iface;
-
+	struct iface_t *rx_panel_iface;
+	uint8_t rx_panel_port_id = -1;
+	
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
 	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
 
 	dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
+	ether_type = dsaeth->eth_type;
 	p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
-
-#if defined(BUILD_DEBUG)
-	oryx_logn("%s pkt_len %d virtual_port %d rx_port_id %d ether_type %04x dsa %08x, from sw port %d",
-		DSA_IS_INGRESS(p->dsa) ? "ingress" : "unknown",
-		pkt_len,
-		m->port,
-		GET_PKT_SRC_PHY(p),
-		rte_be_to_cpu_16(dsaeth->eth_type), 
-		dsaeth->dsah.dsa,
-		DSA_TO_PANEL_GE_ID(p->dsa));
-	PrintDSA("RX", p->dsa, QUA_RX);
-#endif
+	rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
+	
+//#if defined(BUILD_DEBUG)
+	oryx_logn("%20s%4d", "mbuf->port: ", m->port);
+	oryx_logn("%20s%4d", "rx_port_id: ", GET_PKT_RX_PORT(p));
+	oryx_logn("%20s%4d", "rx_panel_port_id: ", rx_panel_port_id);
+	oryx_logn("%20s%4x", "eth_type: ", rte_be_to_cpu_16(ether_type));
+	PrintDSA("RX", p->dsa, QUA_RX);	
+	dump_pkt((uint8_t *)rte_pktmbuf_mtod(m, void *), m->pkt_len);
+//#endif
 
 	if (!DSA_IS_INGRESS(p->dsa)) {
 		SET_PKT_FLAGS(p, PKT_IS_INVALID | PKT_DSA_NOT_INGRESS);
 		return;
 	}
-	
-	iface_lookup_id(vp, DSA_TO_GLOBAL_PORT_ID(p->dsa), &rx_sw_iface);
+
+	SET_PKT_RX_PANEL_PORT(p, rx_panel_port_id);
+	iface_lookup_id(vp, rx_panel_port_id, &rx_panel_iface);
 #if defined(BUILD_DEBUG)
-	BUG_ON(rx_sw_iface == NULL);
+	BUG_ON(rx_panel_iface == NULL);
 #endif
-	iface_counters_inc(rx_sw_iface, rx_sw_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][tv->lcore]);
-	iface_counters_add(rx_sw_iface, rx_sw_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
+	iface_counters_inc(rx_panel_iface, rx_panel_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][tv->lcore]);
+	iface_counters_add(rx_panel_iface, rx_panel_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
 
 	l3 = (uint8_t *)dsaeth + sizeof(MarvellDSAEthernetHdr);
-	ether_type = dsaeth->eth_type;
 	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {	
 		ipv4h = (struct ipv4_hdr *)l3;
 		hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
@@ -437,7 +519,7 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 
 /* main processing loop */
 int
-main_loop(__attribute__((unused)) void *ptr_data)
+main_loop0(__attribute__((unused)) void *ptr_data)
 {
 	vlib_main_t *vm = (vlib_main_t *)ptr_data;
 	struct rte_mbuf *pkts_burst[DPDK_MAX_RX_BURST], *m;
@@ -462,14 +544,173 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	void *l3;
 	int hdr_len;
 
-
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
 		US_PER_S * BURST_TX_DRAIN_US;
 	
 	prev_tsc = 0;
 
 	lcore_id = rte_lcore_id();
+	tv = &g_tv[lcore_id];
+	dtv = &g_dtv[lcore_id];
+	qconf = &lcore_conf[lcore_id];
+	tv->lcore = lcore_id;
 
+	if (qconf->n_rx_queue == 0) {
+		oryx_logn("lcore %u has nothing to do\n", lcore_id);
+		return 0;
+	}
+
+	while (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
+		printf("lcore %d wait for dataplane ...\n", tv->lcore);
+		sleep(1);
+	}
+
+	oryx_logn("entering main loop on lcore %u\n", lcore_id);
+
+	for (i = 0; i < qconf->n_rx_queue; i++) {
+		rx_port_id = qconf->rx_queue_list[i].port_id;
+		rx_queue_id = qconf->rx_queue_list[i].queue_id;
+		printf(" -- lcoreid=%u portid=%hhu rxqueueid=%hhu --\n",
+			lcore_id, rx_port_id, rx_queue_id);
+		fflush(stdout);
+	}
+
+	prev_tsc = 0;
+	timer_tsc = 0;
+
+	while (!force_quit) {
+
+		cur_tsc = rte_rdtsc();
+
+		/*
+		 * TX burst queue drain
+		 */
+		diff_tsc = cur_tsc - prev_tsc;
+		if (unlikely(diff_tsc > drain_tsc)) {
+
+			for (i = 0; i < qconf->n_tx_port; ++i) {
+				tx_port_id = qconf->tx_port_id[i];
+				if (qconf->tx_mbufs[tx_port_id].len == 0)
+					continue;
+				send_burst(tv, qconf,
+					qconf->tx_mbufs[tx_port_id].len,
+					tx_port_id);
+				qconf->tx_mbufs[tx_port_id].len = 0;
+			}
+			/* if timer is enabled */
+			if (timer_period > 0) {
+
+				/* advance the timer */
+				timer_tsc += diff_tsc;
+
+				/* if timer has reached its timeout */
+				if (unlikely(timer_tsc >= timer_period)) {
+
+					/* do this only on a sepcific core */
+					if (lcore_id == rte_get_master_lcore()) {
+						/* reset the timer */
+						timer_tsc = 0;
+						/** Master lcore is never called. */
+					}
+				}
+			}
+
+			prev_tsc = cur_tsc;
+		}
+
+		/*
+		 * Read packet from RX queues
+		 */
+		for (i = 0; i < qconf->n_rx_queue; ++i) {
+			rx_port_id = qconf->rx_queue_list[i].port_id;
+			rx_queue_id = qconf->rx_queue_list[i].queue_id;
+			nb_rx = rte_eth_rx_burst(rx_port_id, rx_queue_id, pkts_burst,
+								DPDK_MAX_RX_BURST);
+			if (nb_rx == 0)
+				continue;
+
+//#if defined(BUILD_DEBUG)
+			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d",
+				rx_port_id, rx_queue_id, tv->lcore);
+//#endif			
+			/** port ID -> iface */
+			iface_lookup_id(vp, rx_port_id, &rx_cpu_iface);			
+			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
+
+			/** packet come from sw unit. */
+			if(iface_support_marvell_dsa(rx_cpu_iface)) {
+				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_dsa, nb_rx);
+				for (j = 0; j < nb_rx; j++) {
+					m = pkts_burst[j];
+					rte_prefetch0(rte_pktmbuf_mtod(m, void *));	
+					/** it costs a lot when calling Packet from mbuf. */
+					p = GET_MBUF_PRIVATE(Packet, m);
+					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+					pkt_len = m->pkt_len;
+					SET_PKT_LEN(p, pkt_len);
+					SET_PKT(p, pkt);
+					SET_PKT_RX_PORT(p, rx_port_id);
+					marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
+					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
+				}				
+			} else {
+				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
+				for (j = 0; j < nb_rx; j++) {
+					m = pkts_burst[j];
+					rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+					/** it costs a lot when calling Packet from mbuf. */
+					p = GET_MBUF_PRIVATE(Packet, m);
+					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+					pkt_len = m->pkt_len;
+					SET_PKT_LEN(p, pkt_len);
+					SET_PKT(p, pkt);
+					SET_PKT_RX_PORT(p, rx_port_id); 
+					standard_eth_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
+					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
+				}
+			}
+			//no_opt_send_packets(tv, nb_rx, pkts_burst, rx_cpu_iface, rx_sw_iface /**always null*/, qconf);
+		}
+	}
+
+	return 0;
+}
+
+/* main processing loop */
+int
+main_loop(__attribute__((unused)) void *ptr_data)
+{
+	vlib_main_t *vm = (vlib_main_t *)ptr_data;
+	struct rte_mbuf *pkts_burst[DPDK_MAX_RX_BURST], *m;
+	unsigned lcore_id;
+	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
+	int i, j, nb_rx;
+	uint8_t rx_port_id, tx_port_id, rx_queue_id, tx_queue_id;
+	struct lcore_conf *qconf;
+	ThreadVars *tv;
+	DecodeThreadVars *dtv;
+	struct iface_t *rx_cpu_iface;
+	vlib_port_main_t *vp = &vlib_port_main;
+	int qua = QUA_RX;
+	uint16_t pkt_len;
+	uint8_t *pkt;
+	Packet *p;
+	struct ether_hdr *ethh;
+	struct ipv4_hdr *ipv4h;
+	struct ipv6_hdr *ipv6h;
+	uint32_t packet_type = RTE_PTYPE_UNKNOWN;
+	uint16_t ether_type;
+	void *l3;
+	int hdr_len;
+	int socketid;
+	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
+		US_PER_S * BURST_TX_DRAIN_US;
+	
+	prev_tsc = 0;
+
+	lcore_id = rte_lcore_id();
+	socketid = rte_lcore_to_socket_id(lcore_id);
 	tv = &g_tv[lcore_id];
 	dtv = &g_dtv[lcore_id];
 	qconf = &lcore_conf[lcore_id];
@@ -557,40 +798,39 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			iface_lookup_id(vp, rx_port_id, &rx_cpu_iface);			
 			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 
-			/** packet come from sw unit. */
-			if(iface_support_marvell_dsa(rx_cpu_iface)) {
-				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_dsa, nb_rx);
-				for (j = 0; j < nb_rx; j++) {
-					m = pkts_burst[j];
-					rte_prefetch0(rte_pktmbuf_mtod(m, void *));	
-					/** it costs a lot when calling Packet from mbuf. */
-					p = GET_MBUF_PRIVATE(Packet, m);
-					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
-					pkt_len = m->pkt_len;
-					SET_PKT_LEN(p, pkt_len);
-					SET_PKT(p, pkt);
-					SET_PKT_SRC_PHY(p, rx_port_id); 
-					marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-					simple_forward(tv, p, pkt_len, m, rx_cpu_iface,qconf);
-				}				
-			} else {
-				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
-				for (j = 0; j < nb_rx; j++) {
-					m = pkts_burst[j];
-					rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-					/** it costs a lot when calling Packet from mbuf. */
-					p = GET_MBUF_PRIVATE(Packet, m);
-					pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
-					pkt_len = m->pkt_len;
-					SET_PKT_LEN(p, pkt_len);
-					SET_PKT(p, pkt);
-					SET_PKT_SRC_PHY(p, rx_port_id); 
-					standard_eth_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
-				}
+			struct acl_search_t acl_search;
+
+			acl_prepare_acl_parameter(pkts_burst, &acl_search,
+					nb_rx);
+			
+			if (acl_search.num_ipv4) {
+				rte_acl_classify(
+					acl_config.acx_ipv4[socketid],
+					acl_search.data_ipv4,
+					acl_search.res_ipv4,
+					acl_search.num_ipv4,
+					DEFAULT_MAX_CATEGORIES);
+
+				acl_send_packets(tv, qconf, acl_search.m_ipv4,
+					acl_search.res_ipv4,
+					acl_search.num_ipv4);
 			}
-			//no_opt_send_packets(tv, nb_rx, pkts_burst, rx_cpu_iface, rx_sw_iface /**always null*/, qconf);
+
+			if (acl_search.num_ipv6) {
+				rte_acl_classify(
+					acl_config.acx_ipv6[socketid],
+					acl_search.data_ipv6,
+					acl_search.res_ipv6,
+					acl_search.num_ipv6,
+					DEFAULT_MAX_CATEGORIES);
+				
+				acl_send_packets(tv, qconf, acl_search.m_ipv6,
+					acl_search.res_ipv6,
+					acl_search.num_ipv6);
+			}
+
 		}
 	}
 

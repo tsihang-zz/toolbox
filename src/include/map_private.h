@@ -37,40 +37,6 @@ typedef enum {
 	MAP_CMD_DEL_APPL,
 } map_cmd;
 
-/** 
-we can create map rules that direct traffic on any network port(s)
-to any tool ports. If a shared-ports destination for a set of network ports is not defined,
-non-matching traffic will be silently discarded.*/
-enum {
-	/**
-	Network port(s). 
-	where you connect data sources to Teraspek-OS nodes. For
-example, you could connect a switch's SPAN port, connect an external TAP, or
-simply connect an open port on a hub to an open port on a line card. Regardless,
-the idea is the same - network ports are where data arrives at the node.
-	In their standard configuration, network ports both accept data input and data output are allowed
-	*/
-	MAP_N_PORTS_FROM,
-
-	/** 
-	Tool port(s) 
-	Tool ports only allow data output to a connected tool. Any data arriving at
-the tool port from an external source will be discarded. In addition, a tool port's Link
-Status must be up for packets to be sent out of the port. You can check a port's link
-status with the show port command.*/
-	MAP_N_PORTS_TO,
-
-	/** 
-	  * Collector port(s)
-	  */
-	MAP_N_PORTS_SHARED,
-
-	/** 
-	  * Unused. 
-	  */
-	MAP_N_PORTS,
-};
-
 /** Vector table is used for DATAPLANE and CONTROLPLANE. */
 enum {
 	VECTOR_TABLE0,
@@ -121,17 +87,19 @@ struct map_t {
 	/**
 	  * A temporary variable holding argvs from CLI, and will be freee after split.
 	  */
-	char *port_list_str[MAP_N_PORTS];
+	char *port_list_str[QUA_RXTX];
 
 	/** 
-	  * Attention: MAP_N_PORTS_FROM, Where frame comes from. More than one map can be configured 
+	  * Attention: QUA_RX, Where frame comes from. More than one map can be configured 
 with the same source ports in the port list.The source port list of one map must be exactly the same as 
 the source port list of another map (have the same ports as well as the same number of ports) and it must
 not overlap with the source port list of any other map. 
 	Maps sharing the same source port list are grouped together for the purpose of
 prioritizing their rules.
 	*/
-	oryx_vector port_list[MAP_N_PORTS];
+	oryx_vector port_list[QUA_RXTX];
+	uint32_t rx_panel_port_mask;
+	uint32_t tx_panel_port_mask;
 
 	action_t	appl_set_action[1024];	/** action = appl_set_action[appl_id] */
 
@@ -177,22 +145,21 @@ prioritizing their rules.
  */
 #define MAP_DEFAULT				(1 << 0)
 /** 
- * Transparent, default setting of map.
+ * Transparent, default setting for a map.
  * When a map created, traffic will be transparent bettwen its "from" and "to" port,
  * no matter whether there are passed applications, udps or not.
  */
 #define MAP_TRAFFIC_TRANSPARENT	(1 << 1)
+#define MAP_HASH_5TUPLE			(1 << 2)
 	u32 ul_flags;
 
-	struct traffic_dpo_t dpo;
-	
 	/**
 	  * Create time.
 	  */
 	u64 ull_create_time;
 	
 };
-#define map_slot(map) ((map)->ul_id)
+#define map_id(map) ((map)->ul_id)
 #define map_alias(map) ((map)->sc_alias)
 
 typedef struct {

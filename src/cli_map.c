@@ -108,15 +108,15 @@ int map_table_entry_add (struct map_t *map)
 		  * Add map to oryx_vector. 
 		  * Must be called before split and (un)mapping port to this map entry.
 		  */
-		map_slot(map) = vec_set (map_curr_table, map);
+		map_id(map) = vec_set (map_curr_table, map);
 
 		u8 from_to;
-		from_to = MAP_N_PORTS_FROM;
+		from_to = QUA_RX;
 		if (map->port_list_str[from_to]) {
 			map_entry_split_and_mapping_port (map, from_to);
 		}
-		/** MAP_N_PORTS_TO may should not be concerned. Discard it. */
-		from_to = MAP_N_PORTS_TO;
+		/** QUA_TX may should not be concerned. Discard it. */
+		from_to = QUA_TX;
 		if (map->port_list_str[from_to]) {
 			map_entry_split_and_mapping_port (map, from_to);
 		}
@@ -142,25 +142,25 @@ int map_table_entry_remove (struct map_t *map)
 	do_lock (&mm->lock);
 	
 	/** Delete alias from hash table. */
-	r = oryx_htable_del(mm->htable, map->sc_alias, strlen((const char *)map->sc_alias));
+	r = oryx_htable_del(mm->htable, map_alias(map), strlen((const char *)map_alias(map)));
 
 	if (r == 0 /** success */) {
 
 		/** dataplane may using the map, unmap port as soon as possible. */
 		u8 from_to;
-		from_to = MAP_N_PORTS_FROM;
+		from_to = QUA_RX;
 		if (map->port_list_str[from_to]) {
 			map_entry_split_and_unmapping_port (map, from_to);
 		}
 
-		/** MAP_N_PORTS_TO may should not be concerned. Discard it. */
-		from_to = MAP_N_PORTS_TO;
+		/** QUA_TX may should not be concerned. Discard it. */
+		from_to = QUA_TX;
 		if (map->port_list_str[from_to]) {
 			map_entry_split_and_unmapping_port (map, from_to);
 		}
 		
 		/** Delete map from oryx_vector */
-		vec_unset (map_curr_table, map->ul_id);
+		vec_unset (map_curr_table, map_id(map));
 		mm->highest_map = vec_first (map_curr_table);
 		mm->lowest_map = vec_last (map_curr_table);
 
@@ -192,10 +192,10 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 		/** let us try to find the map which name is 'alias'. */
-		vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Map ", map->sc_alias, map->ul_id, tmstr, VTY_NEWLINE);
+		vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
 
 		vty_out (vty, "		%16s", "Ports: ");
-		v = map->port_list[MAP_N_PORTS_FROM];
+		v = map->port_list[QUA_RX];
 		int actives;
 
 		actives = vec_active(v);
@@ -216,7 +216,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		}
 
 		vty_out (vty, "%s", "  ---->  ");
-		v = map->port_list[MAP_N_PORTS_TO];
+		v = map->port_list[QUA_TX];
 		actives = vec_active(v);
 		if (!actives) vty_out (vty, "N/A%s", VTY_NEWLINE);
 		else {
@@ -259,8 +259,8 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		}
 
 		vty_out (vty, "		%16s%s, %s %s", "States: ", 
-			(!passed && !dropped) ? ((map->ul_flags & MAP_TRAFFIC_TRANSPARENT) ? "transparent" : "blocked") : "by Criteria(s)", 
-			"hash(sdip+sdp+protocol+vlan)",
+			(map->ul_flags & MAP_TRAFFIC_TRANSPARENT) ? "transparent" : "by Criteria(s)", 
+			(map->ul_flags & MAP_HASH_5TUPLE) ? "hash(sdip+sdp+protocol)" : "Unknown",
 			VTY_NEWLINE);
 		
 		vty_out (vty, "		%16s%d appl(s)%s", "Pass: ", passed, VTY_NEWLINE);
@@ -278,7 +278,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 			vty_out (vty, "		%16s%s", "Appl(s): ", VTY_NEWLINE);
 			struct appl_t *a;
 			vec_foreach_element (v, i, a) {
-				if (a) {
+				if (a ) {
 					vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
 						(a->ul_flags & CRITERIA_FLAGS_PASS) ? "pass" : "drop", VTY_NEWLINE);
 				}
@@ -300,11 +300,11 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 
 					v0 = a->qua[QUA_DROP];
 					v1 = a->qua[QUA_PASS];
-					if (vec_lookup (v0, map->ul_id)) {
+					if (vec_lookup (v0, map_id(map))) {
 						vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
 							"drop", VTY_NEWLINE);
 					}
-					if (vec_lookup (v1, map->ul_id)) {
+					if (vec_lookup (v1, map_id(map))) {
 						vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
 							"pass", VTY_NEWLINE);
 					}
@@ -508,7 +508,7 @@ DEFUN(map_application,
 	}
 
 	split_foreach_application_func1_param3 (argv[2],
-					map_entry_add_appl0, map, argv[1], em_download_appl);
+					map_entry_add_appl0, map, argv[1], acl_download_appl);
 
 	PRINT_SUMMARY;
 	
@@ -614,7 +614,7 @@ DEFUN(map_adjusting_priority,
 	/** Map to oryx_vector */
 	list_for_each_entry_safe(map, p, &mm->map_priority_list, prio_node) {
 		/** Update slot automatically. */
-		map_slot(map) = vec_set (vector_backup, map);
+		map_id(map) = vec_set (vector_backup, map);
 	}
 
 	/** do swapping ??? */
@@ -666,7 +666,7 @@ DEFUN(map_adjusting_priority_highest_lowest,
 				.v = (void *)&id,
 				.s = strlen ((char *)argv[0]),
 			};
-			map_table_entry_lookup (&lp_al, &v);
+			map_table_entry_lookup (&lp_id, &v);
 			if(likely(v))
 				goto lookup;
 		}
@@ -698,7 +698,7 @@ lookup:
 	/** Map to oryx_vector */
 	list_for_each_entry_safe(map, p, &mm->map_priority_list, prio_node){
 		/** Update slot automatically. */
-		map_slot(map) = vec_set (vector_backup, map);
+		map_id(map) = vec_set (vector_backup, map);
 	}
 
 	/** do swapping ??? */

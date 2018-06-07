@@ -26,7 +26,7 @@ void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
 	printf ("%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
 	printf ("%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
 	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
-	printf ("%12s%4d\n", rx_tx == QUA_RX ? "fm_phy" : "to_phy",
+	printf ("%12s%4d\n", rx_tx == QUA_RX ? "fm_ge" : "to_ge",
 									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 
@@ -72,7 +72,7 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 	p->dsa = ntoh32(dsah->dsa);
 
 	//PrintDSA("RX", p->dsa, QUA_RX);
-	//SET_PKT_SRC_PHY(p, dsa_to_phy_map_list[DSA_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
+	//SET_PKT_RX_PORT(p, dsa_to_phy_map_list[DSA_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
 
 	oryx_logd("dsa %08x, ether_type %04x", p->dsa, ntoh16(dsaeth->eth_type));
 

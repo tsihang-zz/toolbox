@@ -234,7 +234,10 @@ DEFUN(new_application,
 
 DEFUN(new_application1,
       new_application_cmd1,
-      "application WORD vlan (any|<1-4095>) ip_src (any|A.B.C.D/M) ip_dst (any|A.B.C.D/M) port_src (any|<1-65535>) port_dst (any|<1-65535>) proto (any|<1-255>)",
+      "application WORD vlan (any|<1-4095>) ip_src (any|A.B.C.D/M) ip_dst (any|A.B.C.D/M) port_src (any|RANGE|<1-65535>) port_dst (any|RANGE|<1-65535>) proto (any|RANGE|<1-255>)",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
