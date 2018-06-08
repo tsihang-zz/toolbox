@@ -23,7 +23,6 @@ vlib_map_main_t vlib_map_main = {
 
 atomic_t n_map_elements = ATOMIC_INIT(0);
 
-volatile oryx_vector map_curr_table;
 
 #define VTY_ERROR_MAP(prefix, alias)\
 	vty_out (vty, "%s(Error)%s %s map \"%s\"%s", \
@@ -108,7 +107,7 @@ int map_table_entry_add (struct map_t *map)
 		  * Add map to oryx_vector. 
 		  * Must be called before split and (un)mapping port to this map entry.
 		  */
-		map_id(map) = vec_set (map_curr_table, map);
+		map_id(map) = vec_set (mm->map_curr_table, map);
 
 		u8 from_to;
 		from_to = QUA_RX;
@@ -121,8 +120,8 @@ int map_table_entry_add (struct map_t *map)
 			map_entry_split_and_mapping_port (map, from_to);
 		}
 
-		mm->highest_map = vec_first (map_curr_table);
-		mm->lowest_map = vec_last (map_curr_table);
+		mm->highest_map = vec_first (mm->map_curr_table);
+		mm->lowest_map = vec_last (mm->map_curr_table);
 
 		/** Add this map to priority list */
 		list_add_tail (&map->prio_node, &mm->map_priority_list);
@@ -160,9 +159,9 @@ int map_table_entry_remove (struct map_t *map)
 		}
 		
 		/** Delete map from oryx_vector */
-		vec_unset (map_curr_table, map_id(map));
-		mm->highest_map = vec_first (map_curr_table);
-		mm->lowest_map = vec_last (map_curr_table);
+		vec_unset (mm->map_curr_table, map_id(map));
+		mm->highest_map = vec_first (mm->map_curr_table);
+		mm->lowest_map = vec_last (mm->map_curr_table);
 
 		/** Delete this map from priority list */
 		list_del (&map->prio_node);
@@ -182,145 +181,59 @@ void map_table_entry_del (struct map_t *map)
 
 static void map_entry_output (struct map_t *map,  struct vty *vty)
 {
-
-	oryx_vector v;
+	int i;
+	char tmstr[100];
+	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	struct iface_t *iface;
+	struct appl_t  *appl;
 	
-	ASSERT (map);
+	BUG_ON(map == NULL);
 
-	{		
-		char tmstr[100];
-		tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
-		/** let us try to find the map which name is 'alias'. */
-		vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
+	/** let us try to find the map which name is 'alias'. */
+	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
 
-		vty_out (vty, "		%16s", "Ports: ");
-		v = map->port_list[QUA_RX];
-		int actives;
-
-		actives = vec_active(v);
-		if (!actives) {vty_out (vty, "N/A");}
-		else {
-			int i;
-			struct iface_t *p;
-			vec_foreach_element (v, i, p) {
-				if (p) {
-					vty_out (vty, "%s", p->sc_alias);
-					-- actives;
-					if (actives) vty_out (vty, ", ");
-					else actives = actives;
-				}
-				else {p = p;}
-			}
-			//vty_out (vty, "%s", VTY_NEWLINE);
-		}
-
-		vty_out (vty, "%s", "  ---->  ");
-		v = map->port_list[QUA_TX];
-		actives = vec_active(v);
-		if (!actives) vty_out (vty, "N/A%s", VTY_NEWLINE);
-		else {
-			int i;
-			struct iface_t *p;
-			vec_foreach_element (v, i, p) {
-				if (p) {
-					if (p->ul_flags & NETDEV_LOOPBACK)
-						vty_out (vty, "%s(%s%s%s)", p->sc_alias, 
-							draw_color(COLOR_RED), 
-							"loopback",
-							draw_color(COLOR_FIN));
-					else
-						vty_out (vty, "%s", p->sc_alias);
-					-- actives;
-					if (actives) vty_out (vty, ", ");
-					else actives = actives;
-				}
-				else {p = p;}
-			}
-			vty_out (vty, "%s", VTY_NEWLINE);
-		}
-
-		/** Caculate passed an dropped. */
-		int passed = 0, dropped = 0;
-
-		
-		v = map->appl_set;
-		actives = vec_active(v);
-		if (actives) {
-			int i;
-			struct appl_t *a;
-			vec_foreach_element (v, i, a) {
-				if (a) {
-					if (a->ul_flags & CRITERIA_FLAGS_PASS) passed ++;
-					else dropped ++;
-				}
-				else { a = a;}
+	vty_out (vty, "		%16s", "Ports: ");
+	if (!map->rx_panel_port_mask) {vty_out (vty, "N/A");}
+	else {
+		vec_foreach_element(pm->entry_vec, i, iface) {
+			if (iface) {
+				if (map->rx_panel_port_mask & (1 << iface_id(iface)))
+					vty_out (vty, "%s, ", iface_alias(iface));
 			}
 		}
-
-		vty_out (vty, "		%16s%s, %s %s", "States: ", 
-			(map->ul_flags & MAP_TRAFFIC_TRANSPARENT) ? "transparent" : "by Criteria(s)", 
-			(map->ul_flags & MAP_HASH_5TUPLE) ? "hash(sdip+sdp+protocol)" : "Unknown",
-			VTY_NEWLINE);
-		
-		vty_out (vty, "		%16s%d appl(s)%s", "Pass: ", passed, VTY_NEWLINE);
-		vty_out (vty, "		%16s%d appl(s)%s", "Drop: ", dropped, VTY_NEWLINE);
-
-		/** 
-		  *   Actually, we may have defined number of applications, 
-		  *   but here for now, we are trying to display stream application only.
-		  */
-		v = map->appl_set;
-		actives = vec_active(v);
-		if (!actives) vty_out (vty, "		%16s%s%s", "Appl(s): ", "N/A", VTY_NEWLINE);
-		else {
-			int i;
-			vty_out (vty, "		%16s%s", "Appl(s): ", VTY_NEWLINE);
-			struct appl_t *a;
-			vec_foreach_element (v, i, a) {
-				if (a ) {
-					vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
-						(a->ul_flags & CRITERIA_FLAGS_PASS) ? "pass" : "drop", VTY_NEWLINE);
-				}
-				else { a = a;}
-			}
-			vty_out (vty, "%s", VTY_NEWLINE);
-		}
-
-		v = map->udp_set;
-		actives = vec_active(v);
-		if (!actives) vty_out (vty, "		%16s%s%s", "UDP(s): ", "N/A", VTY_NEWLINE);
-		else {
-			int i;
-			vty_out (vty, "		%16s%s", "Udp(s): ", VTY_NEWLINE);
-			struct udp_t *a;
-			vec_foreach_element (v, i, a) {
-				if (a) {
-					oryx_vector v0, v1;
-
-					v0 = a->qua[QUA_DROP];
-					v1 = a->qua[QUA_PASS];
-					if (vec_lookup (v0, map_id(map))) {
-						vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
-							"drop", VTY_NEWLINE);
-					}
-					if (vec_lookup (v1, map_id(map))) {
-						vty_out (vty, "		     %16s (%s)%s", a->sc_alias, 
-							"pass", VTY_NEWLINE);
-					}
-				}
-				else { a = a;}
-			}
-			vty_out (vty, "%s", VTY_NEWLINE);
-		}
-		
-		vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
 	}
+
+	vty_out (vty, "%s", "  ---->  ");
+
+	if (!map->tx_panel_port_mask) {vty_out (vty, "N/A");}
+	else {
+		vec_foreach_element(pm->entry_vec, i, iface) {
+			if (iface) {
+				if (map->tx_panel_port_mask & (1 << iface_id(iface)))
+					vty_out (vty, "%s, ", iface_alias(iface));
+			}
+		}
+	}
+	vty_newline(vty);
+
+	vty_out (vty, "		%16s", "Application: ");
+	vec_foreach_element(am->entry_vec, i, appl) {
+		if (appl) {
+			if (appl->ul_map_mask & (1 << map_id(map)))
+				vty_out (vty, "%s, ", appl_alias(appl));
+		}
+	}
+	vty_newline(vty);
+
+	vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
 }
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), %d element(s) actived.%s", \
-		atomic_read(&n_map_elements), (int)vec_count(map_curr_table), VTY_NEWLINE);
+		atomic_read(&n_map_elements), (int)vec_count(mm->map_curr_table), VTY_NEWLINE);
 
 DEFUN(show_map,
       show_map_cmd,
@@ -329,8 +242,10 @@ DEFUN(show_map,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
+	vlib_map_main_t *mm = &vlib_map_main;
+	
 	vty_out (vty, "Trying to display %s%d%s elements ...%s", 
-		draw_color(COLOR_RED), vec_active(map_curr_table), draw_color(COLOR_FIN), 
+		draw_color(COLOR_RED), vec_active(mm->map_curr_table), draw_color(COLOR_FIN), 
 		VTY_NEWLINE);
 	
 	vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
@@ -369,7 +284,7 @@ DEFUN(no_map,
 	}
 
 	/** reset lowest priority map and highest priority map. */
-	mm->lowest_map = mm->highest_map = map_curr_table->index[0];
+	mm->lowest_map = mm->highest_map = mm->map_curr_table->index[0];
 
 	PRINT_SUMMARY;
 	
@@ -410,84 +325,6 @@ DEFUN(new_map,
     return CMD_SUCCESS;
 }
 
-static void map_install_udp (char __oryx_unused__ *pass_drop, char *alias, struct map_t *map)
-{
-
-	void *backup_mpm_ptr;
-	u8 do_swap = 0;
-
-	void (*fn)(struct udp_t *udp, struct map_t *map) = \
-					&map_entry_add_udp_to_drop_quat;
-
-	if (!strncmp (pass_drop, "p", 1)) {
-		fn = &map_entry_add_udp_to_pass_quat;	
-	}
-	
-	split_foreach_udp_func2_param1 (alias,
-			map_entry_add_udp, map, fn, map);
-
-	backup_mpm_ptr = map->mpm_runtime_ctx;
-	
-	map_entry_install_and_compile_udp (map);
-
-	do_swap = 1;
-	
-	if (do_swap) {
-		
-		/** Critical region started. */
-		do_lock (map->ol_lock);
-		/** Stop dataplane string match routine. */
-		map->ul_mpm_has_been_setup = 0;
-		/** vector_runtime and map_curr_table remapping must be protected by lock. */
-		map->mpm_runtime_ctx  = &map->mpm_ctx[map->mpm_index%MPM_TABLES];
-		/** Start dataplane string match rountine. */
-		map->ul_mpm_has_been_setup = 1;
-		do_unlock (map->ol_lock);
-
-		/** After swapped, cleanup previous mpmctx. */
-		MpmDestroyCtx (&map->mpm_ctx[(map->mpm_index + 1)%MPM_TABLES]);
-	}
-}
-
-static void map_uninstall_udp (char *alias, struct map_t *map)
-{
-	void *backup_mpm_ptr;
-	u8 do_swap = 0;
-	vlib_map_main_t *mm = &vlib_map_main;
-	
-	split_foreach_udp_func2_param1 (alias,
-			map_entry_remove_udp, map, 
-			map_entry_unsetup_udp_quat, map);
-
-	/** Make sure that there are some udps to install this time.  */
-	if (vec_count(map->udp_set) <= 0) {
-		map->ul_mpm_has_been_setup = 0;
-		return;
-	}
-
-	backup_mpm_ptr = map->mpm_runtime_ctx;
-	
-	map_entry_install_and_compile_udp (map);
-
-	do_swap = 1;
-	
-	if (do_swap) {
-		
-		/** Critical region started. */
-		do_lock (&mm->lock);
-		/** Stop dataplane string match routine. */
-		map->ul_mpm_has_been_setup = 0;
-		/** vector_runtime and map_curr_table remapping must be protected by lock. */
-		map->mpm_runtime_ctx  = &map->mpm_ctx[map->mpm_index%MPM_TABLES];
-		/** Start dataplane string match rountine. */
-		map->ul_mpm_has_been_setup = 1;
-		do_unlock (&mm->lock);
-
-		/** After swapped, cleanup previous mpmctx. */
-		MpmDestroyCtx (&map->mpm_ctx[(map->mpm_index + 1)%MPM_TABLES]);
-	}
-}
-
 DEFUN(map_application,
       map_application_cmd,
       "map WORD (pass|drop) application WORD",
@@ -498,9 +335,9 @@ DEFUN(map_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
 	struct map_t *map;
-	
+	vlib_map_main_t *mm = &vlib_map_main;
+
 	map_table_entry_deep_lookup((const char *)argv[0], &map);
 	if (unlikely(!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
@@ -508,7 +345,7 @@ DEFUN(map_application,
 	}
 
 	split_foreach_application_func1_param3 (argv[2],
-					map_entry_add_appl0, map, argv[1], acl_download_appl);
+					map_entry_add_appl, map, argv[1], acl_download_appl);
 
 	PRINT_SUMMARY;
 	
@@ -525,17 +362,17 @@ DEFUN(no_map_applicatio,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-
 	struct map_t *map;
-	
+	vlib_map_main_t *mm = &vlib_map_main;	
+
 	map_table_entry_deep_lookup((const char *)argv[0], &map);
 	if (unlikely (!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
 
-	split_foreach_application_func1_param1 (argv[1],
-			map_entry_remove_appl, map);
+	split_foreach_application_func1_param2 (argv[1],
+			map_entry_remove_appl, map, acl_remove_appl);
 
 	PRINT_SUMMARY;
 	
@@ -594,13 +431,12 @@ DEFUN(map_adjusting_priority,
 	}else {
 		before = v2;
 	}
-
-/**
-	vty_out (vty, "before %s %s", map_alias(before), VTY_NEWLINE);
-	vty_out (vty, "after %s %s", map_alias(after), VTY_NEWLINE);
-	map_priority_show(vty);	
-*/
-
+	
+	/**
+	 * vty_out (vty, "before %s %s", map_alias(before), VTY_NEWLINE);
+	 * vty_out (vty, "after %s %s", map_alias(after), VTY_NEWLINE);
+	 * map_priority_show(vty); 
+	 */
 	list_del (&after->prio_node);
 	list_add (&after->prio_node, &before->prio_node);
 
@@ -623,8 +459,8 @@ DEFUN(map_adjusting_priority,
 	if (do_swap){
 		/** Critical region started. */
 		do_lock (&mm->lock);
-		/** vector_runtime and map_curr_table remapping must be protected by lock. */
-		map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
+		/** vector_runtime and mm->map_curr_table remapping must be protected by lock. */
+		mm->map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
 		do_unlock (&mm->lock);
 	}
 
@@ -705,8 +541,8 @@ lookup:
 	do_swap = 1;
 
 	if (do_swap){
-		/** vector_runtime and map_curr_table remapping must be protected by lock. */
-		map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
+		/** vector_runtime and mm->map_curr_table remapping must be protected by lock. */
+		mm->map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
 	}
 
 	return CMD_SUCCESS;
@@ -735,9 +571,9 @@ void map_init(vlib_main_t *vm)
 
 	INIT_LIST_HEAD(&mm->map_priority_list);
 
-	map_curr_table = mm->entry_vec[VECTOR_TABLE0];
+	mm->map_curr_table = mm->entry_vec[VECTOR_TABLE0];
 
-	mm->lowest_map = mm->highest_map = map_curr_table->index[0];
+	mm->lowest_map = mm->highest_map = mm->map_curr_table->index[0];
 	install_element (CONFIG_NODE, &show_map_cmd);
 	install_element (CONFIG_NODE, &new_map_cmd);
 	install_element (CONFIG_NODE, &no_map_cmd);

@@ -2,7 +2,7 @@
 #include "prefix.h"
 #include "util_ipset.h"
 
-void appl_entry_format (struct appl_t *appl,
+int appl_entry_format (struct appl_t *appl,
 	u32 __oryx_unused__*rule_id, const char *unused_var,
 	char __oryx_unused__*vlan,
 	char __oryx_unused__*sip,
@@ -11,69 +11,120 @@ void appl_entry_format (struct appl_t *appl,
 	char __oryx_unused__*dp,
 	char __oryx_unused__*proto)
 {
-
-	u8 action = APPL_DEFAULT_ACTIONS;
 	struct appl_signature_t *as;
-	
-	if (!appl) return;
+	struct prefix_ipv4 ip4;
+	uint32_t val_start, val_end;
 
+	BUG_ON(appl == NULL);
+	
 	as = appl->instance;
-	if (!as) return;
+	BUG_ON(as == NULL);
 
 	if (vlan) {
-		if (isalldigit (vlan)) 
-			as->us_vlan = atoi (vlan);
-		else {
-			/** default is ANY_VLAN */
-			as->us_vlan = ANY_VLAN; /** To avoid warnings. */
+		/** default is ANY_VLAN */
+		if(!strncmp(vlan, "a", 1)) {
+			as->l2_vlan_id_mask = ANY_VLAN;
+		} else {
+			if (isalldigit (vlan)) {
+				as->vlan_id = as->l2_vlan_id_mask = atoi (vlan);
+			} else {
+				if(!format_range(vlan, 2048, 0, ':', &val_start, &val_end)) {
+					as->vlan_id = val_start;
+					as->l2_vlan_id_mask = val_end;
+				} else {
+					oryx_logn("range error \"%s\" %d %d", vlan, val_start, val_end);
+					return -1;
+				}
+			}
+		}
+	}
+
+	/**  */
+	if (sip) {
+		if(!strncmp(sip, "a", 1)) {
+			as->ip_src_mask = ANY_IPADDR;
+		}else {
+			str2prefix_ipv4 (sip, &ip4);
+			as->ip_src = ntoh32(ip4.prefix.s_addr);
+			as->ip_src_mask = ip4.prefixlen;
 		}
 	}
 	
-	if (sip) str2prefix_ipv4 (sip, &as->ip4[HD_SRC]);
-	if (dip) str2prefix_ipv4 (dip, &as->ip4[HD_DST]);
-
-	/** Format TCP/UDP Port. */
-	if (sp) {
-		u8 p = HD_SRC;
-		if (isalldigit (sp)) {
-			as->port_start[p] = as->port_end[p] = atoi (sp);
+	if (dip) {
+		if(!strncmp(dip, "a", 1)) {
+			as->ip_dst_mask = ANY_IPADDR;
+		}else {
+			str2prefix_ipv4 (dip, &ip4);
+			as->ip_dst = ntoh32(ip4.prefix.s_addr);
+			as->ip_dst_mask = ip4.prefixlen;
 		}
-		else {
-			/** default is ANY_PORT */
-			if (!strncmp(sp, "a", 1)) {
-				as->port_start[p] = 1;
-				as->port_end[p] = 65535; /** To avoid warnings. */
+	}
+
+	/** TCP/UDP Port. */
+	if (sp) {
+		/** default is ANY_PORT */
+		if (!strncmp(sp, "a", 1)) {
+			as->l4_port_src_mask = ANY_PORT; /** To avoid warnings. */
+		} else {
+			/** single port */
+			if (isalldigit (sp)) {
+				as->l4_port_src = as->l4_port_src_mask = atoi (sp);
+			}
+			/** range */
+			else {
+				if(!format_range(sp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
+					as->l4_port_src = val_start;
+					as->l4_port_src_mask = val_end;
+				} else {
+					oryx_logn("range error \"%s\" %d %d", sp, val_start, val_end);
+					return -1;
+				}
 			}
 		}
 	}
 	
 	if (dp) {
-		u8 p = HD_DST;
-		if (isalldigit (dp)) {
-			as->port_start[p] = as->port_end[p] = atoi (dp);
-		}
-		else {
-			/** default is ANY_PORT */
-			if (!strncmp(dp, "a", 1)) {
-				as->port_start[p] = 1;
-				as->port_end[p] = 65535; /** To avoid warnings. */
+		/** default is ANY_PORT */
+		if (!strncmp(dp, "a", 1)) {
+			as->l4_port_dst_mask = ANY_PORT;
+		} else {
+			if (isalldigit (dp)) {
+				as->l4_port_dst = as->l4_port_dst_mask= atoi (dp);
+			}
+			else {
+				if(!format_range(dp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
+					as->l4_port_dst = val_start;
+					as->l4_port_dst_mask = val_end;
+				}else {
+					oryx_logn("range error \"%s\" %d %d", dp, val_start, val_end);
+					return -1;
+				}
 			}
 		}
 	}
 	
 	/** Format TCP/UDP Protocol. */
 	if (proto) {
-		if (isalldigit (proto)) {
-			as->uc_proto  = atoi (proto);
-		}
-		else {
-			/** default is ANY_PROTO */
-			if (!strncmp(dp, "a", 1)) {
-				as->uc_proto  = ANY_PROTO; /** To avoid warnings. */
-				as->proto_mask = 0xFF;
+		/** default is ANY_PROTO */
+		if (!strncmp(proto, "a", 1)) {
+			as->ip_next_proto_mask = ANY_PROTO;
+		} else {
+			if (isalldigit (proto)) {
+				as->ip_next_proto  = as->ip_next_proto_mask= atoi (proto);
+			}
+			else {
+				if(!format_range (proto, UINT8_MAX, 0, ':', &val_start, &val_end)) {
+					as->ip_next_proto = val_start;
+					as->ip_next_proto_mask = val_end;
+				}else {
+					oryx_logn("range error \"%s\" %d %d", proto, val_start, val_end);
+					return -1;
+				}
 			}
 		}
 	}
+
+	return 0;
 }
 
 void appl_entry_new (struct appl_t **appl, 
@@ -94,29 +145,28 @@ void appl_entry_new (struct appl_t **appl,
 	ASSERT ((*appl)->instance);
 	
 	struct appl_signature_t *as = (*appl)->instance;
-	as->us_vlan = ANY_VLAN;
-	as->uc_proto = ANY_PROTO;
-	as->port_start[HD_SRC] = as->port_end[HD_SRC] = ANY_PORT;
-	as->port_start[HD_DST] = as->port_end[HD_DST] = ANY_PORT;
-	as->udp = vec_init (12);
+	as->vlan_id = 0;
+	as->l4_port_src = 0;
+	as->l4_port_dst = 0;
+	as->ip_next_proto = 0;
+	as->l2_vlan_id_mask = ANY_VLAN;
+	as->ip_next_proto_mask = ANY_PROTO;
+	as->l4_port_src_mask = ANY_PORT;
+	as->l4_port_dst_mask = ANY_PORT;
 }
 
 void appl_entry_lookup (vlib_appl_main_t *vp, const char *alias, struct appl_t **appl)
 {
-	(*appl) = NULL;
-	
-	if (!alias) return;
-
-	void *s = oryx_htable_lookup (vp->htable,
-		alias, strlen((const char *)alias));
-
+	BUG_ON(alias == NULL);
+	void *s = oryx_htable_lookup (vp->htable, alias, strlen((const char *)alias));
 	if (s) {
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
 	}
 }
 void appl_entry_lookup_i (vlib_appl_main_t *vp, u32 id, struct appl_t **appl)
 {
-	(*appl) = NULL;
+	if (!vec_active(vp->entry_vec))
+		return;
 	(*appl) = vec_lookup (vp->entry_vec, id);
 }
 
@@ -188,6 +238,7 @@ int appl_table_entry_deep_lookup(const char *argv,
 				struct appl_t **appl)
 {	
 	struct appl_t *v;
+	(*appl) = NULL;
 	
 	struct prefix_t lp_al = {
 		.cmd = LOOKUP_ALIAS,
@@ -196,7 +247,9 @@ int appl_table_entry_deep_lookup(const char *argv,
 	};
 
 	appl_table_entry_lookup (&lp_al, &v);
-	if (unlikely (!v)) {
+	if (likely(v)) {
+		(*appl) = v;
+	} else {
 		/** try id lookup if alldigit input. */
 		if (isalldigit ((char *)argv)) {
 			u32 id = atoi((char *)argv);
@@ -206,9 +259,10 @@ int appl_table_entry_deep_lookup(const char *argv,
 				.s = strlen ((char *)argv),
 			};
 			appl_table_entry_lookup (&lp_id, &v);
+			(*appl) = v;
 		}
 	}
-	(*appl) = v;
+	
 
 	return 0;
 }

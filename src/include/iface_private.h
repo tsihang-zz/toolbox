@@ -43,11 +43,6 @@ struct iface_counter_ctx {
 	counter_id lcore_counter_bytes[QUA_RXTX][MAX_LCORES];
 };
 
-struct iface_t {
-	const char *sc_alias_fixed; /** fixed alias used to do linkstate poll,
-								 *  and can not be overwrite by CLI. */
-	int type;					/** ETH_GE, ETH_XE, ... */
-
 #define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
 #define NETDEV_PROMISC            (1 << 1)
 #define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
@@ -57,20 +52,26 @@ struct iface_t {
 #define NETDEV_MARVELL_DSA		  (1 << 6)	/** marvell dsa frame. */
 #define NETDEV_PANEL			  (1 << 7)	/** is a panel port or not. 
 											  cpu <-> sw */
-	u32 ul_flags;
+struct iface_t {
+	const char				*sc_alias_fixed; 	/** fixed alias used to do linkstate poll,
+								 			  	 *  and can not be overwrite by CLI.
+								 			  	 */
+	int						type;				/** ETH_GE, ETH_XE, ... */
+	uint32_t				ul_flags;
 
-	int (*if_poll_state)(struct iface_t *this);
-	int (*if_poll_up)(struct iface_t *this);	
-	u32 ul_id;					/** A panel interface ID. enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
-								 *  Can be translated by TO_INFACE_ID(Frame.vlan) */
-	char  sc_alias[32];			/** Port name. 
-								 *  for example, Gn_b etc... can be overwritten by CLI. */
-	char eth_addr[6];			/** ethernet address for this port. */
-	u32 ul_up_down_times;		/** up->down counter. */
-	u16 us_mtu;
-	oryx_vector belong_maps;	/** Map for this interface belong to. */
-	uint32_t map_mask;			/** Map mask for this interface belong to. */
-	struct CounterCtx *perf_private_ctx;
+	int						(*if_poll_state)(struct iface_t *this);
+	int						(*if_poll_up)(struct iface_t *this);	
+	uint32_t				ul_id;				/**A panel interface ID. 
+											 	 * enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
+											 	 * Can be translated by TO_INFACE_ID(Frame.vlan) */
+	char					sc_alias[32];		/**Port name.
+												 * for example, Gn_b etc... 
+												 * can be overwritten by CLI. */
+	char					eth_addr[6];		/** ethernet address for this port. */
+	uint32_t				ul_up_down_times;	/** up->down counter. */
+	uint16_t				us_mtu;
+	uint32_t				ul_map_mask;		/** Map mask for this interface belong to. */
+	struct CounterCtx 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
 #define iface_alias(p) (p)->sc_alias
@@ -127,6 +128,8 @@ int iface_add(vlib_port_main_t *vp, struct iface_t *this);
 
 int iface_del(vlib_port_main_t *vp, struct iface_t *this);
 
+void iface_table_entry_lookup (struct prefix_t *lp, 
+	struct iface_t **p);
 
 #endif
 

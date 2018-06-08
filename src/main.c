@@ -182,6 +182,16 @@ sig_handler(int signum) {
 int main (int argc, char **argv)
 {
 	uint32_t id_core;
+	uint32_t val_start, val_end;
+	int ret;
+
+	ret = format_range ("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
+	printf ("ret = %d, start %d end %d\n",
+		ret, val_start, val_end);
+
+	ret = format_range("1:20", 2048, 0, ':', &val_start, &val_end);
+	printf ("ret = %d, start %d end %d\n",
+			ret, val_start, val_end);
 
 	printf("%.2f\n", ratio_of(1,2));
 	

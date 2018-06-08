@@ -95,50 +95,6 @@ ipv6_hash_crc(const void *data, __rte_unused uint32_t data_len,
 	return init_val;
 }
 
-
-static inline void
-populate_ipv4_few_flow_into_table(const struct rte_hash *h)
-{
-	uint32_t i;
-	int32_t ret;
-
-	mask0 = (rte_xmm_t){.u32 = {BIT_8_TO_15, ALL_32_BITS,
-				ALL_32_BITS, ALL_32_BITS} };
-}
-
-static inline void
-populate_ipv6_few_flow_into_table(const struct rte_hash *h)
-{
-	uint32_t i;
-	int32_t ret;
-
-	mask1 = (rte_xmm_t){.u32 = {BIT_16_TO_23, ALL_32_BITS,
-				ALL_32_BITS, ALL_32_BITS} };
-
-	mask2 = (rte_xmm_t){.u32 = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
-}
-
-static inline void
-populate_ipv4_many_flow_into_table(const struct rte_hash *h,
-		unsigned int nr_flow)
-{
-	unsigned i;
-
-	mask0 = (rte_xmm_t){.u32 = {BIT_8_TO_15, ALL_32_BITS,
-				ALL_32_BITS, ALL_32_BITS} };
-}
-
-static inline void
-populate_ipv6_many_flow_into_table(const struct rte_hash *h,
-		unsigned int nr_flow)
-{
-	unsigned i;
-
-	mask1 = (rte_xmm_t){.u32 = {BIT_16_TO_23, ALL_32_BITS,
-				ALL_32_BITS, ALL_32_BITS} };
-	mask2 = (rte_xmm_t){.u32 = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
-}
-
 static __oryx_always_inline__
 void convert_ipv4_5tuple(struct 	   ipv4_5tuple *key1,
 		union ipv4_5tuple_host *key2)
@@ -169,6 +125,15 @@ int em_add_hash_key(struct em_route *entry)
  */
 void classify_setup_em(const int socketid)
 {
+	mask0 = (rte_xmm_t){.u32 = {BIT_8_TO_15, ALL_32_BITS,
+				ALL_32_BITS, ALL_32_BITS} };
+	
+	mask1 = (rte_xmm_t){.u32 = {BIT_16_TO_23, ALL_32_BITS,
+				ALL_32_BITS, ALL_32_BITS} };
+
+	mask2 = (rte_xmm_t){.u32 = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
+	
+
 	struct rte_hash_parameters ipv4_l3fwd_hash_params = {
 		.name = NULL,
 		.entries = EM_HASH_ENTRIES,
@@ -210,37 +175,5 @@ void classify_setup_em(const int socketid)
 		rte_exit(EXIT_FAILURE,
 			"Unable to create the l3fwd hash on socket %d\n",
 			socketid);
-#if 1
-	if (hash_entry_number != HASH_ENTRY_NUMBER_DEFAULT) {
-		/* For testing hash matching with a large number of flows we
-		 * generate millions of IP 5-tuples with an incremented dst
-		 * address to initialize the hash table. */
-		if (ipv6 == 0) {
-			/* populate the ipv4 hash */
-			populate_ipv4_many_flow_into_table(
-				ipv4_l3fwd_em_lookup_struct[socketid],
-				hash_entry_number);
-		} else {
-			/* populate the ipv6 hash */
-			populate_ipv6_many_flow_into_table(
-				ipv6_l3fwd_em_lookup_struct[socketid],
-				hash_entry_number);
-		}
-	} else {
-		/*
-		 * Use data in ipv4/ipv6 l3fwd lookup table
-		 * directly to initialize the hash table.
-		 */
-		if (ipv6 == 0) {
-			/* populate the ipv4 hash */
-			populate_ipv4_few_flow_into_table(
-				ipv4_l3fwd_em_lookup_struct[socketid]);
-		} else {
-			/* populate the ipv6 hash */
-			populate_ipv6_few_flow_into_table(
-				ipv6_l3fwd_em_lookup_struct[socketid]);
-		}
-	}
-#endif
 }
 

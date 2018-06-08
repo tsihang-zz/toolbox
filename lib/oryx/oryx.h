@@ -519,16 +519,9 @@ struct inet_addr {
 /* And ORYX_UINT64_T_HEX_FMT */
 #define ORYX_UINT64_T_HEX_FMT "lx"
 
-
-#ifndef DIM
-/** Number of elements in the array. */
-#define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
-#endif
-
 #ifndef ratio_of
 #define ratio_of(n,m) ((float)(n)/(m) * 100)
 #endif
-
 
 #define STRING_MAX 8096
 

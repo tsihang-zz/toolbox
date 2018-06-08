@@ -3,9 +3,8 @@
 
 #include "dpdk.h"
 #include "route_private.h"
-
-#include "em.h"
-#include "lpm.h"
-#include "acl.h"
+#include "classify_em.h"
+#include "classify_lpm.h"
+#include "classify_acl.h"
 
 #endif

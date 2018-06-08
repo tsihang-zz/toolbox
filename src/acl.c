@@ -226,7 +226,7 @@ void convert_acl(struct     acl_route *ar,
 	struct ipv4_5tuple *k = &ar->u.k4;
 	
 	v->field[PROTO_FIELD_IPV4].value.u8 = k->proto;
-	v->field[PROTO_FIELD_IPV4].mask_range.u8 = ar->proto_mask;
+	v->field[PROTO_FIELD_IPV4].mask_range.u8 = ar->ip_next_proto_mask;
 
 	v->field[SRC_FIELD_IPV4].value.u32 = k->ip_src;
 	v->field[SRC_FIELD_IPV4].mask_range.u32 = ar->ip_src_mask;

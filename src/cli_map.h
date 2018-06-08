@@ -9,7 +9,7 @@ extern atomic_t n_map_elements;
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int foreach_element;\
-	oryx_vector vec = map_curr_table;\
+	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
@@ -86,7 +86,7 @@ extern atomic_t n_map_elements;
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int foreach_element;\
-	oryx_vector vec = map_curr_table;\
+	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
@@ -164,7 +164,7 @@ extern atomic_t n_map_elements;
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int foreach_element;\
-	oryx_vector vec = map_curr_table;\
+	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
@@ -237,7 +237,7 @@ extern atomic_t n_map_elements;
 
 #define foreach_map_func1_param0(argv_x, func)\
 	int foreach_element;\
-	oryx_vector vec = map_curr_table;\
+	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
@@ -251,7 +251,7 @@ extern atomic_t n_map_elements;
 
 #define foreach_map_func1_param1(argv_x, func, param0)\
 	int foreach_element;\
-	oryx_vector vec = map_curr_table;\
+	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\

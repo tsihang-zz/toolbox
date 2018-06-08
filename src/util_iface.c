@@ -15,7 +15,6 @@ void iface_alloc (struct iface_t **this)
 	ASSERT ((*this));
 
 	(*this)->us_mtu = 1500;
-	(*this)->belong_maps = vec_init(1024);
 	(*this)->if_poll_up = netdev_up;
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
 
@@ -91,6 +90,26 @@ int iface_lookup_alias(vlib_port_main_t *vp,
 		return 0;
 	}
 	return -1;
+}
+
+void iface_table_entry_lookup (struct prefix_t *lp, 
+	struct iface_t **p)
+{
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	ASSERT (lp);
+	ASSERT (p);
+	
+	switch (lp->cmd) {
+		case LOOKUP_ID:
+			iface_lookup_id(vp, (*(u32*)lp->v), p);
+			break;
+		case LOOKUP_ALIAS:
+			iface_lookup_alias(vp, (const char*)lp->v, p);
+			break;
+		default:
+			break;
+	}
 }
 
 int iface_add(vlib_port_main_t *vp, struct iface_t *this)

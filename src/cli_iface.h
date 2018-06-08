@@ -35,7 +35,7 @@ extern atomic_t n_intf_elements;
 						.v = (void *)&id,\
 						.s = strlen (token),\
 					};\
-					port_table_entry_lookup (&lp, &v);\
+					iface_table_entry_lookup (&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -53,7 +53,7 @@ extern atomic_t n_intf_elements;
 							.s = strlen (token),\
 							.v = token,\
 						};\
-						port_table_entry_lookup (&lp, &v);\
+						iface_table_entry_lookup (&lp, &v);\
 						if (!v) {\
 							goto lookup_next;\
 						}\
@@ -110,7 +110,7 @@ extern atomic_t n_intf_elements;
 						.s = strlen (token),\
 						.v = (void *)&id,\
 					};\
-					port_table_entry_lookup (&lp, &v);\
+					iface_table_entry_lookup (&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -128,7 +128,7 @@ extern atomic_t n_intf_elements;
 							.s = strlen (token),\
 							.v = token,\
 						};\
-						port_table_entry_lookup (&lp, &v);\
+						iface_table_entry_lookup (&lp, &v);\
 						if (!v) {\
 							goto lookup_next;\
 						}\
@@ -186,7 +186,7 @@ extern atomic_t n_intf_elements;
 						.s = strlen (token),\
 						.v = (void *)&id,\
 					};\
-					port_table_entry_lookup (&lp, &v);\
+					iface_table_entry_lookup (&lp, &v);\
 					if (!v) {\
 						goto lookup_by_alias_exactly;\
 					}\
@@ -204,7 +204,7 @@ extern atomic_t n_intf_elements;
 							.s = strlen (token),\
 							.v = token,\
 						};\
-						port_table_entry_lookup (&lp, &v);\
+						iface_table_entry_lookup (&lp, &v);\
 						if (!v) {\
 							goto lookup_next;\
 						}\

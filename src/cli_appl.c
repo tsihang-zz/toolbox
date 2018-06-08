@@ -93,49 +93,61 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 		return -1;
 	}
 
-	if (appl->ul_type == APPL_TYPE_STREAM) {
-		struct appl_signature_t *as;
-		struct prefix *p;
-		u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
-		u8 port_buf[SRC_DST][16];
-		u8 proto_buf[32];
-		
-		as = appl->instance;
-		if (!as) return 0;
+	struct appl_signature_t *as;
+	struct prefix *p;
+	u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
+	u8 port_buf[SRC_DST][16];
+	u8 proto_buf[32];
+	struct prefix_ipv4 ip4;
+	
+	as = appl->instance;
+	if (!as) return 0;
 
-		char tmstr[100];
-		tm_format (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
-		
-		p = (struct prefix *)&as->ip4[HD_SRC];
+	char tmstr[100];
+	tm_format (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+
+	if(as->ip_src_mask == ANY_IPADDR) {
+		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
+	} else {
+		ip4.family = AF_INET;
+		ip4.prefixlen = as->ip_src_mask;
+		ip4.prefix.s_addr = hton32(as->ip_src);
+		p = (struct prefix *)&ip4;
 		prefix2str_ (p, (char *)&pfx_buf[HD_SRC][0], INET_ADDRSTRLEN);
-
-		p = (struct prefix *)&as->ip4[HD_DST];
-		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
-
-		u8 uc_port;
-
-		uc_port = HD_SRC;
-		if ((as->port_start[uc_port] == 0))
-			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
-		else 
-			sprintf ((char *)&port_buf[uc_port][0], "%d", as->port_start[uc_port]);
-		
-		uc_port = HD_DST;
-		if ((as->port_start[uc_port] == 0))
-			sprintf ((char *)&port_buf[uc_port][0], "%s", "any");
-		else 
-			sprintf ((char *)&port_buf[uc_port][0], "%d", as->port_start[uc_port]);
-
-		if ((as->uc_proto == 0))
-			sprintf ((char *)&proto_buf[0], "%s", "any");
-		else
-			sprintf ((char *)&proto_buf[0], "%d", as->uc_proto);
-
-		vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%8s%23s%s", 
-			appl_alias(appl), appl_id(appl), pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
-			CLI_UNDEF_VAL, tmstr, VTY_NEWLINE);
-
 	}
+
+	if(as->ip_dst_mask == ANY_IPADDR) {
+		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
+	} else {
+		ip4.family = AF_INET;
+		ip4.prefixlen = as->ip_dst_mask;
+		ip4.prefix.s_addr = hton32(as->ip_dst);
+		p = (struct prefix *)&ip4;
+		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
+	}
+
+	if(as->l4_port_src_mask == ANY_PORT) {
+		sprintf ((char *)&port_buf[HD_SRC][0], "%s", "any");
+	} else {
+		sprintf ((char *)&port_buf[HD_SRC][0], "%d:%d", as->l4_port_src, as->l4_port_src_mask);
+	}
+
+	if(as->l4_port_dst_mask == ANY_PORT) {
+		sprintf ((char *)&port_buf[HD_DST][0], "%s", "any");
+	} else {
+		sprintf ((char *)&port_buf[HD_DST][0], "%d:%d", as->l4_port_dst, as->l4_port_dst_mask);
+	}
+
+	if(as->ip_next_proto_mask == ANY_PROTO) {
+		sprintf ((char *)&proto_buf[0], "%s", "any");
+	} else {
+		sprintf ((char *)&proto_buf[0], "%d:%d", as->ip_next_proto, as->ip_next_proto_mask);
+	}
+	
+	vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%8s%23s%s", 
+		appl_alias(appl), appl_id(appl), pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
+		CLI_UNDEF_VAL, tmstr, VTY_NEWLINE);
+
 	return 0;
 }
 
@@ -220,8 +232,6 @@ DEFUN(new_application,
 		return CMD_SUCCESS;
 	}
 
-	/** An application without body. */
-	
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
 		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
@@ -234,7 +244,8 @@ DEFUN(new_application,
 
 DEFUN(new_application1,
       new_application_cmd1,
-      "application WORD vlan (any|<1-4095>) ip_src (any|A.B.C.D/M) ip_dst (any|A.B.C.D/M) port_src (any|RANGE|<1-65535>) port_dst (any|RANGE|<1-65535>) proto (any|RANGE|<1-255>)",
+      "application WORD vlan (any|RANGE|<1-4095>) ip_src (any|A.B.C.D/M) ip_dst (any|A.B.C.D/M) port_src (any|RANGE|<1-65535>) port_dst (any|RANGE|<1-65535>) proto (any|RANGE|<1-255>)",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -259,7 +270,7 @@ DEFUN(new_application1,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
-	struct appl_t *appl;
+	struct appl_t *appl = NULL;
 
 	appl_table_entry_deep_lookup((const char *)argv[0], &appl);
 	if (likely(appl)) {
@@ -274,13 +285,16 @@ DEFUN(new_application1,
 		return CMD_SUCCESS;
 	}
 	
-	appl_entry_format (appl, NULL, "unused var", 
+	if(appl_entry_format (appl, NULL, "unused var", 
 		(char *)argv[1]	/** VLAN */, 
 		(char *)argv[2]	/** IPSRC */, 
 		(char *)argv[3]	/** IPDST */, 
 		(char *)argv[4]	/** PORTSRC */, 
 		(char *)argv[5]	/** PORTDST */, 
-		(char *)argv[6])/** PROTO */;
+		(char *)argv[6])/** PROTO */
+	) {
+		vty_out(vty, "error command %s", VTY_NEWLINE);
+	}
 	
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
@@ -330,6 +344,22 @@ DEFUN(set_application_desensitize,
 	return CMD_SUCCESS;
 }
 
+DEFUN(test_range,
+	test_range_cmd,
+	"show RANGE",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
+{
+  uint32_t val_start, val_end;
+  int ret;
+  
+  ret = format_range (argv[0], UINT16_MAX, 0, ':', &val_start, &val_end);
+  vty_out (vty, "%s ret = %d, start %d end %d%s", argv[0],
+	  ret, val_start, val_end, VTY_NEWLINE);
+
+  return CMD_SUCCESS;
+}
+
 void appl_init(vlib_main_t *vm)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
@@ -348,6 +378,8 @@ void appl_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &new_application_cmd1);
 	install_element (CONFIG_NODE, &set_application_desensitize_cmd);
 	install_element (CONFIG_NODE, &no_application_cmd);
+
+	install_element (CONFIG_NODE, &test_range_cmd);
 
 	vm->ul_flags |= VLIB_APP_INITIALIZED;
 }

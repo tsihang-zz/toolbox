@@ -8,6 +8,11 @@
 #include "util_iface.h"
 #include "cli_iface.h"
 
+#ifndef DIM
+/** Number of elements in the array. */
+#define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
+#endif
+
 vlib_port_main_t vlib_port_main = {
 	.lock = INIT_MUTEX_VAL,
 };
@@ -91,24 +96,6 @@ void port_entry_output (struct iface_t *port, struct vty *vty)
 
 	vty_out (vty, "		%16s", "Maps: ");
 
-	oryx_vector v = port->belong_maps;
-	int actives = vec_active(v);
-	if (!actives) vty_out (vty, "N/A%s", VTY_NEWLINE);
-	else {
-		int i;
-		
-		struct map_t *p;
-		vec_foreach_element (v, i, p) {
-			if (p) {
-				vty_out (vty, "%s", p->sc_alias);
-				-- actives;
-				if (actives) vty_out (vty, ", ");
-				else actives = actives;
-			}
-			else {p = p;}
-		}
-		vty_out (vty, "%s", VTY_NEWLINE);
-	}
 	vty_out (vty, "%16s%s", "_______________________________________________", VTY_NEWLINE);
 
 }
@@ -236,26 +223,6 @@ void port_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *
 		case INTERFACE_CLEAR_STATS:
 			break;
 			
-		default:
-			break;
-	}
-}
-
-void port_table_entry_lookup (struct prefix_t *lp, 
-	struct iface_t **p)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	ASSERT (lp);
-	ASSERT (p);
-	
-	switch (lp->cmd) {
-		case LOOKUP_ID:
-			iface_lookup_id(vp, (*(u32*)lp->v), p);
-			break;
-		case LOOKUP_ALIAS:
-			iface_lookup_alias(vp, (const char*)lp->v, p);
-			break;
 		default:
 			break;
 	}
@@ -504,7 +471,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -520,7 +487,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -536,7 +503,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -552,7 +519,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -568,7 +535,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -584,7 +551,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -600,7 +567,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -616,7 +583,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -632,7 +599,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -648,7 +615,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	},
@@ -664,7 +631,7 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
-		NULL,
+		0,
 		NULL,
 		NULL
 	}

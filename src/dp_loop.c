@@ -20,6 +20,7 @@
 #include "map_private.h"
 
 #include "dpdk_classify.h"
+#include "util_map.h"
 
 extern volatile bool force_quit;
 extern ThreadVars g_tv[];
@@ -69,8 +70,8 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 
 /* Enqueue a single packet, and send burst if queue is filled */
 static __oryx_always_inline__
-int send_single_packet(ThreadVars *tv, struct lcore_conf *qconf,
-		struct rte_mbuf *m, uint8_t tx_port_id)
+int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct lcore_conf *qconf, struct rte_mbuf *m, uint8_t tx_port_id)
 {
 	uint16_t len;
 
@@ -89,8 +90,15 @@ int send_single_packet(ThreadVars *tv, struct lcore_conf *qconf,
 }
 
 static __oryx_always_inline__
-void acl_send_one_packet(ThreadVars *tv, struct lcore_conf *qconf,
-		struct rte_mbuf *m, uint32_t res)
+void acl_free_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf *pkt){
+	rte_pktmbuf_free(pkt);
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
+}
+
+static __oryx_always_inline__
+void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
 	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
 
@@ -99,17 +107,47 @@ void acl_send_one_packet(ThreadVars *tv, struct lcore_conf *qconf,
 	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
 	if (likely(res != 0)) {
 		/* forward packets */
-		send_single_packet(tv, qconf, m,
+		send_single_packet(tv, dtv, qconf, m,
 			tx_port_id);
 	} else{
 		/* in the ACL list, drop it */
-		rte_pktmbuf_free(m);
+		acl_free_packet(tv, dtv, m);
 	}
 }
-		
+
 static __oryx_always_inline__
-void acl_send_packets(ThreadVars *tv, struct lcore_conf *qconf,
-		struct rte_mbuf **m, uint32_t *res, int num)
+void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
+{
+	uint32_t mapid = (res - VALID_MAP_ID_START);
+	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
+	struct map_t *map;
+	vlib_map_main_t *mm = &vlib_map_main;
+	struct prefix_t lp_id = {
+		.cmd = LOOKUP_ID,
+		.v = (void *)&mapid,
+		.s = sizeof(mapid),
+	};
+
+	tx_port_id = 1;
+	
+	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
+	if (likely(res != 0)) {
+		map_table_entry_lookup(&lp_id, &map);
+		if(likely(map)) {
+			/* forward packets */
+			send_single_packet(tv, dtv, qconf, m,
+				tx_port_id);
+		}
+	} else{
+		/* in the ACL list, drop it */
+		acl_free_packet(tv, dtv, m);
+	}
+}
+
+static __oryx_always_inline__
+void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
 {
 	int i;
 
@@ -122,22 +160,50 @@ void acl_send_packets(ThreadVars *tv, struct lcore_conf *qconf,
 	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(m[
 				i + PREFETCH_OFFSET], void *));
-		acl_send_one_packet(tv, qconf, m[i], res[i]);
+		acl_send_one_packet(tv, dtv, qconf, m[i], res[i]);
 	}
 
 	/* Process left packets */
 	for (; i < num; i++)
-		acl_send_one_packet(tv, qconf, m[i], res[i]);
+		acl_send_one_packet(tv, dtv, qconf, m[i], res[i]);
+}
+
+
+static __oryx_always_inline__
+void acl_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf **pkts_in, int nb){
+	int i;
+	for (i = 0; i < nb; i ++) {
+		struct rte_mbuf *pkt = pkts_in[i];
+		acl_free_packet(tv, dtv, pkt);
+	}
 }
 
 static __oryx_always_inline__
-void acl_prepare_one_packet(struct rte_mbuf **pkts_in, struct acl_search_t *acl,
+void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf **pkts_in, struct acl_search_t *acl,
 	int index)
 {
 	struct rte_mbuf *pkt = pkts_in[index];
 
-	oryx_logn ("pkt_type %d", pkt->packet_type);
-	
+#if defined(BUILD_DEBUG)
+	union ipv4_5tuple_host key;
+	struct ipv4_hdr *ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *,
+						   sizeof(struct ether_hdr));
+	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
+	/*
+	 * Get 5 tuple: dst port, src port, dst IP address,
+	 * src IP address and protocol.
+	 */
+	key.xmm = em_mask_key(ipv4h, mask0.x);
+	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
+	oryx_logn ("%16s%08x", "ip_src: ", ntoh32(key.ip_src));
+	oryx_logn ("%16s%08x", "ip_dst: ", ntoh32(key.ip_dst));
+	oryx_logn ("%16s%04d", "port_src: ", ntoh16(key.port_src));
+	oryx_logn ("%16s%04d", "port_dst: ", ntoh16(key.port_dst));
+	oryx_logn ("%16s%08d", "protocol: ", key.proto);
+#endif
+
 	if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
 		/* Fill acl structure */
 		acl->data_ipv4[acl->num_ipv4] = MBUF_IPV4_2PROTO(pkt);
@@ -151,12 +217,13 @@ void acl_prepare_one_packet(struct rte_mbuf **pkts_in, struct acl_search_t *acl,
 	}
 	else {
 		/* Unknown type, drop the packet */
-		rte_pktmbuf_free(pkt);
+		acl_free_packet(tv, dtv, pkt);
 	}
 }
 
 static __oryx_always_inline__
-void acl_prepare_acl_parameter(struct rte_mbuf **pkts_in, struct acl_search_t *acl,
+void acl_prepare_acl_parameter(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf **pkts_in, struct acl_search_t *acl,
 	int nb_rx)
 {
 	int i;
@@ -173,12 +240,12 @@ void acl_prepare_acl_parameter(struct rte_mbuf **pkts_in, struct acl_search_t *a
 	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
 				i + PREFETCH_OFFSET], void *));
-		acl_prepare_one_packet(pkts_in, acl, i);
+		acl_prepare_one_packet(tv, dtv, pkts_in, acl, i);
 	}
 
 	/* Process left packets */
 	for (; i < nb_rx; i++)
-		acl_prepare_one_packet(pkts_in, acl, i);
+		acl_prepare_one_packet(tv, dtv, pkts_in, acl, i);
 }
 
 static __oryx_always_inline__
@@ -243,7 +310,7 @@ uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 }
 
 static __oryx_always_inline__
-void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
+void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t pkt_len,
 		struct rte_mbuf *m, struct iface_t *rx_cpu_iface, struct lcore_conf *qconf)
 {
 	uint8_t tx_port_id = -1, tx_panel_port_id = -1;
@@ -356,7 +423,7 @@ void simple_forward(ThreadVars *tv, Packet *p, uint16_t pkt_len,
 	oryx_logn("%20s%4d%s", "Map: ", mapid, map?map_alias(map):"unknown");
 //#endif
 
-	send_single_packet(tv, qconf, m, tx_port_id);
+	send_single_packet(tv, dtv, qconf, m, tx_port_id);
 }
 
 static __oryx_always_inline__
@@ -652,7 +719,7 @@ main_loop0(__attribute__((unused)) void *ptr_data)
 					SET_PKT(p, pkt);
 					SET_PKT_RX_PORT(p, rx_port_id);
 					marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
+					simple_forward(tv, dtv, p, pkt_len, m, rx_cpu_iface, qconf);
 				}				
 			} else {
 				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
@@ -667,7 +734,7 @@ main_loop0(__attribute__((unused)) void *ptr_data)
 					SET_PKT(p, pkt);
 					SET_PKT_RX_PORT(p, rx_port_id); 
 					standard_eth_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-					simple_forward(tv, p, pkt_len, m, rx_cpu_iface, qconf);
+					simple_forward(tv, dtv, p, pkt_len, m, rx_cpu_iface, qconf);
 				}
 			}
 			//no_opt_send_packets(tv, nb_rx, pkts_burst, rx_cpu_iface, rx_sw_iface /**always null*/, qconf);
@@ -692,6 +759,7 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	DecodeThreadVars *dtv;
 	struct iface_t *rx_cpu_iface;
 	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_map_main_t *mm = &vlib_map_main;
 	int qua = QUA_RX;
 	uint16_t pkt_len;
 	uint8_t *pkt;
@@ -802,34 +870,42 @@ main_loop(__attribute__((unused)) void *ptr_data)
 
 			struct acl_search_t acl_search;
 
-			acl_prepare_acl_parameter(pkts_burst, &acl_search,
+			acl_prepare_acl_parameter(tv, dtv, pkts_burst, &acl_search,
 					nb_rx);
-			
 			if (acl_search.num_ipv4) {
-				rte_acl_classify(
-					acl_config.acx_ipv4[socketid],
-					acl_search.data_ipv4,
-					acl_search.res_ipv4,
-					acl_search.num_ipv4,
-					DEFAULT_MAX_CATEGORIES);
+				//if(mm->nb_acl_rules)
+				{
+					rte_acl_classify(
+						acl_config.acx_ipv4[socketid],
+						acl_search.data_ipv4,
+						acl_search.res_ipv4,
+						acl_search.num_ipv4,
+						DEFAULT_MAX_CATEGORIES);
 
-				acl_send_packets(tv, qconf, acl_search.m_ipv4,
-					acl_search.res_ipv4,
-					acl_search.num_ipv4);
+					acl_send_packets(tv, dtv, qconf, acl_search.m_ipv4,
+						acl_search.res_ipv4,
+						acl_search.num_ipv4);
+				}
 			}
 
 			if (acl_search.num_ipv6) {
-				rte_acl_classify(
-					acl_config.acx_ipv6[socketid],
-					acl_search.data_ipv6,
-					acl_search.res_ipv6,
-					acl_search.num_ipv6,
-					DEFAULT_MAX_CATEGORIES);
-				
-				acl_send_packets(tv, qconf, acl_search.m_ipv6,
-					acl_search.res_ipv6,
-					acl_search.num_ipv6);
+				//if(mm->nb_acl_rules)
+				{
+					rte_acl_classify(
+						acl_config.acx_ipv6[socketid],
+						acl_search.data_ipv6,
+						acl_search.res_ipv6,
+						acl_search.num_ipv6,
+						DEFAULT_MAX_CATEGORIES);
+					
+					acl_send_packets(tv, dtv, qconf, acl_search.m_ipv6,
+						acl_search.res_ipv6,
+						acl_search.num_ipv6);
+				}
 			}
+			
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, acl_search.num_ipv4);
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv6, acl_search.num_ipv6);
 
 		}
 	}

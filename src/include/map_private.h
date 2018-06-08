@@ -1,7 +1,6 @@
 #ifndef MAP_PRIVATE_H
 #define MAP_PRIVATE_H
 
-
 #define MAP_PREFIX	"map"
 #define MAX_MAPS (1 << 2)
 
@@ -61,134 +60,72 @@ typedef struct _action_t {
 }action_t;
 
 /**
-Packets matching multiple maps in a configuration are sent to the map with the highest
-priority when the network ports are shared among multiple maps with pass-by map
-rules. By default, the first map configured has the highest priority; however, you can
-adjust this.
-	Defaultly, priority for each map is ruled by ul_id. 
-*/
+ * Packets matching multiple maps in a configuration are sent to the map with the highest
+ * priority when the network ports are shared among multiple maps with pass-by map
+ * rules. By default, the first map configured has the highest priority; however, you can
+ * adjust this.
+ * Defaultly, priority for each map is ruled by ul_id. 
+ */
 struct map_t {
 
-	/** 
-	  * Unique, and also can be well human-readable.
-	  */
-	char sc_alias[32];
+	char			sc_alias[32];				/** Unique, and also can be well human-readable. */
+	uint32_t		ul_id;						/** Unique, allocated automatically. */
+	os_lock_t 		*ol_lock;
+	char 			*port_list_str[QUA_RXTX];	/** A temporary variable holding argvs from CLI,
+	     											and will be freee after split. */
+	uint32_t		rx_panel_port_mask;			/** Attention: QUA_RX, Where frame comes from.
+													More than one map can be configured with 
+													the same source ports in the port list.
+													The source port list of one map must be 
+													exactly the same as the source port list 
+													of another map (have the same ports 
+													as well as the same number of ports) and 
+													it must not overlap with the source port list
+													of any other map. Maps sharing the same source 
+													port list are grouped together for the purpose
+													of prioritizing their rules.*/
+	uint32_t		tx_panel_port_mask;			/** The same with this.rx_panel_port_mask. */
 
-	/**
-	  * Unique, allocated automatically.
-	  */
-	u32 ul_id;
-
-	/**
-	  * lock 
-	  */
-	os_lock_t *ol_lock;
-
-	/**
-	  * A temporary variable holding argvs from CLI, and will be freee after split.
-	  */
-	char *port_list_str[QUA_RXTX];
-
-	/** 
-	  * Attention: QUA_RX, Where frame comes from. More than one map can be configured 
-with the same source ports in the port list.The source port list of one map must be exactly the same as 
-the source port list of another map (have the same ports as well as the same number of ports) and it must
-not overlap with the source port list of any other map. 
-	Maps sharing the same source port list are grouped together for the purpose of
-prioritizing their rules.
-	*/
-	oryx_vector port_list[QUA_RXTX];
-	uint32_t rx_panel_port_mask;
-	uint32_t tx_panel_port_mask;
-
-	action_t	appl_set_action[1024];	/** action = appl_set_action[appl_id] */
-
-	oryx_vector appl_set;		/** APPL set for current map. Attentions: all applications in one map have "OR" relationship.
-	 							 * How Flow Mapping handles a case where a packet matches multiple applications in the same map?
-	 							 * In cases like this, the packet is sent to all configured destinations 
-	 							 * when the first pass application is matched (assuming there were no matching 
-	 							 * drop rules �C drop rules have higher priority)
-	 							 * For example, a confiigured map named "Pass_HTTP" within 3 applications below:
-	 							 * appl1= "Source Address=192.168.1.1";
-	 							 * appl2= "Source Port=80";
-	 						 	 * appl3= "VLAN=100".
-	 							 * In this case, when a packet whose "Source Address=192.168.1.1" && "Source Port=80" && "VLAN=100"
-     							 * will be send once to destinations.
-	 							 * If you only want to send packet to one destiation, just creating an application 
-	 							 * with combind criterias like below and added it to map. applx= "Source Address=192.168.1.1, Source Port=80, VLAN=100" */
-
-	/**
-	  * A copy of User-Defined Pattern from UDP Management.
-	  */
-	oryx_vector udp_set;
-	
-	/**
-	  * Mpm type, default is MPM_AC.
-	  */
-	u8 uc_mpm_type;
-
-	u32 ul_mpm_has_been_setup;
-
-	/** 
-	  * Muiltiple Pattern Match.
-	  */
-	u8 mpm_index;
-	MpmCtx *mpm_runtime_ctx;
-	MpmCtx mpm_ctx[MPM_TABLES];
-	MpmThreadCtx mpm_thread_ctx;
+	uint8_t			uc_mpm_type;				/** Mpm type, default is MPM_AC */
+	uint32_t		ul_mpm_has_been_setup;
+	uint8_t			mpm_index;					/** Muiltiple Pattern Match */
+	MpmCtx			*mpm_runtime_ctx;
+	MpmCtx			mpm_ctx[MPM_TABLES];
+	MpmThreadCtx	mpm_thread_ctx;
 	PrefilterRuleStore pmq;
 
-	struct list_head prio_node;
+	struct list_head	prio_node;
 
-/**
- * Default map can not be removed.
- */
-#define MAP_DEFAULT				(1 << 0)
-/** 
- * Transparent, default setting for a map.
- * When a map created, traffic will be transparent bettwen its "from" and "to" port,
- * no matter whether there are passed applications, udps or not.
- */
-#define MAP_TRAFFIC_TRANSPARENT	(1 << 1)
+#define MAP_DEFAULT				(1 << 0)		/** Default map can not be removed. */
+#define MAP_TRAFFIC_TRANSPARENT	(1 << 1)		/** Transparent, default setting for a map.
+												 * When a map created, traffic will be transparent bettwen its "from" and "to" port,
+												 * no matter whether there are passed applications, udps or not. */
 #define MAP_HASH_5TUPLE			(1 << 2)
-	u32 ul_flags;
-
-	/**
-	  * Create time.
-	  */
-	u64 ull_create_time;
+	uint32_t		ul_flags;
+	uint64_t		ull_create_time;			/** Create time. */
 	
 };
 #define map_id(map) ((map)->ul_id)
 #define map_alias(map) ((map)->sc_alias)
 
 typedef struct {
-	int ul_maps;
-	u32 ul_flags;
-
-	struct list_head map_priority_list;
-	
-	os_lock_t lock;
-
-	volatile u32 vector_runtime;
-	
-	oryx_vector entry_vec[VECTOR_TABLES];
-	struct oryx_htable_t *htable;
-	
-	/** fast tracinging. unused actually. */
-	struct map_t *lowest_map;
-	struct map_t *highest_map;	
+	uint32_t				ul_flags;
+	uint32_t				nb_acl_rules;
+	volatile uint32_t		nb_maps;
+	struct list_head		map_priority_list;
+	os_lock_t 				lock;
+	volatile uint32_t		vector_runtime;
+	volatile oryx_vector	map_curr_table;
+	oryx_vector				entry_vec[VECTOR_TABLES];
+	struct oryx_htable_t	*htable;	
+	struct map_t			*lowest_map;	/** fast tracinging. unused actually. */
+	struct map_t			*highest_map;
 }vlib_map_main_t;
 
 extern vlib_map_main_t vlib_map_main;
 
-#if 0
-struct map_table_t {
-	oryx_vector mt_entry;
-	u32 entries;
-	os_lock_t  ol_table_lock;
-};
-#endif
+void map_table_entry_lookup (struct prefix_t *lp, 
+	struct map_t **m);
 
 #endif
 

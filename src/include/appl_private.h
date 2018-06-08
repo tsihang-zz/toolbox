@@ -33,39 +33,25 @@ enum {
 
 
 struct appl_signature_t {
+	uint32_t			vlan_id	:				12;
+	uint32_t			l2_vlan_id_mask	:		12;
+	uint32_t			pad0 :					8;
+	uint32_t			ip_src;
+	uint32_t			ip_dst;	
+	uint32_t			ip_src_mask	:			8;
+	uint32_t			ip_dst_mask	:			8;
+	uint32_t			ip_next_proto:			8;
+	uint32_t			ip_next_proto_mask:		8;
+
+	uint16_t			l4_port_src;
+	uint16_t			l4_port_src_mask;
+	uint16_t			l4_port_dst;		/** */
+	uint16_t			l4_port_dst_mask;	/** if l4_port_dst is */
+
+	//struct prefix_ipv4	ip4[SRC_DST]; 	/* ip address for this application. In big endian. */
+
 	
-	/**
-	  * Vlan
-	  */
-	u16 us_vlan;
-
-	/**
-	  * ethernet address.
-	  */
-	/** TODO. */	
-	
-	/**
-	  * ip address for this application. In big endian.
-	  */
-	struct prefix_ipv4 ip4[SRC_DST];
-
-	/**
-	  * l4 port (start and end) for this application. In little endian.
-	  */
-	u16 port_start[SRC_DST];
-	u16 port_end[SRC_DST];
-
-	/**
-	  * Protocol
-	  */
-	u8 uc_proto;
-	u8 proto_mask;
-
-	/**
-	  * User-Defined Pattern for this appl signature.
-	  */
-	oryx_vector udp;
-};
+}__attribute__((__packed__));
 
 /**
   * Default application action.
@@ -73,58 +59,19 @@ struct appl_signature_t {
 #define APPL_DEFAULT_ACTIONS	(0)
 
 struct appl_t {
+	char				sc_alias[32];		/** Unique, and can be well human-readable. */
+	uint32_t			ul_id;				/** Unique, and can be allocated by a oryx_vector function automatically. */
+	uint32_t			ul_type;			/** We may define as many different applications as we want. */
+	uint32_t			ul_flags;			/** Defined by cerital_action_type_t.
+	 										 * and default ACTIONS defined for an APPL is in APPL_DEFAULT_ACTIONS. */
+	uint8_t				uc_keyword_encrypt[256];	/** RC4 encrypt keyword. */
+	char				*sc_keyword;		/** Keyword before enctypt. */
+	uint64_t			ull_create_time;
+	os_lock_t			ol_lock;
+	void				*instance;			/** Application instance point to a TCAM entry or RFC entry. */
 
-	/** 
-	  * Unique, and can be well human-readable.
-	  */
-	char sc_alias[32];
-	
-	/** 
-	  * Unique, and can be allocated by a oryx_vector function automatically. 
-	  */
-	u32 ul_id;
+	uint32_t			ul_map_mask;		/** map for this application belong to. */
 
-	/** 
-	  * We may define as many different applications as we want.
-	  */
-	u32 ul_type;
-
-	/**
-	  * Application instance point to a TCAM entry or RFC entry.
-	  */
-	void *instance;
-
-	/** 
-	  * Defined by cerital_action_type_t.
-	  * and default ACTIONS defined for an APPL is in APPL_DEFAULT_ACTIONS. 
-	  */
-	u32 ul_flags;
-
-	/**
-	  * Datapath Output is not defined. 
-	  */
-	u32 ul_dpo;
-
-	/**
-	  * RC4 encrypt keyword.
-	  */
-	u8 uc_keyword_encrypt[256];
-
-
-	/**
-	  * Keyword before enctypt.
-	  */
-	char *sc_keyword;
-
-	/**
-	  * Create time.
-	  */
-	u64 ull_create_time;
-
-	/**
-	  * Lock.
-	  */
-	os_lock_t ol_lock;
 };
 
 #define appl_id(u) ((u)->ul_id)

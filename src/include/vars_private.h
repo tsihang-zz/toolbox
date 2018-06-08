@@ -38,7 +38,7 @@ typedef struct DecodeThreadVars_
     counter_id counter_udp;
     counter_id counter_icmpv4;
     counter_id counter_icmpv6;
-
+	
     counter_id counter_sll;
     counter_id counter_raw;
     counter_id counter_null;
@@ -56,6 +56,8 @@ typedef struct DecodeThreadVars_
     counter_id counter_ipv4inipv6;
     counter_id counter_ipv6inipv6;
     counter_id counter_erspan;
+	
+	counter_id counter_drop;
 
     /** frag stats - defrag runs in the context of the decoder. */
     counter_id counter_defrag_ipv4_fragments;
@@ -72,6 +74,7 @@ typedef struct DecodeThreadVars_
     counter_id counter_flow_udp;
     counter_id counter_flow_icmp4;
     counter_id counter_flow_icmp6;
+
 
     counter_id counter_invalid_events[DECODE_EVENT_PACKET_MAX];
     /* thread data for flow logging api: only used at forced

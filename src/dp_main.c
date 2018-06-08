@@ -106,6 +106,11 @@ dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
 	dtv->counter_erspan =
 		oryx_register_counter("decoder.erspan",
 									NULL, &tv->perf_private_ctx0);
+
+	dtv->counter_drop =
+		oryx_register_counter("decoder.drop",
+									NULL, &tv->perf_private_ctx0);
+	
 	dtv->counter_flow_memcap =
 		oryx_register_counter("flow.memcap",
 									NULL, &tv->perf_private_ctx0);
