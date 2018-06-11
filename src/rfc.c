@@ -1,6 +1,6 @@
 #include "oryx.h"
 #include "rfc.h"
-
+#if 0
 static list_eq_t* pnode_eqs = NULL;
 static list_eq_t* pnode_map_eqs = NULL;
 static list_eq_t* pnoder_eqs = NULL;
@@ -809,4 +809,4 @@ int rfc_set_phase2_cell(pnoder_t *noder)
 
     return 0;
 }
-
+#endif

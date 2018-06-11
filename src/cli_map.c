@@ -5,6 +5,7 @@
 
 #include "udp_private.h"
 #include "iface_private.h"
+#include "appl_private.h"
 #include "util_map.h"
 #include "dpdk_classify.h"
 #include "cli_iface.h"
@@ -141,12 +142,14 @@ int map_table_entry_remove (struct map_t *map)
 	do_lock (&mm->lock);
 	
 	/** Delete alias from hash table. */
-	r = oryx_htable_del(mm->htable, map_alias(map), strlen((const char *)map_alias(map)));
+	r = oryx_htable_del(mm->htable, (ht_value_t)map_alias(map),
+								strlen((const char *)map_alias(map)));
 
 	if (r == 0 /** success */) {
 
 		/** dataplane may using the map, unmap port as soon as possible. */
 		u8 from_to;
+		
 		from_to = QUA_RX;
 		if (map->port_list_str[from_to]) {
 			map_entry_split_and_unmapping_port (map, from_to);
@@ -293,7 +296,7 @@ DEFUN(no_map,
 
 DEFUN(new_map,
       new_map_cmd,
-      "map WORD from port PORTS to port PORTS",
+      "map WORD from port WORD to port WORD",
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -564,7 +567,9 @@ void map_init(vlib_main_t *vm)
 	
 	mm->entry_vec[VECTOR_TABLE0] = vec_init (MAX_MAPS);
 	mm->entry_vec[VECTOR_TABLE1] = vec_init (MAX_MAPS);
-	if (mm->htable == NULL || mm->entry_vec[VECTOR_TABLE0] == NULL) {
+	if (mm->htable == NULL || 
+		mm->entry_vec[VECTOR_TABLE0] == NULL ||
+		mm->entry_vec[VECTOR_TABLE1] == NULL) {
 		printf ("vlib map main init error!\n");
 		exit(0);
 	}

@@ -5,6 +5,7 @@
 #include "appl_private.h"
 
 int map_entry_new (struct map_t **map, char *alias, char *from, char *to);
+void map_entry_destroy (struct map_t *map);
 
 int map_table_entry_deep_lookup(const char *argv, struct map_t **map);
 

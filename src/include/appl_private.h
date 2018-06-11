@@ -1,8 +1,6 @@
 #ifndef APPL_PRIVATE_H
 #define APPL_PRIVATE_H
 
-#include "prefix.h"
-
 #define APPL_PREFIX	"appl"
 #define MAX_APPLICATIONS (1 << 6)	/** 1 million */
 #define APPL_INVALID_ID		(MAX_APPLICATIONS)
@@ -87,6 +85,49 @@ typedef struct {
 
 extern vlib_appl_main_t vlib_appl_main;
 
+static __oryx_always_inline__
+void appl_entry_lookup_alias (vlib_appl_main_t *vp, const char *alias, struct appl_t **appl)
+{
+	BUG_ON(alias == NULL);
+	void *s = oryx_htable_lookup (vp->htable, (ht_value_t)alias, strlen((const char *)alias));
+	if (s) {
+		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
+	}
+}
+
+static __oryx_always_inline__
+void appl_entry_lookup_id (vlib_appl_main_t *vp, u32 id, struct appl_t **appl)
+{
+	BUG_ON(vp->entry_vec == NULL);
+	
+	if (!vec_active(vp->entry_vec) ||
+		id > vec_active(vp->entry_vec))
+		return;
+	
+	(*appl) = vec_lookup (vp->entry_vec, id);
+}
+
+static __oryx_always_inline__
+void appl_table_entry_lookup (struct prefix_t *lp, 
+				struct appl_t **a)
+{
+	vlib_appl_main_t *am = &vlib_appl_main;
+
+	ASSERT (lp);
+	ASSERT (a);
+	(*a) = NULL;
+	
+	switch (lp->cmd) {
+		case LOOKUP_ID:
+			appl_entry_lookup_id(am, (*(u32*)lp->v), a);
+			break;
+		case LOOKUP_ALIAS:
+			appl_entry_lookup_alias(am, (const char*)lp->v, a);
+			break;
+		default:
+			break;
+	}
+}
 
 #endif
 

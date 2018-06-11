@@ -74,6 +74,7 @@ DEFUN(show_dp_stats,
 	u64 counter_pkts[MAX_LCORES] = {0};
 	u64 counter_bytes[MAX_LCORES] = {0};
 	u64 counter_pkts_invalid[MAX_LCORES] = {0};
+	u64 counter_drop[MAX_LCORES] = {0};
 	u64 counter_eth_total = 0;
 	u64 counter_ipv4_total = 0;
 	u64 counter_ipv6_total = 0;
@@ -86,6 +87,7 @@ DEFUN(show_dp_stats,
 	u64 counter_arp_total = 0;
 	u64 counter_sctp_total = 0;
 	u64 counter_pkts_invalid_total = 0;
+	u64 counter_drop_total = 0;
 
 	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
 		vty_out(vty, "Dataplane is not ready%s", VTY_NEWLINE);
@@ -119,8 +121,9 @@ DEFUN(show_dp_stats,
 		counter_sctp_total +=
 			counter_sctp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_sctp);
 		counter_pkts_invalid_total +=
-					counter_pkts_invalid[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_invalid);
-
+			counter_pkts_invalid[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_invalid);
+		counter_drop_total +=
+			counter_drop[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_drop);
 	}
 
 	vty_out(vty, "==== summary%s", VTY_NEWLINE);
@@ -223,6 +226,13 @@ DEFUN(show_dp_stats,
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);	
 
+	oryx_format(&fb, "%12s", "drop");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_drop[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);	
+
 	oryx_format_free(&fb);
 
 	return CMD_SUCCESS;
@@ -255,7 +265,7 @@ DEFUN(clear_dp_stats,
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_arp, 0);
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_sctp, 0);
 		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_invalid, 0);
-
+		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_drop, 0);
 	}
 
 	return CMD_SUCCESS;

@@ -1,6 +1,6 @@
 #ifndef DP_RFC_H
 #define DP_RFC_H
-
+#if 0
 #define UINT8_ALL_BIT_SET   0xFF
 #define UINT16_ALL_BIT_SET  0xFFFF
 #define UINT32_ALL_BIT_SET  0xFFFFFFFF
@@ -227,5 +227,5 @@ typedef struct _vlib_rfc_main_t {
 }vlib_rfc_main_t;
 
 extern vlib_rfc_main_t vlib_rfc_main;
-
+#endif
 #endif

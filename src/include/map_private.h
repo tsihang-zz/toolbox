@@ -49,6 +49,12 @@ enum {
 	MPM_TABLES,
 };
 
+enum {
+	ACL_TABLE0,
+	ACL_TABLE1,
+	ACL_TABLES,
+};
+
 /** Dataplane traffic output. */
 struct traffic_dpo_t {
 	u8 uc_mode;
@@ -86,13 +92,7 @@ struct map_t {
 													of prioritizing their rules.*/
 	uint32_t		tx_panel_port_mask;			/** The same with this.rx_panel_port_mask. */
 
-	uint8_t			uc_mpm_type;				/** Mpm type, default is MPM_AC */
-	uint32_t		ul_mpm_has_been_setup;
-	uint8_t			mpm_index;					/** Muiltiple Pattern Match */
-	MpmCtx			*mpm_runtime_ctx;
-	MpmCtx			mpm_ctx[MPM_TABLES];
-	MpmThreadCtx	mpm_thread_ctx;
-	PrefilterRuleStore pmq;
+	void			*acl_config_ctx[ACL_TABLES];
 
 	struct list_head	prio_node;
 
@@ -117,6 +117,7 @@ typedef struct {
 	volatile uint32_t		vector_runtime;
 	volatile oryx_vector	map_curr_table;
 	oryx_vector				entry_vec[VECTOR_TABLES];
+	//oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;	
 	struct map_t			*lowest_map;	/** fast tracinging. unused actually. */
 	struct map_t			*highest_map;
@@ -124,8 +125,54 @@ typedef struct {
 
 extern vlib_map_main_t vlib_map_main;
 
+static __oryx_always_inline__
+void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **map)
+{
+	(*map) = NULL;
+	
+	if (!alias) return;
+
+	void *s = oryx_htable_lookup (mm->htable,
+		(ht_value_t)alias, strlen((const char *)alias));
+
+	if (s) {
+		(*map) = (struct map_t *) container_of (s, struct map_t, sc_alias);
+	}
+}
+
+static __oryx_always_inline__
+void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
+{
+	BUG_ON(mm->map_curr_table == NULL);
+
+	if (!vec_active(mm->map_curr_table) || 
+		(id > vec_active(mm->map_curr_table)))
+		return;
+
+	(*m) = vec_lookup (mm->map_curr_table, id);
+}
+
+static __oryx_always_inline__
 void map_table_entry_lookup (struct prefix_t *lp, 
-	struct map_t **m);
+	struct map_t **m)
+{
+	vlib_map_main_t *mm = &vlib_map_main;
+
+	ASSERT (lp);
+	ASSERT (m);
+	(*m) = NULL;
+	
+	switch (lp->cmd) {
+		case LOOKUP_ID:
+			map_entry_lookup_id(mm, (*(u32*)lp->v), m);
+			break;
+		case LOOKUP_ALIAS:
+			map_entry_lookup_alias(mm, (char*)lp->v, m);
+			break;
+		default:
+			break;
+	}
+}
 
 #endif
 

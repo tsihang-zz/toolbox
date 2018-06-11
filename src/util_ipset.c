@@ -155,21 +155,6 @@ void appl_entry_new (struct appl_t **appl,
 	as->l4_port_dst_mask = ANY_PORT;
 }
 
-void appl_entry_lookup (vlib_appl_main_t *vp, const char *alias, struct appl_t **appl)
-{
-	BUG_ON(alias == NULL);
-	void *s = oryx_htable_lookup (vp->htable, alias, strlen((const char *)alias));
-	if (s) {
-		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
-	}
-}
-void appl_entry_lookup_i (vlib_appl_main_t *vp, u32 id, struct appl_t **appl)
-{
-	if (!vec_active(vp->entry_vec))
-		return;
-	(*appl) = vec_lookup (vp->entry_vec, id);
-}
-
 int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 {
 	if (!appl ||
@@ -183,7 +168,7 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 	}
 	
 	do_lock (&vp->lock);
-	int r = oryx_htable_del(vp->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
+	int r = oryx_htable_del(vp->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
 		vec_unset (vp->entry_vec, appl_id(appl));
 	}
@@ -211,27 +196,6 @@ int appl_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
 
 	do_unlock (&vp->lock);
 	return r;
-}
-
-void appl_table_entry_lookup (struct prefix_t *lp, 
-				struct appl_t **a)
-{
-	vlib_appl_main_t *am = &vlib_appl_main;
-
-	ASSERT (lp);
-	ASSERT (a);
-	(*a) = NULL;
-	
-	switch (lp->cmd) {
-		case LOOKUP_ID:
-			appl_entry_lookup_i(am, (*(u32*)lp->v), a);
-			break;
-		case LOOKUP_ALIAS:
-			appl_entry_lookup(am, (const char*)lp->v, a);
-			break;
-		default:
-			break;
-	}
 }
 
 int appl_table_entry_deep_lookup(const char *argv, 

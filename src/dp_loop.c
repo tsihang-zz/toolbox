@@ -27,6 +27,9 @@ extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
+#define ACL_RES_TO_MAPID(res)\
+	(res - VALID_MAP_ID_START)
+
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	  3
 
@@ -43,11 +46,11 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 	struct rte_mbuf **m_table;
 	int ret;
 	uint16_t tx_queue_id, n_tx_pkts;
-	struct iface_t *iface;
+	struct iface_t *tx_iface = NULL;
 	vlib_port_main_t *vp = &vlib_port_main;
 
 	/** port ID -> iface */
-	iface_lookup_id(vp, tx_port_id, &iface);
+	iface_lookup_id(vp, tx_port_id, &tx_iface);
 
 	tx_queue_id = qconf->tx_queue_id[tx_port_id];
 	m_table = (struct rte_mbuf **)qconf->tx_mbufs[tx_port_id].m_table;
@@ -63,7 +66,7 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d", tx_port_id, tx_queue_id, tv->lcore, n_tx_pkts);
 #endif
 
-	iface_counters_add(iface, iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], n_tx_pkts);
+	iface_counters_add(tx_iface, tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], n_tx_pkts);
 
 	return 0;
 }
@@ -116,13 +119,14 @@ void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
 }
 
 static __oryx_always_inline__
-void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
 		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
-	uint32_t mapid = (res - VALID_MAP_ID_START);
+	uint32_t mapid = ACL_RES_TO_MAPID(res);
 	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
 	struct map_t *map;
 	vlib_map_main_t *mm = &vlib_map_main;
+	
 	struct prefix_t lp_id = {
 		.cmd = LOOKUP_ID,
 		.v = (void *)&mapid,
@@ -134,19 +138,23 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
 	if (likely(res != 0)) {
 		map_table_entry_lookup(&lp_id, &map);
-		if(likely(map)) {
-			/* forward packets */
+		if(likely(map) &&
+			(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
+			/* forward packets for this map. */
 			send_single_packet(tv, dtv, qconf, m,
 				tx_port_id);
+		} else {
+			/* drop it default, if no map for this iface. */
+			acl_free_packet(tv, dtv, m);
 		}
-	} else{
+	} else {
 		/* in the ACL list, drop it */
 		acl_free_packet(tv, dtv, m);
 	}
 }
 
 static __oryx_always_inline__
-void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
+void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
 		struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
 {
 	int i;
@@ -160,12 +168,12 @@ void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
 	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(m[
 				i + PREFETCH_OFFSET], void *));
-		acl_send_one_packet(tv, dtv, qconf, m[i], res[i]);
+		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
 	}
 
 	/* Process left packets */
 	for (; i < num; i++)
-		acl_send_one_packet(tv, dtv, qconf, m[i], res[i]);
+		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
 }
 
 
@@ -323,7 +331,7 @@ void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t p
 	uint32_t l3_ptypes;
 	vlib_port_main_t *vp = &vlib_port_main;
 	vlib_map_main_t *mm = &vlib_map_main;
-	struct iface_t *tx_panel_iface;
+	struct iface_t *tx_panel_iface = NULL;
 	
 #if defined(BUILD_DEBUG)
 	BUG_ON(rx_cpu_iface == NULL);
@@ -510,7 +518,7 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	int hdr_len;
 	vlib_port_main_t *vp = &vlib_port_main;
 	MarvellDSAEthernetHdr *dsaeth;
-	struct iface_t *rx_panel_iface;
+	struct iface_t *rx_panel_iface = NULL;
 	uint8_t rx_panel_port_id = -1;
 	
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
@@ -597,7 +605,7 @@ main_loop0(__attribute__((unused)) void *ptr_data)
 	struct lcore_conf *qconf;
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
-	struct iface_t *rx_cpu_iface;
+	struct iface_t *rx_cpu_iface = NULL;
 	vlib_port_main_t *vp = &vlib_port_main;
 	int qua = QUA_RX;
 	uint16_t pkt_len;
@@ -757,7 +765,7 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	struct lcore_conf *qconf;
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
-	struct iface_t *rx_cpu_iface;
+	struct iface_t *rx_cpu_iface = NULL;
 	vlib_port_main_t *vp = &vlib_port_main;
 	vlib_map_main_t *mm = &vlib_map_main;
 	int qua = QUA_RX;
@@ -882,7 +890,9 @@ main_loop(__attribute__((unused)) void *ptr_data)
 						acl_search.num_ipv4,
 						DEFAULT_MAX_CATEGORIES);
 
-					acl_send_packets(tv, dtv, qconf, acl_search.m_ipv4,
+					acl_send_packets(tv, dtv, rx_cpu_iface,
+						qconf,
+						acl_search.m_ipv4,
 						acl_search.res_ipv4,
 						acl_search.num_ipv4);
 				}
@@ -898,7 +908,9 @@ main_loop(__attribute__((unused)) void *ptr_data)
 						acl_search.num_ipv6,
 						DEFAULT_MAX_CATEGORIES);
 					
-					acl_send_packets(tv, dtv, qconf, acl_search.m_ipv6,
+					acl_send_packets(tv, dtv, rx_cpu_iface,
+						qconf,
+						acl_search.m_ipv6,
 						acl_search.res_ipv6,
 						acl_search.num_ipv6);
 				}

@@ -6,27 +6,28 @@
 
 void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
-	oryx_vector v;
-	uint32_t *panel_port_mask = NULL;
-
-	/** Map.Port */
+	/** Map Rx Port */
 	if(from_to == QUA_RX) {
-		map->rx_panel_port_mask = (1 << iface_id(port));
+		map->rx_panel_port_mask |= (1 << iface_id(port));
 	}
 
+	/** Map Tx Port */
 	if(from_to == QUA_TX) {
-		map->tx_panel_port_mask = (1 << iface_id(port));
+		map->tx_panel_port_mask |= (1 << iface_id(port));
 	}
-	
-	/** Port.Map */
-	port->ul_map_mask |= (1 << map_id(map));
-	
 }
 
 void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
-	/** Port.Map */
-	port->ul_map_mask &= ~(1 << map_id(map));
+	/** Unmap Rx Port */
+	if(from_to == QUA_RX) {
+		map->rx_panel_port_mask &= ~(1 << iface_id(port));
+	}
+
+	/** Unmap Tx Port */
+	if(from_to == QUA_TX) {
+		map->tx_panel_port_mask &= ~(1 << iface_id(port));
+	}
 }
 
 static __oryx_always_inline__
@@ -91,22 +92,8 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 	ASSERT ((*map));
 
 	(*map)->ull_create_time = time(NULL);
-	(*map)->ul_mpm_has_been_setup = 0;
-	(*map)->uc_mpm_type = mpm_default_matcher;
-
 	INIT_LIST_HEAD(&(*map)->prio_node);
 
-	/** Init mpm feature. **/	
-	MpmInitCtx(&(*map)->mpm_ctx[table], (*map)->uc_mpm_type);
-
-	/** called after adding patterns. */
-	/** MpmInitThreadCtx (&(*map)->mpm_thread_ctx, (*map)->uc_mpm_type); */
-	PmqSetup(&(*map)->pmq);
-	
-	(*map)->mpm_runtime_ctx = &(*map)->mpm_ctx[table];
-	printf ("mpmtable0 ->> %p, runtime ->> %p%s", 
-		&(*map)->mpm_ctx[table], (*map)->mpm_runtime_ctx, "\n");
-	
 	(*map)->ul_flags = MAP_TRAFFIC_TRANSPARENT;
 	
 	/** make alias. */
@@ -124,51 +111,6 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 void map_entry_destroy (struct map_t *map)
 {
 	kfree (map);
-}
-
-void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **map)
-{
-	(*map) = NULL;
-	
-	if (!alias) return;
-
-	void *s = oryx_htable_lookup (mm->htable,
-		alias, strlen((const char *)alias));
-
-	if (s) {
-		(*map) = (struct map_t *) container_of (s, struct map_t, sc_alias);
-	}
-}
-
-void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
-{
-	BUG_ON(mm->map_curr_table == NULL);
-	BUG_ON(id > vec_active(mm->map_curr_table));
-	
-	if (vec_active(mm->map_curr_table)) {
-		(*m) = vec_lookup (mm->map_curr_table, id);
-	}
-}
-
-void map_table_entry_lookup (struct prefix_t *lp, 
-	struct map_t **m)
-{
-	vlib_map_main_t *mm = &vlib_map_main;
-
-	ASSERT (lp);
-	ASSERT (m);
-	(*m) = NULL;
-	
-	switch (lp->cmd) {
-		case LOOKUP_ID:
-			map_entry_lookup_id(mm, (*(u32*)lp->v), m);
-			break;
-		case LOOKUP_ALIAS:
-			map_entry_lookup_alias(mm, (const char*)lp->v, m);
-			break;
-		default:
-			break;
-	}
 }
 
 int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
@@ -189,7 +131,7 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,
 				.v = (void *)&id,
-				.s = strlen ((char *)argv),
+				.s = sizeof(id),
 			};
 			map_table_entry_lookup (&lp_id, &v);
 		}

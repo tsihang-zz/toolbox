@@ -77,40 +77,7 @@ int iface_rename(vlib_port_main_t *vp,
 	return 0;
 }
 
-int iface_lookup_alias(vlib_port_main_t *vp,
-				const char *alias, struct iface_t **this)
-{
-	(*this) = NULL;
-	void *s = oryx_htable_lookup(vp->htable, alias, strlen(alias));			
-	if (likely (s)) {
-		/** THIS IS A VERY CRITICAL POINT. */
-		do_lock (&vp->lock);
-		(*this) = (struct iface_t *) container_of (s, struct iface_t, sc_alias);
-		do_unlock (&vp->lock);
-		return 0;
-	}
-	return -1;
-}
 
-void iface_table_entry_lookup (struct prefix_t *lp, 
-	struct iface_t **p)
-{
-	vlib_port_main_t *vp = &vlib_port_main;
-
-	ASSERT (lp);
-	ASSERT (p);
-	
-	switch (lp->cmd) {
-		case LOOKUP_ID:
-			iface_lookup_id(vp, (*(u32*)lp->v), p);
-			break;
-		case LOOKUP_ALIAS:
-			iface_lookup_alias(vp, (const char*)lp->v, p);
-			break;
-		default:
-			break;
-	}
-}
 
 int iface_add(vlib_port_main_t *vp, struct iface_t *this)
 {

@@ -54,8 +54,7 @@ struct iface_counter_ctx {
 											  cpu <-> sw */
 struct iface_t {
 	const char				*sc_alias_fixed; 	/** fixed alias used to do linkstate poll,
-								 			  	 *  and can not be overwrite by CLI.
-								 			  	 */
+								 			  	 *  and can not be overwrite by CLI. */
 	int						type;				/** ETH_GE, ETH_XE, ... */
 	uint32_t				ul_flags;
 
@@ -70,7 +69,6 @@ struct iface_t {
 	char					eth_addr[6];		/** ethernet address for this port. */
 	uint32_t				ul_up_down_times;	/** up->down counter. */
 	uint16_t				us_mtu;
-	uint32_t				ul_map_mask;		/** Map mask for this interface belong to. */
 	struct CounterCtx 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
@@ -109,6 +107,12 @@ static __oryx_always_inline__
 int iface_lookup_id(vlib_port_main_t *vp,
 				u32 id, struct iface_t **this)
 {
+	BUG_ON(vp->entry_vec == NULL);
+	
+	if (!vec_active(vp->entry_vec) ||
+		id > vec_active(vp->entry_vec))
+		return 0;
+	
 	(*this) = NULL;
 	(*this) = (struct iface_t *) vec_lookup (vp->entry_vec, id);
 
@@ -118,18 +122,48 @@ int iface_lookup_id(vlib_port_main_t *vp,
 	return 0;
 }
 
+static __oryx_always_inline__
+int iface_lookup_alias(vlib_port_main_t *vp,
+				const char *alias, struct iface_t **this)
+{
+	(*this) = NULL;
+	void *s = oryx_htable_lookup(vp->htable, (ht_value_t)alias,
+									strlen((const char *)alias));			
+	if (likely (s)) {
+		(*this) = (struct iface_t *) container_of (s, struct iface_t, sc_alias);
+		return 0;
+	}
+	return -1;
+}
+
+static __oryx_always_inline__
+void iface_table_entry_lookup (struct prefix_t *lp, 
+				struct iface_t **p)
+{
+	vlib_port_main_t *vp = &vlib_port_main;
+
+	ASSERT (lp);
+	ASSERT (p);
+	
+	switch (lp->cmd) {
+		case LOOKUP_ID:
+			iface_lookup_id(vp, (*(u32*)lp->v), p);
+			break;
+		case LOOKUP_ALIAS:
+			iface_lookup_alias(vp, (const char*)lp->v, p);
+			break;
+		default:
+			break;
+	}
+}
+
 void iface_alloc (struct iface_t **);
 int iface_rename(vlib_port_main_t *vp, 
 				struct iface_t *this, const char *new_name);
-int iface_lookup_alias(vlib_port_main_t *vp,
-				const char *alias, struct iface_t **this);
-
 int iface_add(vlib_port_main_t *vp, struct iface_t *this);
 
 int iface_del(vlib_port_main_t *vp, struct iface_t *this);
 
-void iface_table_entry_lookup (struct prefix_t *lp, 
-	struct iface_t **p);
 
 #endif
 
