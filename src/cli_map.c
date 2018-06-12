@@ -355,7 +355,6 @@ DEFUN(map_application,
     return CMD_SUCCESS;
 }
 
-
 DEFUN(no_map_applicatio,
       no_map_application_cmd,
       "no map WORD application WORD",
@@ -551,11 +550,62 @@ lookup:
 	return CMD_SUCCESS;
 }
 
-#ifdef HAVE_DEFAULT_MAP
-static struct map_t default_map = {
-	.ul_flags = MAP_DEFAULT;
-};
-#endif
+static __oryx_always_inline__
+void map_dump_online_ports(struct map_t *m)
+{
+	int i;
+
+	printf("map %s %d online ports (mask %08x) IDs: ", map_alias(m), 
+							m->nb_online_tx_panel_ports, m->tx_panel_port_mask);
+	for (i = 0; i < (int)m->nb_online_tx_panel_ports; i ++) {
+		printf ("%d ", m->online_tx_panel_ports[i]);
+	}
+	printf("\n");
+}
+
+static __oryx_always_inline__
+void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
+{
+	int each_map;
+	int each_port;
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_port_main_t *pm = &vlib_port_main;
+	struct map_t *map;
+	struct iface_t *iface;
+	uint32_t tx_panel_ports[MAX_PORTS] = {0};
+	int i;
+	uint32_t index = 0;
+
+	/** here need a signal from iface.link_detect timer. */
+	vec_foreach_element(mm->map_curr_table, each_map, map) {
+		if (unlikely(!map))
+			continue;
+
+		index = 0;
+		for (i = 0; i < MAX_PORTS; i ++) {
+			tx_panel_ports[i] = UINT32_MAX;
+		}
+		
+		vec_foreach_element(pm->entry_vec, each_port, iface) {
+			if(unlikely(!iface))
+				continue;
+			if(map->tx_panel_port_mask & (1 << iface_id(iface))) {
+				if(iface->ul_flags & NETDEV_ADMIN_UP) {
+					tx_panel_ports[index ++] = iface_id(iface);					
+					printf (".");
+				}
+			}
+		}
+		printf ("\n");
+
+		map->nb_online_tx_panel_ports = index;
+		for (i = 0; i < MAX_PORTS; i ++) {
+			map->online_tx_panel_ports[i] = tx_panel_ports[i];
+		}
+		map_dump_online_ports(map);
+	}
+}
 
 
 void map_init(vlib_main_t *vm)
@@ -586,6 +636,15 @@ void map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &map_application_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_highest_lowest_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_cmd);
+
+	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
+
+	mm->online_port_update_tmr = oryx_tmr_create(1, "map online port update tmr", 
+							ul_activity_tmr_setting_flags,
+							map_online_iface_update_tmr,
+							0, NULL, 3000);
+	if(likely(mm->online_port_update_tmr))
+		oryx_tmr_start(mm->online_port_update_tmr);
 
 	vm->ul_flags |= VLIB_MAP_INITIALIZED;
 }

@@ -27,9 +27,6 @@ extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
-#define ACL_RES_TO_MAPID(res)\
-	(res - VALID_MAP_ID_START)
-
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	  3
 
@@ -47,10 +44,10 @@ int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_
 	int ret;
 	uint16_t tx_queue_id, n_tx_pkts;
 	struct iface_t *tx_iface = NULL;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
 	/** port ID -> iface */
-	iface_lookup_id(vp, tx_port_id, &tx_iface);
+	iface_lookup_id(pm, tx_port_id, &tx_iface);
 
 	tx_queue_id = qconf->tx_queue_id[tx_port_id];
 	m_table = (struct rte_mbuf **)qconf->tx_mbufs[tx_port_id].m_table;
@@ -119,38 +116,85 @@ void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
 }
 
 static __oryx_always_inline__
+int decide_tx_port(struct map_t *map, struct rte_mbuf *m, uint8_t *tx_port_id)
+{
+	uint32_t tx_panel_port_id = 0;
+	uint32_t index = m->hash.rss % map->nb_online_tx_panel_ports;
+
+	*tx_port_id = tx_panel_port_id = map->online_tx_panel_ports[index];
+	if(tx_panel_port_id > SW_PORT_OFFSET)
+		*tx_port_id = 0;
+
+	return tx_panel_port_id;
+}
+
+#define tx_panel_port_is_online(tx_panel_port_id)\
+	((tx_panel_port_id) != UINT32_MAX)
+	
+static __oryx_always_inline__
 void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
 		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
-	uint32_t mapid = ACL_RES_TO_MAPID(res);
-	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
-	struct map_t *map;
+	uint32_t mapid;
+	uint8_t tx_port_id = iface_id(rx_iface);
+	uint32_t tx_panel_port_id = 0;
+	struct map_t *map = NULL;
 	vlib_map_main_t *mm = &vlib_map_main;
-	
+	struct acl_user_data_t *aud = NULL;
+
+	if (likely(res == 0))
+		goto finish;
+
+	/** a RET must have an userdata. */
+	if (acl_get_userdata(res, &aud)) {
+		goto finish;
+	}
+
+	mapid  = aud->ul_map_mask;
 	struct prefix_t lp_id = {
 		.cmd = LOOKUP_ID,
 		.v = (void *)&mapid,
 		.s = sizeof(mapid),
 	};
 
-	tx_port_id = 1;
-	
-	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
-	if (likely(res != 0)) {
-		map_table_entry_lookup(&lp_id, &map);
-		if(likely(map) &&
-			(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
+	/** lookup map table with userdata(map_mask) */
+	map_table_entry_lookup(&lp_id, &map);
+	if(likely(map) && map_rx_has_iface(map, rx_iface)) {
+		tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
+
+		/**
+		 * oryx_logn("send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
+		 */
+		if(tx_panel_port_is_online(tx_panel_port_id)) {
 			/* forward packets for this map. */
-			send_single_packet(tv, dtv, qconf, m,
-				tx_port_id);
-		} else {
-			/* drop it default, if no map for this iface. */
-			acl_free_packet(tv, dtv, m);
+			send_single_packet(tv, dtv, qconf, m, tx_port_id);
+			return;
 		}
+		/* tx_panel_port_id is not online. drop it. */
+		goto finish;
 	} else {
-		/* in the ACL list, drop it */
-		acl_free_packet(tv, dtv, m);
+		/* drop it defaultly if no map for this application */
+		if(unlikely(!map)) {
+			oryx_logn("no such map");
+			goto finish;
+		}
+
+		/* drop it defaulty if this rx_iface is not mapped */
+		if(!(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
+			oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
+			goto finish;
+		}
 	}
+	
+finish:
+	if(res == 0)
+		oryx_logn("acl lookup error");
+	if(aud == NULL)
+		oryx_logn("no userdata for res %d", res);
+	
+	/* in the ACL list, drop it */
+	acl_free_packet(tv, dtv, m);
+	return;
 }
 
 static __oryx_always_inline__
@@ -210,6 +254,7 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	oryx_logn ("%16s%04d", "port_src: ", ntoh16(key.port_src));
 	oryx_logn ("%16s%04d", "port_dst: ", ntoh16(key.port_dst));
 	oryx_logn ("%16s%08d", "protocol: ", key.proto);
+	oryx_logn ("%16s%08d", "RSS: ", pkt->hash.rss);
 #endif
 
 	if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
@@ -329,7 +374,7 @@ void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t p
 	uint8_t dst_port;
 	uint32_t tcp_or_udp;
 	uint32_t l3_ptypes;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	vlib_map_main_t *mm = &vlib_map_main;
 	struct iface_t *tx_panel_iface = NULL;
 	
@@ -389,7 +434,7 @@ void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t p
 		MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
 		if (tx_panel_port_id > SW_PORT_OFFSET) /** SW -> SW */ {
 			uint32_t new_cpu_dsa = dsa_tag_update(p->dsa, PANEL_GE_ID_TO_DSA(tx_panel_port_id));		
-			iface_lookup_id(vp, tx_panel_port_id, &tx_panel_iface);
+			iface_lookup_id(pm, tx_panel_port_id, &tx_panel_iface);
 		#if defined(BUILD_DEBUG)
 			BUG_ON(tx_panel_iface == NULL);
 		#endif
@@ -409,7 +454,7 @@ void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t p
 			/* add a dsa tag */
 			uint32_t new_cpu_dsa = dsa_tag_update(0, PANEL_GE_ID_TO_DSA(tx_panel_ge_id));
 			dsa_tag_insert(&m, new_cpu_dsa);
-			iface_lookup_id(vp, tx_panel_port_id, &tx_panel_iface);
+			iface_lookup_id(pm, tx_panel_port_id, &tx_panel_iface);
 		#if defined(BUILD_DEBUG)
 			BUG_ON(tx_panel_iface == NULL);
 		#endif
@@ -447,7 +492,7 @@ void standard_eth_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	void *l3;
 	int hdr_len;
 	uint8_t rx_port_id = -1, rx_panel_port_id = -1;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, pkt_len);
 	iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][tv->lcore], pkt_len);
@@ -516,7 +561,7 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	uint16_t ether_type;
 	void *l3;
 	int hdr_len;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	MarvellDSAEthernetHdr *dsaeth;
 	struct iface_t *rx_panel_iface = NULL;
 	uint8_t rx_panel_port_id = -1;
@@ -544,7 +589,7 @@ void marvell_dsa_frame(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 	}
 
 	SET_PKT_RX_PANEL_PORT(p, rx_panel_port_id);
-	iface_lookup_id(vp, rx_panel_port_id, &rx_panel_iface);
+	iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
 #if defined(BUILD_DEBUG)
 	BUG_ON(rx_panel_iface == NULL);
 #endif
@@ -606,7 +651,7 @@ main_loop0(__attribute__((unused)) void *ptr_data)
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
 	struct iface_t *rx_cpu_iface = NULL;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	int qua = QUA_RX;
 	uint16_t pkt_len;
 	uint8_t *pkt;
@@ -709,7 +754,7 @@ main_loop0(__attribute__((unused)) void *ptr_data)
 				rx_port_id, rx_queue_id, tv->lcore);
 //#endif			
 			/** port ID -> iface */
-			iface_lookup_id(vp, rx_port_id, &rx_cpu_iface);			
+			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);			
 			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 
@@ -766,7 +811,7 @@ main_loop(__attribute__((unused)) void *ptr_data)
 	ThreadVars *tv;
 	DecodeThreadVars *dtv;
 	struct iface_t *rx_cpu_iface = NULL;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	vlib_map_main_t *mm = &vlib_map_main;
 	int qua = QUA_RX;
 	uint16_t pkt_len;
@@ -869,9 +914,9 @@ main_loop(__attribute__((unused)) void *ptr_data)
 #if defined(BUILD_DEBUG)
 			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d",
 				rx_port_id, rx_queue_id, tv->lcore);
-#endif			
+#endif
 			/** port ID -> iface */
-			iface_lookup_id(vp, rx_port_id, &rx_cpu_iface);			
+			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);			
 			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
@@ -884,7 +929,8 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				//if(mm->nb_acl_rules)
 				{
 					rte_acl_classify(
-						acl_config.acx_ipv4[socketid],
+						//acl_config.acx_ipv4[socketid],
+						g_runtime_acl_config->acx_ipv4[socketid],
 						acl_search.data_ipv4,
 						acl_search.res_ipv4,
 						acl_search.num_ipv4,
@@ -902,7 +948,8 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				//if(mm->nb_acl_rules)
 				{
 					rte_acl_classify(
-						acl_config.acx_ipv6[socketid],
+						//acl_config.acx_ipv6[socketid],
+						g_runtime_acl_config->acx_ipv6[socketid],
 						acl_search.data_ipv6,
 						acl_search.res_ipv6,
 						acl_search.num_ipv6,

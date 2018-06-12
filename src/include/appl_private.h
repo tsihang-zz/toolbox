@@ -75,36 +75,39 @@ struct appl_t {
 #define appl_id(u) ((u)->ul_id)
 #define appl_alias(u) ((u)->sc_alias)
 
+#define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {
-	int ul_n_appls;
-	u32 ul_flags;
-	os_lock_t lock;
-	oryx_vector entry_vec;
-	struct oryx_htable_t *htable;
+	uint32_t				ul_flags;
+	int						ul_n_appls;
+	os_lock_t				lock;
+	oryx_vector				entry_vec;
+	struct oryx_htable_t 	*htable;
 }vlib_appl_main_t;
 
 extern vlib_appl_main_t vlib_appl_main;
 
 static __oryx_always_inline__
-void appl_entry_lookup_alias (vlib_appl_main_t *vp, const char *alias, struct appl_t **appl)
+void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct appl_t **appl)
 {
 	BUG_ON(alias == NULL);
-	void *s = oryx_htable_lookup (vp->htable, (ht_value_t)alias, strlen((const char *)alias));
+	void *s = oryx_htable_lookup (am->htable, (ht_value_t)alias,
+						strlen((const char *)alias));
 	if (s) {
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
 	}
 }
 
 static __oryx_always_inline__
-void appl_entry_lookup_id (vlib_appl_main_t *vp, u32 id, struct appl_t **appl)
+void appl_entry_lookup_id (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
 {
-	BUG_ON(vp->entry_vec == NULL);
+	BUG_ON(am->entry_vec == NULL);
 	
-	if (!vec_active(vp->entry_vec) ||
-		id > vec_active(vp->entry_vec))
+	if (!vec_active(am->entry_vec) ||
+		id > vec_active(am->entry_vec))
 		return;
-	
-	(*appl) = vec_lookup (vp->entry_vec, id);
+
+	(*appl) = NULL;
+	(*appl) = vec_lookup (am->entry_vec, id);
 }
 
 static __oryx_always_inline__

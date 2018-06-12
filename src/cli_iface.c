@@ -8,6 +8,8 @@
 #include "util_iface.h"
 #include "cli_iface.h"
 
+#include "dpdk.h"
+
 #ifndef DIM
 /** Number of elements in the array. */
 #define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
@@ -23,7 +25,7 @@ vlib_port_main_t vlib_port_main = {
 
 #define VTY_SUCCESS_PORT(prefix, v)\
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
-		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, v->sc_alias, v->ul_id, VTY_NEWLINE)
+		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, iface_alias(v), v->ul_id, VTY_NEWLINE)
 
 atomic_t n_intf_elements = ATOMIC_INIT(0);
 
@@ -78,7 +80,7 @@ void port_entry_output (struct iface_t *port, struct vty *vty)
 
 	vty_out (vty, "%s", VTY_NEWLINE);
 	/** find this port named 'alias'. */
-	vty_out (vty, "%16s\"%s\"(%u)%s", "Port ", port->sc_alias, port->ul_id, VTY_NEWLINE);
+	vty_out (vty, "%16s\"%s\"(%u)%s", "Port ", iface_alias(port), port->ul_id, VTY_NEWLINE);
 
 	vty_out (vty, "		%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
 		"Mac: ", 
@@ -189,24 +191,24 @@ void port_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *
 	struct vty *vty = vty_;
 	struct prefix_t *var;
 	u32 ul_flags = port->ul_flags;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
 	var = (struct prefix_t *)arg;
 
 	switch (var->cmd)
 	{
 		case INTERFACE_SET_ALIAS:
-			if (strlen ((char *)var->v) > sizeof (port->sc_alias)) {
-				VTY_ERROR_PORT("invalid alias", (char *)port->sc_alias);
+			if (strlen ((char *)var->v) > sizeof (iface_alias(port))) {
+				VTY_ERROR_PORT("invalid alias", (char *)iface_alias(port));
 				break;
 			}
 			struct iface_t *exist;/** check same alias. */
-			iface_lookup_alias(vp, (const char *)var->v, &exist);
+			iface_lookup_alias(pm, (const char *)var->v, &exist);
 			if (exist) {
-				VTY_ERROR_PORT("alias been named by a port", (char *)exist->sc_alias);
+				VTY_ERROR_PORT("alias been named by a port", (char *)iface_alias(exist));
 				break;
 			}	
-			iface_rename(vp, port, (const char *)var->v);
+			iface_rename(pm, port, (const char *)var->v);
 			break;
 			
 		case INTERFACE_SET_MTU:
@@ -230,7 +232,7 @@ void port_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-		atomic_read(&n_intf_elements), (int)vec_count(vp->entry_vec), VTY_NEWLINE);
+		atomic_read(&n_intf_elements), (int)vec_count(pm->entry_vec), VTY_NEWLINE);
 
 DEFUN(show_interfacce,
       show_interface_cmd,
@@ -241,9 +243,9 @@ DEFUN(show_interfacce,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	vty_out (vty, "Trying to display %s%d%s elements ...%s", 
-		draw_color(COLOR_RED), vec_active(vp->entry_vec), draw_color(COLOR_FIN), 
+		draw_color(COLOR_RED), vec_active(pm->entry_vec), draw_color(COLOR_FIN), 
 		VTY_NEWLINE);
 	
 	vty_out (vty, "%16s%s", "_______________________________________________", VTY_NEWLINE);
@@ -270,9 +272,9 @@ DEFUN(show_interfacce_stats,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	vty_out(vty, "Trying to display %d elements ...%s", 
-			vec_active(vp->entry_vec), VTY_NEWLINE);
+			vec_active(pm->entry_vec), VTY_NEWLINE);
 	vty_out(vty, "%20s%20s%20s%s", "Port", "Rx(p/b)", "Tx(p/b)", VTY_NEWLINE);
 	
 	if (argc == 0) {
@@ -301,9 +303,9 @@ DEFUN(clear_interface_stats,
 	KEEP_QUITE_STR
 	KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	vty_out(vty, "Trying to display %d elements ...%s", 
-			vec_active(vp->entry_vec), VTY_NEWLINE);
+			vec_active(pm->entry_vec), VTY_NEWLINE);
 
 	if (argc == 0) {
 		foreach_port_func1_param1 (
@@ -327,7 +329,7 @@ DEFUN(interface_alias,
 	  KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_ALIAS,
 		.v = (char *)argv[1],
@@ -354,7 +356,7 @@ DEFUN(interface_mtu,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_MTU,
 		.v = (char *)argv[1],
@@ -383,7 +385,7 @@ DEFUN(interface_looback,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_LOOPBACK,
 		.v = (char *)argv[1],
@@ -398,23 +400,37 @@ DEFUN(interface_looback,
 	return CMD_SUCCESS;
 }
 
+static __oryx_always_inline__
+int dpdk_iface_is_up(uint32_t portid)
+{
+	struct rte_eth_link link;
+	rte_eth_link_get_nowait(portid, &link);
+	
+	if (link.link_status)
+		return 1;
+	else
+		return 0;
+}
+
+
+int link_trasition_detected = 0;
+
 int iface_poll_linkstate(struct iface_t *this)
 {
 	int rv;
-	int if_need_up_configuration = 0;
 	
 	if (this->type == ETH_GE) {
-		/** use ethtool. */
 		rv = netdev_is_up(this->sc_alias_fixed);
 		/** up -> down */
 		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
-			oryx_logn("%s is down", this->sc_alias);
+			oryx_logn("%s is down", iface_alias(this));
 			this->ul_up_down_times ++;
 			this->ul_flags |= NETDEV_POLL_UP;
 		}
 		/** down -> up */
-		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1)
-			oryx_logn("%s is up", this->sc_alias);
+		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) {
+			oryx_logn("%s is up", iface_alias(this));
+		}
 		switch(rv) {
 			case 0:
 				this->ul_flags &= ~NETDEV_ADMIN_UP;
@@ -423,20 +439,18 @@ int iface_poll_linkstate(struct iface_t *this)
 				this->ul_flags |= NETDEV_ADMIN_UP;
 				break;
 			default:
-				oryx_logn("%s error", this->sc_alias);
+				oryx_logn("%s error", iface_alias(this));
 				break;
 		}
-	}
-
-	if (this->type == ETH_XE) {
-		rv = netdev_is_up(this->sc_alias_fixed);
-		/** up -> down */
-		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
-			oryx_logn("%s is down", this->sc_alias);
+	} else {
+		rv = dpdk_iface_is_up(this->ul_id);
+		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) { /** up -> down */
+			this->ul_up_down_times ++;
+			oryx_logn("%s is down", iface_alias(this));
 		}
-		/** down -> up */
-		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1)
-			oryx_logn("%s is up", this->sc_alias);
+		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) { /** down -> up */
+			oryx_logn("%s is up", iface_alias(this));
+		}
 		switch(rv) {
 			case 0:
 				this->ul_flags &= ~NETDEV_ADMIN_UP;
@@ -445,7 +459,7 @@ int iface_poll_linkstate(struct iface_t *this)
 				this->ul_flags |= NETDEV_ADMIN_UP;
 				break;
 			default:
-				oryx_logn("%s error", this->sc_alias);
+				oryx_logn("%s error", iface_alias(this));
 				break;
 		}
 	}
@@ -455,7 +469,10 @@ int iface_poll_linkstate(struct iface_t *this)
 
 int iface_poll_up(struct iface_t *this)
 {
-	return netdev_up(this->sc_alias_fixed);
+	if (this->type == ETH_GE)
+		return netdev_up(this->sc_alias_fixed);
+	else
+		return rte_eth_dev_set_link_up(this->ul_id);
 }
 
 static struct iface_t iface_list[] = {
@@ -464,7 +481,7 @@ static struct iface_t iface_list[] = {
 		"enp5s0f1",
 		ETH_XE,
 		NETDEV_MARVELL_DSA,
-		NULL,
+		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
@@ -480,7 +497,7 @@ static struct iface_t iface_list[] = {
 		"enp5s0f2",
 		ETH_XE,
 		NETDEV_PANEL,
-		NULL,
+		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
@@ -496,7 +513,7 @@ static struct iface_t iface_list[] = {
 		"enp5s0f3",
 		ETH_XE,
 		NETDEV_PANEL,
-		NULL,
+		iface_poll_linkstate,
 		iface_poll_up,
 		-1,
 		" ",
@@ -643,8 +660,8 @@ void register_ports(void)
 	int i;
 	struct iface_t *new;
 	struct iface_t *this;
-	vlib_port_main_t *vp = &vlib_port_main;
-	int n_ports_now = vec_count(vp->entry_vec);
+	vlib_port_main_t *pm = &vlib_port_main;
+	int n_ports_now = vec_count(pm->entry_vec);
 
 	/** SW<->CPU ports, only one. */
 	for (i = 0; i < (int)DIM(iface_list); i ++) {
@@ -670,10 +687,10 @@ void register_ports(void)
 			new->if_poll_up = this->if_poll_up;
 			new->ul_id = n_ports_now + i;
 			new->ul_flags = this->ul_flags;
-			if (!iface_add(vp, new))
-				oryx_logn("registering interface %s ... success", new->sc_alias);
+			if (!iface_add(pm, new))
+				oryx_logn("registering interface %s ... success", iface_alias(new));
 			else
-				oryx_loge(-1, "registering interface %s ... error", new->sc_alias);
+				oryx_loge(-1, "registering interface %s ... error", iface_alias(new));
 		}
 	}
 }
@@ -683,13 +700,12 @@ static __oryx_always_inline__
 void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
-	vlib_port_main_t *vp = &vlib_port_main;	
+	vlib_port_main_t *pm = &vlib_port_main;	
 	int foreach_element;
 	struct iface_t *this;
 
-	vec_foreach_element(vp->entry_vec, foreach_element, this){
+	vec_foreach_element(pm->entry_vec, foreach_element, this) {
 		if (likely(this)) {
-			
 			/** check linkstate. */
 			if (this->if_poll_state)
 				this->if_poll_state(this);
@@ -710,14 +726,14 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 
 void port_init(vlib_main_t *vm)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
-	vp->link_detect_tmr_interval = 3;
-	vp->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	pm->link_detect_tmr_interval = 3;
+	pm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			port_hval, port_cmp, port_free, 0);
-	vp->entry_vec = vec_init (MAX_PORTS);
+	pm->entry_vec = vec_init (MAX_PORTS);
 	
-	if (vp->htable == NULL || vp->entry_vec == NULL) {
+	if (pm->htable == NULL || pm->entry_vec == NULL) {
 		printf ("vlib port main init error!\n");
 		exit(0);
 	}
@@ -731,15 +747,15 @@ void port_init(vlib_main_t *vm)
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
-	vp->link_detect_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
+	pm->link_detect_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
 							ul_activity_tmr_setting_flags,
 							port_activity_prob_tmr_handler,
-							0, NULL, vp->link_detect_tmr_interval);
+							0, NULL, pm->link_detect_tmr_interval);
 
 	register_ports();
 
-	if(likely(vp->link_detect_tmr))
-		oryx_tmr_start(vp->link_detect_tmr);
+	if(likely(pm->link_detect_tmr))
+		oryx_tmr_start(pm->link_detect_tmr);
 
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }

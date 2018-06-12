@@ -57,8 +57,8 @@ static int dp_dpdk_check_port(struct vlib_main_t *vm)
 {
 	u8 portid;
 	struct iface_t *this;
-	vlib_port_main_t *vp = &vlib_port_main;
-	int n_ports_now = vec_count(vp->entry_vec);
+	vlib_port_main_t *pm = &vlib_port_main;
+	int n_ports_now = vec_count(pm->entry_vec);
 
 	if(!(vm->ul_flags & VLIB_PORT_INITIALIZED)) {
 		oryx_panic(-1, "Run port initialization first.");
@@ -66,7 +66,7 @@ static int dp_dpdk_check_port(struct vlib_main_t *vm)
 	
 	/* register to vlib_port_main. */
 	for (portid = 0; portid < vm->nb_dpdk_ports; portid ++) {
-		iface_lookup_id(vp, portid, &this);
+		iface_lookup_id(pm, portid, &this);
 		if(!this) {
 			oryx_panic(-1, "no such ethdev.");
 		}

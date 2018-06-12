@@ -2,7 +2,7 @@
 #define MAP_PRIVATE_H
 
 #define MAP_PREFIX	"map"
-#define MAX_MAPS (1 << 2)
+#define MAX_MAPS 	(32)	/** a uint32_t per bit value. */
 
 /** 
 	Make signature id (outer). 
@@ -49,12 +49,6 @@ enum {
 	MPM_TABLES,
 };
 
-enum {
-	ACL_TABLE0,
-	ACL_TABLE1,
-	ACL_TABLES,
-};
-
 /** Dataplane traffic output. */
 struct traffic_dpo_t {
 	u8 uc_mode;
@@ -92,15 +86,16 @@ struct map_t {
 													of prioritizing their rules.*/
 	uint32_t		tx_panel_port_mask;			/** The same with this.rx_panel_port_mask. */
 
-	void			*acl_config_ctx[ACL_TABLES];
-
+	uint32_t		online_tx_panel_ports[MAX_PORTS];
+	uint32_t		nb_online_tx_panel_ports;
+	
 	struct list_head	prio_node;
 
 #define MAP_DEFAULT				(1 << 0)		/** Default map can not be removed. */
 #define MAP_TRAFFIC_TRANSPARENT	(1 << 1)		/** Transparent, default setting for a map.
 												 * When a map created, traffic will be transparent bettwen its "from" and "to" port,
 												 * no matter whether there are passed applications, udps or not. */
-#define MAP_HASH_5TUPLE			(1 << 2)
+#define MAP_INTELLIGENT_LB		(1 << 2)
 	uint32_t		ul_flags;
 	uint64_t		ull_create_time;			/** Create time. */
 	
@@ -108,6 +103,13 @@ struct map_t {
 #define map_id(map) ((map)->ul_id)
 #define map_alias(map) ((map)->sc_alias)
 
+#define map_rx_has_iface(map,iface)\
+	((map)->rx_panel_port_mask & (1 << iface_id((iface))))
+#define map_tx_has_iface(map,iface)\
+	((map)->tx_panel_port_mask & (1 << iface_id((iface))))
+
+
+#define VLIB_MM_XXXXXXXXXX		(1 << 0)
 typedef struct {
 	uint32_t				ul_flags;
 	uint32_t				nb_acl_rules;
@@ -117,7 +119,7 @@ typedef struct {
 	volatile uint32_t		vector_runtime;
 	volatile oryx_vector	map_curr_table;
 	oryx_vector				entry_vec[VECTOR_TABLES];
-	//oryx_vector				entry_vec;
+	struct oryx_timer_t		*online_port_update_tmr;
 	struct oryx_htable_t	*htable;	
 	struct map_t			*lowest_map;	/** fast tracinging. unused actually. */
 	struct map_t			*highest_map;
@@ -143,12 +145,15 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 static __oryx_always_inline__
 void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
 {
+#if defined(BUILD_DEBUG)
 	BUG_ON(mm->map_curr_table == NULL);
+#endif
 
 	if (!vec_active(mm->map_curr_table) || 
 		(id > vec_active(mm->map_curr_table)))
 		return;
 
+	(*m) = NULL;
 	(*m) = vec_lookup (mm->map_curr_table, id);
 }
 

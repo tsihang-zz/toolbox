@@ -43,15 +43,15 @@ struct iface_counter_ctx {
 	counter_id lcore_counter_bytes[QUA_RXTX][MAX_LCORES];
 };
 
-#define NETDEV_ADMIN_UP           (1 << 0)	/** 0-down, 1-up */
-#define NETDEV_PROMISC            (1 << 1)
-#define	NETDEV_DUPLEX_FULL		  (1 << 2)	/** 0-half, 1-full */
-#define NETDEV_PMD                (1 << 3)
-#define	NETDEV_LOOPBACK	  		  (1 << 4)
-#define NETDEV_POLL_UP			  (1 << 5)	/** poll this port up. */
-#define NETDEV_MARVELL_DSA		  (1 << 6)	/** marvell dsa frame. */
-#define NETDEV_PANEL			  (1 << 7)	/** is a panel port or not. 
-											  cpu <-> sw */
+#define NETDEV_ADMIN_UP							(1 << 0)	/** 0-down, 1-up */
+#define NETDEV_PROMISC							(1 << 1)
+#define	NETDEV_DUPLEX_FULL						(1 << 2)	/** 0-half, 1-full */
+#define	NETDEV_LOOPBACK							(1 << 3)
+#define NETDEV_POLL_UP							(1 << 4)	/** poll this port up. */
+#define NETDEV_MARVELL_DSA						(1 << 5)	/** marvell dsa frame. */
+#define NETDEV_PANEL							(1 << 6)	/** is a panel port or not.
+															 *  cpu <-> sw */
+
 struct iface_t {
 	const char				*sc_alias_fixed; 	/** fixed alias used to do linkstate poll,
 								 			  	 *  and can not be overwrite by CLI. */
@@ -84,37 +84,33 @@ struct iface_t {
 #define iface_counters_set(p,id,x)\
 	oryx_counter_set(iface_perf((p)),(id),(x));
 
+#define VLIB_PM_LINK_TRANSITION_DETECTED			(1 << 0)
 typedef struct vlib_port_main {
-	/* dpdk_ports + sw_ports */
-	int ul_n_ports;
-	u32 ul_flags;
-	struct oryx_timer_t *link_detect_tmr;
-	u32 link_detect_tmr_interval;
-	u32 poll_interval;
-
-	os_lock_t lock;
-	oryx_vector entry_vec;
-	struct oryx_htable_t *htable;
-
-	/** enp5s0f1 must be up first before lan1-lan8 up. */
-	int enp5s0f1_is_up;
+	int						ul_n_ports;	/* dpdk_ports + sw_ports */
+	uint32_t				ul_flags;
+	struct oryx_timer_t		*link_detect_tmr;
+	u32						link_detect_tmr_interval;
+	u32						poll_interval;
+	os_lock_t				lock;
+	oryx_vector				entry_vec;
+	struct oryx_htable_t	*htable;
 	
 }vlib_port_main_t;
 
 extern vlib_port_main_t vlib_port_main;
 
 static __oryx_always_inline__
-int iface_lookup_id(vlib_port_main_t *vp,
+int iface_lookup_id(vlib_port_main_t *pm,
 				u32 id, struct iface_t **this)
 {
-	BUG_ON(vp->entry_vec == NULL);
+	BUG_ON(pm->entry_vec == NULL);
 	
-	if (!vec_active(vp->entry_vec) ||
-		id > vec_active(vp->entry_vec))
+	if (!vec_active(pm->entry_vec) ||
+		id > vec_active(pm->entry_vec))
 		return 0;
 	
 	(*this) = NULL;
-	(*this) = (struct iface_t *) vec_lookup (vp->entry_vec, id);
+	(*this) = (struct iface_t *) vec_lookup (pm->entry_vec, id);
 
 #if defined(BUILD_DEBUG)
 	BUG_ON((*this) == NULL || (*this->ul_id) != id);
@@ -123,11 +119,11 @@ int iface_lookup_id(vlib_port_main_t *vp,
 }
 
 static __oryx_always_inline__
-int iface_lookup_alias(vlib_port_main_t *vp,
+int iface_lookup_alias(vlib_port_main_t *pm,
 				const char *alias, struct iface_t **this)
 {
 	(*this) = NULL;
-	void *s = oryx_htable_lookup(vp->htable, (ht_value_t)alias,
+	void *s = oryx_htable_lookup(pm->htable, (ht_value_t)alias,
 									strlen((const char *)alias));			
 	if (likely (s)) {
 		(*this) = (struct iface_t *) container_of (s, struct iface_t, sc_alias);
@@ -140,17 +136,17 @@ static __oryx_always_inline__
 void iface_table_entry_lookup (struct prefix_t *lp, 
 				struct iface_t **p)
 {
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
 	ASSERT (lp);
 	ASSERT (p);
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			iface_lookup_id(vp, (*(u32*)lp->v), p);
+			iface_lookup_id(pm, (*(u32*)lp->v), p);
 			break;
 		case LOOKUP_ALIAS:
-			iface_lookup_alias(vp, (const char*)lp->v, p);
+			iface_lookup_alias(pm, (const char*)lp->v, p);
 			break;
 		default:
 			break;
@@ -158,11 +154,11 @@ void iface_table_entry_lookup (struct prefix_t *lp,
 }
 
 void iface_alloc (struct iface_t **);
-int iface_rename(vlib_port_main_t *vp, 
+int iface_rename(vlib_port_main_t *pm, 
 				struct iface_t *this, const char *new_name);
-int iface_add(vlib_port_main_t *vp, struct iface_t *this);
+int iface_add(vlib_port_main_t *pm, struct iface_t *this);
 
-int iface_del(vlib_port_main_t *vp, struct iface_t *this);
+int iface_del(vlib_port_main_t *pm, struct iface_t *this);
 
 
 #endif

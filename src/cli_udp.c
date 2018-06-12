@@ -119,6 +119,13 @@ struct pattern_t *udp_entry_pattern_lookup (struct udp_t *udp, char *pattern, si
 
 struct pattern_t *udp_entry_pattern_lookup_id (struct udp_t *udp, u32 id)
 {
+	BUG_ON(udp == NULL);
+	BUG_ON(udp->patterns == NULL);
+	
+	if (!vec_active(udp->patterns) ||
+		id > vec_active(udp->patterns))
+		return 0;
+
 	return vec_lookup (udp->patterns, id);
 }
 
@@ -403,6 +410,12 @@ struct udp_t *udp_entry_lookup (char *alias)
 struct udp_t *udp_entry_lookup_id (u32 id)
 {
 	vlib_udp_main_t *vp = &vlib_udp_main;
+
+	BUG_ON(vp->entry_vec == NULL);
+	
+	if (!vec_active(vp->entry_vec) ||
+		id > vec_active(vp->entry_vec))
+		return 0;
 
 	return (struct udp_t *) vec_lookup (vp->entry_vec, id);;
 }

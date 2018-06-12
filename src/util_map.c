@@ -55,10 +55,13 @@ int map_entry_add_appl (struct appl_t *appl, struct map_t *map ,
 			action.act &= ~CRITERIA_FLAGS_PASS;
 			action.act |= CRITERIA_FLAGS_DROP;
 		}
-		if(!rule_download_engine(map, appl)) {
-			oryx_logn ("installing ... %s  done!", appl_alias(appl));		
-			appl->ul_map_mask |= (1 << map_id(map));
-			return 0;
+		
+		if(rule_download_engine) {
+			if(!rule_download_engine(map, appl)) {
+				oryx_logn ("installing ... %s  done!", appl_alias(appl));		
+				appl->ul_map_mask |= (1 << map_id(map));
+				return 0;
+			}
 		}
 	}
 
@@ -141,40 +144,9 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 	return 0;
 }
 
-#if 0
-int em_download_appl(struct map_t *map, struct appl_t *appl) {
-	vlib_map_main_t *mm = &vlib_map_main;
-	/** upload this appl to */
-	struct em_route entry;
-	int hv = 0;
-	struct appl_signature_t *sig = appl->instance;
-	
-	memset(&entry, 0, sizeof(entry));
-	entry.u.k4.ip_src = ntoh32(sig->ip4[HD_SRC].prefix.s_addr);
-	entry.u.k4.ip_dst = ntoh32(sig->ip4[HD_DST].prefix.s_addr);
-	entry.u.k4.port_src = sig->port_start[HD_SRC];
-	entry.u.k4.port_dst = sig->port_start[HD_DST];
-	entry.u.k4.proto = sig->ip_next_proto;
-	entry.id = map_id(map);
-
-	hv = em_add_hash_key(&entry);
-	if(hv < 0) {
-		oryx_loge(-1,
-			"(%d) add hash key error", hv);
-		return -1;
-	} else {
-		//em_map_hash_key(hv, map);
-		/** [key && map ]*/
-		oryx_logn("(%d) add hash key ... %08x %08x %5d %5d %02x", hv,
-			entry.u.k4.ip_src, entry.u.k4.ip_dst,
-			entry.u.k4.port_src, entry.u.k4.port_dst,
-			entry.u.k4.proto);
-		return 0;
-	}
-}
-#endif
-
 int acl_remove_appl(struct map_t *map, struct appl_t *appl) {
+	vlib_map_main_t *mm = &vlib_map_main;
+	mm->nb_acl_rules --;	
 	return 0;
 }
 
@@ -199,7 +171,8 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 	entry.ip_next_proto_mask		= (sig->ip_next_proto_mask == ANY_PROTO)	? 0xFF : sig->ip_next_proto_mask;
 	entry.id						= map_id(map);
 
-	hv = acl_add_entry(&entry);
+
+	hv = acl_add_entries(&entry, 1);
 	if(hv < 0) {
 		oryx_loge(-1,
 			"(%d) add acl error", hv);

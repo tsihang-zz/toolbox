@@ -755,9 +755,9 @@ static uint16_t cb_parse_ptype0(uint8_t port __rte_unused, uint16_t queue __rte_
 	unsigned i;
 	struct lcore_conf *lconf = (struct lcore_conf*)user_param;
 	struct iface_t *iface;
-	vlib_port_main_t *vp = &vlib_port_main;
+	vlib_port_main_t *pm = &vlib_port_main;
 
-	iface_lookup_id(vp, port, &iface);
+	iface_lookup_id(pm, port, &iface);
 
 #if defined(BUILD_DEBUG)
 	BUG_ON(iface == NULL);

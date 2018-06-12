@@ -155,7 +155,7 @@ void appl_entry_new (struct appl_t **appl,
 	as->l4_port_dst_mask = ANY_PORT;
 }
 
-int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
+int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 {
 	if (!appl ||
 		(appl && 
@@ -167,12 +167,12 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 		return 0;
 	}
 	
-	do_lock (&vp->lock);
-	int r = oryx_htable_del(vp->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
+	do_lock (&am->lock);
+	int r = oryx_htable_del(am->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
-		vec_unset (vp->entry_vec, appl_id(appl));
+		vec_unset (am->entry_vec, appl_id(appl));
 	}
-	do_unlock (&vp->lock);
+	do_unlock (&am->lock);
 	/** Should you free appl here ? */
 
 	kfree (appl->instance);
@@ -181,20 +181,20 @@ int appl_entry_del (vlib_appl_main_t *vp, struct appl_t *appl)
 	return 0;  
 }
 
-int appl_entry_add (vlib_appl_main_t *vp, struct appl_t *appl)
+int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 {
 	BUG_ON(appl_id(appl) != APPL_INVALID_ID);
 
-	do_lock (&vp->lock);
+	do_lock (&am->lock);
 	
 	/** Add appl_alias(appl) to hash table for controlplane fast lookup */
-	int r = oryx_htable_add(vp->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
+	int r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success*/) {
 		/** Add appl to a oryx_vector table for dataplane fast lookup. */
-		appl_id(appl) = vec_set (vp->entry_vec, appl);
+		appl_id(appl) = vec_set (am->entry_vec, appl);
 	}
 
-	do_unlock (&vp->lock);
+	do_unlock (&am->lock);
 	return r;
 }
 

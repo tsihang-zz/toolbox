@@ -265,7 +265,7 @@ extern atomic_t n_application_elements;
 				}
 
 
-#define foreach_application_func1_param0(argv_x, func)\
+#define foreach_application_func1_param0(unused_argv, func)\
 		int foreach_element;\
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\
@@ -277,7 +277,7 @@ extern atomic_t n_application_elements;
 			}\
 		}
 	
-#define foreach_application_func1_param1(argv_x, func, param0)\
+#define foreach_application_func1_param1(unused_argv, func, param0)\
 		int foreach_element;\
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\

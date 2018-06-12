@@ -138,6 +138,8 @@ RTE_ACL_RULE_DEF(acl4_rule, RTE_DIM(ipv4_defs));
 
 
 int dim = RTE_DIM(ipv4_defs);
+int total_num = 0;
+struct acl_config_t *g_runtime_acl_config;
 
 /*
  * Initialize Access Control List (acl) parameters.
@@ -167,7 +169,11 @@ void classify_setup_acl(const int socketid)
 		rte_exit(EXIT_FAILURE,
 			"Failed to setup classify method for  ACL context\n");
 	
-	acl_config.acx_ipv4[socketid] = context;
+	acl_config[ACL_TABLE0].acx_ipv4[socketid] = context;
+	acl_config[ACL_TABLE0].ud_lookup_vector = vec_init(1);
+	BUG_ON(acl_config[ACL_TABLE0].ud_lookup_vector == NULL);
+
+	g_runtime_acl_config = &acl_config[ACL_TABLE0];
 }
 
 #define uint32_t_to_char(ip, a, b, c, d) do {\
@@ -217,14 +223,13 @@ dump_ipv4_rules(struct acl4_rule *rule, int num, int extra)
 	}
 }
 
-int total_num = 0;
-
 static __oryx_always_inline__
 void convert_acl(struct     acl_route *ar,
 		struct rte_acl_rule *v)
 {
-	struct ipv4_5tuple *k = &ar->u.k4;
-	
+	struct ipv4_5tuple *k;
+	k = &ar->u.k4;
+
 	v->field[PROTO_FIELD_IPV4].value.u8 = k->proto;
 	v->field[PROTO_FIELD_IPV4].mask_range.u8 = ar->ip_next_proto_mask;
 
@@ -240,37 +245,19 @@ void convert_acl(struct     acl_route *ar,
 	v->field[DSTP_FIELD_IPV4].value.u16 = k->port_dst;
 	v->field[DSTP_FIELD_IPV4].mask_range.u16 = ar->port_dst_mask;
 
-	v->data.userdata = (ar->id + VALID_MAP_ID_START);
-
+	//v->data.userdata = __PACK_USERDATA(ar->id);
+	acl_set_userdata(v, ar);
 	v->data.priority = RTE_ACL_MAX_PRIORITY - total_num;
 	v->data.category_mask = -1;
 	total_num ++;
-
 }
 
-int acl_add_entry(struct acl_route *entry)
+int acl_build_entries(struct rte_acl_rule *acl_base)
 {
-	int ret = 0;
-	unsigned int acl_num = 1;
+	int ret;
 	int socketid = 0;
 	struct rte_acl_config acl_build_param;
-	struct rte_acl_ctx *context = acl_config.acx_ipv4[socketid];
-	struct rte_acl_rule *acl_base;
-	
-	acl_base = calloc(1, sizeof(struct acl4_rule));
-	if (!acl_base) {
-		return -1;
-	}
-	
-	memset (acl_base, 0, sizeof(struct rte_acl_rule));
-
-	convert_acl(entry, acl_base);
-
-	oryx_logn("IPv4 Route entries %u:", 1);
-	dump_ipv4_rules((struct acl4_rule *)acl_base, 1, 1);
-
-	if (rte_acl_add_rules(context, acl_base, acl_num) < 0)
-		rte_exit(EXIT_FAILURE, "add rules failed\n");
+	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid]; //acl_config.acx_ipv4[socketid];
 
 	/* Perform builds */
 	memset(&acl_build_param, 0, sizeof(acl_build_param));
@@ -279,11 +266,50 @@ int acl_add_entry(struct acl_route *entry)
 	acl_build_param.num_fields = dim;
 	memcpy(&acl_build_param.defs, ipv4_defs, sizeof(ipv4_defs));
 
-	if (rte_acl_build(context, &acl_build_param) != 0)
-		rte_exit(EXIT_FAILURE, "Failed to build ACL trie\n");
-
+	ret = rte_acl_build(context, &acl_build_param);
+	if (ret != 0) {
+		oryx_loge(ret, "Failed to build ACL trie\n");
+	}
 	rte_acl_dump(context);
+	
+	return ret;
+}
 
+int acl_add_entries(struct acl_route *entries, int num)
+{
+	int ret = 0;
+	uint8_t *acl_rules;
+	int acl_num = num;
+	int socketid = 0;
+	int i;
+	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid]; //acl_config.acx_ipv4[socketid];
+	struct rte_acl_rule *acl_base, *next;
+	
+	acl_rules = calloc(acl_num, sizeof(struct acl4_rule));
+	if (!acl_rules) {
+		return -1;
+	}
+	memset (acl_rules, 0, sizeof(struct acl4_rule) * acl_num);
+
+	for (i = 0; i < acl_num; i ++) {
+		next = (struct rte_acl_rule *)(acl_rules +
+				i * sizeof(struct acl4_rule));
+		convert_acl(entries, next);
+	}
+
+	acl_base = (struct rte_acl_rule *)acl_rules;
+	oryx_logn("IPv4 Route entries %u:", acl_num);
+	dump_ipv4_rules((struct acl4_rule *)acl_base, acl_num, 1);
+	
+	ret = rte_acl_add_rules(context, acl_base, acl_num);
+	if (ret < 0) {
+		oryx_loge(ret, "add rules failed\n");
+		goto finish;
+	}
+
+	acl_build_entries(acl_base);
+
+finish:
 	free (acl_base);
 	
 	return ret;
