@@ -88,65 +88,69 @@ int prefix2str_(const struct prefix *p, char *str, int size)
 /** if a null appl specified, appl_entry_output display all */
 static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 {
-
-	if (!appl) {
+	if (!appl || !(appl->ul_flags & APPL_VALID)) {
 		return -1;
 	}
 
-	struct appl_signature_t *as;
 	struct prefix *p;
 	u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
 	u8 port_buf[SRC_DST][16];
 	u8 proto_buf[32];
 	struct prefix_ipv4 ip4;
 	
-	as = appl->instance;
-	if (!as) return 0;
-
 	char tmstr[100];
 	tm_format (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
-	if(as->ip_src_mask == ANY_IPADDR) {
+	if(appl->ip_src_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
 	} else {
 		ip4.family = AF_INET;
-		ip4.prefixlen = as->ip_src_mask;
-		ip4.prefix.s_addr = hton32(as->ip_src);
+		ip4.prefixlen = appl->ip_src_mask;
+		ip4.prefix.s_addr = hton32(appl->ip_src);
 		p = (struct prefix *)&ip4;
 		prefix2str_ (p, (char *)&pfx_buf[HD_SRC][0], INET_ADDRSTRLEN);
 	}
 
-	if(as->ip_dst_mask == ANY_IPADDR) {
+	if(appl->ip_dst_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
 	} else {
 		ip4.family = AF_INET;
-		ip4.prefixlen = as->ip_dst_mask;
-		ip4.prefix.s_addr = hton32(as->ip_dst);
+		ip4.prefixlen = appl->ip_dst_mask;
+		ip4.prefix.s_addr = hton32(appl->ip_dst);
 		p = (struct prefix *)&ip4;
 		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
 	}
 
-	if(as->l4_port_src_mask == ANY_PORT) {
+	if(appl->l4_port_src_mask == ANY_PORT) {
 		sprintf ((char *)&port_buf[HD_SRC][0], "%s", "any");
 	} else {
-		sprintf ((char *)&port_buf[HD_SRC][0], "%d:%d", as->l4_port_src, as->l4_port_src_mask);
+		sprintf ((char *)&port_buf[HD_SRC][0], "%d:%d", appl->l4_port_src, appl->l4_port_src_mask);
 	}
 
-	if(as->l4_port_dst_mask == ANY_PORT) {
+	if(appl->l4_port_dst_mask == ANY_PORT) {
 		sprintf ((char *)&port_buf[HD_DST][0], "%s", "any");
 	} else {
-		sprintf ((char *)&port_buf[HD_DST][0], "%d:%d", as->l4_port_dst, as->l4_port_dst_mask);
+		sprintf ((char *)&port_buf[HD_DST][0], "%d:%d", appl->l4_port_dst, appl->l4_port_dst_mask);
 	}
 
-	if(as->ip_next_proto_mask == ANY_PROTO) {
+	if(appl->ip_next_proto_mask == ANY_PROTO) {
 		sprintf ((char *)&proto_buf[0], "%s", "any");
 	} else {
-		sprintf ((char *)&proto_buf[0], "%d:%d", as->ip_next_proto, as->ip_next_proto_mask);
+		sprintf ((char *)&proto_buf[0], "%d:%d", appl->ip_next_proto, appl->ip_next_proto_mask);
 	}
 	
-	vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%8s%23s%s", 
-		appl_alias(appl), appl_id(appl), pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
-		CLI_UNDEF_VAL, tmstr, VTY_NEWLINE);
+	vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%12s%08x%23s%s", 
+		appl_alias(appl),
+		appl_id(appl),
+		pfx_buf[HD_SRC],
+		pfx_buf[HD_DST],
+		port_buf[HD_SRC],
+		port_buf[HD_DST],
+		proto_buf, 
+		(appl->ul_flags & APPL_SYNCED) ? "synced" : "dis-synced",
+		appl->ul_map_mask,
+		tmstr,
+		VTY_NEWLINE);
 
 	return 0;
 }
@@ -169,8 +173,8 @@ DEFUN(show_application,
 	
 	/** display all stream applications. */
 	vty_out (vty, "Trying to display %d application elements ...%s", vec_active(am->entry_vec), VTY_NEWLINE);
-	vty_out (vty, "%24s%4s%20s%20s%10s%10s%10s%8s%23s%s", 
-		"ALIAS", "ID", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "CREAT-TIME", VTY_NEWLINE);
+	vty_out (vty, "%24s%4s%20s%20s%10s%10s%10s%12s%8s%23s%s", 
+		"ALIAS", "ID", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", VTY_NEWLINE);
 	
 	if (argc == 0){
 		foreach_application_func1_param1 (argv[0], 
@@ -235,8 +239,6 @@ DEFUN(new_application,
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
 		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
-		kfree (appl->instance);
-		kfree (appl);
 	}
 			
     return CMD_SUCCESS;
@@ -299,8 +301,6 @@ DEFUN(new_application1,
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
 		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
-		kfree (appl->instance);
-		kfree (appl);
 	}
 			
     return CMD_SUCCESS;

@@ -61,24 +61,6 @@ enum {
 	QUAS,
 };
 
-/** This also means the priotity.  */
-#define foreach_criteria\
-  _(DROP, 0, "Drop if hit.") \
-  _(PASS, 1, "Forward current frame to output path if hit.")\
-  _(TIMESTAMP, 2, "Enable or disable tag a frame with timestamp.")\
-  _(SLICING, 3, "Enable or disable frame slicing.")				\
-  _(DESENSITIZATION, 4, "Enable or disable packet desensitization.")	\
-  _(DEDUPLICATION, 5, "Enable or disable packet duplication checking.")\
-  _(RESV, 6, "Resv.")
-  
-
-enum criteria_flags_t {
-#define _(f,o,s) CRITERIA_FLAGS_##f = (1<<o),
-	foreach_criteria
-#undef _
-	CRITERIA_FLAGS,
-};
-
 struct stats_trunk_t {
 	u64 bytes;
 	u64 packets;
@@ -105,6 +87,7 @@ typedef struct vlib_main_t
 #define VLIB_UDP_INITIALIZED			(1 << 4)
 #define VLIB_APP_INITIALIZED			(1 << 5)
 #define VLIB_DP_INITIALIZED				(1 << 6)
+#define VLIB_DP_SYNC					(1 << 7)
 #define VLIB_QUIT						(1 << 31)
 	u32 ul_flags;
 

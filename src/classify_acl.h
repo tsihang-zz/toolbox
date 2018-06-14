@@ -1,6 +1,8 @@
 #ifndef CLASSIFY_ACL_H
 #define CLASSIFY_ACL_H
 
+#include "common_private.h"
+
 /** access control list */
 
 #define MAX_ACL_RULE_NUM	(1024)
@@ -18,7 +20,6 @@ struct acl_user_data_t {
 };
 
 struct acl_config_t{
-	char					mapped[NB_SOCKETS];
 	struct rte_acl_ctx		*acx_ipv4[NB_SOCKETS];
 	struct rte_acl_ctx		*acx_ipv6[NB_SOCKETS];
 
@@ -52,13 +53,13 @@ struct acl_route {
 	uint32_t ip_src_mask: 8;
 	uint32_t ip_dst_mask: 8;
 	uint32_t ip_next_proto_mask: 8;
-	uint32_t pad0: 7;
-	uint32_t actived: 1;	/** after acl build set actived to 1. */
+	uint32_t pad0: 8;
 	uint32_t port_src_mask: 16;
 	uint32_t port_dst_mask: 16;
+	uint32_t appid;
 
-	uint32_t id;/** map_mask is a traffic direction
-					which has a set of in_ports and out_ports. */
+	uint32_t map_mask;/** map_mask is a traffic direction
+						which has a set of in_ports and out_ports. */
 };
 
 #define OFF_ETHHEAD	(sizeof(struct ether_hdr))
@@ -87,7 +88,8 @@ struct acl_search_t {
 };
 
 extern void classify_setup_acl(const int socketid);
-extern int acl_add_entries(struct acl_route *entries, int num);
+extern int acl_add_entries(struct rte_acl_ctx *context,
+			struct acl_route *entries, int num);
 
 static __oryx_always_inline__
 void acl_set_userdata(struct rte_acl_rule *rar,
@@ -100,7 +102,7 @@ void acl_set_userdata(struct rte_acl_rule *rar,
 	BUG_ON(aud == NULL);
 
 	memset(aud, 0, sizeof(struct acl_user_data_t));
-	aud->ul_map_mask = ar->id;
+	aud->ul_map_mask = ar->appid;
 	userdata = vec_set(v, (void *)aud);
 	rar->data.userdata = __PACK_USERDATA(userdata);
 }

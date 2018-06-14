@@ -11,26 +11,22 @@ int appl_entry_format (struct appl_t *appl,
 	char __oryx_unused__*dp,
 	char __oryx_unused__*proto)
 {
-	struct appl_signature_t *as;
 	struct prefix_ipv4 ip4;
 	uint32_t val_start, val_end;
 
 	BUG_ON(appl == NULL);
 	
-	as = appl->instance;
-	BUG_ON(as == NULL);
-
 	if (vlan) {
 		/** default is ANY_VLAN */
 		if(!strncmp(vlan, "a", 1)) {
-			as->l2_vlan_id_mask = ANY_VLAN;
+			appl->l2_vlan_id_mask = ANY_VLAN;
 		} else {
 			if (isalldigit (vlan)) {
-				as->vlan_id = as->l2_vlan_id_mask = atoi (vlan);
+				appl->vlan_id = appl->l2_vlan_id_mask = atoi (vlan);
 			} else {
 				if(!format_range(vlan, 2048, 0, ':', &val_start, &val_end)) {
-					as->vlan_id = val_start;
-					as->l2_vlan_id_mask = val_end;
+					appl->vlan_id = val_start;
+					appl->l2_vlan_id_mask = val_end;
 				} else {
 					oryx_logn("range error \"%s\" %d %d", vlan, val_start, val_end);
 					return -1;
@@ -42,21 +38,21 @@ int appl_entry_format (struct appl_t *appl,
 	/**  */
 	if (sip) {
 		if(!strncmp(sip, "a", 1)) {
-			as->ip_src_mask = ANY_IPADDR;
+			appl->ip_src_mask = ANY_IPADDR;
 		}else {
 			str2prefix_ipv4 (sip, &ip4);
-			as->ip_src = ntoh32(ip4.prefix.s_addr);
-			as->ip_src_mask = ip4.prefixlen;
+			appl->ip_src = ntoh32(ip4.prefix.s_addr);
+			appl->ip_src_mask = ip4.prefixlen;
 		}
 	}
 	
 	if (dip) {
 		if(!strncmp(dip, "a", 1)) {
-			as->ip_dst_mask = ANY_IPADDR;
+			appl->ip_dst_mask = ANY_IPADDR;
 		}else {
 			str2prefix_ipv4 (dip, &ip4);
-			as->ip_dst = ntoh32(ip4.prefix.s_addr);
-			as->ip_dst_mask = ip4.prefixlen;
+			appl->ip_dst = ntoh32(ip4.prefix.s_addr);
+			appl->ip_dst_mask = ip4.prefixlen;
 		}
 	}
 
@@ -64,17 +60,17 @@ int appl_entry_format (struct appl_t *appl,
 	if (sp) {
 		/** default is ANY_PORT */
 		if (!strncmp(sp, "a", 1)) {
-			as->l4_port_src_mask = ANY_PORT; /** To avoid warnings. */
+			appl->l4_port_src_mask = ANY_PORT; /** To avoid warnings. */
 		} else {
 			/** single port */
 			if (isalldigit (sp)) {
-				as->l4_port_src = as->l4_port_src_mask = atoi (sp);
+				appl->l4_port_src = appl->l4_port_src_mask = atoi (sp);
 			}
 			/** range */
 			else {
 				if(!format_range(sp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
-					as->l4_port_src = val_start;
-					as->l4_port_src_mask = val_end;
+					appl->l4_port_src = val_start;
+					appl->l4_port_src_mask = val_end;
 				} else {
 					oryx_logn("range error \"%s\" %d %d", sp, val_start, val_end);
 					return -1;
@@ -86,15 +82,15 @@ int appl_entry_format (struct appl_t *appl,
 	if (dp) {
 		/** default is ANY_PORT */
 		if (!strncmp(dp, "a", 1)) {
-			as->l4_port_dst_mask = ANY_PORT;
+			appl->l4_port_dst_mask = ANY_PORT;
 		} else {
 			if (isalldigit (dp)) {
-				as->l4_port_dst = as->l4_port_dst_mask= atoi (dp);
+				appl->l4_port_dst = appl->l4_port_dst_mask= atoi (dp);
 			}
 			else {
 				if(!format_range(dp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
-					as->l4_port_dst = val_start;
-					as->l4_port_dst_mask = val_end;
+					appl->l4_port_dst = val_start;
+					appl->l4_port_dst_mask = val_end;
 				}else {
 					oryx_logn("range error \"%s\" %d %d", dp, val_start, val_end);
 					return -1;
@@ -107,15 +103,15 @@ int appl_entry_format (struct appl_t *appl,
 	if (proto) {
 		/** default is ANY_PROTO */
 		if (!strncmp(proto, "a", 1)) {
-			as->ip_next_proto_mask = ANY_PROTO;
+			appl->ip_next_proto_mask = ANY_PROTO;
 		} else {
 			if (isalldigit (proto)) {
-				as->ip_next_proto  = as->ip_next_proto_mask= atoi (proto);
+				appl->ip_next_proto  = appl->ip_next_proto_mask= atoi (proto);
 			}
 			else {
 				if(!format_range (proto, UINT8_MAX, 0, ':', &val_start, &val_end)) {
-					as->ip_next_proto = val_start;
-					as->ip_next_proto_mask = val_end;
+					appl->ip_next_proto = val_start;
+					appl->ip_next_proto_mask = val_end;
 				}else {
 					oryx_logn("range error \"%s\" %d %d", proto, val_start, val_end);
 					return -1;
@@ -138,21 +134,16 @@ void appl_entry_new (struct appl_t **appl,
 	sprintf ((char *)&(*appl)->sc_alias[0], "%s", ((alias != NULL) ? alias: APPL_PREFIX));
 	(*appl)->ul_type = APPL_TYPE_STREAM;
 	(*appl)->ul_id = APPL_INVALID_ID;
-	(*appl)->ul_flags = APPL_DEFAULT_ACTIONS;
 	(*appl)->ull_create_time = time(NULL);
-	
-	(*appl)->instance = kmalloc (sizeof (struct appl_signature_t), MPF_CLR, __oryx_unused_val__);
-	ASSERT ((*appl)->instance);
-	
-	struct appl_signature_t *as = (*appl)->instance;
-	as->vlan_id = 0;
-	as->l4_port_src = 0;
-	as->l4_port_dst = 0;
-	as->ip_next_proto = 0;
-	as->l2_vlan_id_mask = ANY_VLAN;
-	as->ip_next_proto_mask = ANY_PROTO;
-	as->l4_port_src_mask = ANY_PORT;
-	as->l4_port_dst_mask = ANY_PORT;
+	(*appl)->vlan_id = 0;
+	(*appl)->l4_port_src = 0;
+	(*appl)->l4_port_dst = 0;
+	(*appl)->ip_next_proto = 0;
+	(*appl)->l2_vlan_id_mask = ANY_VLAN;
+	(*appl)->ip_next_proto_mask = ANY_PROTO;
+	(*appl)->l4_port_src_mask = ANY_PORT;
+	(*appl)->l4_port_dst_mask = ANY_PORT;
+
 }
 
 int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
@@ -163,37 +154,55 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 		return 0;
 	}
 	
-	if (likely(THIS_ELEMENT_IS_INUNSE(appl))) {
-		return 0;
-	}
-	
 	do_lock (&am->lock);
-	int r = oryx_htable_del(am->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
+	int r = oryx_htable_del(am->htable,
+				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
-		vec_unset (am->entry_vec, appl_id(appl));
+		//vec_unset (am->entry_vec, appl_id(appl));
+		appl->ul_flags &= ~APPL_VALID;
 	}
 	do_unlock (&am->lock);
+	
 	/** Should you free appl here ? */
-
-	kfree (appl->instance);
-	kfree (appl);
+	appl->ul_flags &= ~APPL_VALID;
+	//kfree (appl);
 
 	return 0;  
 }
 
 int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 {
-	BUG_ON(appl_id(appl) != APPL_INVALID_ID);
-
 	do_lock (&am->lock);
 	
 	/** Add appl_alias(appl) to hash table for controlplane fast lookup */
 	int r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success*/) {
-		/** Add appl to a oryx_vector table for dataplane fast lookup. */
-		appl_id(appl) = vec_set (am->entry_vec, appl);
-	}
 
+		if(vec_active(am->entry_vec) == 0) {
+			appl->ul_flags |= APPL_VALID;
+			appl_id(appl) = vec_set (am->entry_vec, appl);
+		}
+		else {
+			int each;
+			struct appl_t *a = NULL;
+			vec_foreach_element(am->entry_vec, each, a) {
+				if (unlikely(!a))
+					continue;
+				if (!(a->ul_flags & APPL_VALID)) {
+					uint32_t id = appl_id(a);
+					memcpy (a, appl, sizeof(struct appl_t));
+					appl_id(a) = id;					
+					a->ul_flags |= APPL_VALID;
+					kfree(appl);
+					goto finish;
+				}
+			}
+			appl->ul_flags |= APPL_VALID;
+			appl_id(appl) = vec_set (am->entry_vec, appl);
+		}
+	}
+	
+finish:
 	do_unlock (&am->lock);
 	return r;
 }

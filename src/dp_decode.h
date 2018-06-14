@@ -622,4 +622,44 @@ void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 	}
 #endif
 
-#endif
+static __oryx_always_inline__
+const char *PrintInetIPv6(const void *src, char *dst, socklen_t size)
+{
+    int i;
+    char s_part[6];
+    uint16_t x[8];
+    memcpy(&x, src, 16);
+    /* current IPv6 format is fixed size */
+    if (size < 8 * 5) {
+        oryx_logn("Too small buffer to write IPv6 address");
+        return NULL;
+    }
+    memset(dst, 0, size);
+    for(i = 0; i < 8; i++) {
+        snprintf(s_part, sizeof(s_part), "%04x:", htons(x[i]));
+        strlcat(dst, s_part, size);
+    }
+    /* suppress last ':' */
+    dst[strlen(dst) - 1] = 0;
+
+    return dst;
+}
+
+static __oryx_always_inline__
+const char *PrintInet(int af, const void *src, char *dst, socklen_t size)
+{
+    switch (af) {
+        case AF_INET:
+            return inet_ntop(af, src, dst, size);
+        case AF_INET6:
+            /* Format IPv6 without deleting zeroes */
+            return PrintInetIPv6(src, dst, size);
+        default:
+            oryx_loge(-1, "Unsupported protocol: %d", af);
+    }
+    return NULL;
+}
+
+
+
+#endif

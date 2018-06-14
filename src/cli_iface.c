@@ -701,10 +701,10 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
 	vlib_port_main_t *pm = &vlib_port_main;	
-	int foreach_element;
+	int each;
 	struct iface_t *this;
 
-	vec_foreach_element(pm->entry_vec, foreach_element, this) {
+	vec_foreach_element(pm->entry_vec, each, this) {
 		if (likely(this)) {
 			/** check linkstate. */
 			if (this->if_poll_state)

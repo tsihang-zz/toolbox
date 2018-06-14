@@ -8,7 +8,7 @@ extern atomic_t n_map_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
@@ -16,7 +16,7 @@ extern atomic_t n_map_elements;
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v);\
 				atomic_inc(&n_map_elements);\
@@ -67,7 +67,7 @@ extern atomic_t n_map_elements;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
 						atomic_inc(&n_map_elements);\
@@ -85,7 +85,7 @@ extern atomic_t n_map_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
@@ -93,7 +93,7 @@ extern atomic_t n_map_elements;
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0);\
 				atomic_inc(&n_map_elements);\
@@ -144,7 +144,7 @@ extern atomic_t n_map_elements;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0);\
 						atomic_inc(&n_map_elements);\
@@ -163,7 +163,7 @@ extern atomic_t n_map_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
@@ -171,7 +171,7 @@ extern atomic_t n_map_elements;
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0, param_1);\
 				atomic_inc(&n_map_elements);\
@@ -222,7 +222,7 @@ extern atomic_t n_map_elements;
 				}\
 		lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
 						atomic_inc(&n_map_elements);\
@@ -236,13 +236,13 @@ extern atomic_t n_map_elements;
 }
 
 #define foreach_map_func1_param0(argv_x, func)\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\
-	vec_foreach_element(vec, foreach_element, v){\
+	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v);\
 			atomic_inc(&n_map_elements);\
@@ -250,13 +250,13 @@ extern atomic_t n_map_elements;
 	}
 
 #define foreach_map_func1_param1(argv_x, func, param0)\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_map_main.map_curr_table;\
 	u32 elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\
-	vec_foreach_element(vec, foreach_element, v){\
+	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v, param0);\
 			atomic_inc(&n_map_elements);\

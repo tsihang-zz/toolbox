@@ -78,7 +78,11 @@ int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	len = qconf->tx_mbufs[tx_port_id].len;
 	qconf->tx_mbufs[tx_port_id].m_table[len] = m;
 	len++;
-
+	
+#if defined(BUILD_DEBUG)
+	oryx_logn ("			buffering pkt %p (lcore %d) for tx_port_id %d",
+				m, tv->lcore, tx_port_id);
+#endif	
 	/* enough pkts to be sent */
 	if (likely(len == DPDK_MAX_TX_BURST)) {
 		send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
@@ -198,8 +202,8 @@ finish:
 }
 
 static __oryx_always_inline__
-void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
-		struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
+void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct iface_t *rx_iface, struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
 {
 	int i;
 
@@ -248,13 +252,13 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	 * src IP address and protocol.
 	 */
 	key.xmm = em_mask_key(ipv4h, mask0.x);
-	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
-	oryx_logn ("%16s%08x", "ip_src: ", ntoh32(key.ip_src));
-	oryx_logn ("%16s%08x", "ip_dst: ", ntoh32(key.ip_dst));
-	oryx_logn ("%16s%04d", "port_src: ", ntoh16(key.port_src));
-	oryx_logn ("%16s%04d", "port_dst: ", ntoh16(key.port_dst));
-	oryx_logn ("%16s%08d", "protocol: ", key.proto);
-	oryx_logn ("%16s%08d", "RSS: ", pkt->hash.rss);
+	oryx_logn ("%16s%08d", "packet_type: ",	pkt->packet_type);
+	oryx_logn ("%16s%08x", "ip_src: ",		ntoh32(key.ip_src));
+	oryx_logn ("%16s%08x", "ip_dst: ",		ntoh32(key.ip_dst));
+	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key.port_src));
+	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key.port_dst));
+	oryx_logn ("%16s%08d", "protocol: ",	key.proto);
+	oryx_logn ("%16s%08u", "RSS: ",			pkt->hash.rss);
 #endif
 
 	if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
@@ -276,8 +280,7 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 
 static __oryx_always_inline__
 void acl_prepare_acl_parameter(ThreadVars *tv, DecodeThreadVars *dtv,
-	struct rte_mbuf **pkts_in, struct acl_search_t *acl,
-	int nb_rx)
+	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int nb_rx)
 {
 	int i;
 
@@ -900,6 +903,8 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			prev_tsc = cur_tsc;
 		}
 
+		if(vm->ul_flags & VLIB_DP_SYNC)
+			continue;
 		/*
 		 * Read packet from RX queues
 		 */
@@ -911,22 +916,23 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			if (nb_rx == 0)
 				continue;
 
-#if defined(BUILD_DEBUG)
-			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d",
-				rx_port_id, rx_queue_id, tv->lcore);
-#endif
 			/** port ID -> iface */
 			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);			
 			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 
+#if defined(BUILD_DEBUG)
+			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d, rx_cpu_iface %p, iface_id %d",
+							rx_port_id, rx_queue_id, tv->lcore,
+							rx_cpu_iface, iface_id(rx_cpu_iface));
+#endif
+
 			struct acl_search_t acl_search;
 
-			acl_prepare_acl_parameter(tv, dtv, pkts_burst, &acl_search,
+			acl_prepare_acl_parameter(tv, dtv, rx_cpu_iface, pkts_burst, &acl_search,
 					nb_rx);
 			if (acl_search.num_ipv4) {
-				//if(mm->nb_acl_rules)
 				{
 					rte_acl_classify(
 						//acl_config.acx_ipv4[socketid],
@@ -945,7 +951,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			}
 
 			if (acl_search.num_ipv6) {
-				//if(mm->nb_acl_rules)
 				{
 					rte_acl_classify(
 						//acl_config.acx_ipv6[socketid],

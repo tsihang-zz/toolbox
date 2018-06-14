@@ -99,6 +99,7 @@ typedef struct vlib_port_main {
 
 extern vlib_port_main_t vlib_port_main;
 
+#if defined(BUILD_DEBUG)
 static __oryx_always_inline__
 int iface_lookup_id(vlib_port_main_t *pm,
 				u32 id, struct iface_t **this)
@@ -112,11 +113,13 @@ int iface_lookup_id(vlib_port_main_t *pm,
 	(*this) = NULL;
 	(*this) = (struct iface_t *) vec_lookup (pm->entry_vec, id);
 
-#if defined(BUILD_DEBUG)
-	BUG_ON((*this) == NULL || (*this->ul_id) != id);
-#endif
 	return 0;
 }
+#else
+#define iface_lookup_id(pm,id,iface)\
+	(*(iface)) = NULL;\
+	(*(iface)) = (struct iface_t *) vec_lookup ((pm)->entry_vec, (id));
+#endif
 
 static __oryx_always_inline__
 int iface_lookup_alias(vlib_port_main_t *pm,

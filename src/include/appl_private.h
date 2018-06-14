@@ -29,8 +29,23 @@ enum {
 #define ANY_PORT	(0)
 #define ANY_IPADDR	(0)
 
+/** flags for appl_t.ul_flags */
+#define	APPL_SYNCED	(1 << 0)
+#define APPL_VALID	(1 << 1)
+struct appl_t {
+	char				sc_alias[32];		/** Unique, and can be well human-readable. */
+	uint32_t			ul_id;				/** Unique, and can be allocated by a oryx_vector function automatically. */
+	uint32_t			ul_type;			/** We may define as many different applications as we want. */
+	uint32_t			ul_flags;			/** */
+	uint8_t				uc_keyword_encrypt[256];	/** RC4 encrypt keyword. */
+	char				*sc_keyword;		/** Keyword before enctypt. */
+	uint64_t			ull_create_time;
+	os_lock_t			ol_lock;
 
-struct appl_signature_t {
+	uint32_t			ul_map_mask;		/** map for this application belong to. */
+	uint32_t			ul_flags_for_each_map[32];	/** MAX_MAPS */
+
+
 	uint32_t			vlan_id	:				12;
 	uint32_t			l2_vlan_id_mask	:		12;
 	uint32_t			pad0 :					8;
@@ -45,30 +60,6 @@ struct appl_signature_t {
 	uint16_t			l4_port_src_mask;
 	uint16_t			l4_port_dst;		/** */
 	uint16_t			l4_port_dst_mask;	/** if l4_port_dst is */
-
-	//struct prefix_ipv4	ip4[SRC_DST]; 	/* ip address for this application. In big endian. */
-
-	
-}__attribute__((__packed__));
-
-/**
-  * Default application action.
-  */
-#define APPL_DEFAULT_ACTIONS	(0)
-
-struct appl_t {
-	char				sc_alias[32];		/** Unique, and can be well human-readable. */
-	uint32_t			ul_id;				/** Unique, and can be allocated by a oryx_vector function automatically. */
-	uint32_t			ul_type;			/** We may define as many different applications as we want. */
-	uint32_t			ul_flags;			/** Defined by cerital_action_type_t.
-	 										 * and default ACTIONS defined for an APPL is in APPL_DEFAULT_ACTIONS. */
-	uint8_t				uc_keyword_encrypt[256];	/** RC4 encrypt keyword. */
-	char				*sc_keyword;		/** Keyword before enctypt. */
-	uint64_t			ull_create_time;
-	os_lock_t			ol_lock;
-	void				*instance;			/** Application instance point to a TCAM entry or RFC entry. */
-
-	uint32_t			ul_map_mask;		/** map for this application belong to. */
 
 };
 

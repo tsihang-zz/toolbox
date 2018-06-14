@@ -382,7 +382,7 @@ int DecodeIPv4Options(Packet *p, uint8_t *pkt, uint16_t len, IPv4Options *opts)
     uint16_t plen = len;
 
 #if defined(BUILD_DEBUG)
-    if (SCLogDebugEnabled()) {
+    if (1) {
         uint16_t i;
         char buf[256] = "";
         int offset = 0;
@@ -651,7 +651,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     /* do hdr test, process hdr rules */
 
 #if defined(BUILD_DEBUG)
-    if (SCLogDebugEnabled()) { /* only convert the addresses if debug is really enabled */
+    if (1) { /* only convert the addresses if debug is really enabled */
         /* debug print */
         char s[16], d[16];
         PrintInet(AF_INET, (const void *)GET_IPV4_SRC_ADDR_PTR(p), s, sizeof(s));

@@ -10,13 +10,13 @@ extern atomic_t n_intf_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v);\
 				atomic_inc(&n_intf_elements);\
@@ -66,7 +66,7 @@ extern atomic_t n_intf_elements;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
 						atomic_inc(&n_intf_elements);\
@@ -85,13 +85,13 @@ extern atomic_t n_intf_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0);\
 				atomic_inc(&n_intf_elements);\
@@ -141,7 +141,7 @@ extern atomic_t n_intf_elements;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0);\
 						atomic_inc(&n_intf_elements);\
@@ -161,13 +161,13 @@ extern atomic_t n_intf_elements;
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
-		vec_foreach_element(vec, foreach_element, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0, param_1);\
 				atomic_inc(&n_intf_elements);\
@@ -217,7 +217,7 @@ extern atomic_t n_intf_elements;
 				}\
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
-				vec_foreach_element(vec, foreach_element, v){\
+				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
 						atomic_inc(&n_intf_elements);\
@@ -232,11 +232,11 @@ extern atomic_t n_intf_elements;
 }
 
 #define foreach_port_func1_param0(argv_x, func)\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
-	vec_foreach_element(vec, foreach_element, v){\
+	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v);\
 			atomic_inc(&n_intf_elements);\
@@ -244,11 +244,11 @@ extern atomic_t n_intf_elements;
 	}
 
 #define foreach_port_func1_param1(argv_x, func, param0)\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
-	vec_foreach_element(vec, foreach_element, v){\
+	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v, param0);\
 			atomic_inc(&n_intf_elements);\
@@ -256,11 +256,11 @@ extern atomic_t n_intf_elements;
 	}
 
 #define foreach_port_func0_param0_func1_param1(argv_x, func0, param0, func1, param1)\
-	int foreach_element;\
+	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
-	vec_foreach_element(vec, foreach_element, v){\
+	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v, param0);\
 			atomic_inc(&n_intf_elements);\

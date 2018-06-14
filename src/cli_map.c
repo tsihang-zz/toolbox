@@ -5,7 +5,6 @@
 
 #include "udp_private.h"
 #include "iface_private.h"
-#include "appl_private.h"
 #include "util_map.h"
 #include "dpdk_classify.h"
 #include "cli_iface.h"
@@ -330,7 +329,7 @@ DEFUN(new_map,
 
 DEFUN(map_application,
       map_application_cmd,
-      "map WORD (pass|drop) application WORD",
+      "map WORD (pass|mirror) application WORD",
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -346,14 +345,18 @@ DEFUN(map_application,
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
-
+#if 1
 	split_foreach_application_func1_param3 (argv[2],
 					map_entry_add_appl, map, argv[1], acl_download_appl);
-
+#else
+	split_foreach_application_func1_param3 (argv[2],
+					map_entry_add_appl, map, argv[1], NULL);
+#endif
 	PRINT_SUMMARY;
 	
     return CMD_SUCCESS;
 }
+
 
 DEFUN(no_map_applicatio,
       no_map_application_cmd,
@@ -550,17 +553,19 @@ lookup:
 	return CMD_SUCCESS;
 }
 
-static __oryx_always_inline__
-void map_dump_online_ports(struct map_t *m)
+DEFUN(sync_appl,
+	sync_appl_cmd,
+	"sync",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	int i;
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_main_t *vm = mm->vm;
 
-	printf("map %s %d online ports (mask %08x) IDs: ", map_alias(m), 
-							m->nb_online_tx_panel_ports, m->tx_panel_port_mask);
-	for (i = 0; i < (int)m->nb_online_tx_panel_ports; i ++) {
-		printf ("%d ", m->online_tx_panel_ports[i]);
-	}
-	printf("\n");
+	vm->ul_flags |= VLIB_DP_SYNC;
+	sync_acl();
+	vm->ul_flags &= ~VLIB_DP_SYNC;
+	
+	return CMD_SUCCESS;
 }
 
 static __oryx_always_inline__
@@ -593,17 +598,13 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 			if(map->tx_panel_port_mask & (1 << iface_id(iface))) {
 				if(iface->ul_flags & NETDEV_ADMIN_UP) {
 					tx_panel_ports[index ++] = iface_id(iface);					
-					printf (".");
 				}
 			}
 		}
-		printf ("\n");
-
 		map->nb_online_tx_panel_ports = index;
 		for (i = 0; i < MAX_PORTS; i ++) {
 			map->online_tx_panel_ports[i] = tx_panel_ports[i];
 		}
-		map_dump_online_ports(map);
 	}
 }
 
@@ -611,6 +612,8 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 void map_init(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
+
+	mm->vm = vm;
 	
 	mm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			map_hval, map_cmp, map_free, 0);
@@ -636,6 +639,7 @@ void map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &map_application_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_highest_lowest_cmd);
 	install_element (CONFIG_NODE, &map_adjusting_priority_cmd);
+	install_element (CONFIG_NODE, &sync_appl_cmd);
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 

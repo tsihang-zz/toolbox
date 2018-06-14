@@ -40,26 +40,25 @@ __oryx_always_extern__
 int map_entry_add_appl (struct appl_t *appl, struct map_t *map , 
 	const char *hit_action, int (*rule_download_engine)(struct map_t *, struct appl_t *))
 {
-	struct appl_signature_t *sig = appl->instance;	
-	action_t action = {
-		.act = 0,
+	egress_options eo = {
+		.act.v = ACT_DEFAULT,
 	};
 	
 	if (map_has_this_appl (map, appl))
 		return 0;
 	else {
+		/** parse application action when hit on dataplane. */
 		if(!strncmp(hit_action, "p", 1)) {
-			action.act |= CRITERIA_FLAGS_PASS;
+			eo.act.v &= ~ACT_DROP;
+			eo.act.v |= ACT_FWD;
 		}
-		if(!strncmp(hit_action, "d", 1)) {
-			action.act &= ~CRITERIA_FLAGS_PASS;
-			action.act |= CRITERIA_FLAGS_DROP;
-		}
+
+		appl->ul_flags_for_each_map[map_id(map)] = eo.data32;
+		appl->ul_map_mask |= (1 << map_id(map));
 		
 		if(rule_download_engine) {
 			if(!rule_download_engine(map, appl)) {
-				oryx_logn ("installing ... %s  done!", appl_alias(appl));		
-				appl->ul_map_mask |= (1 << map_id(map));
+				oryx_logn ("installing ... %s  done!", appl_alias(appl));
 				return 0;
 			}
 		}
@@ -146,52 +145,6 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 
 int acl_remove_appl(struct map_t *map, struct appl_t *appl) {
 	vlib_map_main_t *mm = &vlib_map_main;
-	mm->nb_acl_rules --;	
 	return 0;
-}
-
-int acl_download_appl(struct map_t *map, struct appl_t *appl) {
-	vlib_map_main_t *mm = &vlib_map_main;
-	/** upload this appl to */
-	struct acl_route entry;
-	int hv = 0;
-	struct appl_signature_t *sig = appl->instance;
-	
-	memset(&entry, 0, sizeof(entry));
-	entry.u.k4.ip_src				= sig->ip_src;
-	entry.u.k4.ip_dst				= sig->ip_dst;
-	entry.ip_src_mask				= sig->ip_src_mask;
-	entry.ip_dst_mask				= sig->ip_dst_mask;
-
-	entry.u.k4.port_src				= (sig->l4_port_src_mask == ANY_PORT)		? 1 : sig->l4_port_src;
-	entry.port_src_mask				= (sig->l4_port_src_mask == ANY_PORT)		? 0xFFFF : sig->l4_port_src_mask;
-	entry.u.k4.port_dst				= (sig->l4_port_dst_mask == ANY_PORT)		? 1 : sig->l4_port_dst;
-	entry.port_dst_mask				= (sig->l4_port_dst_mask == ANY_PORT) 		? 0xFFFF : sig->l4_port_dst_mask;
-	entry.u.k4.proto				= (sig->ip_next_proto_mask == ANY_PROTO)	? 1 : sig->ip_next_proto;
-	entry.ip_next_proto_mask		= (sig->ip_next_proto_mask == ANY_PROTO)	? 0xFF : sig->ip_next_proto_mask;
-	entry.id						= map_id(map);
-
-
-	hv = acl_add_entries(&entry, 1);
-	if(hv < 0) {
-		oryx_loge(-1,
-			"(%d) add acl error", hv);
-		return -1;
-	} else {
-		/** [key && map ]*/
-		oryx_logn("(%d) download ACL rule ... %08x/%d %08x/%d %5d:%5d %5d:%5d %02x:%02x", hv,
-			entry.u.k4.ip_src, entry.ip_src_mask,
-			entry.u.k4.ip_dst, entry.ip_dst_mask,
-			entry.u.k4.port_src, 
-			entry.port_src_mask,
-			entry.u.k4.port_dst,
-			entry.port_dst_mask,
-			entry.u.k4.proto,
-			entry.ip_next_proto_mask);
-
-		mm->nb_acl_rules ++;
-		
-		return 0;
-	}
 }
 

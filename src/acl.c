@@ -1,4 +1,8 @@
 #include "oryx.h"
+#include "common_private.h"
+#include "iface_private.h"
+#include "map_private.h"
+#include "appl_private.h"
 #include "dpdk_classify.h"
 
 #if !defined(HAVE_DPDK)
@@ -140,6 +144,7 @@ RTE_ACL_RULE_DEF(acl4_rule, RTE_DIM(ipv4_defs));
 int dim = RTE_DIM(ipv4_defs);
 int total_num = 0;
 struct acl_config_t *g_runtime_acl_config;
+int g_runtime_acl_config_qua = 0;
 
 /*
  * Initialize Access Control List (acl) parameters.
@@ -150,30 +155,34 @@ void classify_setup_acl(const int socketid)
 	struct rte_acl_param acl_param;
 	struct rte_acl_config acl_build_param;
 	struct rte_acl_ctx *context;
-	
-	/* Create ACL contexts */
-	snprintf(name, sizeof(name), "%s%d",
-			"classify ACL",
-			socketid);
+	int acl_table;
 
-	acl_param.name = name;
-	acl_param.socket_id = socketid;
-	acl_param.rule_size = RTE_ACL_RULE_SZ(dim);
-	acl_param.max_rule_num = MAX_ACL_RULE_NUM;
+	for (acl_table = 0; acl_table < ACL_TABLES; acl_table ++) {
+		/* Create ACL contexts */
+		snprintf(name, sizeof(name), "%s%d%d",
+				"classify ACL", acl_table, socketid);
 
-	if ((context = rte_acl_create(&acl_param)) == NULL)
-		rte_exit(EXIT_FAILURE, "Failed to create ACL context\n");
+		acl_param.name = name;
+		acl_param.socket_id = socketid;
+		acl_param.rule_size = RTE_ACL_RULE_SZ(dim);
+		acl_param.max_rule_num = MAX_ACL_RULE_NUM;
 
-	if (rte_acl_set_ctx_classify(context,
-			RTE_ACL_CLASSIFY_NEON) != 0)
-		rte_exit(EXIT_FAILURE,
-			"Failed to setup classify method for  ACL context\n");
-	
-	acl_config[ACL_TABLE0].acx_ipv4[socketid] = context;
-	acl_config[ACL_TABLE0].ud_lookup_vector = vec_init(1);
-	BUG_ON(acl_config[ACL_TABLE0].ud_lookup_vector == NULL);
+		if ((context = rte_acl_create(&acl_param)) == NULL)
+			rte_exit(EXIT_FAILURE, "Failed to create ACL context\n");
 
-	g_runtime_acl_config = &acl_config[ACL_TABLE0];
+		if (rte_acl_set_ctx_classify(context,
+				RTE_ACL_CLASSIFY_NEON) != 0)
+			rte_exit(EXIT_FAILURE,
+				"Failed to setup classify method for  ACL context\n");
+		
+		acl_config[acl_table].acx_ipv4[socketid] = context;
+		acl_config[acl_table].ud_lookup_vector = vec_init(1);
+		BUG_ON(acl_config[acl_table].ud_lookup_vector == NULL);
+		oryx_logn("acl_config_table(%d) %p", acl_table, &acl_config[acl_table]);
+	}
+
+	g_runtime_acl_config_qua = ACL_TABLE0;
+	g_runtime_acl_config = &acl_config[g_runtime_acl_config_qua];
 }
 
 #define uint32_t_to_char(ip, a, b, c, d) do {\
@@ -224,6 +233,24 @@ dump_ipv4_rules(struct acl4_rule *rule, int num, int extra)
 }
 
 static __oryx_always_inline__
+void appl2_ar(struct appl_t *appl, struct acl_route *ar)
+{
+	ar->u.k4.ip_src 			= appl->ip_src;
+	ar->u.k4.ip_dst 			= appl->ip_dst;
+	ar->ip_src_mask 			= appl->ip_src_mask;
+	ar->ip_dst_mask 			= appl->ip_dst_mask;
+	ar->u.k4.port_src			= (appl->l4_port_src_mask == ANY_PORT)		? 1 : appl->l4_port_src;
+	ar->port_src_mask			= (appl->l4_port_src_mask == ANY_PORT)		? 0xFFFF : appl->l4_port_src_mask;
+	ar->u.k4.port_dst			= (appl->l4_port_dst_mask == ANY_PORT)		? 1 : appl->l4_port_dst;
+	ar->port_dst_mask			= (appl->l4_port_dst_mask == ANY_PORT)		? 0xFFFF : appl->l4_port_dst_mask;
+	ar->u.k4.proto				= (appl->ip_next_proto_mask == ANY_PROTO)	? 1 : appl->ip_next_proto;
+	ar->ip_next_proto_mask		= (appl->ip_next_proto_mask == ANY_PROTO)	? 0xFF : appl->ip_next_proto_mask;
+	ar->map_mask				= appl->ul_map_mask;
+	ar->appid					= appl_id(appl);
+
+}
+
+static __oryx_always_inline__
 void convert_acl(struct     acl_route *ar,
 		struct rte_acl_rule *v)
 {
@@ -245,73 +272,167 @@ void convert_acl(struct     acl_route *ar,
 	v->field[DSTP_FIELD_IPV4].value.u16 = k->port_dst;
 	v->field[DSTP_FIELD_IPV4].mask_range.u16 = ar->port_dst_mask;
 
-	//v->data.userdata = __PACK_USERDATA(ar->id);
 	acl_set_userdata(v, ar);
-	v->data.priority = RTE_ACL_MAX_PRIORITY - total_num;
+	v->data.priority = RTE_ACL_MAX_PRIORITY - total_num ++;
 	v->data.category_mask = -1;
-	total_num ++;
 }
 
-int acl_build_entries(struct rte_acl_rule *acl_base)
+static int acl_build_entries(struct rte_acl_ctx *context,
+			struct rte_acl_rule *acl_base)
 {
-	int ret;
 	int socketid = 0;
 	struct rte_acl_config acl_build_param;
-	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid]; //acl_config.acx_ipv4[socketid];
 
 	/* Perform builds */
 	memset(&acl_build_param, 0, sizeof(acl_build_param));
-
 	acl_build_param.num_categories = DEFAULT_MAX_CATEGORIES;
 	acl_build_param.num_fields = dim;
-	memcpy(&acl_build_param.defs, ipv4_defs, sizeof(ipv4_defs));
+	memcpy(&acl_build_param.defs, ipv4_defs, sizeof(ipv4_defs));	
 
-	ret = rte_acl_build(context, &acl_build_param);
-	if (ret != 0) {
-		oryx_loge(ret, "Failed to build ACL trie\n");
-	}
-	rte_acl_dump(context);
-	
-	return ret;
+	return rte_acl_build(context, &acl_build_param);
 }
 
-int acl_add_entries(struct acl_route *entries, int num)
+int acl_add_entries(struct rte_acl_ctx *context,
+			struct acl_route *entries, int num)
 {
 	int ret = 0;
 	uint8_t *acl_rules;
 	int acl_num = num;
-	int socketid = 0;
 	int i;
-	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid]; //acl_config.acx_ipv4[socketid];
 	struct rte_acl_rule *acl_base, *next;
 	
 	acl_rules = calloc(acl_num, sizeof(struct acl4_rule));
 	if (!acl_rules) {
 		return -1;
 	}
+	
+	rte_acl_reset_rules(context);
+	
 	memset (acl_rules, 0, sizeof(struct acl4_rule) * acl_num);
 
 	for (i = 0; i < acl_num; i ++) {
 		next = (struct rte_acl_rule *)(acl_rules +
 				i * sizeof(struct acl4_rule));
-		convert_acl(entries, next);
+		convert_acl(&entries[i], next);
 	}
 
 	acl_base = (struct rte_acl_rule *)acl_rules;
-	oryx_logn("IPv4 Route entries %u:", acl_num);
-	dump_ipv4_rules((struct acl4_rule *)acl_base, acl_num, 1);
-	
+
 	ret = rte_acl_add_rules(context, acl_base, acl_num);
 	if (ret < 0) {
 		oryx_loge(ret, "add rules failed\n");
 		goto finish;
 	}
 
-	acl_build_entries(acl_base);
+	ret = acl_build_entries(context, acl_base);
+	if (ret != 0) {
+		oryx_loge(ret, "Failed to build ACL trie\n");
+		goto finish;
+	}
+	
+	oryx_logn("IPv4 Route entries %u:", acl_num);
+	dump_ipv4_rules((struct acl4_rule *)acl_base, acl_num, 1);
+	rte_acl_dump(context);
 
 finish:
 	free (acl_base);
 	
 	return ret;
+}
+
+int acl_download_appl(struct map_t *map, struct appl_t *appl) {
+	vlib_map_main_t *mm = &vlib_map_main;
+	/** upload this appl to */
+	struct acl_route entry;
+	int hv = 0;
+	int socketid = 0;
+	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid];
+	
+	appl2_ar(appl, &entry);
+	entry.appid = map_id(map);
+
+	hv = acl_add_entries(context, &entry, 1);
+	if(hv < 0) {
+		oryx_loge(-1,
+			"(%d) add acl error", hv);
+		return -1;
+	} else {
+		/** [key && map ]*/
+		oryx_logn("(%d) download ACL rule ... %08x/%d %08x/%d %5d:%5d %5d:%5d %02x:%02x", hv,
+			entry.u.k4.ip_src, entry.ip_src_mask,
+			entry.u.k4.ip_dst, entry.ip_dst_mask,
+			entry.u.k4.port_src, 
+			entry.port_src_mask,
+			entry.u.k4.port_dst,
+			entry.port_dst_mask,
+			entry.u.k4.proto,
+			entry.ip_next_proto_mask);
+
+		return 0;
+	}
+}
+
+void sync_acl(void)
+{
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	struct appl_t *appl;
+	struct map_t *map;
+	int each = 0, i = 0, hv = 0, nb_entries = 0;
+	int socketid = 0;
+	struct acl_route *entries, *entry;
+	struct rte_acl_ctx *context;
+	struct acl_config_t *acl_next_config; 
+
+	vec_foreach_element(am->entry_vec, each, appl) {
+		if (unlikely(!appl))
+			continue;
+		if (!(appl->ul_flags & APPL_VALID) || appl->ul_map_mask == 0)
+			continue;
+		nb_entries ++;
+	}
+
+	if (nb_entries == 0)
+		return;
+
+	entries = malloc(nb_entries * sizeof (struct acl_route));
+	BUG_ON(entries == NULL);
+
+	vec_foreach_element(am->entry_vec, each, appl) {
+		if (unlikely(!appl))
+			continue;
+		if ((appl->ul_flags & APPL_VALID) || appl->ul_map_mask == 0)
+			continue;
+
+		if (i > nb_entries)
+			break;
+		
+		entry = &entries[i ++];
+		appl2_ar(appl, entry);
+		entry->appid = 0;
+	}
+
+	acl_next_config	= &acl_config[(g_runtime_acl_config_qua + 1) % ACL_TABLES];
+	context = acl_next_config->acx_ipv4[socketid];
+
+	oryx_logn ("%20s%p", "curr: ", g_runtime_acl_config);
+	oryx_logn ("%20s%p", "---priv: ", g_runtime_acl_config->ud_lookup_vector);
+	oryx_logn ("%20s%p", "next: ", acl_next_config);
+	oryx_logn ("%20s%p", "---priv: ", acl_next_config->ud_lookup_vector);
+
+	hv = acl_add_entries(context, entries, nb_entries);
+	if (hv < 0) {
+		oryx_loge(-1,
+			"(%d) sync acl error %d eles", hv, nb_entries);
+	} else {
+		vec_foreach_element(am->entry_vec, each, appl) {
+			if (unlikely(!appl))
+				continue;
+			appl->ul_flags |= APPL_SYNCED;
+		}
+		/* fast switch. */
+		g_runtime_acl_config_qua += 1;
+		g_runtime_acl_config = acl_next_config;
+	}
 }
 

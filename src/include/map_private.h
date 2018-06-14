@@ -55,9 +55,18 @@ struct traffic_dpo_t {
 	void (*dpo_fn)(void *packet, void *map);
 };
 
-typedef struct _action_t {
-	uint8_t act;
-}action_t;
+#define	ACT_DROP		(1 << 0)
+#define ACT_FWD			(1 << 1)
+#define ACT_MIRROR		(1 << 2)
+
+#define ACT_DEFAULT		(ACT_DROP)
+typedef union _egress_options {
+	struct {
+		uint8_t v;
+	}act;
+	
+	uint32_t data32;
+}egress_options;
 
 /**
  * Packets matching multiple maps in a configuration are sent to the map with the highest
@@ -96,6 +105,7 @@ struct map_t {
 												 * When a map created, traffic will be transparent bettwen its "from" and "to" port,
 												 * no matter whether there are passed applications, udps or not. */
 #define MAP_INTELLIGENT_LB		(1 << 2)
+#define MAP_ENABLED				(1 << 3)
 	uint32_t		ul_flags;
 	uint64_t		ull_create_time;			/** Create time. */
 	
@@ -112,7 +122,6 @@ struct map_t {
 #define VLIB_MM_XXXXXXXXXX		(1 << 0)
 typedef struct {
 	uint32_t				ul_flags;
-	uint32_t				nb_acl_rules;
 	volatile uint32_t		nb_maps;
 	struct list_head		map_priority_list;
 	os_lock_t 				lock;
@@ -123,6 +132,7 @@ typedef struct {
 	struct oryx_htable_t	*htable;	
 	struct map_t			*lowest_map;	/** fast tracinging. unused actually. */
 	struct map_t			*highest_map;
+	struct vlib_main_t		*vm;
 }vlib_map_main_t;
 
 extern vlib_map_main_t vlib_map_main;
@@ -142,20 +152,24 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 	}
 }
 
+#if defined(BUILD_DEBUG)
 static __oryx_always_inline__
 void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
 {
-#if defined(BUILD_DEBUG)
 	BUG_ON(mm->map_curr_table == NULL);
-#endif
 
 	if (!vec_active(mm->map_curr_table) || 
 		(id > vec_active(mm->map_curr_table)))
 		return;
 
 	(*m) = NULL;
-	(*m) = vec_lookup (mm->map_curr_table, id);
+	(*m) = (struct map_t *)vec_lookup (mm->map_curr_table, id);
 }
+#else
+#define map_entry_lookup_id(mm,id,m)\
+	(*(m)) = NULL;\
+	(*(m)) = (struct map_t *)vec_lookup((mm)->map_curr_table, (id));
+#endif
 
 static __oryx_always_inline__
 void map_table_entry_lookup (struct prefix_t *lp, 

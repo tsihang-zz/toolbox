@@ -583,7 +583,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     }
 
 #if defined(BUILD_DEBUG)
-    if (SCLogDebugEnabled()) { /* only convert the addresses if debug is really enabled */
+    if (1) { /* only convert the addresses if debug is really enabled */
         /* debug print */
         char s[46], d[46];
         PrintInet(AF_INET6, (const void *)GET_IPV6_SRC_ADDR(p), s, sizeof(s));

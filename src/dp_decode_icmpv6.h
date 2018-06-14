@@ -548,14 +548,6 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 		}
 	}
 
-#if defined(BUILD_DEBUG)
-	if (ENGINE_ISSET_EVENT(p, ICMPV6_UNKNOWN_CODE))
-		oryx_logd("Unknown Code, ICMPV6_UNKNOWN_CODE");
-
-	if (ENGINE_ISSET_EVENT(p, ICMPV6_UNKNOWN_TYPE))
-		oryx_logd("Unknown Type, ICMPV6_UNKNOWN_TYPE");
-#endif
-
 	FlowSetupPacket(p);
 
 	return TM_ECODE_OK;
