@@ -6,6 +6,12 @@
 
 void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
+#if 0
+	/* skip SW <-> CPU interface. */
+	if (iface_id(port) == SW_CPU_XAUI_PORT_ID)
+		return;
+#endif
+
 	/** Map Rx Port */
 	if(from_to == QUA_RX) {
 		map->rx_panel_port_mask |= (1 << iface_id(port));
@@ -39,9 +45,11 @@ int map_has_this_appl (struct map_t *map, struct appl_t *appl)
 __oryx_always_extern__
 int map_entry_add_appl (struct appl_t *appl, struct map_t *map , 
 	const char *hit_action, int (*rule_download_engine)(struct map_t *, struct appl_t *))
-{	
-	if (map_has_this_appl (map, appl))
+{
+	if (map_has_this_appl (map, appl)) {
+		oryx_logn("map %s trying to add appl %s, exsited.", map_alias(map), appl_alias(appl));
 		return 0;
+	}
 
 	struct appl_priv_t *ap;
 	egress_options eo = {
@@ -57,7 +65,7 @@ int map_entry_add_appl (struct appl_t *appl, struct map_t *map ,
 	ap					=	&appl->priv[appl->nb_maps ++];
 	ap->ul_flags		=	eo.data32;
 	ap->ul_map_id		=	map_id(map);
-	appl->ul_map_mask	=	(1 << map_id(map));
+	appl->ul_map_mask	|=	(1 << map_id(map));
 	map->ul_nb_appls ++;
 
 	if(rule_download_engine) {

@@ -235,19 +235,18 @@ dump_ipv4_rules(struct acl4_rule *rule, int num, int extra)
 static __oryx_always_inline__
 void appl2_ar(struct appl_t *appl, struct acl_route *ar)
 {
-	ar->u.k4.ip_src 			= appl->ip_src;
-	ar->u.k4.ip_dst 			= appl->ip_dst;
-	ar->ip_src_mask 			= appl->ip_src_mask;
+	ar->u.k4.ip_src 			= (appl->ip_src_mask == ANY_IPADDR)			? 0 : appl->ip_src;
+	ar->ip_src_mask				= appl->ip_src_mask;
+	ar->u.k4.ip_dst 			= (appl->ip_dst_mask == ANY_IPADDR)			? 0 : appl->ip_dst;
 	ar->ip_dst_mask 			= appl->ip_dst_mask;
-	ar->u.k4.port_src			= (appl->l4_port_src_mask == ANY_PORT)		? 1 : appl->l4_port_src;
+	ar->u.k4.port_src			= (appl->l4_port_src_mask == ANY_PORT)		? 0 : appl->l4_port_src;
 	ar->port_src_mask			= (appl->l4_port_src_mask == ANY_PORT)		? 0xFFFF : appl->l4_port_src_mask;
-	ar->u.k4.port_dst			= (appl->l4_port_dst_mask == ANY_PORT)		? 1 : appl->l4_port_dst;
+	ar->u.k4.port_dst			= (appl->l4_port_dst_mask == ANY_PORT)		? 0 : appl->l4_port_dst;
 	ar->port_dst_mask			= (appl->l4_port_dst_mask == ANY_PORT)		? 0xFFFF : appl->l4_port_dst_mask;
-	ar->u.k4.proto				= (appl->ip_next_proto_mask == ANY_PROTO)	? 1 : appl->ip_next_proto;
-	ar->ip_next_proto_mask		= (appl->ip_next_proto_mask == ANY_PROTO)	? 0xFF : appl->ip_next_proto_mask;
+	ar->u.k4.proto				= (appl->ip_next_proto_mask == ANY_PROTO)	? 0 : appl->ip_next_proto;
+	ar->ip_next_proto_mask		= (appl->ip_next_proto_mask == ANY_PROTO)	? 0 : appl->ip_next_proto_mask;
 	ar->map_mask				= appl->ul_map_mask;
 	ar->appid					= appl_id(appl);
-
 }
 
 static __oryx_always_inline__
@@ -349,7 +348,6 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid];
 	
 	appl2_ar(appl, &entry);
-	//entry.appid = map_id(map);
 
 	hv = acl_add_entries(context, &entry, 1);
 	if(hv < 0) {
@@ -409,7 +407,6 @@ void sync_acl(void)
 		
 		entry = &entries[i ++];
 		appl2_ar(appl, entry);
-		entry->appid = 0;
 	}
 
 	acl_next_config	= &acl_config[(g_runtime_acl_config_qua + 1) % ACL_TABLES];

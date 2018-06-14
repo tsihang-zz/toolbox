@@ -63,13 +63,21 @@ struct acl_route {
 };
 
 #define OFF_ETHHEAD	(sizeof(struct ether_hdr))
+#define OFF_DSAETHHEAD	(sizeof(MarvellDSAEthernetHdr))
+
 #define OFF_IPV42PROTO (offsetof(struct ipv4_hdr, next_proto_id))
 #define OFF_IPV62PROTO (offsetof(struct ipv6_hdr, proto))
+
 #define MBUF_IPV4_2PROTO(m)	\
 	rte_pktmbuf_mtod_offset((m), uint8_t *, OFF_ETHHEAD + OFF_IPV42PROTO)
 #define MBUF_IPV6_2PROTO(m)	\
 	rte_pktmbuf_mtod_offset((m), uint8_t *, OFF_ETHHEAD + OFF_IPV62PROTO)
 
+
+#define DSA_MBUF_IPV4_2PROTO(m)	\
+	rte_pktmbuf_mtod_offset((m), uint8_t *, OFF_DSAETHHEAD + OFF_IPV42PROTO)
+#define DSA_MBUF_IPV6_2PROTO(m)	\
+	rte_pktmbuf_mtod_offset((m), uint8_t *, OFF_DSAETHHEAD + OFF_IPV62PROTO)
 
 struct acl_search_t {
 	const uint8_t *data_ipv4[DPDK_MAX_RX_BURST];

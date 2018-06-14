@@ -305,6 +305,7 @@ typedef struct Packet_
 	MarvellDSAHdr *dsah;
 	/** ntoh32(this->dsah.dsa) */
 	u32 dsa;
+	uint16_t iphd_offset;
 
     IPV4Hdr *ip4h;
     IPV6Hdr *ip6h;

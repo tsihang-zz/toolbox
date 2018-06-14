@@ -30,318 +30,6 @@ extern PacketQueue g_pq[];
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	  3
 
-void dp_dpdk_perf_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
-	int __oryx_unused__ argc, char **argv)
-{	
-	argv = argv;
-}
-
-/* Send burst of packets on an output interface */
-static __oryx_always_inline__
-int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_port_id)
-{
-	struct rte_mbuf **m_table;
-	int ret;
-	uint16_t tx_queue_id, n_tx_pkts;
-	struct iface_t *tx_iface = NULL;
-	vlib_port_main_t *pm = &vlib_port_main;
-
-	/** port ID -> iface */
-	iface_lookup_id(pm, tx_port_id, &tx_iface);
-
-	tx_queue_id = qconf->tx_queue_id[tx_port_id];
-	m_table = (struct rte_mbuf **)qconf->tx_mbufs[tx_port_id].m_table;
-
-	n_tx_pkts = ret = rte_eth_tx_burst(tx_port_id, tx_queue_id, m_table, n);
-	if (unlikely(ret < n)) {
-		do {
-			rte_pktmbuf_free(m_table[ret]);
-		} while (++ ret < n);
-	}
-
-#if defined(BUILD_DEBUG)
-	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d", tx_port_id, tx_queue_id, tv->lcore, n_tx_pkts);
-#endif
-
-	iface_counters_add(tx_iface, tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], n_tx_pkts);
-
-	return 0;
-}
-
-/* Enqueue a single packet, and send burst if queue is filled */
-static __oryx_always_inline__
-int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
-		struct lcore_conf *qconf, struct rte_mbuf *m, uint8_t tx_port_id)
-{
-	uint16_t len;
-
-	len = qconf->tx_mbufs[tx_port_id].len;
-	qconf->tx_mbufs[tx_port_id].m_table[len] = m;
-	len++;
-	
-#if defined(BUILD_DEBUG)
-	oryx_logn ("			buffering pkt %p (lcore %d) for tx_port_id %d",
-				m, tv->lcore, tx_port_id);
-#endif	
-	/* enough pkts to be sent */
-	if (likely(len == DPDK_MAX_TX_BURST)) {
-		send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
-		len = 0;
-	}
-
-	qconf->tx_mbufs[tx_port_id].len = len;
-	return 0;
-}
-
-static __oryx_always_inline__
-void acl_free_packet(ThreadVars *tv, DecodeThreadVars *dtv,
-	struct rte_mbuf *pkt){
-	rte_pktmbuf_free(pkt);
-	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
-}
-
-static __oryx_always_inline__
-void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
-		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
-{
-	uint8_t tx_port_id = (uint8_t)(res - VALID_APPLICATION_ID_START);
-
-	tx_port_id = 1;
-	
-	//if (likely((res & ACL_DENY_SIGNATURE) == 0 && res != 0)) {
-	if (likely(res != 0)) {
-		/* forward packets */
-		send_single_packet(tv, dtv, qconf, m,
-			tx_port_id);
-	} else{
-		/* in the ACL list, drop it */
-		acl_free_packet(tv, dtv, m);
-	}
-}
-
-static __oryx_always_inline__
-int decide_tx_port(struct map_t *map, struct rte_mbuf *m, uint8_t *tx_port_id)
-{
-	if(map->nb_online_tx_panel_ports == 0) {
-		return UINT32_MAX;
-	}
-	
-	uint32_t tx_panel_port_id = 0;
-	uint32_t index = m->hash.rss % map->nb_online_tx_panel_ports;
-
-	*tx_port_id = tx_panel_port_id = map->online_tx_panel_ports[index];
-	if(tx_panel_port_id != UINT32_MAX &&
-		tx_panel_port_id > SW_PORT_OFFSET)
-		*tx_port_id = 0;
-
-	return tx_panel_port_id;
-}
-
-#define tx_panel_port_is_online(tx_panel_port_id)\
-	((tx_panel_port_id) != UINT32_MAX)
-	
-static __oryx_always_inline__
-void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
-		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
-{
-	uint32_t mapid, appid;
-	uint8_t tx_port_id = iface_id(rx_iface);
-	uint32_t tx_panel_port_id = 0;
-	vlib_map_main_t *mm = &vlib_map_main;
-	vlib_appl_main_t *am = &vlib_appl_main;
-	struct appl_t *appl = NULL;	
-	struct map_t *map = NULL;
-	int i;
-
-	if (likely(res == 0))
-		goto finish;
-
-	appid = __UNPACK_USERDATA(res);
-	if(appid > MAX_APPLICATIONS)
-		goto finish;
-	
-	appl_entry_lookup_id(am, appid, &appl);
-	if(unlikely(!appl))
-		goto finish;
-
-	if(appl->nb_maps == 0)
-		goto finish;
-
-
-#if defined(BUILD_DEBUG)
-		oryx_logn ("%18s%08d", "hit_appl_id: ", appid);
-#endif
-
-	for (i = 0; i < (int)appl->nb_maps; i ++) {
-		struct appl_priv_t *priv = &appl->priv[i];
-		mapid = priv->ul_map_id;
-		struct prefix_t lp_id = {
-			.cmd = LOOKUP_ID,
-			.v = (void *)&mapid,
-			.s = sizeof(mapid),
-		};
-		
-#if defined(BUILD_DEBUG)
-		oryx_logn(" 	###### mapid %d", mapid);
-#endif
-
-		/** lookup map table with userdata(map_mask) */
-		map_entry_lookup_id(mm, mapid, &map);
-		if(likely(map) && map_rx_has_iface(map, rx_iface)) {
-			tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
-
-#if defined(BUILD_DEBUG)
-			oryx_logn(" 		send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
-#endif
-
-			if(tx_panel_port_is_online(tx_panel_port_id)) {
-				/* forward packets for this map. */
-				send_single_packet(tv, dtv, qconf, m, tx_port_id);
-				return;
-			}
-#if defined(BUILD_DEBUG)
-			oryx_loge(tx_panel_port_id, "no tx_panel_port online.");
-#endif
-			/* tx_panel_port_id is not online. drop it. */
-			acl_free_packet(tv, dtv, m);
-			return;
-		} else {
-			/* drop it defaultly if no map for this application */
-			if(unlikely(!map)) {
-				oryx_logn("no such map");
-				acl_free_packet(tv, dtv, m);
-				return;
-			}
-
-			/* drop it defaulty if this rx_iface is not mapped */
-			if(!(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
-				oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
-				acl_free_packet(tv, dtv, m);
-				return;
-			}
-		}
-	}
-	
-finish:
-
-#if defined(BUILD_DEBUG)
-	if(res == 0)
-		oryx_logn("acl lookup error");
-	if(appl == NULL)
-		oryx_loge(-1, "no such application %d", appid);
-	else {
-		if(appl->nb_maps == 0)
-			oryx_loge(-1, "application(\"%s\") is not mapped.", appl_alias(appl));
-	}
-#endif
-
-	acl_free_packet(tv, dtv, m);
-	return;
-}
-
-static __oryx_always_inline__
-void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
-		struct iface_t *rx_iface, struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
-{
-	int i;
-
-	/* Prefetch first packets */
-	for (i = 0; i < PREFETCH_OFFSET && i < num; i++) {
-		rte_prefetch0(rte_pktmbuf_mtod(
-				m[i], void *));
-	}
-
-	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
-		rte_prefetch0(rte_pktmbuf_mtod(m[
-				i + PREFETCH_OFFSET], void *));
-		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
-	}
-
-	/* Process left packets */
-	for (; i < num; i++)
-		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
-}
-
-
-static __oryx_always_inline__
-void acl_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
-	struct rte_mbuf **pkts_in, int nb){
-	int i;
-	for (i = 0; i < nb; i ++) {
-		struct rte_mbuf *pkt = pkts_in[i];
-		acl_free_packet(tv, dtv, pkt);
-	}
-}
-
-static __oryx_always_inline__
-void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
-	struct rte_mbuf **pkts_in, struct acl_search_t *acl,
-	int index)
-{
-	struct rte_mbuf *pkt = pkts_in[index];
-
-#if defined(BUILD_DEBUG)
-	union ipv4_5tuple_host key;
-	struct ipv4_hdr *ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *,
-						   sizeof(struct ether_hdr));
-	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
-	/*
-	 * Get 5 tuple: dst port, src port, dst IP address,
-	 * src IP address and protocol.
-	 */
-	key.xmm = em_mask_key(ipv4h, mask0.x);
-	oryx_logn ("%16s%08d", "packet_type: ",	pkt->packet_type);
-	oryx_logn ("%16s%08x", "ip_src: ",		ntoh32(key.ip_src));
-	oryx_logn ("%16s%08x", "ip_dst: ",		ntoh32(key.ip_dst));
-	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key.port_src));
-	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key.port_dst));
-	oryx_logn ("%16s%08d", "protocol: ",	key.proto);
-	oryx_logn ("%16s%08u", "RSS: ",			pkt->hash.rss);
-#endif
-
-	if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
-		/* Fill acl structure */
-		acl->data_ipv4[acl->num_ipv4] = MBUF_IPV4_2PROTO(pkt);
-		acl->m_ipv4[(acl->num_ipv4)++] = pkt;
-
-	} 
-	else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
-		/* Fill acl structure */
-		acl->data_ipv6[acl->num_ipv6] = MBUF_IPV6_2PROTO(pkt);
-		acl->m_ipv6[(acl->num_ipv6)++] = pkt;
-	}
-	else {
-		/* Unknown type, drop the packet */
-		acl_free_packet(tv, dtv, pkt);
-	}
-}
-
-static __oryx_always_inline__
-void acl_prepare_acl_parameter(ThreadVars *tv, DecodeThreadVars *dtv,
-	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int nb_rx)
-{
-	int i;
-
-	acl->num_ipv4 = 0;
-	acl->num_ipv6 = 0;
-
-	/* Prefetch first packets */
-	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
-		rte_prefetch0(rte_pktmbuf_mtod(
-				pkts_in[i], void *));
-	}
-
-	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
-		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
-				i + PREFETCH_OFFSET], void *));
-		acl_prepare_one_packet(tv, dtv, pkts_in, acl, i);
-	}
-
-	/* Process left packets */
-	for (; i < nb_rx; i++)
-		acl_prepare_one_packet(tv, dtv, pkts_in, acl, i);
-}
-
 static __oryx_always_inline__
 void dsa_tag_strip(struct rte_mbuf *m)
 {
@@ -401,6 +89,414 @@ uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 #endif
 	return new_cpu_dsa;
 
+}
+
+void dp_dpdk_perf_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+	int __oryx_unused__ argc, char **argv)
+{	
+	argv = argv;
+}
+
+/* Send burst of packets on an output interface */
+static __oryx_always_inline__
+int send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint8_t tx_port_id)
+{
+	struct rte_mbuf **m_table;
+	int ret;
+	uint16_t tx_queue_id, n_tx_pkts;
+	struct iface_t *tx_iface = NULL;
+	vlib_port_main_t *pm = &vlib_port_main;
+
+	/** port ID -> iface */
+	iface_lookup_id(pm, tx_port_id, &tx_iface);
+
+	tx_queue_id = qconf->tx_queue_id[tx_port_id];
+	m_table = (struct rte_mbuf **)qconf->tx_mbufs[tx_port_id].m_table;
+
+	n_tx_pkts = ret = rte_eth_tx_burst(tx_port_id, tx_queue_id, m_table, n);
+	if (unlikely(ret < n)) {
+		do {
+			rte_pktmbuf_free(m_table[ret]);
+		} while (++ ret < n);
+	}
+
+#if defined(BUILD_DEBUG)
+	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d", tx_port_id, tx_queue_id, tv->lcore, n_tx_pkts);
+#endif
+
+	iface_counters_add(tx_iface, tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], n_tx_pkts);
+
+	return 0;
+}
+
+/* Enqueue a single packet, and send burst if queue is filled */
+static __oryx_always_inline__
+int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct iface_t *rx_iface, struct lcore_conf *qconf, 
+		struct rte_mbuf *m, uint8_t tx_port_id, uint8_t tx_panel_port_id)
+{
+	uint16_t len;
+	Packet *p;
+	uint32_t cpu_dsa = 0;
+	uint32_t tx_panel_ge_id = 0;
+	
+	p = GET_MBUF_PRIVATE(Packet, m);
+
+	if (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID) {
+		if(tx_panel_port_id > SW_PORT_OFFSET) {
+			/* GE ---> GE */
+#if defined(BUILD_DEBUG)
+			BUG_ON(tx_port_id != SW_CPU_XAUI_PORT_ID);
+#endif
+			tx_panel_ge_id = tx_panel_port_id - SW_PORT_OFFSET;
+			cpu_dsa = dsa_tag_update(p->dsa, PANEL_GE_ID_TO_DSA(tx_panel_ge_id));
+			MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(m, MarvellDSAEthernetHdr *);
+			dsaeth->dsah.dsa = rte_cpu_to_be_32(cpu_dsa);
+			goto flush2_buffer;
+		}
+
+		/* GE ---> XE */
+#if defined(BUILD_DEBUG)
+		BUG_ON(tx_port_id == SW_CPU_XAUI_PORT_ID);
+		oryx_logn ("strip dsa tag %08x", p->dsa);
+#endif
+		dsa_tag_strip(m);
+		goto flush2_buffer;
+
+	} else {
+		if (tx_panel_port_id > SW_PORT_OFFSET) {
+			/* XE ---> GE */
+#if defined(BUILD_DEBUG)
+			BUG_ON(tx_port_id != SW_CPU_XAUI_PORT_ID);
+#endif
+			tx_panel_ge_id = tx_panel_port_id - SW_PORT_OFFSET;
+			/* add a dsa tag */
+			cpu_dsa = dsa_tag_update(0, PANEL_GE_ID_TO_DSA(tx_panel_ge_id));
+			dsa_tag_insert(&m, cpu_dsa);
+#if defined(BUILD_DEBUG)
+			oryx_logn ("insert dsa tag %08x", cpu_dsa);
+#endif
+			goto flush2_buffer;
+		}
+		/** XE -> XE */
+#if defined(BUILD_DEBUG)
+		BUG_ON(tx_port_id == SW_CPU_XAUI_PORT_ID);
+#endif
+	}
+
+flush2_buffer:
+
+	len = qconf->tx_mbufs[tx_port_id].len;
+	qconf->tx_mbufs[tx_port_id].m_table[len] = m;
+	len++;
+	
+#if defined(BUILD_DEBUG)
+	oryx_logn ("		buffering pkt %p (lcore %d) for tx_port_id %d",
+				m, tv->lcore, tx_port_id);
+#endif	
+	/* enough pkts to be sent */
+	if (likely(len == DPDK_MAX_TX_BURST)) {
+		send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
+		len = 0;
+	}
+
+	qconf->tx_mbufs[tx_port_id].len = len;
+	return 0;
+}
+
+static __oryx_always_inline__
+void free_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf *pkt){
+	rte_pktmbuf_free(pkt);
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
+}
+
+static __oryx_always_inline__
+int decide_tx_port(struct map_t *map, struct rte_mbuf *m, uint8_t *tx_port_id)
+{
+	if(map->nb_online_tx_panel_ports == 0) {
+		return UINT32_MAX;
+	}
+	
+	uint32_t tx_panel_port_id = 0;
+	uint32_t index = m->hash.rss % map->nb_online_tx_panel_ports;
+
+	*tx_port_id = tx_panel_port_id = map->online_tx_panel_ports[index];
+	if(tx_panel_port_id != UINT32_MAX &&
+		tx_panel_port_id > SW_PORT_OFFSET)
+		*tx_port_id = SW_CPU_XAUI_PORT_ID;
+
+	return tx_panel_port_id;
+}
+
+#define tx_panel_port_is_online(tx_panel_port_id)\
+	((tx_panel_port_id) != UINT32_MAX)
+	
+static __oryx_always_inline__
+void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
+		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
+{
+	uint32_t mapid, appid;
+	uint8_t tx_port_id = iface_id(rx_iface);
+	uint32_t tx_panel_port_id = 0;
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	struct appl_t *appl = NULL;	
+	struct map_t *map = NULL;
+	int i;
+
+	if (likely(res == 0)) {
+#if defined(BUILD_DEBUG)
+		oryx_logn("acl lookup error");
+#endif
+		goto finish;
+	}
+
+	appid = __UNPACK_USERDATA(res);
+	if(appid > MAX_APPLICATIONS) {
+#if defined(BUILD_DEBUG)
+		oryx_loge(-1, "no such application %d", appid);
+#endif
+		goto finish;
+	}
+	
+	appl_entry_lookup_id(am, appid, &appl);
+	if(unlikely(!appl)) {
+#if defined(BUILD_DEBUG)
+		oryx_loge(-1, "no such application %d", appid);
+#endif
+		goto finish;
+	}
+
+	if(appl->nb_maps == 0) {
+#if defined(BUILD_DEBUG)
+		oryx_loge(-1, "application(\"%s\") is not mapped.", appl_alias(appl));
+#endif
+		goto finish;
+	}
+
+#if defined(BUILD_DEBUG)
+	oryx_logn ("%18s%08d", "hit_appl_id: ", appid);
+#endif
+
+	for (i = 0; i < (int)appl->nb_maps; i ++) {
+		
+		struct appl_priv_t *priv = &appl->priv[i];
+		mapid = priv->ul_map_id;
+
+#if defined(BUILD_DEBUG)
+		oryx_logn(" 	###### mapid %d", mapid);
+#endif
+
+		/** lookup map table with userdata(map_mask) */
+		map_entry_lookup_id(mm, mapid, &map);
+		if (unlikely(!map)) {
+			/* drop it defaultly if no map for this application */
+#if defined(BUILD_DEBUG)
+			oryx_logn("Can not find an valid map for iface %s", iface_alias(rx_iface));
+#endif
+			continue;
+		}
+		/* drop it defaulty if this rx_iface is not mapped */
+		if(!map_rx_has_iface(map, rx_iface)) {
+#if defined(BUILD_DEBUG)
+			oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
+#endif
+			continue;
+		} else {
+			tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
+#if defined(BUILD_DEBUG)
+			oryx_logn(" 		send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
+#endif
+			if(tx_panel_port_is_online(tx_panel_port_id)) {
+				/* forward packets for this map. */
+				send_single_packet(tv, dtv, rx_iface, qconf, m, tx_port_id, tx_panel_port_id);
+				continue;
+			}
+		}
+	}
+	
+finish:
+	free_packet(tv, dtv, m);
+	return;
+}
+
+static __oryx_always_inline__
+void acl_send_packets(ThreadVars *tv, DecodeThreadVars *dtv,
+		struct iface_t *rx_iface, struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
+{
+	int i;
+
+	/* Prefetch first packets */
+	for (i = 0; i < PREFETCH_OFFSET && i < num; i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(
+				m[i], void *));
+	}
+
+	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(m[
+				i + PREFETCH_OFFSET], void *));
+		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
+	}
+
+	/* Process left packets */
+	for (; i < num; i++)
+		acl_send_one_packet(tv, dtv, rx_iface, qconf, m[i], res[i]);
+}
+
+
+static __oryx_always_inline__
+void acl_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct rte_mbuf **pkts_in, int nb){
+	int i;
+	for (i = 0; i < nb; i ++) {
+		struct rte_mbuf *pkt = pkts_in[i];
+		free_packet(tv, dtv, pkt);
+	}
+}
+
+#if 0
+/** packet come from sw unit. */
+if(iface_support_marvell_dsa(rx_cpu_iface)) {
+	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_dsa, nb_rx);
+	for (j = 0; j < nb_rx; j++) {
+		m = pkts_burst[j];
+		rte_prefetch0(rte_pktmbuf_mtod(m, void *)); 
+		/** it costs a lot when calling Packet from mbuf. */
+		p = GET_MBUF_PRIVATE(Packet, m);
+		pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
+		pkt_len = m->pkt_len;
+		SET_PKT_LEN(p, pkt_len);
+		SET_PKT(p, pkt);
+		SET_PKT_RX_PORT(p, rx_port_id);
+		marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
+		simple_forward(tv, dtv, p, pkt_len, m, rx_cpu_iface, qconf);
+	}				
+} 
+#endif
+
+static __oryx_always_inline__
+void dump_packet_info(struct rte_mbuf *pkt, uint32_t ipv4h_offset)
+{
+	union ipv4_5tuple_host key;
+	struct ipv4_hdr *ipv4h;
+	
+	ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipv4h_offset);
+	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
+	/*
+	 * Get 5 tuple: dst port, src port, dst IP address,
+	 * src IP address and protocol.
+	 */
+	key.xmm = em_mask_key(ipv4h, mask0.x);
+	char s[16];
+	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
+	oryx_logn ("%16s%s", "ip_src: ",		inet_ntop(AF_INET, &key.ip_src, s, 16));
+	oryx_logn ("%16s%s", "ip_dst: ",		inet_ntop(AF_INET, &key.ip_dst, s, 16));
+	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key.port_src));
+	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key.port_dst));
+	oryx_logn ("%16s%08d", "protocol: ",	key.proto);
+	oryx_logn ("%16s%08u", "RSS: ", 		pkt->hash.rss);
+
+}
+static __oryx_always_inline__
+void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int index)
+{
+	struct rte_mbuf *pkt = pkts_in[index];
+	Packet *p;
+	
+	p = GET_MBUF_PRIVATE(Packet, pkt);
+	p->iphd_offset = 0;
+	p->dsa = 0;
+	
+	if (iface_support_marvell_dsa(rx_iface)) {
+			uint16_t ether_type;
+			uint8_t rx_panel_port_id;
+			MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(pkt, MarvellDSAEthernetHdr *);
+			
+			ether_type = dsaeth->eth_type;
+			p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
+			rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
+
+#if defined(BUILD_DEBUG)
+			oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
+			oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
+			oryx_logn("%20s%4ld", "iphd_offset: ", OFF_DSAETHHEAD);
+			PrintDSA("RX", p->dsa, QUA_RX);
+			dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
+#endif
+			if (!DSA_IS_INGRESS(p->dsa)) {
+				/* Unknown type, drop the packet */
+				free_packet(tv, dtv, pkt);
+				return;
+			}
+			
+			if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
+				/* Fill acl structure */
+				acl->data_ipv4[acl->num_ipv4] = DSA_MBUF_IPV4_2PROTO(pkt);
+				acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+
+#if defined(BUILD_DEBUG)
+				dump_packet_info(pkt, sizeof(MarvellDSAEthernetHdr));
+#endif
+			} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
+				/* Fill acl structure */
+				acl->data_ipv4[acl->num_ipv4] = DSA_MBUF_IPV6_2PROTO(pkt);
+				acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+			} else {
+			/* Unknown type, drop the packet */
+			free_packet(tv, dtv, pkt);
+			return;
+		}
+
+	} else {
+
+		if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
+			/* Fill acl structure */
+			acl->data_ipv4[acl->num_ipv4] = MBUF_IPV4_2PROTO(pkt);
+			acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+		
+#if defined(BUILD_DEBUG)
+			dump_packet_info(pkt, sizeof(struct ether_hdr));
+#endif
+
+		} 
+		else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
+			/* Fill acl structure */
+			acl->data_ipv6[acl->num_ipv6] = MBUF_IPV6_2PROTO(pkt);
+			acl->m_ipv6[(acl->num_ipv6)++] = pkt;
+		}
+		else {
+			/* Unknown type, drop the packet */
+			free_packet(tv, dtv, pkt);
+		}
+	}
+}
+
+static __oryx_always_inline__
+void acl_prepare_acl_parameter(ThreadVars *tv, DecodeThreadVars *dtv,
+	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int nb_rx)
+{
+	int i;
+
+	acl->num_ipv4 = 0;
+	acl->num_ipv6 = 0;
+
+	/* Prefetch first packets */
+	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(
+				pkts_in[i], void *));
+	}
+
+	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
+				i + PREFETCH_OFFSET], void *));
+		acl_prepare_one_packet(tv, dtv, rx_iface, pkts_in, acl, i);
+	}
+
+	/* Process left packets */
+	for (; i < nb_rx; i++)
+		acl_prepare_one_packet(tv, dtv, rx_iface, pkts_in, acl, i);
 }
 
 static __oryx_always_inline__
@@ -517,7 +613,7 @@ void simple_forward(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint16_t p
 	oryx_logn("%20s%4d%s", "Map: ", mapid, map?map_alias(map):"unknown");
 //#endif
 
-	send_single_packet(tv, dtv, qconf, m, tx_port_id);
+	send_single_packet(tv, dtv, rx_cpu_iface, qconf, m, tx_port_id, tx_panel_port_id);
 }
 
 static __oryx_always_inline__
