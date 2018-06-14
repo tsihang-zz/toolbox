@@ -7,7 +7,7 @@
 
 #define MAX_ACL_RULE_NUM	(1024)
 #define DEFAULT_MAX_CATEGORIES	1
-#define VALID_MAP_ID_START	1
+#define VALID_APPLICATION_ID_START	1
 
 enum {
 	ACL_TABLE0,
@@ -41,9 +41,9 @@ static struct{
 
 
 #define __PACK_USERDATA(res)\
-	(res + VALID_MAP_ID_START)
+	(res + VALID_APPLICATION_ID_START)
 #define __UNPACK_USERDATA(res)\
-	(res - VALID_MAP_ID_START)
+	(res - VALID_APPLICATION_ID_START)
 
 struct acl_route {
 	union {
@@ -95,34 +95,8 @@ static __oryx_always_inline__
 void acl_set_userdata(struct rte_acl_rule *rar,
 							struct acl_route *ar)
 {
-	oryx_vector v = g_runtime_acl_config->ud_lookup_vector;
-	int userdata = 0;
-	
-	struct acl_user_data_t *aud = malloc(sizeof(struct acl_user_data_t));
-	BUG_ON(aud == NULL);
-
-	memset(aud, 0, sizeof(struct acl_user_data_t));
-	aud->ul_map_mask = ar->appid;
-	userdata = vec_set(v, (void *)aud);
-	rar->data.userdata = __PACK_USERDATA(userdata);
+	rar->data.userdata = __PACK_USERDATA(ar->appid);
 }
 
-static __oryx_always_inline__
-int acl_get_userdata(uint32_t userdata, struct acl_user_data_t **aud)
-{
-	oryx_vector v = g_runtime_acl_config->ud_lookup_vector;
-	userdata = __UNPACK_USERDATA(userdata);
-	
-#if defined(BUILD_DEBUG)
-	BUG_ON(aud == NULL);
-#endif
-	if(!vec_active(v) ||
-		userdata > vec_active(v))
-		return -1;
-	
-	(*aud) = NULL;
-	(*aud) = vec_lookup(v, userdata);
-	return 0;
-}
 
 #endif

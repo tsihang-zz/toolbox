@@ -104,7 +104,7 @@ static __oryx_always_inline__
 void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
 		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
-	uint8_t tx_port_id = (uint8_t)(res - VALID_MAP_ID_START);
+	uint8_t tx_port_id = (uint8_t)(res - VALID_APPLICATION_ID_START);
 
 	tx_port_id = 1;
 	
@@ -122,11 +122,16 @@ void acl_send_one_packet0(ThreadVars *tv, DecodeThreadVars *dtv,
 static __oryx_always_inline__
 int decide_tx_port(struct map_t *map, struct rte_mbuf *m, uint8_t *tx_port_id)
 {
+	if(map->nb_online_tx_panel_ports == 0) {
+		return UINT32_MAX;
+	}
+	
 	uint32_t tx_panel_port_id = 0;
 	uint32_t index = m->hash.rss % map->nb_online_tx_panel_ports;
 
 	*tx_port_id = tx_panel_port_id = map->online_tx_panel_ports[index];
-	if(tx_panel_port_id > SW_PORT_OFFSET)
+	if(tx_panel_port_id != UINT32_MAX &&
+		tx_panel_port_id > SW_PORT_OFFSET)
 		*tx_port_id = 0;
 
 	return tx_panel_port_id;
@@ -139,64 +144,97 @@ static __oryx_always_inline__
 void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *rx_iface,
 		struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
-	uint32_t mapid;
+	uint32_t mapid, appid;
 	uint8_t tx_port_id = iface_id(rx_iface);
 	uint32_t tx_panel_port_id = 0;
-	struct map_t *map = NULL;
 	vlib_map_main_t *mm = &vlib_map_main;
-	struct acl_user_data_t *aud = NULL;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	struct appl_t *appl = NULL;	
+	struct map_t *map = NULL;
+	int i;
 
 	if (likely(res == 0))
 		goto finish;
 
-	/** a RET must have an userdata. */
-	if (acl_get_userdata(res, &aud)) {
+	appid = __UNPACK_USERDATA(res);
+	if(appid > MAX_APPLICATIONS)
 		goto finish;
-	}
+	
+	appl_entry_lookup_id(am, appid, &appl);
+	if(unlikely(!appl))
+		goto finish;
 
-	mapid  = aud->ul_map_mask;
-	struct prefix_t lp_id = {
-		.cmd = LOOKUP_ID,
-		.v = (void *)&mapid,
-		.s = sizeof(mapid),
-	};
+	if(appl->nb_maps == 0)
+		goto finish;
 
-	/** lookup map table with userdata(map_mask) */
-	map_table_entry_lookup(&lp_id, &map);
-	if(likely(map) && map_rx_has_iface(map, rx_iface)) {
-		tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
 
-		/**
-		 * oryx_logn("send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
-		 */
-		if(tx_panel_port_is_online(tx_panel_port_id)) {
-			/* forward packets for this map. */
-			send_single_packet(tv, dtv, qconf, m, tx_port_id);
+#if defined(BUILD_DEBUG)
+		oryx_logn ("%18s%08d", "hit_appl_id: ", appid);
+#endif
+
+	for (i = 0; i < (int)appl->nb_maps; i ++) {
+		struct appl_priv_t *priv = &appl->priv[i];
+		mapid = priv->ul_map_id;
+		struct prefix_t lp_id = {
+			.cmd = LOOKUP_ID,
+			.v = (void *)&mapid,
+			.s = sizeof(mapid),
+		};
+		
+#if defined(BUILD_DEBUG)
+		oryx_logn(" 	###### mapid %d", mapid);
+#endif
+
+		/** lookup map table with userdata(map_mask) */
+		map_entry_lookup_id(mm, mapid, &map);
+		if(likely(map) && map_rx_has_iface(map, rx_iface)) {
+			tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
+
+#if defined(BUILD_DEBUG)
+			oryx_logn(" 		send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
+#endif
+
+			if(tx_panel_port_is_online(tx_panel_port_id)) {
+				/* forward packets for this map. */
+				send_single_packet(tv, dtv, qconf, m, tx_port_id);
+				return;
+			}
+#if defined(BUILD_DEBUG)
+			oryx_loge(tx_panel_port_id, "no tx_panel_port online.");
+#endif
+			/* tx_panel_port_id is not online. drop it. */
+			acl_free_packet(tv, dtv, m);
 			return;
-		}
-		/* tx_panel_port_id is not online. drop it. */
-		goto finish;
-	} else {
-		/* drop it defaultly if no map for this application */
-		if(unlikely(!map)) {
-			oryx_logn("no such map");
-			goto finish;
-		}
+		} else {
+			/* drop it defaultly if no map for this application */
+			if(unlikely(!map)) {
+				oryx_logn("no such map");
+				acl_free_packet(tv, dtv, m);
+				return;
+			}
 
-		/* drop it defaulty if this rx_iface is not mapped */
-		if(!(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
-			oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
-			goto finish;
+			/* drop it defaulty if this rx_iface is not mapped */
+			if(!(map->rx_panel_port_mask & (1 << iface_id(rx_iface)))) {
+				oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
+				acl_free_packet(tv, dtv, m);
+				return;
+			}
 		}
 	}
 	
 finish:
+
+#if defined(BUILD_DEBUG)
 	if(res == 0)
 		oryx_logn("acl lookup error");
-	if(aud == NULL)
-		oryx_logn("no userdata for res %d", res);
-	
-	/* in the ACL list, drop it */
+	if(appl == NULL)
+		oryx_loge(-1, "no such application %d", appid);
+	else {
+		if(appl->nb_maps == 0)
+			oryx_loge(-1, "application(\"%s\") is not mapped.", appl_alias(appl));
+	}
+#endif
+
 	acl_free_packet(tv, dtv, m);
 	return;
 }

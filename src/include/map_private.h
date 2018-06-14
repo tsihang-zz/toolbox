@@ -97,6 +97,8 @@ struct map_t {
 
 	uint32_t		online_tx_panel_ports[MAX_PORTS];
 	uint32_t		nb_online_tx_panel_ports;
+
+	uint32_t		ul_nb_appls;
 	
 	struct list_head	prio_node;
 
@@ -167,7 +169,6 @@ void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
 }
 #else
 #define map_entry_lookup_id(mm,id,m)\
-	(*(m)) = NULL;\
 	(*(m)) = (struct map_t *)vec_lookup((mm)->map_curr_table, (id));
 #endif
 

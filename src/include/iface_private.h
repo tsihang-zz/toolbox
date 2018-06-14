@@ -117,7 +117,6 @@ int iface_lookup_id(vlib_port_main_t *pm,
 }
 #else
 #define iface_lookup_id(pm,id,iface)\
-	(*(iface)) = NULL;\
 	(*(iface)) = (struct iface_t *) vec_lookup ((pm)->entry_vec, (id));
 #endif
 

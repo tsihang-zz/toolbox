@@ -32,6 +32,12 @@ enum {
 /** flags for appl_t.ul_flags */
 #define	APPL_SYNCED	(1 << 0)
 #define APPL_VALID	(1 << 1)
+
+struct appl_priv_t {
+	uint32_t			ul_flags;		/** MAX_MAPS */
+	uint32_t			ul_map_id;		/** map id this application belong to. */
+};
+
 struct appl_t {
 	char				sc_alias[32];		/** Unique, and can be well human-readable. */
 	uint32_t			ul_id;				/** Unique, and can be allocated by a oryx_vector function automatically. */
@@ -43,7 +49,8 @@ struct appl_t {
 	os_lock_t			ol_lock;
 
 	uint32_t			ul_map_mask;		/** map for this application belong to. */
-	uint32_t			ul_flags_for_each_map[32];	/** MAX_MAPS */
+	struct appl_priv_t	priv[32];			/** private data for this application. */
+	uint32_t			nb_maps;			/** number of maps in appl_priv */
 
 
 	uint32_t			vlan_id	:				12;
@@ -63,8 +70,8 @@ struct appl_t {
 
 };
 
-#define appl_id(u) ((u)->ul_id)
-#define appl_alias(u) ((u)->sc_alias)
+#define appl_id(appl) ((appl)->ul_id)
+#define appl_alias(appl) ((appl)->sc_alias)
 
 #define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {
@@ -98,25 +105,25 @@ void appl_entry_lookup_id (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
 		return;
 
 	(*appl) = NULL;
-	(*appl) = vec_lookup (am->entry_vec, id);
+	(*appl) = (struct appl_t *)vec_lookup (am->entry_vec, id);
 }
 
 static __oryx_always_inline__
 void appl_table_entry_lookup (struct prefix_t *lp, 
-				struct appl_t **a)
+				struct appl_t **appl)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
 
 	ASSERT (lp);
-	ASSERT (a);
-	(*a) = NULL;
+	ASSERT (appl);
+	(*appl) = NULL;
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			appl_entry_lookup_id(am, (*(u32*)lp->v), a);
+			appl_entry_lookup_id(am, (*(u32*)lp->v), appl);
 			break;
 		case LOOKUP_ALIAS:
-			appl_entry_lookup_alias(am, (const char*)lp->v, a);
+			appl_entry_lookup_alias(am, (const char*)lp->v, appl);
 			break;
 		default:
 			break;

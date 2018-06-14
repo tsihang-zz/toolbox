@@ -39,45 +39,52 @@ int map_has_this_appl (struct map_t *map, struct appl_t *appl)
 __oryx_always_extern__
 int map_entry_add_appl (struct appl_t *appl, struct map_t *map , 
 	const char *hit_action, int (*rule_download_engine)(struct map_t *, struct appl_t *))
-{
+{	
+	if (map_has_this_appl (map, appl))
+		return 0;
+
+	struct appl_priv_t *ap;
 	egress_options eo = {
 		.act.v = ACT_DEFAULT,
 	};
-	
-	if (map_has_this_appl (map, appl))
-		return 0;
-	else {
-		/** parse application action when hit on dataplane. */
-		if(!strncmp(hit_action, "p", 1)) {
-			eo.act.v &= ~ACT_DROP;
-			eo.act.v |= ACT_FWD;
-		}
 
-		appl->ul_flags_for_each_map[map_id(map)] = eo.data32;
-		appl->ul_map_mask |= (1 << map_id(map));
-		
-		if(rule_download_engine) {
-			if(!rule_download_engine(map, appl)) {
-				oryx_logn ("installing ... %s  done!", appl_alias(appl));
-				return 0;
-			}
+	/** parse application action when hit on dataplane. */
+	if(!strncmp(hit_action, "p", 1)) {
+		eo.act.v &= ~ACT_DROP;
+		eo.act.v |= ACT_FWD;
+	}
+
+	ap					=	&appl->priv[appl->nb_maps ++];
+	ap->ul_flags		=	eo.data32;
+	ap->ul_map_id		=	map_id(map);
+	appl->ul_map_mask	=	(1 << map_id(map));
+	map->ul_nb_appls ++;
+
+	if(rule_download_engine) {
+		if(!rule_download_engine(map, appl)) {
+			oryx_logn ("installing ... %s  done!", appl_alias(appl));
 		}
 	}
 
-	return -1;
+	return 0;
 }
 
 __oryx_always_extern__
 int map_entry_remove_appl (struct appl_t *appl, struct map_t *map,
 	int (*rule_remove_engine)(struct map_t *, struct appl_t *))
 {
-	if (map_has_this_appl (map, appl)) {
+	if (!map_has_this_appl (map, appl))
+		return 0;
+
+	appl->ul_map_mask &=	~(1 << map_id(map));
+	map->ul_nb_appls --;
+	
+	if (rule_remove_engine) {
 		if(!rule_remove_engine(map, appl)) {
 			oryx_logn ("uninstalling ... %s  done!", appl_alias(appl));
-			appl->ul_map_mask &= ~(1 << map_id(map));
-			return 0;
 		}
 	}
+	
 	return -1;
 }
 

@@ -189,16 +189,21 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	vlib_appl_main_t *am = &vlib_appl_main;
 	struct iface_t *iface;
 	struct appl_t  *appl;
+	int no_rx_panel_port = 0;
+	int no_tx_panel_port = 0;
 	
 	BUG_ON(map == NULL);
 
 	tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	/** let us try to find the map which name is 'alias'. */
-	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
+	vty_out (vty, "%20s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
 
-	vty_out (vty, "		%16s", "Ports: ");
-	if (!map->rx_panel_port_mask) {vty_out (vty, "N/A");}
+	vty_out (vty, "		%20s", "Traffic mapping: ");
+	if (!map->rx_panel_port_mask) {
+		vty_out (vty, "N/A");
+		no_rx_panel_port = 1;
+	}
 	else {
 		vec_foreach_element(pm->entry_vec, i, iface) {
 			if (iface) {
@@ -210,7 +215,10 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 
 	vty_out (vty, "%s", "  ---->  ");
 
-	if (!map->tx_panel_port_mask) {vty_out (vty, "N/A");}
+	if (!map->tx_panel_port_mask) {
+		vty_out (vty, "N/A");
+		no_tx_panel_port = 1;
+	}
 	else {
 		vec_foreach_element(pm->entry_vec, i, iface) {
 			if (iface) {
@@ -221,16 +229,48 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	}
 	vty_newline(vty);
 
-	vty_out (vty, "		%16s", "Application: ");
-	vec_foreach_element(am->entry_vec, i, appl) {
-		if (appl) {
-			if (appl->ul_map_mask & (1 << map_id(map)))
-				vty_out (vty, "%s, ", appl_alias(appl));
+
+	vty_out (vty, "		%20s", "Online Rx: ");
+	if (no_rx_panel_port) vty_out (vty, "N/A");
+	else {
+		vec_foreach_element(pm->entry_vec, i, iface) {
+			if (iface) {
+				if (map->rx_panel_port_mask & (1 << iface_id(iface)) &&
+					(iface->ul_flags & NETDEV_ADMIN_UP))
+					vty_out (vty, "%s, ", iface_alias(iface));
+			}
+		}
+
+	}
+	vty_newline(vty);
+	
+	vty_out (vty, "		%20s", "Online Tx: ");
+	if (no_tx_panel_port) vty_out (vty, "N/A");
+	else {
+		vec_foreach_element(pm->entry_vec, i, iface) {
+			if (iface) {
+				if (map->tx_panel_port_mask & (1 << iface_id(iface)) &&
+					(iface->ul_flags & NETDEV_ADMIN_UP))
+					vty_out (vty, "%s, ", iface_alias(iface));
+			}
+		}
+
+	}
+	vty_newline(vty);
+
+	vty_out (vty, "		%20s", "Application: ");
+	if (!map->ul_nb_appls) {	vty_out (vty, "N/A"); }
+	else {
+		vec_foreach_element(am->entry_vec, i, appl) {
+			if (appl) {
+				if (appl->ul_map_mask & (1 << map_id(map)))
+					vty_out (vty, "%s, ", appl_alias(appl));
+			}
 		}
 	}
 	vty_newline(vty);
 
-	vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
+	vty_out (vty, "%20s%s", "-------------------------------------------", VTY_NEWLINE);
 }
 
 #define PRINT_SUMMARY	\

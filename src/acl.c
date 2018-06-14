@@ -306,7 +306,7 @@ int acl_add_entries(struct rte_acl_ctx *context,
 		return -1;
 	}
 	
-	rte_acl_reset_rules(context);
+	//rte_acl_reset_rules(context);
 	
 	memset (acl_rules, 0, sizeof(struct acl4_rule) * acl_num);
 
@@ -349,7 +349,7 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 	struct rte_acl_ctx *context = g_runtime_acl_config->acx_ipv4[socketid];
 	
 	appl2_ar(appl, &entry);
-	entry.appid = map_id(map);
+	//entry.appid = map_id(map);
 
 	hv = acl_add_entries(context, &entry, 1);
 	if(hv < 0) {
