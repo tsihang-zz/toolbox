@@ -77,17 +77,33 @@ map_cmp (void *v1,
 static __oryx_always_inline__
 void map_entry_split_and_mapping_port (struct map_t *map, u8 from_to)
 {
-	split_foreach_port_func1_param2 (
-		map->port_list_str[from_to], 
-		map_entry_add_port, map, from_to);
+	if (map->port_list_str[from_to]) {
+		split_foreach_port_func1_param2 (
+			map->port_list_str[from_to], map_entry_add_port, map, from_to);
+	}
 }
 
 static __oryx_always_inline__
 void map_entry_split_and_unmapping_port (struct map_t *map, u8 from_to)
 {
-	split_foreach_port_func1_param2 (
-		map->port_list_str[from_to], 
-		map_entry_remove_port, map, from_to);
+	if (map->port_list_str[from_to]) {
+		split_foreach_port_func1_param2 (
+			map->port_list_str[from_to], map_entry_remove_port, map, from_to);
+	}
+}
+
+static __oryx_always_inline__
+void map_inherit(struct map_t *son, struct map_t *father)
+{
+	uint32_t id = map_id(son);
+
+	/** inherit all data from father node. */
+	memcpy (son, father, sizeof(struct map_t));
+
+	/** except THE ID. */
+	map_id(son) = id;
+	map_entry_split_and_mapping_port (son, QUA_RX);
+	map_entry_split_and_mapping_port (son, QUA_TX);
 }
 
 int map_table_entry_add (struct map_t *map)
@@ -98,27 +114,44 @@ int map_table_entry_add (struct map_t *map)
 	do_lock (&mm->lock);
 
 	r = oryx_htable_add(mm->htable, 
-		map_alias(map), strlen((const char *)map_alias(map)));
-
+				map_alias(map), strlen((const char *)map_alias(map)));
 	/** Add alias to hash table for fast lookup by map alise. */
-	if (r == 0 /** success */) {
-		map_id(map) = vec_set (mm->map_curr_table, map);
+	if (r != 0)
+		goto finish;
 
-		if (map->port_list_str[QUA_RX]) {
-			map_entry_split_and_mapping_port (map, QUA_RX);
-		}
-
-		if (map->port_list_str[QUA_TX]) {
-			map_entry_split_and_mapping_port (map, QUA_TX);
+	int each;
+	struct map_t *son = NULL, *a = NULL;
+	
+	/** lookup for an empty slot for this map. */
+	vec_foreach_element(mm->map_curr_table, each, a) {
+		if (unlikely(!a))
+			continue;
+		if (!(a->ul_flags & MAP_VALID)) {
+			son = a;
+			break;
 		}
 	}
-
-	do_unlock (&mm->lock);
 	
+	if (son) {			
+		/** if there is an unused map, update its data with formatted map */
+		map_inherit(son, map);
+		son->ul_flags |= MAP_VALID;
+		kfree(map);
+	
+	} else {
+		/** else, set this map to vector. */
+		map_id(map) = vec_set (mm->map_curr_table, map);
+		map_entry_split_and_mapping_port (map, QUA_RX);
+		map_entry_split_and_mapping_port (map, QUA_TX);
+		map->ul_flags |= MAP_VALID;
+	}
+
+finish:
+	do_unlock (&mm->lock);
 	return r;
 }
 
-int map_table_entry_remove (struct map_t *map)
+int no_map_table_entry (struct map_t *map)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	int r = 0;
@@ -130,27 +163,18 @@ int map_table_entry_remove (struct map_t *map)
 								strlen((const char *)map_alias(map)));
 
 	if (r == 0 /** success */) {
-
-		if (map->port_list_str[QUA_RX]) {
-			map_entry_split_and_mapping_port (map, QUA_RX);
-		}
-
-		if (map->port_list_str[QUA_TX]) {
-			map_entry_split_and_mapping_port (map, QUA_TX);
-		}
+		map->ul_flags &= ~MAP_VALID;
+		map_entry_split_and_unmapping_port (map, QUA_RX);
+		map_entry_split_and_unmapping_port (map, QUA_TX);
 	}
 
 	do_unlock (&mm->lock);
+
+	/** Should you free here ? */
+	//vec_unset (mm->map_curr_table, map_id(map));
+	//kfree(map);
 	
 	return r;
-}
-
-void map_table_entry_del (struct map_t *map)
-{
-	BUG_ON(map == NULL);
-	map_table_entry_remove (map);
-	/** When a map allocated, will never freed by syscall free. */
-	//map_entry_destroy(map);
 }
 
 static void map_entry_output (struct map_t *map,  struct vty *vty)
@@ -290,11 +314,11 @@ DEFUN(no_map,
 	
 	if (argc == 0) {
 		foreach_map_func1_param0 (argv[0],
-				map_table_entry_del);
+				no_map_table_entry);
 	}
 	else {
 		split_foreach_map_func1_param0 (argv[0],
-				map_table_entry_del);
+				no_map_table_entry);
 	}
 
 	PRINT_SUMMARY;

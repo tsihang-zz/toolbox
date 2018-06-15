@@ -17,7 +17,7 @@ extern atomic_t n_map_elements;
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
-			if (v){\
+			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v);\
 				atomic_inc(&n_map_elements);\
 			}\
@@ -60,7 +60,7 @@ extern atomic_t n_map_elements;
 						}\
 					}\
 				}\
-				if (v) {\
+				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v);\
 					atomic_inc(&n_map_elements);\
 					goto lookup_next;\
@@ -68,7 +68,8 @@ extern atomic_t n_map_elements;
 	lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
 				vec_foreach_element(vec, each, v){\
-					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
+					if (v && (v->ul_flags & MAP_VALID)\
+						&& !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
 						atomic_inc(&n_map_elements);\
 					}\
@@ -94,7 +95,7 @@ extern atomic_t n_map_elements;
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
-			if (v){\
+			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v, param0);\
 				atomic_inc(&n_map_elements);\
 			}\
@@ -137,7 +138,7 @@ extern atomic_t n_map_elements;
 						}\
 					}\
 				}\
-				if (v) {\
+				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v, param0);\
 					atomic_inc(&n_map_elements);\
 					goto lookup_next;\
@@ -172,7 +173,7 @@ extern atomic_t n_map_elements;
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
-			if (v){\
+			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v, param0, param_1);\
 				atomic_inc(&n_map_elements);\
 			}\
@@ -215,7 +216,7 @@ extern atomic_t n_map_elements;
 						}\
 					}\
 				}\
-				if (v) {\
+				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v, param0, param_1);\
 					atomic_inc(&n_map_elements);\
 					goto lookup_next;\
@@ -223,7 +224,8 @@ extern atomic_t n_map_elements;
 		lookup_by_alias_posted_fuzzy:\
 				/** lookup alias with Post-Fuzzy match */\
 				vec_foreach_element(vec, each, v){\
-					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
+					if (v && (v->ul_flags & MAP_VALID)\
+						&& !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
 						atomic_inc(&n_map_elements);\
 					}\
@@ -243,7 +245,7 @@ extern atomic_t n_map_elements;
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\
 	vec_foreach_element(vec, each, v){\
-		if (v) {\
+		if (v && (v->ul_flags & MAP_VALID)) {\
 			func (v);\
 			atomic_inc(&n_map_elements);\
 		}\
@@ -257,7 +259,7 @@ extern atomic_t n_map_elements;
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\
 	vec_foreach_element(vec, each, v){\
-		if (v) {\
+		if (v && (v->ul_flags & MAP_VALID)) {\
 			func (v, param0);\
 			atomic_inc(&n_map_elements);\
 		}\

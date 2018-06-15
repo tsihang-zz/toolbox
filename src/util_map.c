@@ -4,6 +4,14 @@
 #include "util_map.h"
 #include "dpdk_classify.h"
 
+static __oryx_always_inline__
+int map_has_this_appl (struct map_t *map, struct appl_t *appl)
+{
+	return (appl->ul_map_mask & (1 << map_id(map)));
+}
+
+
+__oryx_always_extern__
 void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 #if 0
@@ -23,6 +31,7 @@ void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 	}
 }
 
+__oryx_always_extern__
 void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
 	/** Unmap Rx Port */
@@ -34,12 +43,6 @@ void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 	if(from_to == QUA_TX) {
 		map->tx_panel_port_mask &= ~(1 << iface_id(port));
 	}
-}
-
-static __oryx_always_inline__
-int map_has_this_appl (struct map_t *map, struct appl_t *appl)
-{
-	return (appl->ul_map_mask & (1 << map_id(map)));
 }
 
 __oryx_always_extern__
@@ -96,6 +99,7 @@ int map_entry_remove_appl (struct appl_t *appl, struct map_t *map,
 	return -1;
 }
 
+__oryx_always_extern__
 int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 {
 	u8 table = MPM_TABLE0;
@@ -124,15 +128,7 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 	return 0;
 }
 
-void map_entry_destroy (struct map_t *map)
-{
-	vlib_map_main_t *mm = &vlib_map_main;
-	
-	/** Delete map from oryx_vector */
-	vec_unset (mm->map_curr_table, map_id(map));
-	kfree (map);
-}
-
+__oryx_always_extern__
 int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 {	
 	struct map_t *v;
@@ -165,4 +161,5 @@ int acl_remove_appl(struct map_t *map, struct appl_t *appl) {
 	vlib_map_main_t *mm = &vlib_map_main;
 	return 0;
 }
+
 

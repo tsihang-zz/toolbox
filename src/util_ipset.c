@@ -2,6 +2,20 @@
 #include "prefix.h"
 #include "util_ipset.h"
 
+
+static __oryx_always_inline__
+void appl_inherit(struct appl_t *son, struct appl_t *father)
+{
+	uint32_t id = appl_id(son);
+
+	/** inherit all data from father application. */
+	memcpy (son, father, sizeof(struct appl_t));
+
+	/** except THE ID and PRIORITY. */
+	appl_id(son) = id;
+	son->priority = id;
+}
+
 int appl_entry_format (struct appl_t *appl,
 	u32 __oryx_unused__*rule_id, const char *unused_var,
 	char __oryx_unused__*vlan,
@@ -161,15 +175,11 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 	int r = oryx_htable_del(am->htable,
 				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
-		//vec_unset (am->entry_vec, appl_id(appl));
 		appl->ul_flags &= ~APPL_VALID;
 	}
 	do_unlock (&am->lock);
 	
 	/** Should you free appl here ? */
-	appl->ul_flags &= ~APPL_VALID;
-	//kfree (appl);
-
 	return 0;  
 }
 
@@ -179,35 +189,35 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 	
 	/** Add appl_alias(appl) to hash table for controlplane fast lookup */
 	int r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
-	if (r == 0 /** success*/) {
+	if (r != 0)
+		goto finish;
+	
+	int each;
+	struct appl_t *son = NULL, *a = NULL;
 
-		if(vec_active(am->entry_vec) == 0) {
-			appl_id(appl) = vec_set (am->entry_vec, appl);
-			appl->priority = appl_id(appl);
-			appl->ul_flags |= APPL_VALID;
-		}
-		else {
-			int each;
-			struct appl_t *a = NULL;
-			vec_foreach_element(am->entry_vec, each, a) {
-				if (unlikely(!a))
-					continue;
-				if (!(a->ul_flags & APPL_VALID)) {
-					uint32_t id = appl_id(a);
-					memcpy (a, appl, sizeof(struct appl_t));
-					appl_id(a) = id;
-					appl->priority = appl_id(appl);
-					a->ul_flags |= APPL_VALID;
-					kfree(appl);
-					goto finish;
-				}
-			}
-			appl_id(appl) = vec_set (am->entry_vec, appl);
-			appl->priority = appl_id(appl);
-			appl->ul_flags |= APPL_VALID;
+	/** lookup for an empty slot for this application. */
+	vec_foreach_element(am->entry_vec, each, a) {
+		if (unlikely(!a))
+			continue;
+		if (!(a->ul_flags & APPL_VALID)) {
+			son = a;
+			break;
 		}
 	}
 	
+	if (son) {			
+		/** if there is an unused application, update its data with formatted appl */
+		appl_inherit(son, appl);
+		son->ul_flags |= APPL_VALID;
+		kfree(appl);
+	
+	} else {
+		/** else, set this application to vector. */
+		appl_id(appl) = vec_set (am->entry_vec, appl);
+		appl->priority = appl_id(appl);
+		appl->ul_flags |= APPL_VALID;
+	}
+
 finish:
 	do_unlock (&am->lock);
 	return r;
