@@ -109,7 +109,6 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 	ASSERT ((*map));
 
 	(*map)->ull_create_time = time(NULL);
-	INIT_LIST_HEAD(&(*map)->prio_node);
 
 	(*map)->ul_flags = MAP_TRAFFIC_TRANSPARENT;
 	
@@ -127,6 +126,10 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 
 void map_entry_destroy (struct map_t *map)
 {
+	vlib_map_main_t *mm = &vlib_map_main;
+	
+	/** Delete map from oryx_vector */
+	vec_unset (mm->map_curr_table, map_id(map));
 	kfree (map);
 }
 

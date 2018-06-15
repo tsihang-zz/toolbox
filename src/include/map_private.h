@@ -100,14 +100,13 @@ struct map_t {
 
 	uint32_t		ul_nb_appls;
 	
-	struct list_head	prio_node;
-
 #define MAP_DEFAULT				(1 << 0)		/** Default map can not be removed. */
 #define MAP_TRAFFIC_TRANSPARENT	(1 << 1)		/** Transparent, default setting for a map.
 												 * When a map created, traffic will be transparent bettwen its "from" and "to" port,
 												 * no matter whether there are passed applications, udps or not. */
 #define MAP_INTELLIGENT_LB		(1 << 2)
 #define MAP_ENABLED				(1 << 3)
+#define MAP_VALID				(1 << 4)
 	uint32_t		ul_flags;
 	uint64_t		ull_create_time;			/** Create time. */
 	
@@ -125,15 +124,12 @@ struct map_t {
 typedef struct {
 	uint32_t				ul_flags;
 	volatile uint32_t		nb_maps;
-	struct list_head		map_priority_list;
 	os_lock_t 				lock;
 	volatile uint32_t		vector_runtime;
 	volatile oryx_vector	map_curr_table;
 	oryx_vector				entry_vec[VECTOR_TABLES];
 	struct oryx_timer_t		*online_port_update_tmr;
 	struct oryx_htable_t	*htable;	
-	struct map_t			*lowest_map;	/** fast tracinging. unused actually. */
-	struct map_t			*highest_map;
 	struct vlib_main_t		*vm;
 }vlib_map_main_t;
 

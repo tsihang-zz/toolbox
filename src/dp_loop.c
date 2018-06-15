@@ -139,6 +139,8 @@ int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	Packet *p;
 	uint32_t cpu_dsa = 0;
 	uint32_t tx_panel_ge_id = 0;
+	struct iface_t *tx_panel_iface = NULL;
+	vlib_port_main_t *pm = &vlib_port_main;
 	
 	p = GET_MBUF_PRIVATE(Packet, m);
 
@@ -186,6 +188,11 @@ int send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 
 flush2_buffer:
 
+	if (tx_panel_port_id > SW_PORT_OFFSET) {
+		iface_lookup_id(pm, tx_panel_port_id, &tx_panel_iface);
+		iface_counter_update(tx_panel_iface, 1, m->pkt_len, QUA_TX, tv->lcore);
+	}
+	
 	len = qconf->tx_mbufs[tx_port_id].len;
 	qconf->tx_mbufs[tx_port_id].m_table[len] = m;
 	len++;
@@ -404,6 +411,8 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 {
 	struct rte_mbuf *pkt = pkts_in[index];
 	Packet *p;
+	struct iface_t *rx_panel_iface = NULL;
+	vlib_port_main_t *pm = &vlib_port_main;
 	
 	p = GET_MBUF_PRIVATE(Packet, pkt);
 	p->iphd_offset = 0;
@@ -425,6 +434,12 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 			PrintDSA("RX", p->dsa, QUA_RX);
 			dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
 #endif
+
+			if (rx_panel_port_id > SW_PORT_OFFSET) {
+				iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
+				iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
+			}
+
 			if (!DSA_IS_INGRESS(p->dsa)) {
 				/* Unknown type, drop the packet */
 				free_packet(tv, dtv, pkt);
@@ -1042,8 +1057,10 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				vm->ul_core_mask |= (1 << tv->lcore);
 		}
 		
-		if(vm->ul_core_mask & (1 << tv->lcore))
+		if(vm->ul_core_mask & (1 << tv->lcore)) {
+			g_runtime_acl_config = &acl_config[g_runtime_acl_config_qua % ACL_TABLES];
 			vm->ul_core_mask &= ~(1 << tv->lcore);
+		}
 		
 		/*
 		 * Read packet from RX queues
@@ -1057,8 +1074,11 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				continue;
 
 			/** port ID -> iface */
-			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);			
-			iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
+			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);
+			iface_counter_update(rx_cpu_iface, nb_rx, 0, QUA_RX, tv->lcore);
+
+			//iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
+
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 
@@ -1075,7 +1095,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			if (acl_search.num_ipv4) {
 				{
 					rte_acl_classify(
-						//acl_config.acx_ipv4[socketid],
 						g_runtime_acl_config->acx_ipv4[socketid],
 						acl_search.data_ipv4,
 						acl_search.res_ipv4,
@@ -1093,7 +1112,6 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			if (acl_search.num_ipv6) {
 				{
 					rte_acl_classify(
-						//acl_config.acx_ipv6[socketid],
 						g_runtime_acl_config->acx_ipv6[socketid],
 						acl_search.data_ipv6,
 						acl_search.res_ipv6,

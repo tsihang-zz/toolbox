@@ -27,11 +27,10 @@ struct acl_config_t{
 	struct acl4_rule		*rule_ipv4;
 	struct acl6_rule		*rule_ipv6;
 #endif
-
-	oryx_vector				ud_lookup_vector;/** user data lookup vector. */
 } acl_config[ACL_TABLES];
 
 extern struct acl_config_t *g_runtime_acl_config;
+extern int g_runtime_acl_config_qua;
 
 static struct{
 	const char *rule_ipv4_name;

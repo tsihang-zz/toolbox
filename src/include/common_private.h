@@ -97,7 +97,22 @@ typedef struct vlib_main_t
 
 } vlib_main_t;
 
-//extern vlib_main_t vlib_main;
+static __oryx_always_inline__
+void lock_lcores(vlib_main_t *vm)
+{
+	vm->ul_flags |= VLIB_DP_SYNC;
+	while(vm->ul_core_mask != VLIB_ALL_WORK_CORES);
+	oryx_logn("locres %08x", vm->ul_core_mask);
+}
+
+static __oryx_always_inline__
+void unlock_lcores(vlib_main_t *vm)
+{
+	vm->ul_flags &= ~VLIB_DP_SYNC;
+	while(vm->ul_core_mask != 0);
+	oryx_logn("locres %08x", vm->ul_core_mask);
+}
+
 
 #define CONFIG_PATH	"conf"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"

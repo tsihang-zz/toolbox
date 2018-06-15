@@ -92,40 +92,25 @@ void map_entry_split_and_unmapping_port (struct map_t *map, u8 from_to)
 
 int map_table_entry_add (struct map_t *map)
 {
-
 	int r = 0;
 	vlib_map_main_t *mm = &vlib_map_main;
 	
 	do_lock (&mm->lock);
-	
+
 	r = oryx_htable_add(mm->htable, 
 		map_alias(map), strlen((const char *)map_alias(map)));
 
 	/** Add alias to hash table for fast lookup by map alise. */
 	if (r == 0 /** success */) {
-		/** 
-		  * Add map to oryx_vector. 
-		  * Must be called before split and (un)mapping port to this map entry.
-		  */
 		map_id(map) = vec_set (mm->map_curr_table, map);
 
-		u8 from_to;
-		from_to = QUA_RX;
-		if (map->port_list_str[from_to]) {
-			map_entry_split_and_mapping_port (map, from_to);
-		}
-		/** QUA_TX may should not be concerned. Discard it. */
-		from_to = QUA_TX;
-		if (map->port_list_str[from_to]) {
-			map_entry_split_and_mapping_port (map, from_to);
+		if (map->port_list_str[QUA_RX]) {
+			map_entry_split_and_mapping_port (map, QUA_RX);
 		}
 
-		mm->highest_map = vec_first (mm->map_curr_table);
-		mm->lowest_map = vec_last (mm->map_curr_table);
-
-		/** Add this map to priority list */
-		list_add_tail (&map->prio_node, &mm->map_priority_list);
-		
+		if (map->port_list_str[QUA_TX]) {
+			map_entry_split_and_mapping_port (map, QUA_TX);
+		}
 	}
 
 	do_unlock (&mm->lock);
@@ -146,27 +131,13 @@ int map_table_entry_remove (struct map_t *map)
 
 	if (r == 0 /** success */) {
 
-		/** dataplane may using the map, unmap port as soon as possible. */
-		u8 from_to;
-		
-		from_to = QUA_RX;
-		if (map->port_list_str[from_to]) {
-			map_entry_split_and_unmapping_port (map, from_to);
+		if (map->port_list_str[QUA_RX]) {
+			map_entry_split_and_mapping_port (map, QUA_RX);
 		}
 
-		/** QUA_TX may should not be concerned. Discard it. */
-		from_to = QUA_TX;
-		if (map->port_list_str[from_to]) {
-			map_entry_split_and_unmapping_port (map, from_to);
+		if (map->port_list_str[QUA_TX]) {
+			map_entry_split_and_mapping_port (map, QUA_TX);
 		}
-		
-		/** Delete map from oryx_vector */
-		vec_unset (mm->map_curr_table, map_id(map));
-		mm->highest_map = vec_first (mm->map_curr_table);
-		mm->lowest_map = vec_last (mm->map_curr_table);
-
-		/** Delete this map from priority list */
-		list_del (&map->prio_node);
 	}
 
 	do_unlock (&mm->lock);
@@ -178,7 +149,8 @@ void map_table_entry_del (struct map_t *map)
 {
 	BUG_ON(map == NULL);
 	map_table_entry_remove (map);
-	map_entry_destroy(map);
+	/** When a map allocated, will never freed by syscall free. */
+	//map_entry_destroy(map);
 }
 
 static void map_entry_output (struct map_t *map,  struct vty *vty)
@@ -325,9 +297,6 @@ DEFUN(no_map,
 				map_table_entry_del);
 	}
 
-	/** reset lowest priority map and highest priority map. */
-	mm->lowest_map = mm->highest_map = mm->map_curr_table->index[0];
-
 	PRINT_SUMMARY;
 	
     return CMD_SUCCESS;
@@ -367,22 +336,6 @@ DEFUN(new_map,
     return CMD_SUCCESS;
 }
 
-static __oryx_always_inline__
-int lock_lcores(vlib_main_t *vm)
-{
-	vm->ul_flags |= VLIB_DP_SYNC;
-	while(vm->ul_core_mask != VLIB_ALL_WORK_CORES);
-	oryx_logn("locres %08x", vm->ul_core_mask);
-}
-
-static __oryx_always_inline__
-int unlock_lcores(vlib_main_t *vm)
-{
-	vm->ul_flags &= ~VLIB_DP_SYNC;
-	while(vm->ul_core_mask != 0);
-	oryx_logn("locres %08x", vm->ul_core_mask);
-}
-
 
 DEFUN(map_application,
       map_application_cmd,
@@ -403,12 +356,15 @@ DEFUN(map_application,
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
-
+#if 0
 	lock_lcores(vm);
 	split_foreach_application_func1_param3 (argv[2],
 					map_entry_add_appl, map, argv[1], acl_download_appl);
 	unlock_lcores(vm);
-
+#else
+	split_foreach_application_func1_param3 (argv[2],
+				map_entry_add_appl, map, argv[1], NULL);
+#endif
 	PRINT_SUMMARY;
 	
     return CMD_SUCCESS;
@@ -441,175 +397,6 @@ DEFUN(no_map_applicatio,
      return CMD_SUCCESS;
 }
 
-static void map_priority_show (struct vty *vty)
-{
-	vlib_map_main_t *mm = &vlib_map_main;
-	
-	struct map_t *map = NULL, *p;
-	list_for_each_entry_safe(map, p, &mm->map_priority_list, prio_node){
-		vty_out (vty, "%s, ", map_alias(map));
-	}
-
-	vty_out (vty, "%s", VTY_NEWLINE);
-	vty_out (vty, "%s", VTY_NEWLINE);
-
-}
-
-DEFUN(map_adjusting_priority,
-      map_adjusting_priority_cmd,
-      "map WORD priority (after|before) map WORD",
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR)
-{
-	/** All map in priority list can be reload to backup oryx_vector */
-	int i;
-	u8 do_swap = 0;
-	oryx_vector vector_backup;
-	struct map_t *map = NULL, *p;
-	struct map_t *v1, *v2, *after, *before;
-	vlib_map_main_t *mm = &vlib_map_main;
-	
-	map_table_entry_deep_lookup((const char *)argv[0], &v1);
-	if (unlikely (!v1)) {
-		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
-		return CMD_SUCCESS;
-	}
-
-	map_table_entry_deep_lookup((const char *)argv[2], &v2);
-	if (unlikely (!v2)) {
-		VTY_ERROR_MAP ("non-existent", (char *)argv[2]);
-		return CMD_SUCCESS;
-	}
-
-	after = before = v1;
-
-	if (!strncmp (argv[1], "b", 1)) {
-		after = v2;
-	}else {
-		before = v2;
-	}
-	
-	/**
-	 * vty_out (vty, "before %s %s", map_alias(before), VTY_NEWLINE);
-	 * vty_out (vty, "after %s %s", map_alias(after), VTY_NEWLINE);
-	 * map_priority_show(vty); 
-	 */
-	list_del (&after->prio_node);
-	list_add (&after->prio_node, &before->prio_node);
-
-	vector_backup = mm->entry_vec[++mm->vector_runtime%VECTOR_TABLES];
-	
-	/** Destroy all maps in backup oryx_vector's slots. */
-	vec_foreach_element(vector_backup, i, map) {
-		vec_unset (vector_backup, i);
-	}
-
-	/** Map to oryx_vector */
-	list_for_each_entry_safe(map, p, &mm->map_priority_list, prio_node) {
-		/** Update slot automatically. */
-		map_id(map) = vec_set (vector_backup, map);
-	}
-
-	/** do swapping ??? */
-	do_swap = 1;
-
-	if (do_swap){
-		/** Critical region started. */
-		do_lock (&mm->lock);
-		/** vector_runtime and mm->map_curr_table remapping must be protected by lock. */
-		mm->map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
-		do_unlock (&mm->lock);
-	}
-
-	/** map_priority_show (vty); */
-
-	return CMD_SUCCESS;
-}
-
-DEFUN(map_adjusting_priority_highest_lowest,
-      map_adjusting_priority_highest_lowest_cmd,
-      "map WORD priority (highest|lowest)",
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR
-      KEEP_QUITE_STR KEEP_QUITE_CSTR)
-{
-	/** All map in priority list can be reload to backup oryx_vector */
-	int i;
-	u8 do_swap = 0;
-	oryx_vector vector_backup;
-	struct map_t *map = NULL, *p;
-	struct map_t *v;
-	vlib_map_main_t *mm = &vlib_map_main;
-
-	struct prefix_t lp_al = {
-		.cmd = LOOKUP_ALIAS,
-		.s = strlen ((char *)argv[0]),
-		.v = (char *)argv[0],
-	};
-
-	map_table_entry_lookup (&lp_al, &v);
-	if (unlikely (!v)) {
-		/** try id lookup if alldigit input. */
-		if (isalldigit ((char *)argv[0])) {
-			u32 id = atoi((char *)argv[0]);
-			struct prefix_t lp_id = {
-				.cmd = LOOKUP_ID,
-				.v = (void *)&id,
-				.s = strlen ((char *)argv[0]),
-			};
-			map_table_entry_lookup (&lp_id, &v);
-			if(likely(v))
-				goto lookup;
-		}
-		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
-		return CMD_SUCCESS;
-	}
-
-lookup:
-
-	/** */
-	list_del (&v->prio_node);
-	
-	if (!strncmp (argv[1], "h", 1)) {
-		/** Insert a new entry before the specified head */
-		list_add (&v->prio_node, &mm->map_priority_list);
-	} else {
-		/** Insert a new entry after the specified head */
-		list_add_tail (&v->prio_node, &mm->map_priority_list);
-	}
-
-	/** Critical region started. */
-	vector_backup = mm->entry_vec[++mm->vector_runtime%VECTOR_TABLES];
-	
-	/** Destroy all maps in backup oryx_vector's slots. */
-	vec_foreach_element(vector_backup, i, map) {
-		vec_unset (vector_backup, i);
-	}
-
-	/** Map to oryx_vector */
-	list_for_each_entry_safe(map, p, &mm->map_priority_list, prio_node){
-		/** Update slot automatically. */
-		map_id(map) = vec_set (vector_backup, map);
-	}
-
-	/** do swapping ??? */
-	do_swap = 1;
-
-	if (do_swap){
-		/** vector_runtime and mm->map_curr_table remapping must be protected by lock. */
-		mm->map_curr_table = mm->entry_vec[mm->vector_runtime%VECTOR_TABLES];
-	}
-
-	return CMD_SUCCESS;
-}
-
 DEFUN(sync_appl,
 	sync_appl_cmd,
 	"sync",
@@ -618,9 +405,9 @@ DEFUN(sync_appl,
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_main_t *vm = mm->vm;
 
-	vm->ul_flags |= VLIB_DP_SYNC;
-	sync_acl();
-	vm->ul_flags &= ~VLIB_DP_SYNC;
+	lock_lcores(vm);
+	sync_acl(vm);
+	unlock_lcores(vm);
 	
 	return CMD_SUCCESS;
 }
@@ -684,18 +471,14 @@ void map_init(vlib_main_t *vm)
 		exit(0);
 	}
 
-	INIT_LIST_HEAD(&mm->map_priority_list);
 
 	mm->map_curr_table = mm->entry_vec[VECTOR_TABLE0];
 
-	mm->lowest_map = mm->highest_map = mm->map_curr_table->index[0];
 	install_element (CONFIG_NODE, &show_map_cmd);
 	install_element (CONFIG_NODE, &new_map_cmd);
 	install_element (CONFIG_NODE, &no_map_cmd);
 	install_element (CONFIG_NODE, &no_map_application_cmd);
 	install_element (CONFIG_NODE, &map_application_cmd);
-	install_element (CONFIG_NODE, &map_adjusting_priority_highest_lowest_cmd);
-	install_element (CONFIG_NODE, &map_adjusting_priority_cmd);
 	install_element (CONFIG_NODE, &sync_appl_cmd);
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;

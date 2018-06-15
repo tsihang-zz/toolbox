@@ -84,6 +84,12 @@ struct iface_t {
 #define iface_counters_set(p,id,x)\
 	oryx_counter_set(iface_perf((p)),(id),(x));
 
+#define iface_counter_update(iface,nb_pkts,nb_bytes,rx_tx,lcore)\
+	iface_counters_add((iface),\
+		(iface)->if_counter_ctx->lcore_counter_pkts[rx_tx][(lcore)], nb_pkts);\
+	iface_counters_add((iface),\
+		(iface)->if_counter_ctx->lcore_counter_bytes[rx_tx][(lcore)], nb_bytes);
+
 #define VLIB_PM_LINK_TRANSITION_DETECTED			(1 << 0)
 typedef struct vlib_port_main {
 	int						ul_n_ports;	/* dpdk_ports + sw_ports */

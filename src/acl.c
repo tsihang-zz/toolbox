@@ -175,8 +175,6 @@ void classify_setup_acl(const int socketid)
 				"Failed to setup classify method for  ACL context\n");
 		
 		acl_config[acl_table].acx_ipv4[socketid] = context;
-		acl_config[acl_table].ud_lookup_vector = vec_init(1);
-		BUG_ON(acl_config[acl_table].ud_lookup_vector == NULL);
 		oryx_logn("acl_config_table(%d) %p", acl_table, &acl_config[acl_table]);
 	}
 
@@ -370,7 +368,7 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 	}
 }
 
-void sync_acl(void)
+void sync_acl(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_appl_main_t *am = &vlib_appl_main;
@@ -399,7 +397,7 @@ void sync_acl(void)
 	vec_foreach_element(am->entry_vec, each, appl) {
 		if (unlikely(!appl))
 			continue;
-		if ((appl->ul_flags & APPL_VALID) || appl->ul_map_mask == 0)
+		if (!(appl->ul_flags & APPL_VALID) || (appl->ul_map_mask == 0))
 			continue;
 
 		if (i > nb_entries)
@@ -413,9 +411,7 @@ void sync_acl(void)
 	context = acl_next_config->acx_ipv4[socketid];
 
 	oryx_logn ("%20s%p", "curr: ", g_runtime_acl_config);
-	oryx_logn ("%20s%p", "---priv: ", g_runtime_acl_config->ud_lookup_vector);
 	oryx_logn ("%20s%p", "next: ", acl_next_config);
-	oryx_logn ("%20s%p", "---priv: ", acl_next_config->ud_lookup_vector);
 
 	hv = acl_add_entries(context, entries, nb_entries);
 	if (hv < 0) {
@@ -429,7 +425,6 @@ void sync_acl(void)
 		}
 		/* fast switch. */
 		g_runtime_acl_config_qua += 1;
-		g_runtime_acl_config = acl_next_config;
 	}
 }
 
