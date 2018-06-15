@@ -283,7 +283,7 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 	}
 
 #if defined(BUILD_DEBUG)
-	oryx_logn ("%18s%08d", "hit_appl_id: ", appid);
+	oryx_logn ("%18s%15s%08d", "hit_appl: ", appl_alias(appl), appid);
 #endif
 
 	for (i = 0; i < (int)appl->nb_maps; i ++) {
@@ -307,7 +307,8 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 		/* drop it defaulty if this rx_iface is not mapped */
 		if(!map_rx_has_iface(map, rx_iface)) {
 #if defined(BUILD_DEBUG)
-			oryx_logn("rx_iface %d is not mapped %d", iface_id(rx_iface), map_id(map));
+			oryx_logn("rx_iface (%s)%d isn't in map %s(%d)", iface_alias(rx_iface),
+					iface_id(rx_iface), map_alias(map), map_id(map));
 #endif
 			continue;
 		} else {

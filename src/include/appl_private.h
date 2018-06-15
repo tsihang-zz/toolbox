@@ -80,6 +80,7 @@ typedef struct {
 	os_lock_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t 	*htable;
+	uint32_t				nb_appls;
 }vlib_appl_main_t;
 
 extern vlib_appl_main_t vlib_appl_main;

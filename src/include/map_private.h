@@ -98,6 +98,9 @@ struct map_t {
 	uint32_t		online_tx_panel_ports[MAX_PORTS];
 	uint32_t		nb_online_tx_panel_ports;
 
+	uint32_t		online_rx_panel_ports[MAX_PORTS];
+	uint32_t		nb_online_rx_panel_ports;
+
 	uint32_t		ul_nb_appls;
 	
 #define MAP_DEFAULT				(1 << 0)		/** Default map can not be removed. */
@@ -126,8 +129,7 @@ typedef struct {
 	volatile uint32_t		nb_maps;
 	os_lock_t 				lock;
 	volatile uint32_t		vector_runtime;
-	volatile oryx_vector	map_curr_table;
-	oryx_vector				entry_vec[VECTOR_TABLES];
+	volatile oryx_vector	entry_vec;
 	struct oryx_timer_t		*online_port_update_tmr;
 	struct oryx_htable_t	*htable;	
 	struct vlib_main_t		*vm;
@@ -154,18 +156,18 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 static __oryx_always_inline__
 void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
 {
-	BUG_ON(mm->map_curr_table == NULL);
+	BUG_ON(mm->entry_vec == NULL);
 
-	if (!vec_active(mm->map_curr_table) || 
-		(id > vec_active(mm->map_curr_table)))
+	if (!vec_active(mm->entry_vec) || 
+		(id > vec_active(mm->entry_vec)))
 		return;
 
 	(*m) = NULL;
-	(*m) = (struct map_t *)vec_lookup (mm->map_curr_table, id);
+	(*m) = (struct map_t *)vec_lookup (mm->entry_vec, id);
 }
 #else
 #define map_entry_lookup_id(mm,id,m)\
-	(*(m)) = (struct map_t *)vec_lookup((mm)->map_curr_table, (id));
+	(*(m)) = (struct map_t *)vec_lookup((mm)->entry_vec, (id));
 #endif
 
 static __oryx_always_inline__

@@ -176,6 +176,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
 		appl->ul_flags &= ~APPL_VALID;
+		am->nb_appls --;
 	}
 	do_unlock (&am->lock);
 	
@@ -209,6 +210,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 		/** if there is an unused application, update its data with formatted appl */
 		appl_inherit(son, appl);
 		son->ul_flags |= APPL_VALID;
+		am->nb_appls ++;
 		kfree(appl);
 	
 	} else {
@@ -216,6 +218,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 		appl_id(appl) = vec_set (am->entry_vec, appl);
 		appl->priority = appl_id(appl);
 		appl->ul_flags |= APPL_VALID;
+		am->nb_appls ++;
 	}
 
 finish:

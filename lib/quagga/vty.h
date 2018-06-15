@@ -260,6 +260,7 @@ extern void vty_hello (struct vty *);
 /* Send a fixed-size message to all vty terminal monitors; this should be
    an async-signal-safe function. */
 extern void vty_log_fixed (char *buf, size_t len);
+extern void vty_run_command(struct vty *vty, const char *cmd);
 
 #define vty_newline(vty)	vty_out (vty, "%s", VTY_NEWLINE);
 #define printout(vty, ...) if (vty)vty_out (vty, __VA_ARGS__);\

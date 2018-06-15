@@ -77,6 +77,7 @@ map_cmp (void *v1,
 static __oryx_always_inline__
 void map_entry_split_and_mapping_port (struct map_t *map, u8 from_to)
 {
+	oryx_logn("x-> %s", map->port_list_str[from_to]);
 	if (map->port_list_str[from_to]) {
 		split_foreach_port_func1_param2 (
 			map->port_list_str[from_to], map_entry_add_port, map, from_to);
@@ -102,6 +103,7 @@ void map_inherit(struct map_t *son, struct map_t *father)
 
 	/** except THE ID. */
 	map_id(son) = id;
+	oryx_logn("1");
 	map_entry_split_and_mapping_port (son, QUA_RX);
 	map_entry_split_and_mapping_port (son, QUA_TX);
 }
@@ -113,17 +115,11 @@ int map_table_entry_add (struct map_t *map)
 	
 	do_lock (&mm->lock);
 
-	r = oryx_htable_add(mm->htable, 
-				map_alias(map), strlen((const char *)map_alias(map)));
-	/** Add alias to hash table for fast lookup by map alise. */
-	if (r != 0)
-		goto finish;
-
 	int each;
 	struct map_t *son = NULL, *a = NULL;
 	
 	/** lookup for an empty slot for this map. */
-	vec_foreach_element(mm->map_curr_table, each, a) {
+	vec_foreach_element(mm->entry_vec, each, a) {
 		if (unlikely(!a))
 			continue;
 		if (!(a->ul_flags & MAP_VALID)) {
@@ -133,17 +129,32 @@ int map_table_entry_add (struct map_t *map)
 	}
 	
 	if (son) {			
-		/** if there is an unused map, update its data with formatted map */
+		/** if there is an unused map, update its data with formatted map */		
 		map_inherit(son, map);
+		r = oryx_htable_add(mm->htable, 
+					map_alias(son), strlen((const char *)map_alias(son)));
+		/** Add alias to hash table for fast lookup by map alise. */
+		if (r != 0)
+			goto finish;
+
 		son->ul_flags |= MAP_VALID;
+		mm->nb_maps ++;
 		kfree(map);
 	
 	} else {
 		/** else, set this map to vector. */
-		map_id(map) = vec_set (mm->map_curr_table, map);
+		r = oryx_htable_add(mm->htable, 
+					map_alias(map), strlen((const char *)map_alias(map)));
+		/** Add alias to hash table for fast lookup by map alise. */
+		if (r != 0)
+			goto finish;
+
+		map_id(map) = vec_set (mm->entry_vec, map);
+		oryx_logn("2");
 		map_entry_split_and_mapping_port (map, QUA_RX);
 		map_entry_split_and_mapping_port (map, QUA_TX);
 		map->ul_flags |= MAP_VALID;
+		mm->nb_maps ++;
 	}
 
 finish:
@@ -166,12 +177,13 @@ int no_map_table_entry (struct map_t *map)
 		map->ul_flags &= ~MAP_VALID;
 		map_entry_split_and_unmapping_port (map, QUA_RX);
 		map_entry_split_and_unmapping_port (map, QUA_TX);
+		mm->nb_maps --;
 	}
 
 	do_unlock (&mm->lock);
 
 	/** Should you free here ? */
-	//vec_unset (mm->map_curr_table, map_id(map));
+	//vec_unset (mm->entry_vec, map_id(map));
 	//kfree(map);
 	
 	return r;
@@ -189,6 +201,8 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	int no_tx_panel_port = 0;
 	
 	BUG_ON(map == NULL);
+	if(!(map->ul_flags & MAP_VALID))
+		return;
 
 	tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
@@ -271,7 +285,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), %d element(s) actived.%s", \
-		atomic_read(&n_map_elements), (int)vec_count(mm->map_curr_table), VTY_NEWLINE);
+		atomic_read(&n_map_elements), (int)vec_count(mm->entry_vec), VTY_NEWLINE);
 
 DEFUN(show_map,
       show_map_cmd,
@@ -283,7 +297,7 @@ DEFUN(show_map,
 	vlib_map_main_t *mm = &vlib_map_main;
 	
 	vty_out (vty, "Trying to display %s%d%s elements ...%s", 
-		draw_color(COLOR_RED), vec_active(mm->map_curr_table), draw_color(COLOR_FIN), 
+		draw_color(COLOR_RED), mm->nb_maps, draw_color(COLOR_FIN), 
 		VTY_NEWLINE);
 	
 	vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
@@ -447,30 +461,39 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 	struct map_t *map;
 	struct iface_t *iface;
 	uint32_t tx_panel_ports[MAX_PORTS] = {0};
+	uint32_t rx_panel_ports[MAX_PORTS] = {0};
 	int i;
-	uint32_t index = 0;
+	uint32_t rx_index = 0, tx_index = 0;
 
 	/** here need a signal from iface.link_detect timer. */
-	vec_foreach_element(mm->map_curr_table, each_map, map) {
+	vec_foreach_element(mm->entry_vec, each_map, map) {
 		if (unlikely(!map))
 			continue;
-
-		index = 0;
+		if (!(map->ul_flags & MAP_VALID))
+			continue;
+		
+		rx_index = tx_index = 0;
 		for (i = 0; i < MAX_PORTS; i ++) {
+			rx_panel_ports[i] = UINT32_MAX;	
 			tx_panel_ports[i] = UINT32_MAX;
 		}
 		
 		vec_foreach_element(pm->entry_vec, each_port, iface) {
 			if(unlikely(!iface))
 				continue;
-			if(map->tx_panel_port_mask & (1 << iface_id(iface))) {
-				if(iface->ul_flags & NETDEV_ADMIN_UP) {
-					tx_panel_ports[index ++] = iface_id(iface);					
-				}
+			if(iface->ul_flags & NETDEV_ADMIN_UP) {
+				if(map->rx_panel_port_mask & (1 << iface_id(iface)))
+					rx_panel_ports[rx_index ++] = iface_id(iface);
+		
+				if(map->tx_panel_port_mask & (1 << iface_id(iface)))
+					tx_panel_ports[tx_index ++] = iface_id(iface);	
 			}
 		}
-		map->nb_online_tx_panel_ports = index;
+		
+		map->nb_online_rx_panel_ports = rx_index;
+		map->nb_online_tx_panel_ports = tx_index;
 		for (i = 0; i < MAX_PORTS; i ++) {
+			map->online_rx_panel_ports[i] = rx_panel_ports[i];
 			map->online_tx_panel_ports[i] = tx_panel_ports[i];
 		}
 	}
@@ -486,17 +509,12 @@ void map_init(vlib_main_t *vm)
 	mm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			map_hval, map_cmp, map_free, 0);
 	
-	mm->entry_vec[VECTOR_TABLE0] = vec_init (MAX_MAPS);
-	mm->entry_vec[VECTOR_TABLE1] = vec_init (MAX_MAPS);
+	mm->entry_vec = vec_init (MAX_MAPS);
 	if (mm->htable == NULL || 
-		mm->entry_vec[VECTOR_TABLE0] == NULL ||
-		mm->entry_vec[VECTOR_TABLE1] == NULL) {
+		mm->entry_vec == NULL) {
 		printf ("vlib map main init error!\n");
 		exit(0);
 	}
-
-
-	mm->map_curr_table = mm->entry_vec[VECTOR_TABLE0];
 
 	install_element (CONFIG_NODE, &show_map_cmd);
 	install_element (CONFIG_NODE, &new_map_cmd);

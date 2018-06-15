@@ -20,6 +20,7 @@ void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 		return;
 #endif
 
+	oryx_logn("rx_tx = %s", from_to == QUA_RX ? "rx" : "tx");
 	/** Map Rx Port */
 	if(from_to == QUA_RX) {
 		map->rx_panel_port_mask |= (1 << iface_id(port));

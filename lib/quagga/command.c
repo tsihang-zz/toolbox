@@ -4338,3 +4338,4 @@ cmd_terminate ()
   if (host.config)
     XFREE (MTYPE_HOST, host.config);
 }
+

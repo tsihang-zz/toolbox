@@ -3209,3 +3209,8 @@ vty_terminate (void)
       vector_free (Vvty_serv_thread);
     }
 }
+void vty_run_command(struct vty *vty, const char *cmd)
+{
+	vty_command(vty, (char *)cmd);
+}
+

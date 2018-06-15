@@ -16,7 +16,7 @@ atomic_t n_application_elements = ATOMIC_INIT(0);
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-			atomic_read(&n_application_elements), (int)vec_count(am->entry_vec), VTY_NEWLINE);
+			atomic_read(&n_application_elements), am->nb_appls, VTY_NEWLINE);
 
 static __oryx_always_inline__
 void appl_free (void __oryx_unused__ *v)
@@ -173,7 +173,7 @@ DEFUN(show_application,
 	vlib_appl_main_t *am = &vlib_appl_main;
 	
 	/** display all stream applications. */
-	vty_out (vty, "Trying to display %d elements ...%s", vec_active(am->entry_vec), VTY_NEWLINE);
+	vty_out (vty, "Trying to display %d elements ...%s", am->nb_appls, VTY_NEWLINE);
 	vty_out (vty, "%24s%4s%8s%20s%20s%10s%10s%10s%12s%8s%23s%s", 
 		"ALIAS", "ID", "PRIO", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", VTY_NEWLINE);
 	
@@ -306,7 +306,8 @@ DEFUN(new_application1,
 			
     return CMD_SUCCESS;
 }
-static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *keyword)
+
+static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *value)
 {
 	char keyword_backup[256] = {0};
 
@@ -316,8 +317,8 @@ static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *ke
 		free (appl->sc_keyword);
 	}
 	
-	if (keyword) {
-		appl->sc_keyword = strdup (keyword);
+	if (value) {
+		appl->sc_keyword = strdup (value);
 		/** Init rc4. */
 		rc4_init (appl->uc_keyword_encrypt, (u8 *)appl->sc_keyword, (u64)strlen (appl->sc_keyword));
 		VTY_SUCCESS_APPLICATION ("Encrypt-Keyword", appl);
@@ -325,6 +326,20 @@ static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *ke
 		vty_newline(vty);
 	}
 
+	return 0;
+}
+
+static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *value)
+{
+	uint32_t priority;
+	char *end;
+
+	priority = strtoul((const char *)value, &end, 10);
+	if (errno == ERANGE){
+		oryx_logn("%d (%s)", errno, value);
+		return -EINVAL;
+	}
+	appl->priority = priority;
 	return 0;
 }
 
@@ -343,6 +358,23 @@ DEFUN(set_application_desensitize,
 	PRINT_SUMMARY;
 	
 	return CMD_SUCCESS;
+}
+
+DEFUN(set_application_priority,
+	set_application_priority_cmd,
+	"application WORD priority <1-128>",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
+{
+  vlib_appl_main_t *am = &vlib_appl_main;
+  split_foreach_application_func1_param2 (argv[0], 
+	  appl_entry_priority, vty, (char *)argv[1]);
+
+  PRINT_SUMMARY;
+  
+  return CMD_SUCCESS;
 }
 
 DEFUN(test_range,
@@ -378,6 +410,7 @@ void appl_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &new_application_cmd);
 	install_element (CONFIG_NODE, &new_application_cmd1);
 	install_element (CONFIG_NODE, &set_application_desensitize_cmd);
+	install_element (CONFIG_NODE, &set_application_priority_cmd);
 	install_element (CONFIG_NODE, &no_application_cmd);
 
 	install_element (CONFIG_NODE, &test_range_cmd);
