@@ -7,6 +7,7 @@
 #include "udp_private.h"
 #include "cli_udp.h"
 
+#if 0
 atomic_t n_udp_elements = ATOMIC_INIT(0);
 oryx_vector udp_vector_table;
 
@@ -990,4 +991,4 @@ void udp_init(vlib_main_t *vm)
 	vm->ul_flags |= VLIB_UDP_INITIALIZED;
 }
 
-
+#endif

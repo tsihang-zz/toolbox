@@ -112,7 +112,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	}
 
 	if(appl->ip_dst_mask == ANY_IPADDR) {
-		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
+		sprintf((char *)&pfx_buf[HD_DST][0], "%s", "any");
 	} else {
 		ip4.family = AF_INET;
 		ip4.prefixlen = appl->ip_dst_mask;
@@ -136,18 +136,19 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	if(appl->ip_next_proto_mask == ANY_PROTO) {
 		sprintf ((char *)&proto_buf[0], "%s", "any");
 	} else {
-		sprintf ((char *)&proto_buf[0], "%d:%d", appl->ip_next_proto, appl->ip_next_proto_mask);
+		sprintf ((char *)&proto_buf[0], "%02x/%02x", appl->ip_next_proto, appl->ip_next_proto_mask);
 	}
 	
-	vty_out (vty, "%24s%4u%20s%20s%10s%10s%10s%12s%08x%23s%s", 
+	vty_out (vty, "%24s%4u%8u%20s%20s%10s%10s%10s%12s%08x%23s%s", 
 		appl_alias(appl),
 		appl_id(appl),
+		appl->priority,
 		pfx_buf[HD_SRC],
 		pfx_buf[HD_DST],
 		port_buf[HD_SRC],
 		port_buf[HD_DST],
 		proto_buf, 
-		(appl->ul_flags & APPL_SYNCED) ? "synced" : "dis-synced",
+		(appl->ul_flags & APPL_SYNCED) ? "synced" : "!synced",
 		appl->ul_map_mask,
 		tmstr,
 		VTY_NEWLINE);
@@ -172,9 +173,9 @@ DEFUN(show_application,
 	vlib_appl_main_t *am = &vlib_appl_main;
 	
 	/** display all stream applications. */
-	vty_out (vty, "Trying to display %d application elements ...%s", vec_active(am->entry_vec), VTY_NEWLINE);
-	vty_out (vty, "%24s%4s%20s%20s%10s%10s%10s%12s%8s%23s%s", 
-		"ALIAS", "ID", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", VTY_NEWLINE);
+	vty_out (vty, "Trying to display %d elements ...%s", vec_active(am->entry_vec), VTY_NEWLINE);
+	vty_out (vty, "%24s%4s%8s%20s%20s%10s%10s%10s%12s%8s%23s%s", 
+		"ALIAS", "ID", "PRIO", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", VTY_NEWLINE);
 	
 	if (argc == 0){
 		foreach_application_func1_param1 (argv[0], 

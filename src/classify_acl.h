@@ -47,19 +47,20 @@ static struct{
 
 struct acl_route {
 	union {
-		struct ipv4_5tuple k4;
-		struct ipv6_5tuple k6;
+		struct ipv4_5tuple		k4;
+		struct ipv6_5tuple		k6;
 	}u;
-	uint32_t ip_src_mask: 8;
-	uint32_t ip_dst_mask: 8;
-	uint32_t ip_next_proto_mask: 8;
-	uint32_t pad0: 8;
-	uint32_t port_src_mask: 16;
-	uint32_t port_dst_mask: 16;
-	uint32_t appid;
-
-	uint32_t map_mask;/** map_mask is a traffic direction
-						which has a set of in_ports and out_ports. */
+	uint32_t					ip_src_mask: 8;
+	uint32_t					ip_dst_mask: 8;
+	uint32_t					ip_next_proto_mask: 8;
+	uint32_t					pad0: 8;
+	uint32_t					port_src_mask: 16;
+	uint32_t					port_dst_mask: 16;
+	uint32_t					appid;
+	uint32_t					prio;
+	uint32_t					map_mask;/** map_mask is a traffic direction
+										  *  which has a set of in_ports and out_ports.
+										  */
 };
 
 #define OFF_ETHHEAD	(sizeof(struct ether_hdr))

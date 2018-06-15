@@ -61,24 +61,15 @@ enum {
 	QUAS,
 };
 
-struct stats_trunk_t {
-	u64 bytes;
-	u64 packets;
-};
-
 typedef struct vlib_main_t
 {
-	int argc;
-	char *argv[1024];
-	/* Name for e.g. syslog. */
-	const char *prgname;
-	int log_level;
-	char *log_path;
-
-	void (*sighandler)(int signum);
-	
-	/** equal with sizeof (Packet) */
-	u32 extra_priv_size;
+	int					argc;
+	char				*argv[1024];
+	const char			*prgname;			/* Name for e.g. syslog. */
+	int					log_level;
+	char				*log_path;
+	void 				(*sighandler)(int signum);
+	uint32_t			extra_priv_size;	/** equal with sizeof (Packet) */
 
 #define VLIB_DPDK_EAL_INITIALIZED		(1 << 0)
 #define VLIB_DPDK_MEMPOOL_INITIALIZED	(1 << 1)
@@ -89,15 +80,20 @@ typedef struct vlib_main_t
 #define VLIB_DP_INITIALIZED				(1 << 6)
 #define VLIB_DP_SYNC					(1 << 7)
 #define VLIB_QUIT						(1 << 31)
-	u32 ul_flags;
+	volatile uint32_t	ul_flags;
 
-	struct oryx_timer_t *perf_tmr;
-	int (*dp_running_fn)(void *);
-	int (*dp_terminal_fn)(void *);
-	volatile bool force_quit;
+/** lcore0 is not used as a work core. */
+#define VLIB_ALL_WORK_CORES				((1 << 1) | (1 << 2) | (1 << 3))
 
-	int nb_lcores;
-	int nb_dpdk_ports;
+	volatile uint32_t	ul_core_mask;
+	int					(*dp_running_fn)(void *);
+	int					(*dp_terminal_fn)(void *);
+	volatile bool		force_quit;
+
+	int					nb_lcores;
+	int					nb_dpdk_ports;
+
+	struct oryx_timer_t	*perf_tmr;
 
 } vlib_main_t;
 

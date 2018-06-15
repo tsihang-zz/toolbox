@@ -142,7 +142,6 @@ RTE_ACL_RULE_DEF(acl4_rule, RTE_DIM(ipv4_defs));
 
 
 int dim = RTE_DIM(ipv4_defs);
-int total_num = 0;
 struct acl_config_t *g_runtime_acl_config;
 int g_runtime_acl_config_qua = 0;
 
@@ -247,6 +246,7 @@ void appl2_ar(struct appl_t *appl, struct acl_route *ar)
 	ar->ip_next_proto_mask		= (appl->ip_next_proto_mask == ANY_PROTO)	? 0 : appl->ip_next_proto_mask;
 	ar->map_mask				= appl->ul_map_mask;
 	ar->appid					= appl_id(appl);
+	ar->prio					= appl->priority;
 }
 
 static __oryx_always_inline__
@@ -272,7 +272,7 @@ void convert_acl(struct     acl_route *ar,
 	v->field[DSTP_FIELD_IPV4].mask_range.u16 = ar->port_dst_mask;
 
 	acl_set_userdata(v, ar);
-	v->data.priority = RTE_ACL_MAX_PRIORITY - total_num ++;
+	v->data.priority = (RTE_ACL_MAX_PRIORITY - ar->prio);
 	v->data.category_mask = -1;
 }
 
@@ -365,7 +365,7 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 			entry.port_dst_mask,
 			entry.u.k4.proto,
 			entry.ip_next_proto_mask);
-
+		appl->ul_flags |= APPL_SYNCED;
 		return 0;
 	}
 }

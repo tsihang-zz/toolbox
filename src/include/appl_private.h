@@ -56,13 +56,13 @@ struct appl_t {
 	uint32_t			vlan_id	:				12;
 	uint32_t			l2_vlan_id_mask	:		12;
 	uint32_t			pad0 :					8;
+	uint32_t			priority;
 	uint32_t			ip_src;
 	uint32_t			ip_dst;	
 	uint32_t			ip_src_mask	:			8;
 	uint32_t			ip_dst_mask	:			8;
 	uint32_t			ip_next_proto:			8;
-	uint32_t			ip_next_proto_mask:		8;
-
+	uint32_t			ip_next_proto_mask:		8;	
 	uint16_t			l4_port_src;
 	uint16_t			l4_port_src_mask;
 	uint16_t			l4_port_dst;		/** */

@@ -1037,8 +1037,14 @@ main_loop(__attribute__((unused)) void *ptr_data)
 			prev_tsc = cur_tsc;
 		}
 
-		if(vm->ul_flags & VLIB_DP_SYNC)
-			continue;
+		while(vm->ul_flags & VLIB_DP_SYNC) {
+			if(!(vm->ul_core_mask & (1 << tv->lcore)))
+				vm->ul_core_mask |= (1 << tv->lcore);
+		}
+		
+		if(vm->ul_core_mask & (1 << tv->lcore))
+			vm->ul_core_mask &= ~(1 << tv->lcore);
+		
 		/*
 		 * Read packet from RX queues
 		 */

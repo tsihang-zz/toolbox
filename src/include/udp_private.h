@@ -48,24 +48,7 @@ struct pattern_t {
 	/** Depth of search for this pattern in a packet. */
 	u16 us_depth;
 
-	/** Statistics for this pattern. */
-	struct stats_trunk_t hits;
 };
-
-#define PATTERN_HIT(hits,m) (hits.m)
-
-#define PATTERN_STATS_B(pt)\
-	PATTERN_HIT(((pt)->hits), bytes)
-
-#define PATTERN_STATS_P(pt)\
-	PATTERN_HIT(((pt)->hits), packets)
-
-#define PATTERN_STATS_INC_BYTE(pt, v)\
-	(PATTERN_STATS_B(pt) += v)
-
-#define PATTERN_STATS_INC_PKT(pt, v)\
-	(PATTERN_STATS_P(pt) += v)
-
 
 /** User Defined Pattern.*/
 struct udp_t {

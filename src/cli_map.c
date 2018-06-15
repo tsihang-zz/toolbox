@@ -367,6 +367,23 @@ DEFUN(new_map,
     return CMD_SUCCESS;
 }
 
+static __oryx_always_inline__
+int lock_lcores(vlib_main_t *vm)
+{
+	vm->ul_flags |= VLIB_DP_SYNC;
+	while(vm->ul_core_mask != VLIB_ALL_WORK_CORES);
+	oryx_logn("locres %08x", vm->ul_core_mask);
+}
+
+static __oryx_always_inline__
+int unlock_lcores(vlib_main_t *vm)
+{
+	vm->ul_flags &= ~VLIB_DP_SYNC;
+	while(vm->ul_core_mask != 0);
+	oryx_logn("locres %08x", vm->ul_core_mask);
+}
+
+
 DEFUN(map_application,
       map_application_cmd,
       "map WORD (pass|mirror) application WORD",
@@ -379,19 +396,19 @@ DEFUN(map_application,
 {
 	struct map_t *map;
 	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_main_t *vm = mm->vm;
 
 	map_table_entry_deep_lookup((const char *)argv[0], &map);
 	if (unlikely(!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
-#if 1
+
+	lock_lcores(vm);
 	split_foreach_application_func1_param3 (argv[2],
 					map_entry_add_appl, map, argv[1], acl_download_appl);
-#else
-	split_foreach_application_func1_param3 (argv[2],
-					map_entry_add_appl, map, argv[1], NULL);
-#endif
+	unlock_lcores(vm);
+
 	PRINT_SUMMARY;
 	
     return CMD_SUCCESS;

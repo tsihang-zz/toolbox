@@ -106,10 +106,11 @@ int appl_entry_format (struct appl_t *appl,
 			appl->ip_next_proto_mask = ANY_PROTO;
 		} else {
 			if (isalldigit (proto)) {
-				appl->ip_next_proto  = appl->ip_next_proto_mask= atoi (proto);
+				appl->ip_next_proto  = atoi (proto);
+				appl->ip_next_proto_mask = 0xFF;
 			}
 			else {
-				if(!format_range (proto, UINT8_MAX, 0, ':', &val_start, &val_end)) {
+				if(!format_range (proto, UINT8_MAX, 0, '/', &val_start, &val_end)) {
 					appl->ip_next_proto = val_start;
 					appl->ip_next_proto_mask = val_end;
 				}else {
@@ -132,17 +133,19 @@ void appl_entry_new (struct appl_t **appl,
 	
 	/** make appl alias. */
 	sprintf ((char *)&(*appl)->sc_alias[0], "%s", ((alias != NULL) ? alias: APPL_PREFIX));
-	(*appl)->ul_type = APPL_TYPE_STREAM;
-	(*appl)->ul_id = APPL_INVALID_ID;
-	(*appl)->ull_create_time = time(NULL);
-	(*appl)->vlan_id = 0;
-	(*appl)->l4_port_src = 0;
-	(*appl)->l4_port_dst = 0;
-	(*appl)->ip_next_proto = 0;
-	(*appl)->l2_vlan_id_mask = ANY_VLAN;
-	(*appl)->ip_next_proto_mask = ANY_PROTO;
-	(*appl)->l4_port_src_mask = ANY_PORT;
-	(*appl)->l4_port_dst_mask = ANY_PORT;
+	(*appl)->ul_type			= APPL_TYPE_STREAM;
+	(*appl)->ul_id				= APPL_INVALID_ID;
+	(*appl)->ull_create_time	= time(NULL);
+	(*appl)->vlan_id			= 0;
+	(*appl)->l4_port_src		= 0;
+	(*appl)->l4_port_dst		= 0;
+	(*appl)->ip_next_proto		= 0;
+	(*appl)->l2_vlan_id_mask	= ANY_VLAN;
+	(*appl)->ip_next_proto_mask	= ANY_PROTO;
+	(*appl)->l4_port_src_mask	= ANY_PORT;
+	(*appl)->l4_port_dst_mask	= ANY_PORT;
+	(*appl)->priority			= 0;	/** Min PRIORITY in DPDK. 
+										 *  Defaulty, the priority is the same with its ID. */
 
 }
 
@@ -179,8 +182,9 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 	if (r == 0 /** success*/) {
 
 		if(vec_active(am->entry_vec) == 0) {
-			appl->ul_flags |= APPL_VALID;
 			appl_id(appl) = vec_set (am->entry_vec, appl);
+			appl->priority = appl_id(appl);
+			appl->ul_flags |= APPL_VALID;
 		}
 		else {
 			int each;
@@ -191,14 +195,16 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 				if (!(a->ul_flags & APPL_VALID)) {
 					uint32_t id = appl_id(a);
 					memcpy (a, appl, sizeof(struct appl_t));
-					appl_id(a) = id;					
+					appl_id(a) = id;
+					appl->priority = appl_id(appl);
 					a->ul_flags |= APPL_VALID;
 					kfree(appl);
 					goto finish;
 				}
 			}
-			appl->ul_flags |= APPL_VALID;
 			appl_id(appl) = vec_set (am->entry_vec, appl);
+			appl->priority = appl_id(appl);
+			appl->ul_flags |= APPL_VALID;
 		}
 	}
 	
