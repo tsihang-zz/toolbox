@@ -155,8 +155,12 @@ void classify_setup_acl(const int socketid)
 	struct rte_acl_config acl_build_param;
 	struct rte_acl_ctx *context;
 	int acl_table;
+	struct acl_config_t *acl_conf;
 
 	for (acl_table = 0; acl_table < ACL_TABLES; acl_table ++) {
+
+		acl_conf = (struct acl_config_t *)&acl_config[acl_table];
+		
 		/* Create ACL contexts */
 		snprintf(name, sizeof(name), "%s%d%d",
 				"classify ACL", acl_table, socketid);
@@ -174,8 +178,9 @@ void classify_setup_acl(const int socketid)
 			rte_exit(EXIT_FAILURE,
 				"Failed to setup classify method for  ACL context\n");
 		
-		acl_config[acl_table].acx_ipv4[socketid] = context;
-		oryx_logn("acl_config_table(%d) %p", acl_table, &acl_config[acl_table]);
+		acl_conf->acx_ipv4[socketid] = context;
+		acl_conf->nb_ipv4_rules = 0;
+		oryx_logn("acl_config_table(%d) %p", acl_table, acl_conf);
 	}
 
 	g_runtime_acl_config_qua = ACL_TABLE0;
@@ -368,6 +373,14 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 	}
 }
 
+static __oryx_always_inline__
+void reset_acl_config_ctx(struct acl_config_t *acl_conf)
+{
+	acl_conf->nb_ipv4_rules = 0;
+	acl_conf->nb_ipv6_rules = 0;
+
+}
+
 void sync_acl(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
@@ -407,9 +420,12 @@ void sync_acl(vlib_main_t *vm)
 		appl2_ar(appl, entry);
 	}
 
+	
 	acl_next_config	= &acl_config[(g_runtime_acl_config_qua + 1) % ACL_TABLES];
+	reset_acl_config_ctx(acl_next_config);
+	
 	context = acl_next_config->acx_ipv4[socketid];
-
+	
 	oryx_logn ("%20s%p", "curr: ", g_runtime_acl_config);
 	oryx_logn ("%20s%p", "next: ", acl_next_config);
 
@@ -422,9 +438,15 @@ void sync_acl(vlib_main_t *vm)
 			if (unlikely(!appl))
 				continue;
 			appl->ul_flags |= APPL_SYNCED;
+			acl_next_config->nb_ipv4_rules ++;
 		}
-		/* fast switch. */
-		g_runtime_acl_config_qua += 1;
+
+		BUG_ON(acl_next_config->nb_ipv4_rules != nb_entries);
+		
+		/* fast switch. */		
+		lock_lcores(vm);
+		g_runtime_acl_config_qua += 1;		
+		unlock_lcores(vm);
 	}
 }
 

@@ -77,7 +77,7 @@ CFLAGS_SRC += -Wformat-security
 CFLAGS_SRC += -Wno-missing-declarations -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function
 #CFLAGS_SRC += -Wall -Wmissing-prototypes -Wold-style-definition -Wcast-qual
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
-CFLAGS += -DBUILD_DEBUG
+#CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\

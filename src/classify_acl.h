@@ -23,6 +23,9 @@ struct acl_config_t{
 	struct rte_acl_ctx		*acx_ipv4[NB_SOCKETS];
 	struct rte_acl_ctx		*acx_ipv6[NB_SOCKETS];
 
+	int32_t nb_ipv4_rules;
+	int32_t nb_ipv6_rules;
+	
 #ifdef L3FWDACL_DEBUG
 	struct acl4_rule		*rule_ipv4;
 	struct acl6_rule		*rule_ipv6;

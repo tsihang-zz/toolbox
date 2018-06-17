@@ -170,7 +170,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 		appl_id(appl) == APPL_INVALID_ID/** Delete appl from oryx_vector */)) {
 		return 0;
 	}
-	
+
 	do_lock (&am->lock);
 	int r = oryx_htable_del(am->htable,
 				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
@@ -187,12 +187,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 {
 	do_lock (&am->lock);
-	
-	/** Add appl_alias(appl) to hash table for controlplane fast lookup */
-	int r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
-	if (r != 0)
-		goto finish;
-	
+	int r = 0;
 	int each;
 	struct appl_t *son = NULL, *a = NULL;
 
@@ -205,15 +200,26 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 			break;
 		}
 	}
-	
+
 	if (son) {			
 		/** if there is an unused application, update its data with formatted appl */
 		appl_inherit(son, appl);
+		
+		/** Add appl_alias(appl) to hash table for controlplane fast lookup */
+		r = oryx_htable_add(am->htable, appl_alias(son), strlen((const char *)appl_alias((son))));
+		if (r != 0)
+			goto finish;
+
 		son->ul_flags |= APPL_VALID;
 		am->nb_appls ++;
 		kfree(appl);
 	
 	} else {
+		/** Add appl_alias(appl) to hash table for controlplane fast lookup */
+		r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
+		if (r != 0)
+			goto finish;
+		
 		/** else, set this application to vector. */
 		appl_id(appl) = vec_set (am->entry_vec, appl);
 		appl->priority = appl_id(appl);

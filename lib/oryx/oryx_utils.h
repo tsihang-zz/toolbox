@@ -19,7 +19,7 @@ uint32_t next_rand_ (uint32_t *p)
 
 	seed = 1103515145 * seed + 12345;
 	*p = seed;
-
+	__os_rand = *p;
 	return seed;
 }
 

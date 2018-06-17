@@ -13,7 +13,7 @@
     [COLORS] = "skip-draw-color"\
 }
 
-static u32 __os_rand;
+uint32_t __os_rand;
 static const char* colors[] = COLOR_TYPES;
 
 __oryx_always_extern__
@@ -173,7 +173,7 @@ __oryx_always_extern__
 int oryx_pattern_generate (char *pattern, size_t l)
 {
 	int pl = 0, j;
-	u32 rand = __os_rand;
+	uint32_t rand = __os_rand;
 	
 	memset (pattern, 0, l);
 
@@ -193,7 +193,7 @@ int oryx_pattern_generate (char *pattern, size_t l)
 		pattern[j] = c;
 	}
 
-	pattern[j] = '\n';
+	pattern[j] = '\0';
 	
 	return pl;
 }
@@ -204,7 +204,7 @@ void oryx_ipaddr_generate (char *ipv4)
 {
 #define itoa(a,s,t)\
 	sprintf (s, "%d", a);
-	u32 rand = __os_rand;
+	uint32_t rand = __os_rand;
 	int a = 0, b = 0, c = 0, d = 0;
 	char aa[4], bb[4], cc[4], dd[4];
 	u8 mask;
@@ -231,6 +231,26 @@ void oryx_ipaddr_generate (char *ipv4)
 	strcat (ipv4, dd);
 	strcat (ipv4, "/");
 	strcat (ipv4, maskp);
+	
+}
+
+__oryx_always_extern__
+void oryx_l4_port_generate (char *port_src, char *port_dst)
+{
+#define itoa(a,s,t)\
+	sprintf (s, "%d", a);
+	uint32_t rand = __os_rand;
+	uint16_t psrc, pdst;
+	char aa[5], bb[5];
+	
+	psrc = next_rand_ (&rand) % 65535;
+	pdst = next_rand_ (&rand) % 65535;
+	
+	itoa (psrc, aa, 10);
+	itoa (psrc, bb, 10);
+
+	strcpy (port_src, aa);
+	strcpy (port_dst, bb);
 	
 }
 

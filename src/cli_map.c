@@ -442,12 +442,59 @@ DEFUN(sync_appl,
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_main_t *vm = mm->vm;
-
-	lock_lcores(vm);
-	sync_acl(vm);
-	unlock_lcores(vm);
 	
+	vty_out(vty, "Syncing ... %s", VTY_NEWLINE);
+	sync_acl(vm);
+	vty_out(vty, "done %s", VTY_NEWLINE);
+
 	return CMD_SUCCESS;
+}
+
+DEFUN(test_map,
+	test_map_cmd,
+	"test map",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
+{
+  const char *range = "150:180";
+  const char *mask = "150/255";
+  uint32_t val_start, val_end;
+  uint32_t val, val_mask;
+  int ret;
+  vlib_map_main_t *mm = &vlib_map_main;
+  struct appl_t *map = NULL;
+  char alias[32] = {0};
+
+  ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
+  vty_out (vty, "%s ret = %d, start %d end %d%s", range,
+	  ret, val_start, val_end, VTY_NEWLINE);
+
+  ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
+  vty_out (vty, "%s ret = %d, %d/%d%s", mask,
+	  ret, val, val_mask, VTY_NEWLINE);
+
+  int i = 0;
+
+  for (i = 0; i < MAX_MAPS; i ++) {
+	 memset(alias, 0, 31);
+	 oryx_pattern_generate(alias, 16);
+	  map_table_entry_deep_lookup((const char *)&alias[0], &map);
+	  if (likely(map)) {
+		  VTY_ERROR_MAP ("same", (char *)&alias[0]);
+		  map_entry_output (map, vty);
+		  return CMD_SUCCESS;
+	  }
+	  map_entry_new (&map, (char *)&alias[0], "lan*", "lan*");
+	  if (unlikely (!map)) {
+		  VTY_ERROR_MAP ("new", (char *)&alias[0]);
+		  return CMD_SUCCESS;
+	  }
+	  if (!map_table_entry_add (map)) {
+		  VTY_SUCCESS_MAP ("new", map);
+	  }
+
+  }
+  return CMD_SUCCESS;
 }
 
 static __oryx_always_inline__
@@ -522,6 +569,7 @@ void map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &no_map_application_cmd);
 	install_element (CONFIG_NODE, &map_application_cmd);
 	install_element (CONFIG_NODE, &sync_appl_cmd);
+	install_element (CONFIG_NODE, &test_map_cmd);
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 

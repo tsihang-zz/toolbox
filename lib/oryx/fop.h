@@ -1,6 +1,9 @@
 #ifndef FILE_IO_H
 #define FILE_IO_H
 
+extern uint32_t __os_rand;
+
+
 enum {
 	RW_MODE_WRITE,
 	RW_MODE_READ_LINE = 1 << 0,	/** Read one line. */
@@ -25,6 +28,7 @@ int oryx_file_read_write (oryx_file_t *fp,
 
 void oryx_system_preview(void);
 int oryx_pattern_generate (char *pattern, size_t l);
+void oryx_l4_port_generate (char *port_src, char *port_dst);
 void oryx_ipaddr_generate (char *ipv4);
 
 int isalldigit(const char *str);

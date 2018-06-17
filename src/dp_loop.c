@@ -218,15 +218,61 @@ void free_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
 }
 
+
 static __oryx_always_inline__
-int decide_tx_port(struct map_t *map, struct rte_mbuf *m, uint8_t *tx_port_id)
+uint32_t ipv4_hash_crc(const void *data, __rte_unused uint32_t data_len,
+		uint32_t init_val)
+{
+	const union ipv4_5tuple_host *k;
+	uint32_t t;
+	const uint32_t *p;
+
+	k = data;
+	t = k->proto;
+	p = (const uint32_t *)&k->port_src;
+
+	init_val = rte_hash_crc_4byte(t, init_val);
+	init_val = rte_hash_crc_4byte(k->ip_src, init_val);
+	init_val = rte_hash_crc_4byte(k->ip_dst, init_val);
+	init_val = rte_hash_crc_4byte(*p, init_val);
+
+	return init_val;
+}
+
+static __oryx_always_inline__
+uint32_t recalc_rss(struct rte_mbuf *m)
+{
+	union ipv4_5tuple_host key;
+	struct ipv4_hdr *ipv4h;
+
+	ipv4h = rte_pktmbuf_mtod_offset(m, struct ipv4_hdr *, sizeof(MarvellDSAEthernetHdr));
+	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
+	/*
+	 * Get 5 tuple: dst port, src port, dst IP address,
+	 * src IP address and protocol.
+	 */
+	key.xmm = em_mask_key(ipv4h, mask0.x);
+
+	return ipv4_hash_crc(&key, sizeof(key), 0);
+}
+
+static __oryx_always_inline__
+int decide_tx_port(struct map_t *map, struct iface_t *rx_iface,
+		struct rte_mbuf *m, uint8_t *tx_port_id)
 {
 	if(map->nb_online_tx_panel_ports == 0) {
 		return UINT32_MAX;
 	}
 	
 	uint32_t tx_panel_port_id = 0;
-	uint32_t index = m->hash.rss % map->nb_online_tx_panel_ports;
+	uint32_t rss = iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID ? recalc_rss(m) : m->hash.rss;
+	uint32_t index = rss % map->nb_online_tx_panel_ports;
+
+#if defined(BUILD_DEBUG)
+	oryx_logn("%20s%8u", "m->hash.rss: ", m->hash.rss);
+	oryx_logn("%20s%8u", "rss: ", rss);
+	oryx_logn("%20s%8u", "index: ", index);
+#endif
 
 	*tx_port_id = tx_panel_port_id = map->online_tx_panel_ports[index];
 	if(tx_panel_port_id != UINT32_MAX &&
@@ -291,30 +337,30 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 		struct appl_priv_t *priv = &appl->priv[i];
 		mapid = priv->ul_map_id;
 
-#if defined(BUILD_DEBUG)
-		oryx_logn(" 	###### mapid %d", mapid);
-#endif
-
 		/** lookup map table with userdata(map_mask) */
 		map_entry_lookup_id(mm, mapid, &map);
 		if (unlikely(!map)) {
 			/* drop it defaultly if no map for this application */
 #if defined(BUILD_DEBUG)
-			oryx_logn("Can not find an valid map for iface %s", iface_alias(rx_iface));
+			oryx_logn("Can not find an valid map by id %d for iface %s", mapid, iface_alias(rx_iface));
 #endif
 			continue;
 		}
+#if defined(BUILD_DEBUG)
+		oryx_logn(" 	###### Map[%s] %d", map_alias(map), mapid);
+		oryx_logn("		 rx_iface (%s)_%d is in map ? %s", iface_alias(rx_iface), iface_id(rx_iface),
+					map_rx_has_iface(map, rx_iface) ? "yes" : "no");
+		oryx_logn("		 tx_online_ports_num %d", map->nb_online_tx_panel_ports);
+		
+#endif
+
 		/* drop it defaulty if this rx_iface is not mapped */
 		if(!map_rx_has_iface(map, rx_iface)) {
-#if defined(BUILD_DEBUG)
-			oryx_logn("rx_iface (%s)%d isn't in map %s(%d)", iface_alias(rx_iface),
-					iface_id(rx_iface), map_alias(map), map_id(map));
-#endif
 			continue;
 		} else {
-			tx_panel_port_id = decide_tx_port(map, m, &tx_port_id);		
+			tx_panel_port_id = decide_tx_port(map, rx_iface, m, &tx_port_id);		
 #if defined(BUILD_DEBUG)
-			oryx_logn(" 		send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
+			oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
 #endif
 			if(tx_panel_port_is_online(tx_panel_port_id)) {
 				/* forward packets for this map. */
@@ -363,26 +409,6 @@ void acl_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
 	}
 }
 
-#if 0
-/** packet come from sw unit. */
-if(iface_support_marvell_dsa(rx_cpu_iface)) {
-	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_dsa, nb_rx);
-	for (j = 0; j < nb_rx; j++) {
-		m = pkts_burst[j];
-		rte_prefetch0(rte_pktmbuf_mtod(m, void *)); 
-		/** it costs a lot when calling Packet from mbuf. */
-		p = GET_MBUF_PRIVATE(Packet, m);
-		pkt = (uint8_t *)rte_pktmbuf_mtod(m, void *);
-		pkt_len = m->pkt_len;
-		SET_PKT_LEN(p, pkt_len);
-		SET_PKT(p, pkt);
-		SET_PKT_RX_PORT(p, rx_port_id);
-		marvell_dsa_frame(tv, dtv, p, pkt, pkt_len, NULL, m, rx_cpu_iface);
-		simple_forward(tv, dtv, p, pkt_len, m, rx_cpu_iface, qconf);
-	}				
-} 
-#endif
-
 static __oryx_always_inline__
 void dump_packet_info(struct rte_mbuf *pkt, uint32_t ipv4h_offset)
 {
@@ -418,7 +444,11 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	p = GET_MBUF_PRIVATE(Packet, pkt);
 	p->iphd_offset = 0;
 	p->dsa = 0;
-	
+
+#if defined(BUILD_DEBUG)
+	oryx_logn("Rules [IPv4=%d, IPv6=%d]", g_runtime_acl_config->nb_ipv4_rules, g_runtime_acl_config->nb_ipv6_rules);
+#endif
+
 	if (iface_support_marvell_dsa(rx_iface)) {
 			uint16_t ether_type;
 			uint8_t rx_panel_port_id;
@@ -455,10 +485,17 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 #if defined(BUILD_DEBUG)
 				dump_packet_info(pkt, sizeof(MarvellDSAEthernetHdr));
 #endif
+				if (!g_runtime_acl_config->nb_ipv4_rules) {
+					free_packet(tv, dtv, pkt);
+				}
+
 			} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
 				/* Fill acl structure */
-				acl->data_ipv4[acl->num_ipv4] = DSA_MBUF_IPV6_2PROTO(pkt);
-				acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+				acl->data_ipv6[acl->num_ipv6] = DSA_MBUF_IPV6_2PROTO(pkt);
+				acl->m_ipv6[(acl->num_ipv6)++] = pkt;
+				if (!g_runtime_acl_config->nb_ipv6_rules) {
+					free_packet(tv, dtv, pkt);
+				}
 			} else {
 			/* Unknown type, drop the packet */
 			free_packet(tv, dtv, pkt);
@@ -475,12 +512,17 @@ void acl_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 #if defined(BUILD_DEBUG)
 			dump_packet_info(pkt, sizeof(struct ether_hdr));
 #endif
-
+			if (!g_runtime_acl_config->nb_ipv4_rules) {
+				free_packet(tv, dtv, pkt);
+			}
 		} 
 		else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
 			/* Fill acl structure */
 			acl->data_ipv6[acl->num_ipv6] = MBUF_IPV6_2PROTO(pkt);
 			acl->m_ipv6[(acl->num_ipv6)++] = pkt;
+			if (!g_runtime_acl_config->nb_ipv6_rules) {
+				free_packet(tv, dtv, pkt);
+			}
 		}
 		else {
 			/* Unknown type, drop the packet */
@@ -1093,7 +1135,9 @@ main_loop(__attribute__((unused)) void *ptr_data)
 
 			acl_prepare_acl_parameter(tv, dtv, rx_cpu_iface, pkts_burst, &acl_search,
 					nb_rx);
-			if (acl_search.num_ipv4) {
+			
+			if (g_runtime_acl_config->nb_ipv4_rules &&
+				acl_search.num_ipv4) {
 				{
 					rte_acl_classify(
 						g_runtime_acl_config->acx_ipv4[socketid],
@@ -1110,7 +1154,8 @@ main_loop(__attribute__((unused)) void *ptr_data)
 				}
 			}
 
-			if (acl_search.num_ipv6) {
+			if (g_runtime_acl_config->nb_ipv6_rules &&
+				acl_search.num_ipv6) {
 				{
 					rte_acl_classify(
 						g_runtime_acl_config->acx_ipv6[socketid],

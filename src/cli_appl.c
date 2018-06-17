@@ -88,10 +88,8 @@ int prefix2str_(const struct prefix *p, char *str, int size)
 /** if a null appl specified, appl_entry_output display all */
 static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 {
-	if (!appl || !(appl->ul_flags & APPL_VALID)) {
-		return -1;
-	}
-
+	BUG_ON(appl == NULL);
+	
 	struct prefix *p;
 	u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
 	u8 port_buf[SRC_DST][16];
@@ -162,6 +160,43 @@ static int appl_table_entry_remove (struct appl_t *a)
 	return appl_entry_del(am, a);
 }
 
+static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *value)
+{
+	char keyword_backup[256] = {0};
+
+	
+	if (appl->sc_keyword) {
+		memcpy (keyword_backup, appl->sc_keyword, strlen (appl->sc_keyword));
+		free (appl->sc_keyword);
+	}
+	
+	if (value) {
+		appl->sc_keyword = strdup (value);
+		/** Init rc4. */
+		rc4_init (appl->uc_keyword_encrypt, (u8 *)appl->sc_keyword, (u64)strlen (appl->sc_keyword));
+		VTY_SUCCESS_APPLICATION ("Encrypt-Keyword", appl);
+		vty_out (vty, "%s -> %s", keyword_backup, appl->sc_keyword);
+		vty_newline(vty);
+	}
+
+	return 0;
+}
+
+static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *value)
+{
+	uint32_t priority;
+	char *end;
+
+	priority = strtoul((const char *)value, &end, 10);
+	if (errno == ERANGE){
+		oryx_logn("%d (%s)", errno, value);
+		return -EINVAL;
+	}
+	appl->priority = priority;
+	return 0;
+}
+
+
 DEFUN(show_application,
       show_application_cmd,
       "show application [WORD]",
@@ -200,6 +235,7 @@ DEFUN(no_application,
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
+
 	if (argc == 0) {
 		foreach_application_func1_param0(argv[0], 
 			appl_table_entry_remove);
@@ -303,44 +339,8 @@ DEFUN(new_application1,
 	if (appl_entry_add (am, appl)) {
 		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
 	}
-			
+	
     return CMD_SUCCESS;
-}
-
-static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *value)
-{
-	char keyword_backup[256] = {0};
-
-	
-	if (appl->sc_keyword) {
-		memcpy (keyword_backup, appl->sc_keyword, strlen (appl->sc_keyword));
-		free (appl->sc_keyword);
-	}
-	
-	if (value) {
-		appl->sc_keyword = strdup (value);
-		/** Init rc4. */
-		rc4_init (appl->uc_keyword_encrypt, (u8 *)appl->sc_keyword, (u64)strlen (appl->sc_keyword));
-		VTY_SUCCESS_APPLICATION ("Encrypt-Keyword", appl);
-		vty_out (vty, "%s -> %s", keyword_backup, appl->sc_keyword);
-		vty_newline(vty);
-	}
-
-	return 0;
-}
-
-static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *value)
-{
-	uint32_t priority;
-	char *end;
-
-	priority = strtoul((const char *)value, &end, 10);
-	if (errno == ERANGE){
-		oryx_logn("%d (%s)", errno, value);
-		return -EINVAL;
-	}
-	appl->priority = priority;
-	return 0;
 }
 
 DEFUN(set_application_desensitize,
@@ -377,19 +377,67 @@ DEFUN(set_application_priority,
   return CMD_SUCCESS;
 }
 
-DEFUN(test_range,
-	test_range_cmd,
-	"show RANGE",
+DEFUN(test_application,
+	test_application_cmd,
+	"test application",
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
+  const char *range = "150:180";
+  const char *mask = "150/255";
   uint32_t val_start, val_end;
+  uint32_t val, val_mask;
   int ret;
-  
-  ret = format_range (argv[0], UINT16_MAX, 0, ':', &val_start, &val_end);
-  vty_out (vty, "%s ret = %d, start %d end %d%s", argv[0],
+  vlib_appl_main_t *am = &vlib_appl_main;
+  struct appl_t *appl = NULL;
+  char alias[32] = {0};
+  char ip_src[32], ip_dst[32];
+	
+  ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
+  vty_out (vty, "%s ret = %d, start %d end %d%s", range,
 	  ret, val_start, val_end, VTY_NEWLINE);
 
+  ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
+  vty_out (vty, "%s ret = %d, %d/%d%s", mask,
+	  ret, val, val_mask, VTY_NEWLINE);
+
+  int i = 0;
+
+  for (i = 0; i < MAX_APPLICATIONS; i ++) {
+     memset(alias, 0, 31);
+     oryx_pattern_generate(alias, 16);
+	  appl_table_entry_deep_lookup((const char *)&alias[0], &appl);
+	  if (likely(appl)) {
+		  VTY_ERROR_APPLICATION ("same", (char *)&alias[0]);
+		  appl_entry_output (appl, vty);
+		  return CMD_SUCCESS;
+	  }
+
+	  oryx_ipaddr_generate(ip_src);
+	  oryx_ipaddr_generate(ip_dst);
+	  
+	  appl_entry_new (&appl, (char *)&alias[0], APPL_TYPE_STREAM);
+	  if (unlikely (!appl)) {
+		  VTY_ERROR_APPLICATION ("alloc", (char *)&alias[0]);
+		  return CMD_SUCCESS;
+	  }
+	  
+	  if(appl_entry_format (appl, NULL, "unused var", 
+		  "any" /** VLAN */, 
+		  (char *)&ip_src[0] /** IPSRC */, 
+		  (char *)&ip_dst[0] /** IPDST */, 
+		  "any" /** PORTSRC */, 
+		  "any" /** PORTDST */, 
+		  "any")/** PROTO */
+	  ) {
+		  vty_out(vty, "error command %s", VTY_NEWLINE);
+	  }
+	  
+	  /** Add appl to hash table. */
+	  if (appl_entry_add (am, appl)) {
+		  VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+	  }
+  }
   return CMD_SUCCESS;
 }
 
@@ -413,7 +461,7 @@ void appl_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &set_application_priority_cmd);
 	install_element (CONFIG_NODE, &no_application_cmd);
 
-	install_element (CONFIG_NODE, &test_range_cmd);
+	install_element (CONFIG_NODE, &test_application_cmd);
 
 	vm->ul_flags |= VLIB_APP_INITIALIZED;
 }
