@@ -73,10 +73,10 @@ port_cmp (ht_value_t v1,
 
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
-void port_entry_output (struct iface_t *port, struct vty *vty)
+void iface_entry_out (struct iface_t *port, struct vty *vty)
 {
-
 	ASSERT (port);
+	struct oryx_fmt_buff_t fmt = FMT_BUFF_INITIALIZATION;
 
 	vty_out (vty, "%s", VTY_NEWLINE);
 	/** find this port named 'alias'. */
@@ -96,14 +96,10 @@ void port_entry_output (struct iface_t *port, struct vty *vty)
 	vty_out (vty, "		%16s%d%s", 
 		"MTU: ", port->us_mtu, VTY_NEWLINE);
 
-	vty_out (vty, "		%16s", "Maps: ");
-
-	vty_out (vty, "%16s%s", "_______________________________________________", VTY_NEWLINE);
-
 }
 
 static __oryx_always_inline__
-void port_entry_stat_clear (struct iface_t *iface, struct vty *vty)
+void iface_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 {
 	int id = 0;
 	int lcore;
@@ -128,7 +124,7 @@ void port_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 	
 /** if a null port specified, map_entry_output display all */
 static __oryx_always_inline__
-void port_entry_stat_output (struct iface_t *iface, struct vty *vty)
+void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 {
 	int lcore;
 	uint64_t nb_rx_pkts;
@@ -185,7 +181,7 @@ void port_entry_stat_output (struct iface_t *iface, struct vty *vty)
 }
 
 static __oryx_always_inline__
-void port_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *arg)
+void iface_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *arg)
 {
 
 	struct vty *vty = vty_;
@@ -252,11 +248,11 @@ DEFUN(show_interfacce,
 
 	if (argc == 0) {
 		foreach_port_func1_param1 (
-			argv[0], port_entry_output, vty);
+			argv[0], iface_entry_out, vty);
 	}
 	else {
 		split_foreach_port_func1_param1 (
-			argv[0], port_entry_output, vty);
+			argv[0], iface_entry_out, vty);
 	}
 
 	PRINT_SUMMARY;
@@ -279,11 +275,11 @@ DEFUN(show_interfacce_stats,
 	
 	if (argc == 0) {
 		foreach_port_func1_param1 (
-			argv[0], port_entry_stat_output, vty);
+			argv[0], iface_entry_stat_out, vty);
 	}
 	else {
 		split_foreach_port_func1_param1 (
-			argv[0], port_entry_stat_output, vty);
+			argv[0], iface_entry_stat_out, vty);
 	}
 
 	PRINT_SUMMARY;
@@ -309,11 +305,11 @@ DEFUN(clear_interface_stats,
 
 	if (argc == 0) {
 		foreach_port_func1_param1 (
-			argv[0], port_entry_stat_clear, vty);
+			argv[0], iface_entry_stat_clear, vty);
 	}
 	else {
 		split_foreach_port_func1_param1 (
-			argv[0], port_entry_stat_clear, vty);
+			argv[0], iface_entry_stat_clear, vty);
 	}
 	
 	PRINT_SUMMARY;
@@ -337,7 +333,7 @@ DEFUN(interface_alias,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], port_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (void *)&var);
 
 	PRINT_SUMMARY;
 	
@@ -364,7 +360,7 @@ DEFUN(interface_mtu,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], port_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (void *)&var);
 
 	PRINT_SUMMARY;
 	
@@ -393,7 +389,7 @@ DEFUN(interface_looback,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], port_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (void *)&var);
 
 	PRINT_SUMMARY;
 	

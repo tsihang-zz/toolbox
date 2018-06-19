@@ -72,6 +72,7 @@ struct iface_t {
 	struct CounterCtx 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
+
 #define iface_alias(p) (p)->sc_alias
 #define iface_id(p)	   (p)->ul_id
 #define iface_perf(p)  (p)->perf_private_ctx
@@ -105,24 +106,27 @@ typedef struct vlib_port_main {
 
 extern vlib_port_main_t vlib_port_main;
 
-#if defined(BUILD_DEBUG)
 static __oryx_always_inline__
-int iface_lookup_id(vlib_port_main_t *pm,
+int iface_lookup_id0(vlib_port_main_t *pm,
 				u32 id, struct iface_t **this)
 {
 	BUG_ON(pm->entry_vec == NULL);
 	
+	(*this) = NULL;
 	if (!vec_active(pm->entry_vec) ||
 		id > vec_active(pm->entry_vec))
 		return 0;
-	
-	(*this) = NULL;
 	(*this) = (struct iface_t *) vec_lookup (pm->entry_vec, id);
 
 	return 0;
 }
+
+#if defined(BUILD_DEBUG)
+#define iface_lookup_id(pm,id,iface)\
+	iface_lookup_id0((pm),(id),(iface));
 #else
 #define iface_lookup_id(pm,id,iface)\
+	(*(iface)) = NULL;\
 	(*(iface)) = (struct iface_t *) vec_lookup ((pm)->entry_vec, (id));
 #endif
 
@@ -151,7 +155,7 @@ void iface_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			iface_lookup_id(pm, (*(u32*)lp->v), p);
+			iface_lookup_id0(pm, (*(u32*)lp->v), p);
 			break;
 		case LOOKUP_ALIAS:
 			iface_lookup_alias(pm, (const char*)lp->v, p);

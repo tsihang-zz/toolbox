@@ -17,6 +17,9 @@
 #include "dpdk.h"	/* struct eth_addr */
 #endif
 
+void sync_acl(vlib_main_t *vm);
+
+
 vlib_map_main_t vlib_map_main = {
 	.lock = INIT_MUTEX_VAL,
 };
@@ -30,7 +33,7 @@ atomic_t n_map_elements = ATOMIC_INIT(0);
 
 #define VTY_SUCCESS_MAP(prefix, v)\
 	vty_out (vty, "%s(Success)%s %s map \"%s\"(%u)%s", \
-		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, v->sc_alias, v->ul_id, VTY_NEWLINE)
+		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
 static __oryx_always_inline__
 void map_free (void __oryx_unused__ *v)
@@ -75,22 +78,25 @@ map_cmp (void *v1,
 }
 
 static __oryx_always_inline__
-void map_entry_split_and_mapping_port (struct map_t *map, u8 from_to)
+void map_entry_split_and_mapping_port (struct map_t *map, char *iface_str, u8 from_to)
 {
-	oryx_logn("x-> %s", map->port_list_str[from_to]);
-	if (map->port_list_str[from_to]) {
-		split_foreach_port_func1_param2 (
-			map->port_list_str[from_to], map_entry_add_port, map, from_to);
-	}
+#if defined(BUILD_DEBUG)
+	BUG_ON(map == NULL);
+	BUG_ON(iface_str == NULL);
+#endif
+	split_foreach_port_func1_param2 (
+		iface_str, map_entry_add_port, map, from_to);
 }
 
 static __oryx_always_inline__
-void map_entry_split_and_unmapping_port (struct map_t *map, u8 from_to)
+void map_entry_split_and_unmapping_port (struct map_t *map, char *iface_str, u8 from_to)
 {
-	if (map->port_list_str[from_to]) {
-		split_foreach_port_func1_param2 (
-			map->port_list_str[from_to], map_entry_remove_port, map, from_to);
-	}
+#if defined(BUILD_DEBUG)
+	BUG_ON(map == NULL);
+	BUG_ON(iface_str == NULL);
+#endif
+	split_foreach_port_func1_param2 (
+		iface_str, map_entry_remove_port, map, from_to);
 }
 
 static __oryx_always_inline__
@@ -104,8 +110,8 @@ void map_inherit(struct map_t *son, struct map_t *father)
 	/** except THE ID. */
 	map_id(son) = id;
 	oryx_logn("1");
-	map_entry_split_and_mapping_port (son, QUA_RX);
-	map_entry_split_and_mapping_port (son, QUA_TX);
+	map_entry_split_and_mapping_port (son, son->port_list_str[QUA_RX], QUA_RX);
+	map_entry_split_and_mapping_port (son, son->port_list_str[QUA_TX], QUA_TX);
 }
 
 int map_table_entry_add (struct map_t *map)
@@ -140,6 +146,7 @@ int map_table_entry_add (struct map_t *map)
 		son->ul_flags |= MAP_VALID;
 		mm->nb_maps ++;
 		kfree(map);
+		map = son;
 	
 	} else {
 		/** else, set this map to vector. */
@@ -151,8 +158,8 @@ int map_table_entry_add (struct map_t *map)
 
 		map_id(map) = vec_set (mm->entry_vec, map);
 		oryx_logn("2");
-		map_entry_split_and_mapping_port (map, QUA_RX);
-		map_entry_split_and_mapping_port (map, QUA_TX);
+		map_entry_split_and_mapping_port (map, map->port_list_str[QUA_RX], QUA_RX);
+		map_entry_split_and_mapping_port (map, map->port_list_str[QUA_TX], QUA_TX);
 		map->ul_flags |= MAP_VALID;
 		mm->nb_maps ++;
 	}
@@ -175,8 +182,8 @@ int no_map_table_entry (struct map_t *map)
 
 	if (r == 0 /** success */) {
 		map->ul_flags &= ~MAP_VALID;
-		map_entry_split_and_unmapping_port (map, QUA_RX);
-		map_entry_split_and_unmapping_port (map, QUA_TX);
+		map_entry_split_and_unmapping_port (map, map->port_list_str[QUA_RX], QUA_RX);
+		map_entry_split_and_unmapping_port (map, map->port_list_str[QUA_TX], QUA_TX);
 		mm->nb_maps --;
 	}
 
@@ -374,10 +381,42 @@ DEFUN(new_map,
     return CMD_SUCCESS;
 }
 
+DEFUN(map_add_rm_port,
+	map_add_rm_port_cmd,
+	"map WORD (add|rm) (rx|tx) port WORD",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
+	KEEP_QUITE_STR KEEP_QUITE_CSTR)
+{
+  struct map_t *map;
+  uint8_t qua = QUA_TX;
+  uint8_t add = 1;
+  
+  map_table_entry_deep_lookup((const char *)argv[0], &map);
+  if (unlikely(!map)) {
+	  VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
+	  return CMD_SUCCESS;
+  }
+
+  if(!strncmp(argv[1], "r", 1))
+  	add = 0;
+  if(!strncmp(argv[2], "r", 1))
+  	qua = QUA_RX;
+
+ add ? map_entry_split_and_mapping_port  (map, (char *)argv[3], qua):\
+ 	   map_entry_split_and_unmapping_port(map, (char *)argv[3], qua);
+
+ return CMD_SUCCESS;
+}
 
 DEFUN(map_application,
       map_application_cmd,
-      "map WORD (pass|mirror) application WORD",
+      "map WORD application WORD (pass|timestamp)",
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
@@ -387,22 +426,22 @@ DEFUN(map_application,
 {
 	struct map_t *map;
 	vlib_map_main_t *mm = &vlib_map_main;
-	vlib_main_t *vm = mm->vm;
+	uint32_t action = 0;
 
 	map_table_entry_deep_lookup((const char *)argv[0], &map);
-	if (unlikely(!map)) {
+	if(unlikely(!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
-#if 0
-	lock_lcores(vm);
-	split_foreach_application_func1_param3 (argv[2],
-					map_entry_add_appl, map, argv[1], acl_download_appl);
-	unlock_lcores(vm);
-#else
-	split_foreach_application_func1_param3 (argv[2],
-				map_entry_add_appl, map, argv[1], NULL);
-#endif
+
+	if(!strncmp(argv[2], "t", 1))
+		action |= ACT_TIMESTAMP;
+	if(!strncmp(argv[2], "p", 1))
+		action |= ACT_FWD;
+	
+	split_foreach_application_func1_param2 (argv[1],
+				map_entry_add_appl, map, action);
+
 	PRINT_SUMMARY;
 	
     return CMD_SUCCESS;
@@ -427,8 +466,8 @@ DEFUN(no_map_applicatio,
 		return CMD_SUCCESS;
 	}
 
-	split_foreach_application_func1_param2 (argv[1],
-			map_entry_remove_appl, map, acl_remove_appl);
+	split_foreach_application_func1_param1 (argv[1],
+			map_entry_remove_appl, map);
 
 	PRINT_SUMMARY;
 	
@@ -462,7 +501,7 @@ DEFUN(test_map,
   uint32_t val, val_mask;
   int ret;
   vlib_map_main_t *mm = &vlib_map_main;
-  struct appl_t *map = NULL;
+  struct map_t *map = NULL;
   char alias[32] = {0};
 
   ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
@@ -484,7 +523,7 @@ DEFUN(test_map,
 		  map_entry_output (map, vty);
 		  return CMD_SUCCESS;
 	  }
-	  map_entry_new (&map, (char *)&alias[0], "lan*", "lan*");
+	  map_entry_new (&map, (char *)&alias[0], (char *)"lan*", (char *)"lan*");
 	  if (unlikely (!map)) {
 		  VTY_ERROR_MAP ("new", (char *)&alias[0]);
 		  return CMD_SUCCESS;
@@ -533,7 +572,7 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 					rx_panel_ports[rx_index ++] = iface_id(iface);
 		
 				if(map->tx_panel_port_mask & (1 << iface_id(iface)))
-					tx_panel_ports[tx_index ++] = iface_id(iface);	
+					tx_panel_ports[tx_index ++] = iface_id(iface);
 			}
 		}
 		
@@ -570,6 +609,7 @@ void map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &map_application_cmd);
 	install_element (CONFIG_NODE, &sync_appl_cmd);
 	install_element (CONFIG_NODE, &test_map_cmd);
+	install_element (CONFIG_NODE, &map_add_rm_port_cmd);
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 

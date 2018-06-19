@@ -9,11 +9,10 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to);
 int map_table_entry_deep_lookup(const char *argv, struct map_t **map);
 
 int map_entry_add_appl (struct appl_t __oryx_unused__*appl, struct map_t __oryx_unused__*map , 
-	const char *hit_action, int (*rule_download_engine)(struct map_t *, struct appl_t *));
+	uint32_t action);
 int acl_remove_appl(struct map_t *map, struct appl_t *appl);
 
-int map_entry_remove_appl (struct appl_t *appl, struct map_t *map,
-	int (*rule_remove_engine)(struct map_t *, struct appl_t *));
+int map_entry_remove_appl (struct appl_t *appl, struct map_t *map);
 
 void map_table_entry_lookup (struct prefix_t *lp, 
 	struct map_t **m);

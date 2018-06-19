@@ -57,12 +57,17 @@ struct traffic_dpo_t {
 
 #define	ACT_DROP		(1 << 0)
 #define ACT_FWD			(1 << 1)
-#define ACT_MIRROR		(1 << 2)
-
+#define ACT_TIMESTAMP	(1 << 2)
+#define ACT_MIRROR		(1 << 3)
+#define ACT_DE_VxLAN	(1 << 4)
+#define ACT_EN_VxLAN	(1 << 5)
+#define ACT_DE_GRE		(1 << 6)
+#define ACT_EN_GRE		(1 << 7)
 #define ACT_DEFAULT		(ACT_DROP)
+
 typedef union _egress_options {
 	struct {
-		uint8_t v;
+		uint32_t v;
 	}act;
 	
 	uint32_t data32;
@@ -152,21 +157,24 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 	}
 }
 
-#if defined(BUILD_DEBUG)
 static __oryx_always_inline__
-void map_entry_lookup_id (vlib_map_main_t *mm, u32 id, struct map_t **m)
+void map_entry_lookup_id0 (vlib_map_main_t *mm, u32 id, struct map_t **m)
 {
 	BUG_ON(mm->entry_vec == NULL);
 
+	(*m) = NULL;
 	if (!vec_active(mm->entry_vec) || 
 		(id > vec_active(mm->entry_vec)))
-		return;
-
-	(*m) = NULL;
+		return;	
 	(*m) = (struct map_t *)vec_lookup (mm->entry_vec, id);
 }
+
+#if defined(BUILD_DEBUG)
+#define appl_entry_lookup_id(mm,id,m)\
+	map_entry_lookup_id0((mm),(id),(m));
 #else
 #define map_entry_lookup_id(mm,id,m)\
+	(*(m)) = NULL;\
 	(*(m)) = (struct map_t *)vec_lookup((mm)->entry_vec, (id));
 #endif
 
@@ -182,7 +190,7 @@ void map_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			map_entry_lookup_id(mm, (*(u32*)lp->v), m);
+			map_entry_lookup_id0(mm, (*(u32*)lp->v), m);
 			break;
 		case LOOKUP_ALIAS:
 			map_entry_lookup_alias(mm, (char*)lp->v, m);

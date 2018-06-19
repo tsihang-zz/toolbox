@@ -152,7 +152,6 @@ void classify_setup_acl(const int socketid)
 {
 	char name[PATH_MAX];
 	struct rte_acl_param acl_param;
-	struct rte_acl_config acl_build_param;
 	struct rte_acl_ctx *context;
 	int acl_table;
 	struct acl_config_t *acl_conf;

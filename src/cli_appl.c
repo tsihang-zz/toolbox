@@ -423,12 +423,12 @@ DEFUN(test_application,
 	  }
 	  
 	  if(appl_entry_format (appl, NULL, "unused var", 
-		  "any" /** VLAN */, 
+		  (char *)"any" /** VLAN */, 
 		  (char *)&ip_src[0] /** IPSRC */, 
 		  (char *)&ip_dst[0] /** IPDST */, 
-		  "any" /** PORTSRC */, 
-		  "any" /** PORTDST */, 
-		  "any")/** PROTO */
+		  (char *)"any" /** PORTSRC */, 
+		  (char *)"any" /** PORTDST */, 
+		  (char *)"any")/** PROTO */
 	  ) {
 		  vty_out(vty, "error command %s", VTY_NEWLINE);
 	  }

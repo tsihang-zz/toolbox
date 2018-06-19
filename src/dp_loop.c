@@ -18,6 +18,7 @@
 
 #include "iface_private.h"
 #include "map_private.h"
+#include "appl_private.h"
 
 #include "dpdk_classify.h"
 #include "util_map.h"
@@ -243,7 +244,7 @@ static __oryx_always_inline__
 uint32_t recalc_rss(struct rte_mbuf *m)
 {
 	union ipv4_5tuple_host key;
-	struct ipv4_hdr *ipv4h;
+	void *ipv4h;
 
 	ipv4h = rte_pktmbuf_mtod_offset(m, struct ipv4_hdr *, sizeof(MarvellDSAEthernetHdr));
 	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
@@ -351,14 +352,13 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 		oryx_logn("		 rx_iface (%s)_%d is in map ? %s", iface_alias(rx_iface), iface_id(rx_iface),
 					map_rx_has_iface(map, rx_iface) ? "yes" : "no");
 		oryx_logn("		 tx_online_ports_num %d", map->nb_online_tx_panel_ports);
-		
 #endif
 
 		/* drop it defaulty if this rx_iface is not mapped */
 		if(!map_rx_has_iface(map, rx_iface)) {
 			continue;
 		} else {
-			tx_panel_port_id = decide_tx_port(map, rx_iface, m, &tx_port_id);		
+			tx_panel_port_id = decide_tx_port(map, rx_iface, m, &tx_port_id);
 #if defined(BUILD_DEBUG)
 			oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
 #endif
@@ -413,7 +413,7 @@ static __oryx_always_inline__
 void dump_packet_info(struct rte_mbuf *pkt, uint32_t ipv4h_offset)
 {
 	union ipv4_5tuple_host key;
-	struct ipv4_hdr *ipv4h;
+	void *ipv4h;
 	
 	ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipv4h_offset);
 	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);

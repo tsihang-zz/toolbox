@@ -16,8 +16,6 @@ int appl_entry_format (struct appl_t *appl,
 void appl_entry_new (struct appl_t **appl, char *alias, u32 __oryx_unused__ type);
 int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl);
 int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl);
-void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct appl_t **appl);
-void appl_entry_lookup_id (vlib_appl_main_t *am, u32 id, struct appl_t **appl);
 int appl_table_entry_deep_lookup(const char *argv, struct appl_t **appl);
 
 

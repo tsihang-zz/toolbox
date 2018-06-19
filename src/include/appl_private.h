@@ -23,6 +23,11 @@ enum {
 	SRC_DST,
 };
 
+struct appl_priv_t {
+	uint32_t			ul_flags;		/** MAX_MAPS */
+	uint32_t			ul_map_id;		/** map id this application belong to. */
+};
+
 /** vlan=0 is reserved by system, we use this for "any" VLAN.*/
 #define ANY_VLAN	(0)
 #define ANY_PROTO	(0)
@@ -32,11 +37,6 @@ enum {
 /** flags for appl_t.ul_flags */
 #define	APPL_SYNCED	(1 << 0)
 #define APPL_VALID	(1 << 1)
-
-struct appl_priv_t {
-	uint32_t			ul_flags;		/** MAX_MAPS */
-	uint32_t			ul_map_id;		/** map id this application belong to. */
-};
 
 struct appl_t {
 	char				sc_alias[32];		/** Unique, and can be well human-readable. */
@@ -97,17 +97,27 @@ void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct ap
 }
 
 static __oryx_always_inline__
-void appl_entry_lookup_id (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
+void appl_entry_lookup_id0 (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
 {
 	BUG_ON(am->entry_vec == NULL);
-	
+
+	(*appl) = NULL;
 	if (!vec_active(am->entry_vec) ||
 		id > vec_active(am->entry_vec))
 		return;
 
-	(*appl) = NULL;
 	(*appl) = (struct appl_t *)vec_lookup (am->entry_vec, id);
 }
+
+#if defined(BUILD_DEBUG)
+#define appl_entry_lookup_id(am,id,appl)\
+	appl_entry_lookup_id0(am,id,appl);
+#else
+
+#define appl_entry_lookup_id(am,id,appl)\
+		(*(appl)) = NULL;\
+		(*(appl)) = (struct appl_t *)vec_lookup ((am)->entry_vec, (id));
+#endif
 
 static __oryx_always_inline__
 void appl_table_entry_lookup (struct prefix_t *lp, 
@@ -121,7 +131,7 @@ void appl_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			appl_entry_lookup_id(am, (*(u32*)lp->v), appl);
+			appl_entry_lookup_id0(am, (*(u32*)lp->v), appl);
 			break;
 		case LOOKUP_ALIAS:
 			appl_entry_lookup_alias(am, (const char*)lp->v, appl);
@@ -132,4 +142,3 @@ void appl_table_entry_lookup (struct prefix_t *lp,
 }
 
 #endif
-
