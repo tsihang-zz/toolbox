@@ -28,9 +28,45 @@ struct netdev_t {
 	u32 ul_flags;
 };
 
+static __oryx_always_inline__
+const char *ethtool_speed(uint32_t speed){
+	switch (speed) {
+		case SPEED_10:
+			return "10";
+			break;
+		case SPEED_100:
+			return "100";
+			break;
+		case SPEED_1000:
+			return "1000";
+			break;
+		case SPEED_10000:
+			return "10000";
+			break;
+		default:
+			return "Unknown";
+			break;
+	}
+}
+
+static __oryx_always_inline__
+const char *ethtool_duplex(uint32_t duplex) {
+	switch (duplex) {
+		case DUPLEX_HALF:
+			return "Half-Duplex";
+			break;
+		case DUPLEX_FULL:
+			return "Full-Duplex";
+			break;
+		default:
+			return "Unknown!";
+			break;
+	}
+}
+
 int netdev_up(const char *iface);
 int netdev_exist(const char *iface);
-int netdev_is_running(const char* iface);
+int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool);
 int netdev_is_up(const char *iface);
 int netdev_open(struct netdev_t *netdev);
 void *netdev_cap(void *argv);

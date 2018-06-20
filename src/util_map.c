@@ -57,7 +57,7 @@ int map_entry_add_appl (struct appl_t *appl, struct map_t *map ,
 	}
 
 	struct appl_priv_t *ap;
-	egress_options eo = {
+	union egress_options eo = {
 		.act.v = ACT_DEFAULT,
 	};
 

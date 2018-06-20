@@ -75,27 +75,30 @@ port_cmp (ht_value_t v1,
 static __oryx_always_inline__
 void iface_entry_out (struct iface_t *port, struct vty *vty)
 {
-	ASSERT (port);
-	struct oryx_fmt_buff_t fmt = FMT_BUFF_INITIALIZATION;
-
+	BUG_ON(port == NULL);
+	
 	vty_out (vty, "%s", VTY_NEWLINE);
 	/** find this port named 'alias'. */
 	vty_out (vty, "%16s\"%s\"(%u)%s", "Port ", iface_alias(port), port->ul_id, VTY_NEWLINE);
 
-	vty_out (vty, "		%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
+	vty_out (vty, "	%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
 		"Mac: ", 
 		port->eth_addr[0], port->eth_addr[1], port->eth_addr[2],
 		port->eth_addr[3], port->eth_addr[4], port->eth_addr[5], VTY_NEWLINE);
-	
-	vty_out (vty, "		%16s%s%s", 
-		"Duplex: ", (port->ul_flags & NETDEV_DUPLEX_FULL) ? "Full" : "Half", VTY_NEWLINE);
 
-	vty_out (vty, " 	%16s%s%s", 
-		"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
-
-	vty_out (vty, "		%16s%d%s", 
-		"MTU: ", port->us_mtu, VTY_NEWLINE);
-
+	if (port->ul_flags & NETDEV_ADMIN_UP) {
+		struct oryx_fmt_buff_t fmt = FMT_BUFF_INITIALIZATION;
+		if (port->type == ETH_XE)
+			oryx_format(&fmt, "%d Mbps - %s", port->link_speed, ethtool_duplex(port->link_duplex));
+		else
+			oryx_format(&fmt, "%s Mbps - %s", ethtool_speed(port->link_speed), ethtool_duplex(port->link_duplex));
+		vty_out (vty, " %16s%s, %s%s", 
+				"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", FMT_DATA(fmt), VTY_NEWLINE);
+		oryx_format_free(&fmt);
+	} else {
+		vty_out (vty, " %16s%s%s", 
+				"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
+	}
 }
 
 static __oryx_always_inline__
@@ -183,7 +186,6 @@ void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 static __oryx_always_inline__
 void iface_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *arg)
 {
-
 	struct vty *vty = vty_;
 	struct prefix_t *var;
 	u32 ul_flags = port->ul_flags;
@@ -208,7 +210,6 @@ void iface_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void 
 			break;
 			
 		case INTERFACE_SET_MTU:
-			port->us_mtu = atoi (var->v);
 			break;
 
 		case INTERFACE_SET_LOOPBACK:
@@ -397,12 +398,11 @@ DEFUN(interface_looback,
 }
 
 static __oryx_always_inline__
-int dpdk_iface_is_up(uint32_t portid)
+int dpdk_iface_is_up(uint32_t portid, struct rte_eth_link *link)
 {
-	struct rte_eth_link link;
-	rte_eth_link_get_nowait(portid, &link);
+	rte_eth_link_get_nowait(portid, link);
 	
-	if (link.link_status)
+	if (link->link_status)
 		return 1;
 	else
 		return 0;
@@ -414,9 +414,10 @@ int link_trasition_detected = 0;
 int iface_poll_linkstate(struct iface_t *this)
 {
 	int rv;
+	struct ethtool_cmd ethtool;
 	
 	if (this->type == ETH_GE) {
-		rv = netdev_is_up(this->sc_alias_fixed);
+		rv = netdev_is_running(this->sc_alias_fixed, &ethtool);
 		/** up -> down */
 		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) {
 			oryx_logn("%s is down", iface_alias(this));
@@ -425,7 +426,11 @@ int iface_poll_linkstate(struct iface_t *this)
 		}
 		/** down -> up */
 		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) {
-			oryx_logn("%s is up", iface_alias(this));
+			this->link_autoneg = 1;
+			this->link_duplex = ethtool.duplex;
+			this->link_speed = ethtool.speed;
+			oryx_logn("%s is Link Up - Speed %s Mbps - %s", iface_alias(this),
+				ethtool_speed(ethtool.speed), ethtool_duplex(ethtool.duplex));
 		}
 		switch(rv) {
 			case 0:
@@ -439,13 +444,19 @@ int iface_poll_linkstate(struct iface_t *this)
 				break;
 		}
 	} else {
-		rv = dpdk_iface_is_up(this->ul_id);
+		struct rte_eth_link link;
+		rv = dpdk_iface_is_up(this->ul_id, &link);
 		if ((this->ul_flags & NETDEV_ADMIN_UP) && rv == 0) { /** up -> down */
 			this->ul_up_down_times ++;
 			oryx_logn("%s is down", iface_alias(this));
 		}
 		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) { /** down -> up */
-			oryx_logn("%s is up", iface_alias(this));
+			this->link_autoneg = 1;
+			this->link_duplex = link.link_duplex;
+			this->link_speed = link.link_speed;
+			oryx_logn("%s is Link Up - Speed %u Mbps - %s", iface_alias(this), 
+				(unsigned)link.link_speed, (link.link_duplex == ETH_LINK_FULL_DUPLEX) ? \
+					("Full-Duplex") : ("Half-Duplex"));
 		}
 		switch(rv) {
 			case 0:
@@ -485,6 +496,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -500,6 +514,9 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
+		0,
+		0,
+		LINK_PAD0,
 		0,
 		NULL,
 		NULL
@@ -517,6 +534,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -532,6 +552,9 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
+		0,
+		0,
+		LINK_PAD0,
 		0,
 		NULL,
 		NULL
@@ -549,6 +572,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -564,6 +590,9 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
+		0,
+		0,
+		LINK_PAD0,
 		0,
 		NULL,
 		NULL
@@ -581,6 +610,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -596,6 +628,9 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
+		0,
+		0,
+		LINK_PAD0,
 		0,
 		NULL,
 		NULL
@@ -613,6 +648,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -629,6 +667,9 @@ static struct iface_t iface_list[] = {
 		0,
 		0,
 		0,
+		0,
+		LINK_PAD0,
+		0,
 		NULL,
 		NULL
 	},
@@ -644,6 +685,9 @@ static struct iface_t iface_list[] = {
 		{0,0,0,0,0,0},
 		0,
 		0,
+		0,
+		0,
+		LINK_PAD0,
 		0,
 		NULL,
 		NULL

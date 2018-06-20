@@ -49,29 +49,6 @@ enum {
 	MPM_TABLES,
 };
 
-/** Dataplane traffic output. */
-struct traffic_dpo_t {
-	u8 uc_mode;
-	void (*dpo_fn)(void *packet, void *map);
-};
-
-#define	ACT_DROP		(1 << 0)
-#define ACT_FWD			(1 << 1)
-#define ACT_TIMESTAMP	(1 << 2)
-#define ACT_MIRROR		(1 << 3)
-#define ACT_DE_VxLAN	(1 << 4)
-#define ACT_EN_VxLAN	(1 << 5)
-#define ACT_DE_GRE		(1 << 6)
-#define ACT_EN_GRE		(1 << 7)
-#define ACT_DEFAULT		(ACT_DROP)
-
-typedef union _egress_options {
-	struct {
-		uint32_t v;
-	}act;
-	
-	uint32_t data32;
-}egress_options;
 
 /**
  * Packets matching multiple maps in a configuration are sent to the map with the highest
@@ -119,6 +96,7 @@ struct map_t {
 	uint64_t		ull_create_time;			/** Create time. */
 	
 };
+
 #define map_id(map) ((map)->ul_id)
 #define map_alias(map) ((map)->sc_alias)
 

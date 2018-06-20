@@ -23,10 +23,28 @@ enum {
 	SRC_DST,
 };
 
+#define	ACT_DROP		(1 << 0)
+#define ACT_FWD			(1 << 1)
+#define ACT_TIMESTAMP	(1 << 2)
+#define ACT_MIRROR		(1 << 3)
+#define ACT_DE_VxLAN	(1 << 4)
+#define ACT_EN_VxLAN	(1 << 5)
+#define ACT_DE_GRE		(1 << 6)
+#define ACT_EN_GRE		(1 << 7)
+#define ACT_DEFAULT		(ACT_DROP)
+
+union egress_options {
+	struct {
+		uint32_t v;
+	}act;
+	
+	uint32_t data32;
+}egress_options;
+
 struct appl_priv_t {
-	uint32_t			ul_flags;		/** MAX_MAPS */
+	uint32_t			ul_flags;		/** egress_options */
 	uint32_t			ul_map_id;		/** map id this application belong to. */
-};
+}__attribute__((__packed__));
 
 /** vlan=0 is reserved by system, we use this for "any" VLAN.*/
 #define ANY_VLAN	(0)
@@ -68,7 +86,7 @@ struct appl_t {
 	uint16_t			l4_port_dst;		/** */
 	uint16_t			l4_port_dst_mask;	/** if l4_port_dst is */
 
-};
+}__attribute__((__packed__));
 
 #define appl_id(appl) ((appl)->ul_id)
 #define appl_alias(appl) ((appl)->sc_alias)

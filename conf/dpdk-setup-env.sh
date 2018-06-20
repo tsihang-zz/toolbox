@@ -12,7 +12,7 @@ ifconfig lan1 up
 ifconfig lan2 up
 ifconfig lan3 up
 ifconfig lan4 up
-ifconfig lan4 up
+ifconfig lan5 up
 ifconfig lan6 up
 ifconfig lan7 up
 ifconfig lan8 up

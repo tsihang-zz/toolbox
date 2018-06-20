@@ -14,7 +14,7 @@ void iface_alloc (struct iface_t **this)
 
 	ASSERT ((*this));
 
-	(*this)->us_mtu = 1500;
+	(*this)->mtu = 1500;
 	(*this)->if_poll_up = netdev_up;
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
 

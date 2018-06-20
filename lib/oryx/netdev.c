@@ -1,23 +1,17 @@
 #include "oryx.h"
 #include "netdev.h"
 
-
-static int is_there_an_eth_iface_named(const char *iface) {
-	int skfd = 0;
-	struct ifreq ifr;
-
-	skfd = socket(AF_INET, SOCK_DGRAM, 0);
+static int is_there_an_eth_iface_named(struct ifreq *ifr) {
+	int skfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(skfd < 0) {
 		oryx_loge(-1,
 				"%s", strerror(errno));
 		return -1;
 	}
 
-	strcpy(ifr.ifr_name, iface);
-
-	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+	if(ioctl(skfd, SIOCGIFFLAGS, ifr) < 0) {
 		oryx_loge(-1,
-				"%s-%d(\"%s\")", strerror(errno), errno, ifr.ifr_name);
+				"%s-%d(\"%s\")", strerror(errno), errno, ifr->ifr_name);
 		if (errno == ENODEV) {
 			close(skfd);
 			skfd = -ENODEV;
@@ -30,7 +24,10 @@ static int is_there_an_eth_iface_named(const char *iface) {
 }
 
 int netdev_exist(const char *iface) {
-	int skfd = is_there_an_eth_iface_named(iface);
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, iface);
+	int skfd = is_there_an_eth_iface_named(&ifr);
 	if(skfd > 0) {
 		close (skfd);
 		return 1;
@@ -42,47 +39,36 @@ int netdev_exist(const char *iface) {
 	}
 }
 
-int netdev_is_running(const char *iface) {
-	int skfd = is_there_an_eth_iface_named(iface);
+int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool) {
 	struct ifreq ifr;
-
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, iface);
+	int skfd = is_there_an_eth_iface_named(&ifr);
+	
 	if(skfd <= 0)
 		return skfd;
-	
-	strcpy(ifr.ifr_name, iface);
-
-	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
-	    close(skfd);
-	    return -1;
-	}
-
-	close (skfd);
 
 	if(ifr.ifr_flags & IFF_RUNNING) {
+		ethtool->cmd = ETHTOOL_GSET;
+		ifr.ifr_data = (caddr_t)ethtool;
+		ioctl(skfd, SIOCETHTOOL, &ifr);
+		close (skfd);
 	    return 1;
 	} else {
+		close (skfd);
 	    return 0;
 	}
 }
 
 
 int netdev_is_up(const char *iface) {
-	int skfd = is_there_an_eth_iface_named(iface);
 	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, iface);
+	int skfd = is_there_an_eth_iface_named(&ifr);
 
 	if(skfd <= 0)
 		return skfd;
-	
-	strcpy(ifr.ifr_name, iface);
-
-	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
-	    close(skfd);
-	    return -1;
-	}
 
 	close (skfd);
 	
@@ -94,20 +80,13 @@ int netdev_is_up(const char *iface) {
 }
 
 int netdev_up(const char *iface) {
-	int skfd = is_there_an_eth_iface_named(iface);
 	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, iface);
+	int skfd = is_there_an_eth_iface_named(&ifr);
 
 	if(skfd < 0)
 		return skfd;
-
-	strcpy(ifr.ifr_name, iface);
-	
-	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
-	    close(skfd);
-	    return -1;
-	}
 
 	ifr.ifr_flags |= IFF_UP;
 
@@ -123,20 +102,13 @@ int netdev_up(const char *iface) {
 }
 
 int netdev_down(const char *iface) {
-	int skfd = is_there_an_eth_iface_named(iface);
 	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, iface);
+	int skfd = is_there_an_eth_iface_named(&ifr);
 
 	if(skfd < 0)
 		return skfd;
-
-	strcpy(ifr.ifr_name, iface);
-	
-	if(ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
-	    close(skfd);
-	    return -1;
-	}
 
 	ifr.ifr_flags &= ~IFF_UP;
 
@@ -150,6 +122,7 @@ int netdev_down(const char *iface) {
 	close (skfd);
 	return 0;
 }
+
 
 static void
 netdev_dispatcher(u_char *argument,

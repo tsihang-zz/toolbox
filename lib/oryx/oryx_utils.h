@@ -1,6 +1,7 @@
 #ifndef ORYX_UTILS_H
 #define ORYX_UTILS_H
 
+#include "ethtool.h"
 #include "rbtree.h"
 #include "list.h"
 #include "lru.h"

@@ -45,13 +45,12 @@ struct iface_counter_ctx {
 
 #define NETDEV_ADMIN_UP							(1 << 0)	/** 0-down, 1-up */
 #define NETDEV_PROMISC							(1 << 1)
-#define	NETDEV_DUPLEX_FULL						(1 << 2)	/** 0-half, 1-full */
 #define	NETDEV_LOOPBACK							(1 << 3)
 #define NETDEV_POLL_UP							(1 << 4)	/** poll this port up. */
 #define NETDEV_MARVELL_DSA						(1 << 5)	/** marvell dsa frame. */
 #define NETDEV_PANEL							(1 << 6)	/** is a panel port or not.
 															 *  cpu <-> sw */
-
+#define LINK_PAD0	(0)
 struct iface_t {
 	const char				*sc_alias_fixed; 	/** fixed alias used to do linkstate poll,
 								 			  	 *  and can not be overwrite by CLI. */
@@ -68,7 +67,13 @@ struct iface_t {
 												 * can be overwritten by CLI. */
 	char					eth_addr[6];		/** ethernet address for this port. */
 	uint32_t				ul_up_down_times;	/** up->down counter. */
-	uint16_t				us_mtu;
+
+		uint32_t link_speed;		/**< ETH_SPEED_NUM_ */
+		uint32_t link_duplex  : 8;	/**< ETH_LINK_[HALF/FULL]_DUPLEX */
+		uint32_t link_autoneg : 1;	/**< ETH_LINK_SPEED_[AUTONEG/FIXED] */
+		uint32_t link_pad0    : 7;
+		uint32_t mtu       		: 16;	/**< MTU */
+
 	struct CounterCtx 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 };
