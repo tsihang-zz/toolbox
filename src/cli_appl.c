@@ -5,7 +5,7 @@
 #include "common_private.h"
 #include "util_ipset.h"
 #include "cli_appl.h"
-
+#include "map_private.h"
 #include "rc4.h"
 
 vlib_appl_main_t vlib_appl_main = {
@@ -157,6 +157,9 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 static int appl_table_entry_remove (struct appl_t *a)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
+	
+	/** Is this application is inuse ? */
+	
 	return appl_entry_del(am, a);
 }
 

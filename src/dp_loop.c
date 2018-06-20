@@ -34,12 +34,32 @@ extern PacketQueue g_pq[];
 static __oryx_always_inline__
 void dsa_tag_strip(struct rte_mbuf *m)
 {
-	struct ether_hdr *eh
+	void *new_start;
+	
+	/** hold the source and destination MAC address. */
+	struct ether_hdr *ethh
 		 = rte_pktmbuf_mtod(m, struct ether_hdr *);
 
-	/* Copy ether header over rather than moving whole packet */
-	memmove(rte_pktmbuf_adj(m, sizeof(struct vlan_hdr)),
-		eh, 2 * ETHER_ADDR_LEN);
+	/** remove len bytes at the beginning of an mbuf to get a new start. */
+	new_start = rte_pktmbuf_adj(m, sizeof(struct vlan_hdr));
+	
+	/* refill with 2 MAC address. */
+	memmove(new_start, ethh, 2 * ETHER_ADDR_LEN);
+}
+
+static __oryx_always_inline__
+void act_packet_trim(struct rte_mbuf *m, uint16_t drop_size)
+{
+	if (drop_size > m->pkt_len)
+		return;
+	/* packet will always be 64 bytes when drop_size = m->pkt_len - 64. */
+	rte_pktmbuf_trim(m, drop_size);
+}
+
+static __oryx_always_inline__
+void act_packet_timestamp(struct rte_mbuf *m)
+{
+	m  = m;
 }
 
 static __oryx_always_inline__
@@ -90,12 +110,6 @@ uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 #endif
 	return new_cpu_dsa;
 
-}
-
-void dp_dpdk_perf_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
-	int __oryx_unused__ argc, char **argv)
-{	
-	argv = argv;
 }
 
 /* Send burst of packets on an output interface */
@@ -199,9 +213,10 @@ flush2_buffer:
 	len++;
 	
 #if defined(BUILD_DEBUG)
-	oryx_logn ("		buffering pkt %p (lcore %d) for tx_port_id %d",
-				m, tv->lcore, tx_port_id);
-#endif	
+	oryx_logn ("		buffering pkt (%p, pkt_len=%d @lcore=%d) for tx_port_id %d",
+				m, m->pkt_len, tv->lcore, tx_port_id);
+#endif
+
 	/* enough pkts to be sent */
 	if (likely(len == DPDK_MAX_TX_BURST)) {
 		send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
@@ -363,6 +378,15 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 			oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
 #endif
 			if(tx_panel_port_is_online(tx_panel_port_id)) {
+				
+				if(priv->ul_flags & ACT_SLICE) {
+					act_packet_trim(m, m->pkt_len - priv->ul_slice_size);
+				}
+				
+				if (priv->ul_flags & ACT_TIMESTAMP) {
+					act_packet_timestamp(m);
+				}
+				
 				/* forward packets for this map. */
 				send_single_packet(tv, dtv, rx_iface, qconf, m, tx_port_id, tx_panel_port_id);
 				continue;

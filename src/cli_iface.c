@@ -542,82 +542,6 @@ static struct iface_t iface_list[] = {
 	},
 	
 	{
-		"lan1",
-		ETH_GE,
-		NETDEV_PANEL | NETDEV_MARVELL_DSA,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
-	},
-
-	{
-		"lan2",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
-	},
-
-	{
-		"lan3",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
-	},
-	
-	{
-		"lan4",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
-	},
-
-	{
 		"lan5",
 		ETH_GE,
 		NETDEV_PANEL,
@@ -691,7 +615,84 @@ static struct iface_t iface_list[] = {
 		0,
 		NULL,
 		NULL
+	},
+	
+	{
+		"lan1",
+		ETH_GE,
+		NETDEV_PANEL | NETDEV_MARVELL_DSA,
+		iface_poll_linkstate,
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		0,
+		LINK_PAD0,
+		0,
+		NULL,
+		NULL
+	},
+	
+	{
+		"lan2",
+		ETH_GE,
+		NETDEV_PANEL,
+		iface_poll_linkstate,
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		0,
+		LINK_PAD0,
+		0,
+		NULL,
+		NULL
+	},
+	
+	{
+		"lan3",
+		ETH_GE,
+		NETDEV_PANEL,
+		iface_poll_linkstate,
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		0,
+		LINK_PAD0,
+		0,
+		NULL,
+		NULL
+	},
+	
+	{
+		"lan4",
+		ETH_GE,
+		NETDEV_PANEL,
+		iface_poll_linkstate,
+		iface_poll_up,
+		-1,
+		" ",
+		{0,0,0,0,0,0},
+		0,
+		0,
+		0,
+		0,
+		LINK_PAD0,
+		0,
+		NULL,
+		NULL
 	}
+
 };
 
 

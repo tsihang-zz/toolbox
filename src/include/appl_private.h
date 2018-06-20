@@ -31,6 +31,7 @@ enum {
 #define ACT_EN_VxLAN	(1 << 5)
 #define ACT_DE_GRE		(1 << 6)
 #define ACT_EN_GRE		(1 << 7)
+#define ACT_SLICE		(1 << 8)
 #define ACT_DEFAULT		(ACT_DROP)
 
 union egress_options {
@@ -42,8 +43,10 @@ union egress_options {
 }egress_options;
 
 struct appl_priv_t {
-	uint32_t			ul_flags;		/** egress_options */
-	uint32_t			ul_map_id;		/** map id this application belong to. */
+	uint32_t			ul_flags;				/** egress_options */
+	uint32_t			ul_slice_size	: 12;	/** Slicing size */
+	uint32_t			pad0			: 20;
+	uint32_t			ul_map_id;				/** map id this application belong to. */
 }__attribute__((__packed__));
 
 /** vlan=0 is reserved by system, we use this for "any" VLAN.*/
@@ -131,7 +134,6 @@ void appl_entry_lookup_id0 (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
 #define appl_entry_lookup_id(am,id,appl)\
 	appl_entry_lookup_id0(am,id,appl);
 #else
-
 #define appl_entry_lookup_id(am,id,appl)\
 		(*(appl)) = NULL;\
 		(*(appl)) = (struct appl_t *)vec_lookup ((am)->entry_vec, (id));

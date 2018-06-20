@@ -148,7 +148,7 @@ void map_entry_lookup_id0 (vlib_map_main_t *mm, u32 id, struct map_t **m)
 }
 
 #if defined(BUILD_DEBUG)
-#define appl_entry_lookup_id(mm,id,m)\
+#define map_entry_lookup_id(mm,id,m)\
 	map_entry_lookup_id0((mm),(id),(m));
 #else
 #define map_entry_lookup_id(mm,id,m)\

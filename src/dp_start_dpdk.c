@@ -28,8 +28,6 @@ extern PacketQueue g_pq[];
 
 extern void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 extern void dpdk_env_setup(vlib_main_t *vm);
-void dp_dpdk_perf_tmr_handler(struct oryx_timer_t *tmr,
-	int __oryx_unused__ argc, char **argv);
 
 void dp_end_dpdk(struct vlib_main_t *vm)
 {
@@ -94,26 +92,10 @@ void dp_init_dpdk(struct vlib_main_t *vm)
 }
 
 void dp_start_dpdk(struct vlib_main_t *vm) {
-#if 0
-	dpdk_main_t *dm = &dpdk_main;
-
-	dm->conf->mempool_priv_size = vm->extra_priv_size;	
-	dp_dpdk_check_port(vm);
-	dpdk_format_eal_args(vm);
-	dpdk_env_setup(vm);
-#endif
 
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);
 
-#if 0		
-	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-	vm->perf_tmr = oryx_tmr_create (1, "dp_perf_tmr", ul_perf_tmr_setting_flags,
-											  dp_dpdk_perf_tmr_handler, 1, (char **)vm, 3000);
-
-	if(likely(vm->perf_tmr))
-	  oryx_tmr_start(vm->perf_tmr);
-#endif
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(main_loop, vm, CALL_MASTER);
 }
