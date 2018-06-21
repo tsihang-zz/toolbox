@@ -274,7 +274,7 @@ extern atomic_t n_application_elements;
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\
 		struct appl_t *v;\
-		vec_foreach_element(am->entry_vec, each, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v && (v->ul_flags & APPL_VALID)) {\
 				func (v);\
 				atomic_inc(&n_application_elements);\
@@ -286,7 +286,7 @@ extern atomic_t n_application_elements;
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		atomic_set(&n_application_elements, 0);\
 		struct appl_t *v;\
-		vec_foreach_element(am->entry_vec, each, v){\
+		vec_foreach_element(vec, each, v){\
 			if (v && (v->ul_flags & APPL_VALID)) {\
 				func (v, param0);\
 				atomic_inc(&n_application_elements);\

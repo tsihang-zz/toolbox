@@ -79,6 +79,7 @@ typedef struct vlib_main_t
 #define VLIB_APP_INITIALIZED			(1 << 5)
 #define VLIB_DP_INITIALIZED				(1 << 6)
 #define VLIB_DP_SYNC					(1 << 7)
+#define VLIB_DP_SYNC_ACL				(1 << 8)
 #define VLIB_QUIT						(1 << 31)
 	volatile uint32_t	ul_flags;
 

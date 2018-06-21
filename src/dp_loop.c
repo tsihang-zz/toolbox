@@ -48,12 +48,12 @@ void dsa_tag_strip(struct rte_mbuf *m)
 }
 
 static __oryx_always_inline__
-void act_packet_trim(struct rte_mbuf *m, uint16_t drop_size)
+void act_packet_trim(struct rte_mbuf *m, uint16_t slice_size)
 {
-	if (drop_size > m->pkt_len)
+	if (slice_size > m->pkt_len)
 		return;
 	/* packet will always be 64 bytes when drop_size = m->pkt_len - 64. */
-	rte_pktmbuf_trim(m, drop_size);
+	rte_pktmbuf_trim(m, m->pkt_len - slice_size);
 }
 
 static __oryx_always_inline__
@@ -324,28 +324,28 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 	appid = __UNPACK_USERDATA(res);
 	if(appid > MAX_APPLICATIONS) {
 #if defined(BUILD_DEBUG)
-		oryx_loge(-1, "no such application %d", appid);
+		oryx_logn("no such application %d", appid);
 #endif
 		goto finish;
 	}
 	
 	appl_entry_lookup_id(am, appid, &appl);
-	if(unlikely(!appl)) {
+	if(appl_is_invalid(appl)) {
 #if defined(BUILD_DEBUG)
-		oryx_loge(-1, "no such application %d", appid);
+		oryx_logn("no such application %d", appid);
 #endif
 		goto finish;
 	}
 
 	if(appl->nb_maps == 0) {
 #if defined(BUILD_DEBUG)
-		oryx_loge(-1, "application(\"%s\") is not mapped.", appl_alias(appl));
+		oryx_logn("application(\"%s\") is not mapped.", appl_alias(appl));
 #endif
 		goto finish;
 	}
 
 #if defined(BUILD_DEBUG)
-	oryx_logn ("%18s%15s%08d", "hit_appl: ", appl_alias(appl), appid);
+	oryx_logn ("%18s%15s(id=%08d)", "hit_appl: ", appl_alias(appl), appid);
 #endif
 
 	for (i = 0; i < (int)appl->nb_maps; i ++) {
@@ -355,13 +355,14 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 
 		/** lookup map table with userdata(map_mask) */
 		map_entry_lookup_id(mm, mapid, &map);
-		if (unlikely(!map)) {
+		if (map_is_invalid(map)) {
 			/* drop it defaultly if no map for this application */
 #if defined(BUILD_DEBUG)
 			oryx_logn("Can not find an valid map by id %d for iface %s", mapid, iface_alias(rx_iface));
 #endif
 			continue;
 		}
+		
 #if defined(BUILD_DEBUG)
 		oryx_logn(" 	###### Map[%s] %d", map_alias(map), mapid);
 		oryx_logn("		 rx_iface (%s)_%d is in map ? %s", iface_alias(rx_iface), iface_id(rx_iface),
@@ -380,10 +381,10 @@ void acl_send_one_packet(ThreadVars *tv, DecodeThreadVars *dtv, struct iface_t *
 			if(tx_panel_port_is_online(tx_panel_port_id)) {
 				
 				if(priv->ul_flags & ACT_SLICE) {
-					act_packet_trim(m, m->pkt_len - priv->ul_slice_size);
+					act_packet_trim(m, 64);
 				}
 				
-				if (priv->ul_flags & ACT_TIMESTAMP) {
+				if(priv->ul_flags & ACT_TIMESTAMP) {
 					act_packet_timestamp(m);
 				}
 				

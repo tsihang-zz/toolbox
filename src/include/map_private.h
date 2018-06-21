@@ -105,6 +105,8 @@ struct map_t {
 #define map_tx_has_iface(map,iface)\
 	((map)->tx_panel_port_mask & (1 << iface_id((iface))))
 
+#define map_is_invalid(map)\
+	(unlikely(!((map))) || !(((map))->ul_flags & MAP_VALID))
 
 #define VLIB_MM_XXXXXXXXXX		(1 << 0)
 typedef struct {

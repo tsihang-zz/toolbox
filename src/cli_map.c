@@ -78,7 +78,7 @@ map_cmp (void *v1,
 }
 
 static __oryx_always_inline__
-void map_entry_split_and_mapping_port (struct map_t *map, char *iface_str, u8 from_to)
+void map_ports (struct map_t *map, char *iface_str, u8 from_to)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
@@ -89,7 +89,7 @@ void map_entry_split_and_mapping_port (struct map_t *map, char *iface_str, u8 fr
 }
 
 static __oryx_always_inline__
-void map_entry_split_and_unmapping_port (struct map_t *map, char *iface_str, u8 from_to)
+void unmap_ports (struct map_t *map, char *iface_str, u8 from_to)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
@@ -97,6 +97,51 @@ void map_entry_split_and_unmapping_port (struct map_t *map, char *iface_str, u8 
 #endif
 	split_foreach_port_func1_param2 (
 		iface_str, map_entry_remove_port, map, from_to);
+}
+
+static __oryx_always_inline__
+void unmap_all_ports (struct map_t *map, u8 from_to)
+{
+#if defined(BUILD_DEBUG)
+	BUG_ON(map == NULL);
+#endif
+	foreach_port_func1_param2 (
+		NULL, map_entry_remove_port, map, from_to);
+}
+
+
+static __oryx_always_inline__
+void map_appls (struct map_t *map, char *appl_str)
+{
+#if defined(BUILD_DEBUG)
+	BUG_ON(map == NULL);
+	BUG_ON(appl_str == NULL);
+#endif
+	split_foreach_application_func1_param1 (
+		appl_str, map_entry_add_appl, map);
+}
+
+static __oryx_always_inline__
+void unmap_appls (struct map_t *map, char *appl_str)
+{
+#if defined(BUILD_DEBUG)
+		BUG_ON(map == NULL);
+		BUG_ON(appl_str == NULL);
+#endif
+
+	split_foreach_application_func1_param1 (
+		appl_str, map_entry_remove_appl, map);
+}
+
+static __oryx_always_inline__
+void unmap_all_appls (struct map_t *map)
+{
+#if defined(BUILD_DEBUG)
+	BUG_ON(map == NULL);
+#endif
+
+	foreach_application_func1_param1 (
+		NULL, map_entry_remove_appl, map);
 }
 
 static __oryx_always_inline__
@@ -109,9 +154,8 @@ void map_inherit(struct map_t *son, struct map_t *father)
 
 	/** except THE ID. */
 	map_id(son) = id;
-	oryx_logn("1");
-	map_entry_split_and_mapping_port (son, son->port_list_str[QUA_RX], QUA_RX);
-	map_entry_split_and_mapping_port (son, son->port_list_str[QUA_TX], QUA_TX);
+	map_ports (son, son->port_list_str[QUA_RX], QUA_RX);
+	map_ports (son, son->port_list_str[QUA_TX], QUA_TX);
 }
 
 int map_table_entry_add (struct map_t *map)
@@ -157,9 +201,8 @@ int map_table_entry_add (struct map_t *map)
 			goto finish;
 
 		map_id(map) = vec_set (mm->entry_vec, map);
-		oryx_logn("2");
-		map_entry_split_and_mapping_port (map, map->port_list_str[QUA_RX], QUA_RX);
-		map_entry_split_and_mapping_port (map, map->port_list_str[QUA_TX], QUA_TX);
+		map_ports (map, map->port_list_str[QUA_RX], QUA_RX);
+		map_ports (map, map->port_list_str[QUA_TX], QUA_TX);
 		map->ul_flags |= MAP_VALID;
 		mm->nb_maps ++;
 	}
@@ -172,6 +215,8 @@ finish:
 int no_map_table_entry (struct map_t *map)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	vlib_main_t *vm = mm->vm;
 	int r = 0;
 	
 	do_lock (&mm->lock);
@@ -181,17 +226,27 @@ int no_map_table_entry (struct map_t *map)
 								strlen((const char *)map_alias(map)));
 
 	if (r == 0 /** success */) {
+
+		/** disable. */
 		map->ul_flags &= ~MAP_VALID;
-		map_entry_split_and_unmapping_port (map, map->port_list_str[QUA_RX], QUA_RX);
-		map_entry_split_and_unmapping_port (map, map->port_list_str[QUA_TX], QUA_TX);
+		
+		/** delete all rx & tx ports */
+		unmap_all_ports (map, QUA_RX);
+		unmap_all_ports (map, QUA_TX);
+
+		/** delete all applications */
+		if(map->ul_nb_appls) {
+			unmap_all_appls(map);
+		}
+
+		map->ul_nb_appls = 0;
+
 		mm->nb_maps --;
 	}
 
 	do_unlock (&mm->lock);
 
 	/** Should you free here ? */
-	//vec_unset (mm->entry_vec, map_id(map));
-	//kfree(map);
 	
 	return r;
 }
@@ -292,7 +347,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), %d element(s) actived.%s", \
-		atomic_read(&n_map_elements), (int)vec_count(mm->entry_vec), VTY_NEWLINE);
+		atomic_read(&n_map_elements), mm->nb_maps, VTY_NEWLINE);
 
 DEFUN(show_map,
       show_map_cmd,
@@ -408,11 +463,12 @@ DEFUN(map_add_rm_port,
   if(!strncmp(argv[2], "r", 1))
   	qua = QUA_RX;
 
- add ? map_entry_split_and_mapping_port  (map, (char *)argv[3], qua):\
- 	   map_entry_split_and_unmapping_port(map, (char *)argv[3], qua);
+ add ? map_ports  (map, (char *)argv[3], qua):\
+ 	   unmap_ports(map, (char *)argv[3], qua);
 
  return CMD_SUCCESS;
 }
+
 
 DEFUN(map_application,
       map_application_cmd,
@@ -438,9 +494,10 @@ DEFUN(map_application,
 		action |= ACT_TIMESTAMP;
 	if(!strncmp(argv[2], "p", 1))
 		action |= ACT_FWD;
-	
-	split_foreach_application_func1_param2 (argv[1],
-				map_entry_add_appl, map, action);
+
+
+	split_foreach_application_func1_param1 (argv[1],
+				map_entry_add_appl, map);
 
 	PRINT_SUMMARY;
 	

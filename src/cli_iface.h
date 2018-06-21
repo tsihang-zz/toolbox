@@ -255,6 +255,19 @@ extern atomic_t n_intf_elements;
 		}\
 	}
 
+#define foreach_port_func1_param2(argv_x, func, param0, param1)\
+		int each;\
+		oryx_vector vec = vlib_port_main.entry_vec;\
+		atomic_set(&n_intf_elements, 0);\
+		struct iface_t *v;\
+		vec_foreach_element(vec, each, v){\
+			if (v) {\
+				func (v, param0, param1);\
+				atomic_inc(&n_intf_elements);\
+			}\
+		}
+		
+
 #define foreach_port_func0_param0_func1_param1(argv_x, func0, param0, func1, param1)\
 	int each;\
 	oryx_vector vec = vlib_port_main.entry_vec;\

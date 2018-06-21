@@ -10,17 +10,9 @@ int map_has_this_appl (struct map_t *map, struct appl_t *appl)
 	return (appl->ul_map_mask & (1 << map_id(map)));
 }
 
-
 __oryx_always_extern__
 void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
-#if 0
-	/* skip SW <-> CPU interface. */
-	if (iface_id(port) == SW_CPU_XAUI_PORT_ID)
-		return;
-#endif
-
-	oryx_logn("add = %s", from_to == QUA_RX ? "rx" : "tx");
 	/** Map Rx Port */
 	if(from_to == QUA_RX) {
 		map->rx_panel_port_mask |= (1 << iface_id(port));
@@ -35,7 +27,6 @@ void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
 __oryx_always_extern__
 void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 {
-	oryx_logn("rm = %s", from_to == QUA_RX ? "rx" : "tx");
 	/** Unmap Rx Port */
 	if(from_to == QUA_RX) {
 		map->rx_panel_port_mask &= ~(1 << iface_id(port));
@@ -48,41 +39,44 @@ void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
 }
 
 __oryx_always_extern__
-int map_entry_add_appl (struct appl_t *appl, struct map_t *map , 
-	uint32_t action)
+int map_entry_add_appl (struct appl_t *appl, struct map_t *map)
 {
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_main_t *vm = mm->vm;
+	struct appl_priv_t *ap;
+	
 	if (map_has_this_appl (map, appl)) {
 		oryx_logn("map %s trying to add appl %s, exsited.", map_alias(map), appl_alias(appl));
 		return 0;
 	}
 
-	struct appl_priv_t *ap;
-	union egress_options eo = {
-		.act.v = ACT_DEFAULT,
-	};
-
 	/** parse application action when hit on dataplane. */
-	eo.act.v = action;
 	
 	ap					=	&appl->priv[appl->nb_maps ++];
-	ap->ul_flags		=	eo.data32;
 	ap->ul_map_id		=	map_id(map);
 	appl->ul_map_mask	|=	(1 << map_id(map));
 	map->ul_nb_appls ++;
 
+	vm->ul_flags |= VLIB_DP_SYNC_ACL;
 	return 0;
 }
 
 __oryx_always_extern__
 int map_entry_remove_appl (struct appl_t *appl, struct map_t *map)
 {
+	vlib_map_main_t *mm = &vlib_map_main;
+	vlib_main_t *vm = mm->vm;
+
 	if (!map_has_this_appl (map, appl)) {		
 		oryx_logn("map %s trying to rm appl %s, non-exsited.", map_alias(map), appl_alias(appl));
 		return 0;
 	}
 	
 	appl->ul_map_mask &=	~(1 << map_id(map));
+	appl->nb_maps --;
+	
 	map->ul_nb_appls --;
+	vm->ul_flags |= VLIB_DP_SYNC_ACL;
 
 	return -1;
 }
@@ -109,7 +103,7 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 
 	(*map)->port_list_str[QUA_RX] = strdup (from);
 	(*map)->port_list_str[QUA_TX] = strdup(to);
-	/** Need Map's ul_id, so have to remove map_entry_split_and_mapping_port to map_table_entry_add. */
+	/** Need Map's ul_id, so have to remove map_ports to map_table_entry_add. */
 
 	oryx_thread_mutex_create(&(*map)->ol_lock);
 
@@ -144,10 +138,4 @@ int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
 
 	return 0;
 }
-
-int acl_remove_appl(struct map_t *map, struct appl_t *appl) {
-	vlib_map_main_t *mm = &vlib_map_main;
-	return 0;
-}
-
 

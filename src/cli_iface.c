@@ -99,6 +99,8 @@ void iface_entry_out (struct iface_t *port, struct vty *vty)
 		vty_out (vty, " %16s%s%s", 
 				"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
 	}
+
+	
 }
 
 static __oryx_always_inline__

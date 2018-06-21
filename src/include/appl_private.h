@@ -56,8 +56,8 @@ struct appl_priv_t {
 #define ANY_IPADDR	(0)
 
 /** flags for appl_t.ul_flags */
-#define	APPL_SYNCED	(1 << 0)
-#define APPL_VALID	(1 << 1)
+#define APPL_VALID		(1 << 0)
+#define	APPL_CHANGED	(1 << 1)
 
 struct appl_t {
 	char				sc_alias[32];		/** Unique, and can be well human-readable. */
@@ -97,14 +97,29 @@ struct appl_t {
 #define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {
 	uint32_t				ul_flags;
-	int						ul_n_appls;
 	os_lock_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t 	*htable;
 	uint32_t				nb_appls;
+	struct vlib_main_t		*vm;
 }vlib_appl_main_t;
 
 extern vlib_appl_main_t vlib_appl_main;
+
+#define appl_is_invalid(appl)\
+	(unlikely(!(appl)) || !((appl)->ul_flags & APPL_VALID))
+	
+static __oryx_always_inline__
+int appl_is_inuse (struct appl_t *appl)
+{
+	return ((appl->ul_flags & APPL_VALID) && (appl->ul_map_mask != 0));
+}
+
+static __oryx_always_inline__
+int appl_is_unused (struct appl_t *appl)
+{
+	return !appl_is_inuse(appl);
+}
 
 static __oryx_always_inline__
 void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct appl_t **appl)

@@ -57,9 +57,6 @@ appl_cmp (void *v1,
 		memcmp(v1, v2, s2))
 		xret = 1;
 	
-#ifdef APPL_DEBUG
-	//printf ("(%s, %s), xret = %d\n", (char *)v1, (char *)v2, xret);
-#endif
 	return xret;
 }
 
@@ -146,7 +143,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 		port_buf[HD_SRC],
 		port_buf[HD_DST],
 		proto_buf, 
-		(appl->ul_flags & APPL_SYNCED) ? "synced" : "!synced",
+		(appl->ul_flags & APPL_CHANGED) ? "!synced" : "synced",
 		appl->ul_map_mask,
 		tmstr,
 		VTY_NEWLINE);
@@ -154,13 +151,26 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	return 0;
 }
 
-static int appl_table_entry_remove (struct appl_t *a)
+static int no_appl_table_entry (struct appl_t *appl, struct vty *vty)
 {
+	int ret;
 	vlib_appl_main_t *am = &vlib_appl_main;
+	vlib_main_t *vm = am->vm;
 	
 	/** Is this application is inuse ? */
+	if(appl_is_inuse(appl)) {
+		vty_out(vty, "%s inuse by map(s)(%08x)%s",
+						appl_alias(appl), appl->ul_map_mask, VTY_NEWLINE);
+		return 0;
+	}
 	
-	return appl_entry_del(am, a);
+	ret = appl_entry_del(am, appl);
+	if (!ret) {
+		vm->ul_flags |= VLIB_DP_SYNC_ACL;
+		vty_out(vty, "Need \"sync\" after this command take affect.%s", VTY_NEWLINE);
+	}
+
+	return 0;
 }
 
 static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *value)
@@ -187,6 +197,8 @@ static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *va
 
 static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *value)
 {
+	vlib_appl_main_t *am = &vlib_appl_main;
+	vlib_main_t *vm = am->vm;
 	uint32_t priority;
 	char *end;
 
@@ -195,7 +207,19 @@ static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *valu
 		oryx_logn("%d (%s)", errno, value);
 		return -EINVAL;
 	}
+
+	/** no effect when setting a same priority with before. */
+	if (appl->priority == priority)
+		return 0;
+	
 	appl->priority = priority;
+	appl->ul_flags |= APPL_CHANGED;
+
+	/** check this application is inuse ? */
+	if (appl->ul_map_mask != 0) {	
+		vm->ul_flags |= VLIB_DP_SYNC_ACL;
+	}
+	
 	return 0;
 }
 
@@ -240,16 +264,16 @@ DEFUN(no_application,
 	vlib_appl_main_t *am = &vlib_appl_main;
 
 	if (argc == 0) {
-		foreach_application_func1_param0(argv[0], 
-			appl_table_entry_remove);
+		foreach_application_func1_param1(argv[0], 
+			no_appl_table_entry, vty);
 	}
 	else {
-		split_foreach_application_func1_param0(argv[0], 
-			appl_table_entry_remove);
+		split_foreach_application_func1_param1(argv[0], 
+			no_appl_table_entry, vty);
 	}
 
 	PRINT_SUMMARY;
-
+	
     return CMD_SUCCESS;
 }
 
@@ -447,7 +471,8 @@ DEFUN(test_application,
 void appl_init(vlib_main_t *vm)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
-	
+
+	am->vm = vm;
 	am->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 			appl_hval, appl_cmp, appl_free, 0);
 	am->entry_vec = vec_init (MAX_APPLICATIONS);

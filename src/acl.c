@@ -193,7 +193,6 @@ void classify_setup_acl(const int socketid)
 		*d = (unsigned char)(ip & 0xff);\
 	} while (0)
 
-
 static inline void
 print_one_ipv4_rule(struct acl4_rule *rule, int extra)
 {
@@ -307,8 +306,6 @@ int acl_add_entries(struct rte_acl_ctx *context,
 		return -1;
 	}
 	
-	//rte_acl_reset_rules(context);
-	
 	memset (acl_rules, 0, sizeof(struct acl4_rule) * acl_num);
 
 	for (i = 0; i < acl_num; i ++) {
@@ -367,7 +364,7 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 			entry.port_dst_mask,
 			entry.u.k4.proto,
 			entry.ip_next_proto_mask);
-		appl->ul_flags |= APPL_SYNCED;
+		appl->ul_flags &= ~APPL_CHANGED;
 		return 0;
 	}
 }
@@ -375,8 +372,10 @@ int acl_download_appl(struct map_t *map, struct appl_t *appl) {
 static __oryx_always_inline__
 void reset_acl_config_ctx(struct acl_config_t *acl_conf)
 {
+	int socketid = 0;
 	acl_conf->nb_ipv4_rules = 0;
 	acl_conf->nb_ipv6_rules = 0;
+	rte_acl_reset(acl_conf->acx_ipv4[socketid]);
 
 }
 
@@ -392,10 +391,11 @@ void sync_acl(vlib_main_t *vm)
 	struct rte_acl_ctx *context;
 	struct acl_config_t *acl_next_config; 
 
+	if(!(vm->ul_flags & VLIB_DP_SYNC_ACL))
+		return;
+
 	vec_foreach_element(am->entry_vec, each, appl) {
-		if (unlikely(!appl))
-			continue;
-		if (!(appl->ul_flags & APPL_VALID) || appl->ul_map_mask == 0)
+		if (unlikely(!appl) || !appl_is_inuse(appl))
 			continue;
 		nb_entries ++;
 	}
@@ -407,9 +407,7 @@ void sync_acl(vlib_main_t *vm)
 	BUG_ON(entries == NULL);
 
 	vec_foreach_element(am->entry_vec, each, appl) {
-		if (unlikely(!appl))
-			continue;
-		if (!(appl->ul_flags & APPL_VALID) || (appl->ul_map_mask == 0))
+		if (unlikely(!appl) || !appl_is_inuse(appl))
 			continue;
 
 		if (i > nb_entries)
@@ -418,33 +416,32 @@ void sync_acl(vlib_main_t *vm)
 		entry = &entries[i ++];
 		appl2_ar(appl, entry);
 	}
-
 	
 	acl_next_config	= &acl_config[(g_runtime_acl_config_qua + 1) % ACL_TABLES];
 	reset_acl_config_ctx(acl_next_config);
 	
 	context = acl_next_config->acx_ipv4[socketid];
 	
-	oryx_logn ("%20s%p", "curr: ", g_runtime_acl_config);
-	oryx_logn ("%20s%p", "next: ", acl_next_config);
-
 	hv = acl_add_entries(context, entries, nb_entries);
 	if (hv < 0) {
 		oryx_loge(-1,
 			"(%d) sync acl error %d eles", hv, nb_entries);
 	} else {
 		vec_foreach_element(am->entry_vec, each, appl) {
-			if (unlikely(!appl))
+			if (unlikely(!appl) || !appl_is_inuse(appl))
 				continue;
-			appl->ul_flags |= APPL_SYNCED;
+			appl->ul_flags &= ~APPL_CHANGED;
 			acl_next_config->nb_ipv4_rules ++;
 		}
-
-		BUG_ON(acl_next_config->nb_ipv4_rules != nb_entries);
 		
+		oryx_logn("nb_entries %d, nb_rules %d", nb_entries, acl_next_config->nb_ipv4_rules);
+#if defined(BUILD_DEBUG)
+		BUG_ON(acl_next_config->nb_ipv4_rules != nb_entries);
+#endif		
 		/* fast switch. */		
 		lock_lcores(vm);
-		g_runtime_acl_config_qua += 1;		
+		vm->ul_flags &= ~VLIB_DP_SYNC_ACL;
+		g_runtime_acl_config_qua += 1;
 		unlock_lcores(vm);
 	}
 }
