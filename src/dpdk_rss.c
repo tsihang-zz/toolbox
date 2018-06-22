@@ -47,7 +47,7 @@ static const char short_options[] =
 #define CMD_LINE_OPT_CONFIG "config"
 #define CMD_LINE_OPT_ETH_DEST "eth-dest"
 #define CMD_LINE_OPT_NO_NUMA "no-numa"
-#define CMD_LINE_OPT_IPV6 "ipv6"
+#define CMD_LINE_OPT_IPv6 "ipv6"
 #define CMD_LINE_OPT_ENABLE_JUMBO "enable-jumbo"
 #define CMD_LINE_OPT_HASH_ENTRY_NUM "hash-entry-num"
 #define CMD_LINE_OPT_PARSE_PTYPE "parse-ptype"
@@ -60,7 +60,7 @@ enum {
 	CMD_LINE_OPT_CONFIG_NUM,
 	CMD_LINE_OPT_ETH_DEST_NUM,
 	CMD_LINE_OPT_NO_NUMA_NUM,
-	CMD_LINE_OPT_IPV6_NUM,
+	CMD_LINE_OPT_IPv6_NUM,
 	CMD_LINE_OPT_ENABLE_JUMBO_NUM,
 	CMD_LINE_OPT_HASH_ENTRY_NUM_NUM,
 	CMD_LINE_OPT_PARSE_PTYPE_NUM,
@@ -70,7 +70,7 @@ static const struct option lgopts[] = {
 	{CMD_LINE_OPT_CONFIG, 1, 0, CMD_LINE_OPT_CONFIG_NUM},
 	{CMD_LINE_OPT_ETH_DEST, 1, 0, CMD_LINE_OPT_ETH_DEST_NUM},
 	{CMD_LINE_OPT_NO_NUMA, 0, 0, CMD_LINE_OPT_NO_NUMA_NUM},
-	{CMD_LINE_OPT_IPV6, 0, 0, CMD_LINE_OPT_IPV6_NUM},
+	{CMD_LINE_OPT_IPv6, 0, 0, CMD_LINE_OPT_IPv6_NUM},
 	{CMD_LINE_OPT_ENABLE_JUMBO, 0, 0, CMD_LINE_OPT_ENABLE_JUMBO_NUM},
 	{CMD_LINE_OPT_HASH_ENTRY_NUM, 1, 0, CMD_LINE_OPT_HASH_ENTRY_NUM_NUM},
 	{CMD_LINE_OPT_PARSE_PTYPE, 0, 0, CMD_LINE_OPT_PARSE_PTYPE_NUM},
@@ -351,7 +351,7 @@ parse_args(int argc, char **argv)
 	const char *str4 = "L3FWD: Longest-prefix match selected";
 	const char *str5 = "L3FWD: Invalid config";
 	const char *str6 = "L3FWD: NUMA is disabled";
-	const char *str7 = "L3FWD: IPV6 is specified";
+	const char *str7 = "L3FWD: IPv6 is specified";
 	const char *str8 =
 		"L3FWD: Jumbo frame is enabled - disabling simple TX path";
 	const char *str9 = "L3FWD: Invalid packet length";
@@ -403,7 +403,7 @@ parse_args(int argc, char **argv)
 			numa_on = 0;
 			break;
 
-		case CMD_LINE_OPT_IPV6_NUM:
+		case CMD_LINE_OPT_IPv6_NUM:
 			printf("%sn", str7);
 			break;
 
@@ -603,11 +603,11 @@ void parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
 	l3 = (uint8_t *)eth_hdr + sizeof(struct ether_hdr);
 	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
 		ipv4h = (struct ipv4_hdr *)l3;
-		hdr_len = (ipv4h->version_ihl & IPV4_HDR_IHL_MASK) *
-			  IPV4_IHL_MULTIPLIER;
+		hdr_len = (ipv4h->version_ihl & IPv4_HDR_IHL_MASK) *
+			  IPv4_IHL_MULTIPLIER;
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
 		if (hdr_len == sizeof(struct ipv4_hdr)) {
-			packet_type |= RTE_PTYPE_L3_IPV4;
+			packet_type |= RTE_PTYPE_L3_IPv4;
 			if (ipv4h->next_proto_id == IPPROTO_TCP){
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
 				packet_type |= RTE_PTYPE_L4_TCP;
@@ -621,17 +621,17 @@ void parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
 				packet_type |= RTE_PTYPE_L4_SCTP;
 			}
 		} else
-			packet_type |= RTE_PTYPE_L3_IPV4_EXT;
+			packet_type |= RTE_PTYPE_L3_IPv4_EXT;
 	} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
 		ipv6h = (struct ipv6_hdr *)l3;
 		if (ipv6h->proto == IPPROTO_TCP)
-			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
+			packet_type |= RTE_PTYPE_L3_IPv6 | RTE_PTYPE_L4_TCP;
 		else if (ipv6h->proto == IPPROTO_UDP)
-			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_UDP;
+			packet_type |= RTE_PTYPE_L3_IPv6 | RTE_PTYPE_L4_UDP;
 		else if (ipv6h->proto == IPPROTO_SCTP)
-			packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_SCTP;
+			packet_type |= RTE_PTYPE_L3_IPv6 | RTE_PTYPE_L4_SCTP;
 		else
-			packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
+			packet_type |= RTE_PTYPE_L3_IPv6_EXT_UNKNOWN;
 	}
 
 	m->packet_type = packet_type;
@@ -646,9 +646,9 @@ static void parse_ptype1(struct rte_mbuf *m)
 	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 	ether_type = eth_hdr->ether_type;
 	if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4))
-		packet_type |= RTE_PTYPE_L3_IPV4_EXT_UNKNOWN;
+		packet_type |= RTE_PTYPE_L3_IPv4_EXT_UNKNOWN;
 	else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6))
-		packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;
+		packet_type |= RTE_PTYPE_L3_IPv6_EXT_UNKNOWN;
 
 	m->packet_type = packet_type;
 }
@@ -673,16 +673,16 @@ static int check_ptype0(int portid)
   ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, ptypes, ret);
   for (i = 0; i < ret; ++i) {
 	  switch (ptypes[i]) {
-	  case RTE_PTYPE_L3_IPV4:
+	  case RTE_PTYPE_L3_IPv4:
 	  	  ptype_l3_ipv4 = 1;
 	  	  break;
-	  case RTE_PTYPE_L3_IPV6:
+	  case RTE_PTYPE_L3_IPv6:
 	  	  ptype_l3_ipv6 = 1;
 	  	  break;
-	  case RTE_PTYPE_L3_IPV4_EXT:
+	  case RTE_PTYPE_L3_IPv4_EXT:
 		  ptype_l3_ipv4_ext = 1;
 		  break;
-	  case RTE_PTYPE_L3_IPV6_EXT:
+	  case RTE_PTYPE_L3_IPv6_EXT:
 		  ptype_l3_ipv6_ext = 1;
 		  break;
 	  case RTE_PTYPE_L4_TCP:
@@ -695,13 +695,13 @@ static int check_ptype0(int portid)
   }
 
   if(ptype_l3_ipv4 == 0)
-  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV4\n", portid);
+  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPv4\n", portid);
   if(ptype_l3_ipv6 == 0)
-  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV6\n", portid);
+  	 oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPv6\n", portid);
   if (ptype_l3_ipv4_ext == 0)
-	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV4_EXT\n", portid);
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPv4_EXT\n", portid);
   if (ptype_l3_ipv6_ext == 0)
-	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPV6_EXT\n", portid);
+	  oryx_logw(0, "port %d cannot parse RTE_PTYPE_L3_IPv6_EXT\n", portid);
   if (!ptype_l3_ipv4_ext || !ptype_l3_ipv6_ext)
 	  return 0;
   if (ptype_l4_tcp == 0)
@@ -728,17 +728,17 @@ static int check_ptype1(int portid)
 
   ret = rte_eth_dev_get_supported_ptypes(portid, ptype_mask, ptypes, ret);
   for (i = 0; i < ret; ++i) {
-	  if (ptypes[i] & RTE_PTYPE_L3_IPV4)
+	  if (ptypes[i] & RTE_PTYPE_L3_IPv4)
 		  ptype_l3_ipv4 = 1;
-	  if (ptypes[i] & RTE_PTYPE_L3_IPV6)
+	  if (ptypes[i] & RTE_PTYPE_L3_IPv6)
 		  ptype_l3_ipv6 = 1;
   }
 
   if (ptype_l3_ipv4 == 0)
-	  printf("port %d cannot parse RTE_PTYPE_L3_IPV4\n", portid);
+	  printf("port %d cannot parse RTE_PTYPE_L3_IPv4\n", portid);
 
   if (ptype_l3_ipv6 == 0)
-	  printf("port %d cannot parse RTE_PTYPE_L3_IPV6\n", portid);
+	  printf("port %d cannot parse RTE_PTYPE_L3_IPv6\n", portid);
 
   if (ptype_l3_ipv4 && ptype_l3_ipv6)
 	  return 1;

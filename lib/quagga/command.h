@@ -84,8 +84,8 @@ enum node_type
   BGP_NODE,			/* BGP protocol mode which includes BGP4+ */
   BGP_VPNV4_NODE,		/* BGP MPLS-VPN PE exchange. */
   BGP_VPNV6_NODE,		/* BGP MPLS-VPN PE exchange. */
-  BGP_IPV4_NODE,		/* BGP IPv4 unicast address family.  */
-  BGP_IPV4M_NODE,		/* BGP IPv4 multicast address family.  */
+  BGP_IPv4_NODE,		/* BGP IPv4 unicast address family.  */
+  BGP_IPv4M_NODE,		/* BGP IPv4 multicast address family.  */
   BGP_IPV6_NODE,		/* BGP IPv6 address family */
   BGP_IPV6M_NODE,		/* BGP IPv6 multicast address family. */
   BGP_ENCAP_NODE,		/* BGP ENCAP SAFI */
@@ -169,8 +169,8 @@ enum cmd_terminal_type
   TERMINAL_VARIABLE,
   TERMINAL_VARARG,
   TERMINAL_RANGE,
-  TERMINAL_IPV4,
-  TERMINAL_IPV4_PREFIX,
+  TERMINAL_IPv4,
+  TERMINAL_IPv4_PREFIX,
   TERMINAL_IPV6,
   TERMINAL_IPV6_PREFIX,
 };

@@ -115,7 +115,7 @@ int DecodeVLAN0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
             DecodeIPv40(tv, dtv, p, pkt + VLAN_HEADER_LEN,
                        len - VLAN_HEADER_LEN, pq);
             break;
-        case ETHERNET_TYPE_IPV6:
+        case ETHERNET_TYPE_IPv6:
             DecodeIPv60(tv, dtv, p, pkt + VLAN_HEADER_LEN,
                        len - VLAN_HEADER_LEN, pq);
             break;

@@ -81,7 +81,7 @@ int DecodeMarvellDSA0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 				DecodeIPv40(tv, dtv, p, pkt + DSA_HEADER_LEN,
 						   len - DSA_HEADER_LEN, pq);
 				break;
-			case ETHERNET_TYPE_IPV6:
+			case ETHERNET_TYPE_IPv6:
 				DecodeIPv60(tv, dtv, p, pkt + DSA_HEADER_LEN,
 						   len - DSA_HEADER_LEN, pq);
 				break;

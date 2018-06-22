@@ -65,9 +65,9 @@
 #define FLOW_TIMEOUT_REASSEMBLY_DONE    BIT_U32(17)
 
 /** flow is ipv4 */
-#define FLOW_IPV4                       BIT_U32(18)
+#define FLOW_IPv4                       BIT_U32(18)
 /** flow is ipv6 */
-#define FLOW_IPV6                       BIT_U32(19)
+#define FLOW_IPv6                       BIT_U32(19)
 
 #define FLOW_PROTO_DETECT_TS_DONE       BIT_U32(20)
 #define FLOW_PROTO_DETECT_TC_DONE       BIT_U32(21)
@@ -279,10 +279,10 @@ typedef struct Flow_
 
 } Flow;
 
-#define FLOW_IS_IPV4(f) \
-    (((f)->flags & FLOW_IPV4) == FLOW_IPV4)
-#define FLOW_IS_IPV6(f) \
-    (((f)->flags & FLOW_IPV6) == FLOW_IPV6)
+#define FLOW_IS_IPv4(f) \
+    (((f)->flags & FLOW_IPv4) == FLOW_IPv4)
+#define FLOW_IS_IPv6(f) \
+    (((f)->flags & FLOW_IPv6) == FLOW_IPv6)
 
 #define RESET_COUNTERS(f) do { \
     } while (0)

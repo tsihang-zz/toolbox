@@ -158,10 +158,9 @@ void map_inherit(struct map_t *son, struct map_t *father)
 	map_ports (son, son->port_list_str[QUA_TX], QUA_TX);
 }
 
-int map_table_entry_add (struct map_t *map)
+int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 {
 	int r = 0;
-	vlib_map_main_t *mm = &vlib_map_main;
 	
 	do_lock (&mm->lock);
 
@@ -417,20 +416,22 @@ DEFUN(new_map,
 	vlib_map_main_t *mm = &vlib_map_main;
 	struct map_t *map;
 
-	map_table_entry_deep_lookup((const char *)argv[0], &map);
-	if(likely(map)) {
+	map_entry_find_same((const char *)argv[0], &map);
+	if (likely(map)) {
 		VTY_ERROR_MAP ("same", (char *)argv[0]);
 		map_entry_output (map, vty);
 		return CMD_SUCCESS;
 	}
 
 	map_entry_new (&map, (char *)argv[0], (char *)argv[1], (char *)argv[2]);
+
 	if (unlikely (!map)) {
 		VTY_ERROR_MAP ("new", (char *)argv[0]);
 		return CMD_SUCCESS;
 	}
-	if (!map_table_entry_add (map)) {
-		VTY_SUCCESS_MAP ("new", map);
+	
+	if (map_table_entry_add (mm, map)) {
+		VTY_ERROR_MAP ("new", (char *)argv[0]);
 	}
 			
     return CMD_SUCCESS;
@@ -448,25 +449,25 @@ DEFUN(map_add_rm_port,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-  struct map_t *map;
-  uint8_t qua = QUA_TX;
-  uint8_t add = 1;
-  
-  map_table_entry_deep_lookup((const char *)argv[0], &map);
-  if (unlikely(!map)) {
-	  VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
-	  return CMD_SUCCESS;
-  }
+	struct map_t *map;
+	uint8_t qua = QUA_TX;
+	uint8_t add = 1;
 
-  if(!strncmp(argv[1], "r", 1))
-  	add = 0;
-  if(!strncmp(argv[2], "r", 1))
-  	qua = QUA_RX;
+	map_entry_find_same((const char *)argv[0], &map);
+	if (unlikely(!map)) {
+		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
+		return CMD_SUCCESS;
+	}
 
- add ? map_ports  (map, (char *)argv[3], qua):\
- 	   unmap_ports(map, (char *)argv[3], qua);
+	if(!strncmp(argv[1], "r", 1))
+		add = 0;
+	if(!strncmp(argv[2], "r", 1))
+		qua = QUA_RX;
 
- return CMD_SUCCESS;
+	add ? map_ports  (map, (char *)argv[3], qua):\
+		   unmap_ports(map, (char *)argv[3], qua);
+
+	return CMD_SUCCESS;
 }
 
 
@@ -484,7 +485,7 @@ DEFUN(map_application,
 	vlib_map_main_t *mm = &vlib_map_main;
 	uint32_t action = 0;
 
-	map_table_entry_deep_lookup((const char *)argv[0], &map);
+	map_entry_find_same((const char *)argv[0], &map);
 	if(unlikely(!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
@@ -517,7 +518,7 @@ DEFUN(no_map_applicatio,
 	struct map_t *map;
 	vlib_map_main_t *mm = &vlib_map_main;	
 
-	map_table_entry_deep_lookup((const char *)argv[0], &map);
+	map_entry_find_same((const char *)argv[0], &map);
 	if (unlikely (!map)) {
 		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
 		return CMD_SUCCESS;
@@ -527,8 +528,8 @@ DEFUN(no_map_applicatio,
 			map_entry_remove_appl, map);
 
 	PRINT_SUMMARY;
-	
-     return CMD_SUCCESS;
+
+	return CMD_SUCCESS;
 }
 
 DEFUN(sync_appl,
@@ -552,61 +553,66 @@ DEFUN(test_map,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-  const char *range = "150:180";
-  const char *mask = "150/255";
-  uint32_t val_start, val_end;
-  uint32_t val, val_mask;
-  int ret;
-  vlib_map_main_t *mm = &vlib_map_main;
-  struct map_t *map = NULL;
-  char alias[32] = {0};
-
-  ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
-  vty_out (vty, "%s ret = %d, start %d end %d%s", range,
+	int				ret;
+	char			alias[32] = {0};
+	uint32_t		val;
+	uint32_t		val_start;
+	uint32_t		val_end;
+	uint32_t		val_mask;
+	const char		*range = "150:180";
+	const char		*mask = "150/255";
+	struct map_t	*map = NULL;
+	vlib_map_main_t	*mm = &vlib_map_main;
+	
+	ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
+	vty_out (vty, "%s ret = %d, start %d end %d%s", range,
 	  ret, val_start, val_end, VTY_NEWLINE);
 
-  ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
-  vty_out (vty, "%s ret = %d, %d/%d%s", mask,
+	ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
+	vty_out (vty, "%s ret = %d, %d/%d%s", mask,
 	  ret, val, val_mask, VTY_NEWLINE);
 
-  int i = 0;
+	int i = 0;
 
-  for (i = 0; i < MAX_MAPS; i ++) {
-	 memset(alias, 0, 31);
-	 oryx_pattern_generate(alias, 16);
-	  map_table_entry_deep_lookup((const char *)&alias[0], &map);
-	  if (likely(map)) {
-		  VTY_ERROR_MAP ("same", (char *)&alias[0]);
-		  map_entry_output (map, vty);
-		  return CMD_SUCCESS;
-	  }
-	  map_entry_new (&map, (char *)&alias[0], (char *)"lan*", (char *)"lan*");
-	  if (unlikely (!map)) {
-		  VTY_ERROR_MAP ("new", (char *)&alias[0]);
-		  return CMD_SUCCESS;
-	  }
-	  if (!map_table_entry_add (map)) {
-		  VTY_SUCCESS_MAP ("new", map);
-	  }
+	for (i = 0; i < MAX_MAPS; i ++) {
+		memset(alias, 0, 31);
+		oryx_pattern_generate(alias, 16);
+		map_entry_find_same((const char *)&alias[0], &map);
+		if (likely(map)) {
+			VTY_ERROR_MAP ("same", (char *)&alias[0]);
+			map_entry_output (map, vty);
+			return CMD_SUCCESS;
+		}
 
-  }
-  return CMD_SUCCESS;
+		map_entry_new (&map, (char *)&alias[0], (char *)"lan*", (char *)"lan*");
+
+		if (unlikely (!map)) {
+			VTY_ERROR_MAP ("new", (char *)&alias[0]);
+			return CMD_SUCCESS;
+		}
+
+		if (map_table_entry_add (mm, map)) {
+			VTY_ERROR_MAP ("new", (char *)argv[0]);
+		}
+	}
+	return CMD_SUCCESS;
 }
 
 static __oryx_always_inline__
 void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
-	int each_map;
-	int each_port;
-	vlib_map_main_t *mm = &vlib_map_main;
-	vlib_port_main_t *pm = &vlib_port_main;
-	struct map_t *map;
-	struct iface_t *iface;
-	uint32_t tx_panel_ports[MAX_PORTS] = {0};
-	uint32_t rx_panel_ports[MAX_PORTS] = {0};
-	int i;
-	uint32_t rx_index = 0, tx_index = 0;
+	int 				i;
+	int					each_map;
+	int					each_port;
+	uint32_t			tx_panel_ports[MAX_PORTS] = {0};
+	uint32_t			rx_panel_ports[MAX_PORTS] = {0};
+	uint32_t			rx_index = 0;
+	uint32_t			tx_index = 0;
+	struct map_t		*map;
+	struct iface_t		*iface;
+	vlib_map_main_t		*mm = &vlib_map_main;
+	vlib_port_main_t	*pm = &vlib_port_main;
 
 	/** here need a signal from iface.link_detect timer. */
 	vec_foreach_element(mm->entry_vec, each_map, map) {
@@ -647,12 +653,10 @@ void map_init(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 
-	mm->vm = vm;
-	
-	mm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-			map_hval, map_cmp, map_free, 0);
-	
-	mm->entry_vec = vec_init (MAX_MAPS);
+	mm->vm			=	vm;
+	mm->entry_vec	=	vec_init (MAX_MAPS);
+	mm->htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+									map_hval, map_cmp, map_free, 0);	
 	if (mm->htable == NULL || 
 		mm->entry_vec == NULL) {
 		printf ("vlib map main init error!\n");
@@ -671,9 +675,9 @@ void map_init(vlib_main_t *vm)
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
 	mm->online_port_update_tmr = oryx_tmr_create(1, "map online port update tmr", 
-							ul_activity_tmr_setting_flags,
-							map_online_iface_update_tmr,
-							0, NULL, 3000);
+										ul_activity_tmr_setting_flags,
+										map_online_iface_update_tmr, 0, NULL, 3000);
+
 	if(likely(mm->online_port_update_tmr))
 		oryx_tmr_start(mm->online_port_update_tmr);
 

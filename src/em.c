@@ -87,9 +87,9 @@ ipv6_hash_crc(const void *data, __rte_unused uint32_t data_len,
 #else
 	init_val = rte_jhash_1word(t, init_val);
 	init_val = rte_jhash(k->ip_src,
-			sizeof(uint8_t) * IPV6_ADDR_LEN, init_val);
+			sizeof(uint8_t) * IPv6_ADDR_LEN, init_val);
 	init_val = rte_jhash(k->ip_dst,
-			sizeof(uint8_t) * IPV6_ADDR_LEN, init_val);
+			sizeof(uint8_t) * IPv6_ADDR_LEN, init_val);
 	init_val = rte_jhash_1word(*p, init_val);
 #endif
 	return init_val;

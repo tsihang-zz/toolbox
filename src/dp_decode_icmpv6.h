@@ -26,7 +26,7 @@
 /** macro for icmpv6 embedded "protocol" access */
 #define ICMPV6_GET_EMB_PROTO(p)    (p)->icmpv6vars.emb_ip6_proto_next
 /** macro for icmpv6 embedded "ipv6h" header access */
-#define ICMPV6_GET_EMB_IPV6(p)     (p)->icmpv6vars.emb_ipv6h
+#define ICMPV6_GET_EMB_IPv6(p)     (p)->icmpv6vars.emb_ipv6h
 /** macro for icmpv6 embedded "tcph" header access */
 #define ICMPV6_GET_EMB_TCP(p)      (p)->icmpv6vars.emb_tcph
 /** macro for icmpv6 embedded "udph" header access */
@@ -43,7 +43,7 @@
 /**
  * \brief Calculates the checksum for the ICMPV6 packet
  *
- * \param shdr Pointer to source address field from the IPV6 packet.  Used as a
+ * \param shdr Pointer to source address field from the IPv6 packet.  Used as a
  *             part of the psuedoheader for computing the checksum
  * \param pkt  Pointer to the start of the ICMPV6 packet
  * \param tlen Total length of the ICMPV6 packet(header + payload)
@@ -114,7 +114,7 @@ uint16_t ICMPV6CalculateChecksum0(uint16_t *shdr, uint16_t *pkt,
 }
 
 /**
- * \brief Get variables and do some checks of the embedded IPV6 packet
+ * \brief Get variables and do some checks of the embedded IPv6 packet
  *
  * \param p Pointer to the packet we are filling
  * \param partial_packet  Pointer to the raw packet buffer
@@ -123,23 +123,23 @@ uint16_t ICMPV6CalculateChecksum0(uint16_t *shdr, uint16_t *pkt,
  * \retval void No return value
  */
 static __oryx_always_inline__
-void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
+void DecodePartialIPv6(Packet *p, uint8_t *partial_packet, uint16_t len )
 {
 	/** Check the sizes, the header must fit at least */
-	if (len < IPV6_HEADER_LEN) {
-		oryx_logd("ICMPV6_IPV6_TRUNC_PKT");
-		ENGINE_SET_INVALID_EVENT(p, ICMPV6_IPV6_TRUNC_PKT);
+	if (len < IPv6_HEADER_LEN) {
+		oryx_logd("ICMPV6_IPv6_TRUNC_PKT");
+		ENGINE_SET_INVALID_EVENT(p, ICMPV6_IPv6_TRUNC_PKT);
 		return;
 	}
 
-	IPV6Hdr *icmp6_ip6h = (IPV6Hdr*)partial_packet;
+	IPv6Hdr *icmp6_ip6h = (IPv6Hdr*)partial_packet;
 
 	/** Check the embedded version */
 	if(((icmp6_ip6h->s_ip6_vfc & 0xf0) >> 4) != 6)
 	{
-		oryx_logd("ICMPv6 contains Unknown IPV6 version "
-				"ICMPV6_IPV6_UNKNOWN_VER");
-		ENGINE_SET_INVALID_EVENT(p, ICMPV6_IPV6_UNKNOWN_VER);
+		oryx_logd("ICMPv6 contains Unknown IPv6 version "
+				"ICMPV6_IPv6_UNKNOWN_VER");
+		ENGINE_SET_INVALID_EVENT(p, ICMPV6_IPv6_UNKNOWN_VER);
 		return;
 	}
 
@@ -162,16 +162,16 @@ void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
 
 	switch (icmp6_ip6h->s_ip6_nxt) {
 		case IPPROTO_TCP:
-			if (len >= IPV6_HEADER_LEN + TCP_HEADER_LEN ) {
-				p->icmpv6vars.emb_tcph = (TCPHdr*)(partial_packet + IPV6_HEADER_LEN);
+			if (len >= IPv6_HEADER_LEN + TCP_HEADER_LEN ) {
+				p->icmpv6vars.emb_tcph = (TCPHdr*)(partial_packet + IPv6_HEADER_LEN);
 				p->icmpv6vars.emb_sport = p->icmpv6vars.emb_tcph->th_sport;
 				p->icmpv6vars.emb_dport = p->icmpv6vars.emb_tcph->th_dport;
 
-				oryx_logd("ICMPV6->IPV6->TCP header sport: "
+				oryx_logd("ICMPV6->IPv6->TCP header sport: "
 						   "%"PRIu8" dport %"PRIu8"", p->icmpv6vars.emb_sport,
 							p->icmpv6vars.emb_dport);
 			} else {
-				oryx_logd("Warning, ICMPV6->IPV6->TCP "
+				oryx_logd("Warning, ICMPV6->IPv6->TCP "
 						   "header Didn't fit in the packet!");
 				p->icmpv6vars.emb_sport = 0;
 				p->icmpv6vars.emb_dport = 0;
@@ -179,16 +179,16 @@ void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
 
 			break;
 		case IPPROTO_UDP:
-			if (len >= IPV6_HEADER_LEN + UDP_HEADER_LEN ) {
-				p->icmpv6vars.emb_udph = (UDPHdr*)(partial_packet + IPV6_HEADER_LEN);
+			if (len >= IPv6_HEADER_LEN + UDP_HEADER_LEN ) {
+				p->icmpv6vars.emb_udph = (UDPHdr*)(partial_packet + IPv6_HEADER_LEN);
 				p->icmpv6vars.emb_sport = p->icmpv6vars.emb_udph->uh_sport;
 				p->icmpv6vars.emb_dport = p->icmpv6vars.emb_udph->uh_dport;
 
-				oryx_logd("ICMPV6->IPV6->UDP header sport: "
+				oryx_logd("ICMPV6->IPv6->UDP header sport: "
 						   "%"PRIu8" dport %"PRIu8"", p->icmpv6vars.emb_sport,
 							p->icmpv6vars.emb_dport);
 			} else {
-				oryx_logd("Warning, ICMPV6->IPV6->UDP "
+				oryx_logd("Warning, ICMPV6->IPv6->UDP "
 						   "header Didn't fit in the packet!");
 				p->icmpv6vars.emb_sport = 0;
 				p->icmpv6vars.emb_dport = 0;
@@ -196,11 +196,11 @@ void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
 
 			break;
 		case IPPROTO_ICMPV6:
-			p->icmpv6vars.emb_icmpv6h = (ICMPV6Hdr*)(partial_packet + IPV6_HEADER_LEN);
+			p->icmpv6vars.emb_icmpv6h = (ICMPV6Hdr*)(partial_packet + IPv6_HEADER_LEN);
 			p->icmpv6vars.emb_sport = 0;
 			p->icmpv6vars.emb_dport = 0;
 
-			oryx_logd("ICMPV6->IPV6->ICMP header");
+			oryx_logd("ICMPV6->IPv6->ICMP header");
 
 			break;
 	}
@@ -210,10 +210,10 @@ void DecodePartialIPV6(Packet *p, uint8_t *partial_packet, uint16_t len )
 	char s[46], d[46];
 	PrintInet(AF_INET6, (const void *)p->icmpv6vars.emb_ip6_src, s, sizeof(s));
 	PrintInet(AF_INET6, (const void *)p->icmpv6vars.emb_ip6_dst, d, sizeof(d));
-	oryx_logd("ICMPv6 embedding IPV6 %s->%s - CLASS: %" PRIu32 " FLOW: "
+	oryx_logd("ICMPv6 embedding IPv6 %s->%s - CLASS: %" PRIu32 " FLOW: "
 			   "%" PRIu32 " NH: %" PRIu32 " PLEN: %" PRIu32 " HLIM: %" PRIu32,
-			   s, d, IPV6_GET_RAW_CLASS(icmp6_ip6h), IPV6_GET_RAW_FLOW(icmp6_ip6h),
-			   IPV6_GET_RAW_NH(icmp6_ip6h), IPV6_GET_RAW_PLEN(icmp6_ip6h), IPV6_GET_RAW_HLIM(icmp6_ip6h));
+			   s, d, IPv6_GET_RAW_CLASS(icmp6_ip6h), IPv6_GET_RAW_FLOW(icmp6_ip6h),
+			   IPv6_GET_RAW_NH(icmp6_ip6h), IPv6_GET_RAW_PLEN(icmp6_ip6h), IPv6_GET_RAW_HLIM(icmp6_ip6h));
 #endif
 
 	return;
@@ -264,7 +264,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			if (ICMPV6_GET_CODE(p) > ICMP6_DST_UNREACH_REJECTROUTE) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			} else {
-				DecodePartialIPV6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
+				DecodePartialIPv6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
 								  len - ICMPV6_HEADER_LEN );
 				full_hdr = 1;
 			}
@@ -277,7 +277,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			} else {
 				p->icmpv6vars.mtu = ICMPV6_GET_MTU(p);
-				DecodePartialIPV6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
+				DecodePartialIPv6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
 								  len - ICMPV6_HEADER_LEN );
 				full_hdr = 1;
 			}
@@ -289,7 +289,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			if (ICMPV6_GET_CODE(p) > ICMP6_TIME_EXCEED_REASSEMBLY) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			} else {
-				DecodePartialIPV6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
+				DecodePartialIPv6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
 								  len - ICMPV6_HEADER_LEN );
 				full_hdr = 1;
 			}
@@ -302,7 +302,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			} else {
 				p->icmpv6vars.error_ptr= ICMPV6_GET_ERROR_PTR(p);
-				DecodePartialIPV6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
+				DecodePartialIPv6(p, (uint8_t*) (pkt + ICMPV6_HEADER_LEN),
 								  len - ICMPV6_HEADER_LEN );
 				full_hdr = 1;
 			}
@@ -369,7 +369,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			if (ICMPV6_GET_CODE(p) != 0) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			}
-			if (IPV6_GET_HLIM(p) != 1) {
+			if (IPv6_GET_HLIM(p) != 1) {
 				ENGINE_SET_EVENT(p, ICMPV6_MLD_MESSAGE_WITH_INVALID_HL);
 			}
 			break;
@@ -378,7 +378,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			if (ICMPV6_GET_CODE(p) != 0) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			}
-			if (IPV6_GET_HLIM(p) != 1) {
+			if (IPv6_GET_HLIM(p) != 1) {
 				ENGINE_SET_EVENT(p, ICMPV6_MLD_MESSAGE_WITH_INVALID_HL);
 			}
 			break;
@@ -387,7 +387,7 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 			if (ICMPV6_GET_CODE(p) != 0) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			}
-			if (IPV6_GET_HLIM(p) != 1) {
+			if (IPv6_GET_HLIM(p) != 1) {
 				ENGINE_SET_EVENT(p, ICMPV6_MLD_MESSAGE_WITH_INVALID_HL);
 			}
 			break;
@@ -475,8 +475,8 @@ int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 		case MC_ROUTER_TERMINATE:
 			oryx_logd("MC_ROUTER_TERMINATE");
 			break;
-		case FMIPV6_MSG:
-			oryx_logd("FMIPV6_MSG");
+		case FMIPv6_MSG:
+			oryx_logd("FMIPv6_MSG");
 			if (ICMPV6_GET_CODE(p) != 0) {
 				ENGINE_SET_EVENT(p, ICMPV6_UNKNOWN_CODE);
 			}

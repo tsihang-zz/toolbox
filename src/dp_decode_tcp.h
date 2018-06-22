@@ -125,7 +125,7 @@ uint16_t TCPChecksum0(uint16_t *shdr, uint16_t *pkt,
 /**
  * \brief Calculate or validate the checksum for the TCP packet
  *
- * \param shdr Pointer to source address field from the IPV6 packet.  Used as a
+ * \param shdr Pointer to source address field from the IPv6 packet.  Used as a
  *             part of the psuedoheader for computing the checksum
  * \param pkt  Pointer to the start of the TCP packet
  * \param tlen Total length of the TCP packet(header + payload)

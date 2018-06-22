@@ -1,10 +1,10 @@
 #include "oryx.h"
 #include "dpdk_classify.h"
 
-#define IPV4_L3FWD_LPM_MAX_RULES         1024
-#define IPV4_L3FWD_LPM_NUMBER_TBL8S (1 << 8)
-#define IPV6_L3FWD_LPM_MAX_RULES         1024
-#define IPV6_L3FWD_LPM_NUMBER_TBL8S (1 << 16)
+#define IPv4_L3FWD_LPM_MAX_RULES         1024
+#define IPv4_L3FWD_LPM_NUMBER_TBL8S (1 << 8)
+#define IPv6_L3FWD_LPM_MAX_RULES         1024
+#define IPv6_L3FWD_LPM_NUMBER_TBL8S (1 << 16)
 
 struct rte_lpm *ipv4_l3fwd_lpm_lookup_struct[NB_SOCKETS];
 struct rte_lpm6 *ipv6_l3fwd_lpm_lookup_struct[NB_SOCKETS];
@@ -21,10 +21,10 @@ void classify_setup_lpm(const int socketid)
 	char s[64];
 
 	/* create the LPM table */
-	config_ipv4.max_rules = IPV4_L3FWD_LPM_MAX_RULES;
-	config_ipv4.number_tbl8s = IPV4_L3FWD_LPM_NUMBER_TBL8S;
+	config_ipv4.max_rules = IPv4_L3FWD_LPM_MAX_RULES;
+	config_ipv4.number_tbl8s = IPv4_L3FWD_LPM_NUMBER_TBL8S;
 	config_ipv4.flags = 0;
-	snprintf(s, sizeof(s), "IPV4_L3FWD_LPM_%d", socketid);
+	snprintf(s, sizeof(s), "IPv4_L3FWD_LPM_%d", socketid);
 	ipv4_l3fwd_lpm_lookup_struct[socketid] =
 			rte_lpm_create(s, socketid, &config_ipv4);
 	if (ipv4_l3fwd_lpm_lookup_struct[socketid] == NULL)
@@ -33,7 +33,7 @@ void classify_setup_lpm(const int socketid)
 			socketid);
 #if 0
 	/* populate the LPM table */
-	for (i = 0; i < IPV4_L3FWD_LPM_NUM_ROUTES; i++) {
+	for (i = 0; i < IPv4_L3FWD_LPM_NUM_ROUTES; i++) {
 
 		/* skip unused ports */
 		if ((1 << ipv4_l3fwd_lpm_route_array[i].if_out &
@@ -58,10 +58,10 @@ void classify_setup_lpm(const int socketid)
 	}
 #endif
 	/* create the LPM6 table */
-	snprintf(s, sizeof(s), "IPV6_L3FWD_LPM_%d", socketid);
+	snprintf(s, sizeof(s), "IPv6_L3FWD_LPM_%d", socketid);
 
-	config.max_rules = IPV6_L3FWD_LPM_MAX_RULES;
-	config.number_tbl8s = IPV6_L3FWD_LPM_NUMBER_TBL8S;
+	config.max_rules = IPv6_L3FWD_LPM_MAX_RULES;
+	config.number_tbl8s = IPv6_L3FWD_LPM_NUMBER_TBL8S;
 	config.flags = 0;
 	ipv6_l3fwd_lpm_lookup_struct[socketid] = rte_lpm6_create(s, socketid,
 				&config);
@@ -71,7 +71,7 @@ void classify_setup_lpm(const int socketid)
 			socketid);
 #if 0
 	/* populate the LPM table */
-	for (i = 0; i < IPV6_L3FWD_LPM_NUM_ROUTES; i++) {
+	for (i = 0; i < IPv6_L3FWD_LPM_NUM_ROUTES; i++) {
 
 		/* skip unused ports */
 		if ((1 << ipv6_l3fwd_lpm_route_array[i].if_out &
@@ -90,7 +90,7 @@ void classify_setup_lpm(const int socketid)
 		}
 
 		printf("LPM: Adding route %s / %d (%d)\n",
-			"IPV6",
+			"IPv6",
 			ipv6_l3fwd_lpm_route_array[i].depth,
 			ipv6_l3fwd_lpm_route_array[i].if_out);
 	}

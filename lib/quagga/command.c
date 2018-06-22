@@ -520,9 +520,9 @@ format_parser_read_word(struct format_parser_state *state)
   token = XCALLOC(MTYPE_CMD_TOKENS, sizeof(*token));
   token->type = TOKEN_TERMINAL;
   if (strcmp (cmd, "A.B.C.D") == 0)
-    token->terminal = TERMINAL_IPV4;
+    token->terminal = TERMINAL_IPv4;
   else if (strcmp (cmd, "A.B.C.D/M") == 0)
-    token->terminal = TERMINAL_IPV4_PREFIX;
+    token->terminal = TERMINAL_IPv4_PREFIX;
   else if (strcmp (cmd, "X:X::X:X") == 0)
     token->terminal = TERMINAL_IPV6;
   else if (strcmp (cmd, "X:X::X:X/M") == 0)
@@ -1195,14 +1195,14 @@ cmd_word_match(struct cmd_token *token,
           return ipv6_prefix_match;
         break;
 #endif
-      case TERMINAL_IPV4:
+      case TERMINAL_IPv4:
         match_type = cmd_ipv4_match(word);
         if ((filter == FILTER_RELAXED && match_type != no_match)
             || (filter == FILTER_STRICT && match_type == exact_match))
           return ipv4_match;
         break;
 
-      case TERMINAL_IPV4_PREFIX:
+      case TERMINAL_IPv4_PREFIX:
         match_type = cmd_ipv4_prefix_match(word);
         if ((filter == FILTER_RELAXED && match_type != no_match)
             || (filter == FILTER_STRICT && match_type == exact_match))
@@ -1891,7 +1891,7 @@ is_cmd_ambiguous (vector cmd_vector,
 		  break;
 #endif /* HAVE_IPV6 */
 		case ipv4_match:
-		  if (cmd_token->terminal == TERMINAL_IPV4)
+		  if (cmd_token->terminal == TERMINAL_IPv4)
 		    match++;
 		  break;
 		case ipv4_prefix_match:
@@ -1971,13 +1971,13 @@ cmd_entry_function_desc (const char *src, struct cmd_token *token)
         else
           return NULL;
 #endif
-      case TERMINAL_IPV4:
+      case TERMINAL_IPv4:
         if (cmd_ipv4_match (src))
           return dst;
         else
           return NULL;
 
-      case TERMINAL_IPV4_PREFIX:
+      case TERMINAL_IPv4_PREFIX:
         if (cmd_ipv4_prefix_match (src))
           return dst;
         else
@@ -2564,8 +2564,8 @@ node_parent ( enum node_type node )
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
-    case BGP_IPV4_NODE:
-    case BGP_IPV4M_NODE:
+    case BGP_IPv4_NODE:
+    case BGP_IPv4M_NODE:
     case BGP_IPV6_NODE:
     case BGP_IPV6M_NODE:
       ret = BGP_NODE;
@@ -2935,8 +2935,8 @@ DEFUN (config_exit,
     case VTY_NODE:
       vty->node = CONFIG_NODE;
       break;
-    case BGP_IPV4_NODE:
-    case BGP_IPV4M_NODE:
+    case BGP_IPv4_NODE:
+    case BGP_IPv4M_NODE:
     case BGP_VPNV4_NODE:
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
@@ -2987,8 +2987,8 @@ DEFUN (config_end,
     case BGP_ENCAPV6_NODE:
     case BGP_VPNV4_NODE:
     case BGP_VPNV6_NODE:
-    case BGP_IPV4_NODE:
-    case BGP_IPV4M_NODE:
+    case BGP_IPv4_NODE:
+    case BGP_IPv4M_NODE:
     case BGP_IPV6_NODE:
     case BGP_IPV6M_NODE:
     case RMAP_NODE:

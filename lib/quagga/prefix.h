@@ -180,17 +180,17 @@ union prefix46constptr
 #define PREFIX_STRLEN 51
 
 /* Max bit/byte length of IPv4 address. */
-#define IPV4_MAX_BYTELEN    4
-#define IPV4_MAX_BITLEN    32
-#define IPV4_MAX_PREFIXLEN 32
-#define IPV4_ADDR_CMP(D,S)   memcmp ((D), (S), IPV4_MAX_BYTELEN)
-#define IPV4_ADDR_SAME(D,S)  (memcmp ((D), (S), IPV4_MAX_BYTELEN) == 0)
-#define IPV4_ADDR_COPY(D,S)  memcpy ((D), (S), IPV4_MAX_BYTELEN)
+#define IPv4_MAX_BYTELEN    4
+#define IPv4_MAX_BITLEN    32
+#define IPv4_MAX_PREFIXLEN 32
+#define IPv4_ADDR_CMP(D,S)   memcmp ((D), (S), IPv4_MAX_BYTELEN)
+#define IPv4_ADDR_SAME(D,S)  (memcmp ((D), (S), IPv4_MAX_BYTELEN) == 0)
+#define IPv4_ADDR_COPY(D,S)  memcpy ((D), (S), IPv4_MAX_BYTELEN)
 
-#define IPV4_NET0(a)    ((((u_int32_t) (a)) & 0xff000000) == 0x00000000)
-#define IPV4_NET127(a)  ((((u_int32_t) (a)) & 0xff000000) == 0x7f000000)
-#define IPV4_LINKLOCAL(a) ((((u_int32_t) (a)) & 0xffff0000) == 0xa9fe0000)
-#define IPV4_CLASS_DE(a)  ((((u_int32_t) (a)) & 0xe0000000) == 0xe0000000)
+#define IPv4_NET0(a)    ((((u_int32_t) (a)) & 0xff000000) == 0x00000000)
+#define IPv4_NET127(a)  ((((u_int32_t) (a)) & 0xff000000) == 0x7f000000)
+#define IPv4_LINKLOCAL(a) ((((u_int32_t) (a)) & 0xffff0000) == 0xa9fe0000)
+#define IPv4_CLASS_DE(a)  ((((u_int32_t) (a)) & 0xe0000000) == 0xe0000000)
 
 /* Max bit/byte length of IPv6 address. */
 #define IPV6_MAX_BYTELEN    16
@@ -252,7 +252,7 @@ extern void prefix_ipv4_free (struct prefix_ipv4 *);
 extern int str2prefix_ipv4 (const char *, struct prefix_ipv4 *);
 extern void apply_mask_ipv4 (struct prefix_ipv4 *);
 
-#define PREFIX_COPY_IPV4(DST, SRC)	\
+#define PREFIX_COPY_IPv4(DST, SRC)	\
 	*((struct prefix_ipv4 *)(DST)) = *((const struct prefix_ipv4 *)(SRC));
 
 extern int prefix_ipv4_any (const struct prefix_ipv4 *);
@@ -293,7 +293,7 @@ static inline int ipv4_martian (struct in_addr *addr)
 {
   in_addr_t ip = addr->s_addr;
 
-  if (IPV4_NET0(ip) || IPV4_NET127(ip) || IPV4_CLASS_DE(ip)) {
+  if (IPv4_NET0(ip) || IPv4_NET127(ip) || IPv4_CLASS_DE(ip)) {
     return 1;
   }
   return 0;

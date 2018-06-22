@@ -574,7 +574,7 @@ zapi_ipv4_route (u_char cmd, struct zclient *zclient, struct prefix_ipv4 *p,
 
       for (i = 0; i < api->nexthop_num; i++)
         {
-          stream_putc (s, ZEBRA_NEXTHOP_IPV4);
+          stream_putc (s, ZEBRA_NEXTHOP_IPv4);
           stream_put_in_addr (s, api->nexthop[i]);
         }
       for (i = 0; i < api->ifindex_num; i++)
@@ -599,7 +599,7 @@ zapi_ipv4_route (u_char cmd, struct zclient *zclient, struct prefix_ipv4 *p,
   return zclient_send_message(zclient);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 int
 zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
 	       struct zapi_ipv6 *api)
@@ -632,7 +632,7 @@ zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
 
       for (i = 0; i < api->nexthop_num; i++)
 	{
-	  stream_putc (s, ZEBRA_NEXTHOP_IPV6);
+	  stream_putc (s, ZEBRA_NEXTHOP_IPv6);
 	  stream_write (s, (u_char *)api->nexthop[i], 16);
 	}
       for (i = 0; i < api->ifindex_num; i++)
@@ -656,7 +656,7 @@ zapi_ipv6_route (u_char cmd, struct zclient *zclient, struct prefix_ipv6 *p,
 
   return zclient_send_message(zclient);
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 /* 
  * send a ZEBRA_REDISTRIBUTE_ADD or ZEBRA_REDISTRIBUTE_DELETE
@@ -1168,19 +1168,19 @@ zclient_read (struct thread *thread)
       if (zclient->interface_down)
 	(*zclient->interface_down) (command, zclient, length, vrf_id);
       break;
-    case ZEBRA_IPV4_ROUTE_ADD:
+    case ZEBRA_IPv4_ROUTE_ADD:
       if (zclient->ipv4_route_add)
 	(*zclient->ipv4_route_add) (command, zclient, length, vrf_id);
       break;
-    case ZEBRA_IPV4_ROUTE_DELETE:
+    case ZEBRA_IPv4_ROUTE_DELETE:
       if (zclient->ipv4_route_delete)
 	(*zclient->ipv4_route_delete) (command, zclient, length, vrf_id);
       break;
-    case ZEBRA_IPV6_ROUTE_ADD:
+    case ZEBRA_IPv6_ROUTE_ADD:
       if (zclient->ipv6_route_add)
 	(*zclient->ipv6_route_add) (command, zclient, length, vrf_id);
       break;
-    case ZEBRA_IPV6_ROUTE_DELETE:
+    case ZEBRA_IPv6_ROUTE_DELETE:
       if (zclient->ipv6_route_delete)
 	(*zclient->ipv6_route_delete) (command, zclient, length, vrf_id);
       break;

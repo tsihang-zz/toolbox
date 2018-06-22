@@ -154,7 +154,7 @@ static int
 smux_socket (void)
 {
   int ret;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   struct addrinfo hints, *res0, *res;
   int gai;
 #else
@@ -163,7 +163,7 @@ smux_socket (void)
 #endif
   int sock = 0;
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -183,9 +183,9 @@ smux_socket (void)
   for(res=res0; res; res=res->ai_next)
     {
       if (res->ai_family != AF_INET 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 	  && res->ai_family != AF_INET6
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 	  )
 	continue;
 

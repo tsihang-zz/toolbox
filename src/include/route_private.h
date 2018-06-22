@@ -16,10 +16,10 @@ struct ipv4_5tuple {
 	}u;
 } __attribute__((__packed__));
 
-#define IPV6_ADDR_LEN 16
+#define IPv6_ADDR_LEN 16
 struct ipv6_5tuple {
-	uint8_t  ip_dst[IPV6_ADDR_LEN];
-	uint8_t  ip_src[IPV6_ADDR_LEN];
+	uint8_t  ip_dst[IPv6_ADDR_LEN];
+	uint8_t  ip_src[IPv6_ADDR_LEN];
 	uint16_t port_dst;
 	uint16_t port_src;
 	uint8_t  proto;

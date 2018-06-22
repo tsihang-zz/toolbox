@@ -28,7 +28,7 @@ extern int setsockopt_so_recvbuf (int sock, int size);
 extern int setsockopt_so_sendbuf (const int sock, int size);
 extern int getsockopt_so_sendbuf (const int sock);
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 extern int setsockopt_ipv6_pktinfo (int, int);
 extern int setsockopt_ipv6_checksum (int, int);
 extern int setsockopt_ipv6_multicast_hops (int, int);
@@ -36,14 +36,14 @@ extern int setsockopt_ipv6_unicast_hops (int, int);
 extern int setsockopt_ipv6_hoplimit (int, int);
 extern int setsockopt_ipv6_multicast_loop (int, int);
 extern int setsockopt_ipv6_tclass (int, int);
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 /*
  * It is OK to reference in6_pktinfo here without a protecting #if
- * because this macro will only be used #if HAVE_IPV6, and in6_pktinfo
- * is not optional for HAVE_IPV6.
+ * because this macro will only be used #if HAVE_IPv6, and in6_pktinfo
+ * is not optional for HAVE_IPv6.
  */
-#define SOPT_SIZE_CMSG_PKTINFO_IPV6() (sizeof (struct in6_pktinfo));
+#define SOPT_SIZE_CMSG_PKTINFO_IPv6() (sizeof (struct in6_pktinfo));
 
 /*
  * Size defines for control messages used to get ifindex.  We define
@@ -53,35 +53,35 @@ extern int setsockopt_ipv6_tclass (int, int);
  */
 #if defined (IP_PKTINFO)
 /* Linux in_pktinfo. */
-#define SOPT_SIZE_CMSG_PKTINFO_IPV4()  (CMSG_SPACE(sizeof (struct in_pktinfo)))
+#define SOPT_SIZE_CMSG_PKTINFO_IPv4()  (CMSG_SPACE(sizeof (struct in_pktinfo)))
 /* XXX This should perhaps be defined even if IP_PKTINFO is not. */
 #define SOPT_SIZE_CMSG_PKTINFO(af) \
-  ((af == AF_INET) ? SOPT_SIZE_CMSG_PKTINFO_IPV4() \
-                   : SOPT_SIZE_CMSG_PKTINFO_IPV6()
+  ((af == AF_INET) ? SOPT_SIZE_CMSG_PKTINFO_IPv4() \
+                   : SOPT_SIZE_CMSG_PKTINFO_IPv6()
 #endif /* IP_PKTINFO */
 
 #if defined (IP_RECVIF)
 /* BSD/Solaris */
 
 #if defined (SUNOS_5)
-#define SOPT_SIZE_CMSG_RECVIF_IPV4()  (sizeof (uint_t))
+#define SOPT_SIZE_CMSG_RECVIF_IPv4()  (sizeof (uint_t))
 #else
-#define SOPT_SIZE_CMSG_RECVIF_IPV4()	(sizeof (struct sockaddr_dl))
+#define SOPT_SIZE_CMSG_RECVIF_IPv4()	(sizeof (struct sockaddr_dl))
 #endif /* SUNOS_5 */
 #endif /* IP_RECVIF */
 
-/* SOPT_SIZE_CMSG_IFINDEX_IPV4 - portable type */
+/* SOPT_SIZE_CMSG_IFINDEX_IPv4 - portable type */
 #if defined (SOPT_SIZE_CMSG_PKTINFO)
-#define SOPT_SIZE_CMSG_IFINDEX_IPV4() SOPT_SIZE_CMSG_PKTINFO_IPV4()
-#elif defined (SOPT_SIZE_CMSG_RECVIF_IPV4)
-#define SOPT_SIZE_CMSG_IFINDEX_IPV4() SOPT_SIZE_CMSG_RECVIF_IPV4()
+#define SOPT_SIZE_CMSG_IFINDEX_IPv4() SOPT_SIZE_CMSG_PKTINFO_IPv4()
+#elif defined (SOPT_SIZE_CMSG_RECVIF_IPv4)
+#define SOPT_SIZE_CMSG_IFINDEX_IPv4() SOPT_SIZE_CMSG_RECVIF_IPv4()
 #else /* Nothing available */
-#define SOPT_SIZE_CMSG_IFINDEX_IPV4() (sizeof (char *))
-#endif /* SOPT_SIZE_CMSG_IFINDEX_IPV4 */
+#define SOPT_SIZE_CMSG_IFINDEX_IPv4() (sizeof (char *))
+#endif /* SOPT_SIZE_CMSG_IFINDEX_IPv4 */
 
 #define SOPT_SIZE_CMSG_IFINDEX(af) \
-  (((af) == AF_INET) : SOPT_SIZE_CMSG_IFINDEX_IPV4() \
-                    ? SOPT_SIZE_CMSG_PKTINFO_IPV6())
+  (((af) == AF_INET) : SOPT_SIZE_CMSG_IFINDEX_IPv4() \
+                    ? SOPT_SIZE_CMSG_PKTINFO_IPv6())
 
 extern int setsockopt_ipv4_multicast_if(int sock, ifindex_t ifindex);
 extern int setsockopt_ipv4_multicast(int sock, int optname,

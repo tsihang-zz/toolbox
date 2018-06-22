@@ -153,7 +153,7 @@ typedef struct ICMPV4Vars_
 
     /** Pointers to the embedded packet headers */
     /** Pointers to the embedded packet headers */
-    IPV4Hdr *emb_ipv4h;
+    IPv4Hdr *emb_ipv4h;
     TCPHdr *emb_tcph;
     UDPHdr *emb_udph;
     ICMPV4Hdr *emb_icmpv4h;
@@ -215,7 +215,7 @@ typedef struct ICMPV4Vars_
 #define MC_ROUTER_ADVERT            151
 #define MC_ROUTER_SOLICIT           152
 #define MC_ROUTER_TERMINATE         153
-#define FMIPV6_MSG                  154
+#define FMIPv6_MSG                  154
 #define RPL_CONTROL_MSG             155
 #define LOCATOR_UDATE_MSG           156
 #define DUPL_ADDR_REQUEST           157
@@ -276,7 +276,7 @@ typedef struct ICMPV6Vars_ {
     uint32_t  error_ptr;
 
     /** Pointers to the embedded packet headers */
-    IPV6Hdr *emb_ipv6h;
+    IPv6Hdr *emb_ipv6h;
     TCPHdr *emb_tcph;
     UDPHdr *emb_udph;
     ICMPV6Hdr *emb_icmpv6h;

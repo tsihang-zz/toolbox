@@ -131,7 +131,7 @@ int DecodePPPoESession0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_
             case PPP_IPXCP:
             case PPP_STIICP:
             case PPP_VINESCP:
-            case PPP_IPV6CP:
+            case PPP_IPv6CP:
             case PPP_MPLSCP:
             case PPP_LCP:
             case PPP_PAP:
@@ -142,19 +142,19 @@ int DecodePPPoESession0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_
 
             case PPP_VJ_UCOMP:
 
-                if(len < (PPPOE_SESSION_HEADER_LEN + IPV4_HEADER_LEN))    {
+                if(len < (PPPOE_SESSION_HEADER_LEN + IPv4_HEADER_LEN))    {
                     ENGINE_SET_INVALID_EVENT(p, PPPVJU_PKT_TOO_SMALL);
                     return TM_ECODE_OK;
                 }
 
-                if(IPV4_GET_RAW_VER((IPV4Hdr *)(pkt + PPPOE_SESSION_HEADER_LEN)) == 4) {
+                if(IPv4_GET_RAW_VER((IPv4Hdr *)(pkt + PPPOE_SESSION_HEADER_LEN)) == 4) {
                     DecodeIPv40(tv, dtv, p, pkt + PPPOE_SESSION_HEADER_LEN, len - PPPOE_SESSION_HEADER_LEN, pq );
                 }
                 break;
 
             case PPP_IP:
-                if(len < (PPPOE_SESSION_HEADER_LEN + IPV4_HEADER_LEN))    {
-                    ENGINE_SET_INVALID_EVENT(p, PPPIPV4_PKT_TOO_SMALL);
+                if(len < (PPPOE_SESSION_HEADER_LEN + IPv4_HEADER_LEN))    {
+                    ENGINE_SET_INVALID_EVENT(p, PPPIPv4_PKT_TOO_SMALL);
                     return TM_ECODE_OK;
                 }
 
@@ -162,9 +162,9 @@ int DecodePPPoESession0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_
                 break;
 
             /* PPP IPv6 was not tested */
-            case PPP_IPV6:
-                if(len < (PPPOE_SESSION_HEADER_LEN + IPV6_HEADER_LEN))    {
-                    ENGINE_SET_INVALID_EVENT(p, PPPIPV6_PKT_TOO_SMALL);
+            case PPP_IPv6:
+                if(len < (PPPOE_SESSION_HEADER_LEN + IPv6_HEADER_LEN))    {
+                    ENGINE_SET_INVALID_EVENT(p, PPPIPv6_PKT_TOO_SMALL);
                     return TM_ECODE_OK;
                 }
 

@@ -88,7 +88,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Linux IPv6 */
-/* #undef HAVE_IPV6 */
+/* #undef HAVE_IPv6 */
 
 /* IRDP */
 /* #undef HAVE_IRDP */
@@ -337,7 +337,7 @@
 
 
 /* INRIA IPv6 */
-/* #undef INRIA_IPV6 */
+/* #undef INRIA_IPv6 */
 
 /* IRIX 6.5 */
 /* #undef IRIX_65 */
@@ -349,7 +349,7 @@
 /* #undef KAME */
 
 /* Linux IPv6 stack */
-/* #undef LINUX_IPV6 */
+/* #undef LINUX_IPv6 */
 
 /* Mask for log files */
 #define LOGFILE_MASK 0600
@@ -430,7 +430,7 @@
 #define RIP_VTYSH_PATH "/var/run/ripd.vty"
 
 /* Solaris IPv6 */
-/* #undef SOLARIS_IPV6 */
+/* #undef SOLARIS_IPv6 */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1

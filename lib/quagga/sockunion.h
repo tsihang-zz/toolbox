@@ -44,9 +44,9 @@ union sockunion
 {
   struct sockaddr sa;
   struct sockaddr_in sin;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   struct sockaddr_in6 sin6;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 };
 
 enum connect_result
@@ -57,7 +57,7 @@ enum connect_result
 };
 
 /* Default address family. */
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 #define AF_INET_UNION AF_INET6
 #else
 #define AF_INET_UNION AF_INET

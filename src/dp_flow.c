@@ -210,8 +210,8 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
             hash = hashword(fhk.u32, 5, flow_config.hash_rand);
 
         } else if (ICMPV4_DEST_UNREACH_IS_VALID(p)) {
-            uint32_t psrc = IPV4_GET_RAW_IPSRC_U32(ICMPV4_GET_EMB_IPV4(p));
-            uint32_t pdst = IPV4_GET_RAW_IPDST_U32(ICMPV4_GET_EMB_IPV4(p));
+            uint32_t psrc = IPv4_GET_RAW_IPSRC_U32(ICMPV4_GET_EMB_IPv4(p));
+            uint32_t pdst = IPv4_GET_RAW_IPDST_U32(ICMPV4_GET_EMB_IPv4(p));
             FlowHashKey4 fhk;
 
             const int ai = (psrc > pdst);
@@ -464,14 +464,14 @@ void FlowInit(Flow *f, const Packet *p)
     f->vlan_id[0] = p->vlan_id[0];
     f->vlan_id[1] = p->vlan_id[1];
 
-    if (PKT_IS_IPV4(p)) {
-        FLOW_SET_IPV4_SRC_ADDR_FROM_PACKET(p, &f->src);
-        FLOW_SET_IPV4_DST_ADDR_FROM_PACKET(p, &f->dst);
-        f->flags |= FLOW_IPV4;
-    } else if (PKT_IS_IPV6(p)) {
-        FLOW_SET_IPV6_SRC_ADDR_FROM_PACKET(p, &f->src);
-        FLOW_SET_IPV6_DST_ADDR_FROM_PACKET(p, &f->dst);
-        f->flags |= FLOW_IPV6;
+    if (PKT_IS_IPv4(p)) {
+        FLOW_SET_IPv4_SRC_ADDR_FROM_PACKET(p, &f->src);
+        FLOW_SET_IPv4_DST_ADDR_FROM_PACKET(p, &f->dst);
+        f->flags |= FLOW_IPv4;
+    } else if (PKT_IS_IPv6(p)) {
+        FLOW_SET_IPv6_SRC_ADDR_FROM_PACKET(p, &f->src);
+        FLOW_SET_IPv6_DST_ADDR_FROM_PACKET(p, &f->dst);
+        f->flags |= FLOW_IPv6;
     }
 #if defined(BUILD_DEBUG)
     /* XXX handle default */

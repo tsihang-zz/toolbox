@@ -21,9 +21,9 @@
 #define RFC_INVALID_IP_MAP  65535
 #define RFC_DIM_VALUE       65535
 #define BYTE_MAX_VALUE      255
-#define IPV6_MAX_BITS       128
-#define IPV6_HALF_MAX_BITS  64
-#define IPV4_MAX_BITS       32
+#define IPv6_MAX_BITS       128
+#define IPv6_HALF_MAX_BITS  64
+#define IPv4_MAX_BITS       32
 #define RFC_UINT32_ALL_BIT_SET  UINT32_ALL_BIT_SET
 #define RFC_INVALID_IP_MASK_LEN 0xFF
 /***************************************************************************/

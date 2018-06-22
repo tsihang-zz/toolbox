@@ -34,20 +34,20 @@ union ipv4_5tuple_host {
 	xmm_t xmm;
 };
 
-#define XMM_NUM_IN_IPV6_5TUPLE 3
+#define XMM_NUM_IN_IPv6_5TUPLE 3
 
 union ipv6_5tuple_host {
 	struct {
 		uint16_t pad0;
 		uint8_t  proto;
 		uint8_t  pad1;
-		uint8_t  ip_src[IPV6_ADDR_LEN];
-		uint8_t  ip_dst[IPV6_ADDR_LEN];
+		uint8_t  ip_src[IPv6_ADDR_LEN];
+		uint8_t  ip_dst[IPv6_ADDR_LEN];
 		uint16_t port_src;
 		uint16_t port_dst;
 		uint64_t reserve;
 	};
-	xmm_t xmm[XMM_NUM_IN_IPV6_5TUPLE];
+	xmm_t xmm[XMM_NUM_IN_IPv6_5TUPLE];
 };
 
 struct em_route {
@@ -59,6 +59,7 @@ struct em_route {
 					which has a set of in_ports and out_ports. */
 };
 
+#if defined(__aarch64__)
 static __oryx_always_inline__
 xmm_t em_mask_key(void *key, xmm_t mask)
 {
@@ -66,6 +67,16 @@ xmm_t em_mask_key(void *key, xmm_t mask)
 
 	return vandq_s32(data, mask);
 }
+#endif
+
+#if defined(__x86_64__)
+static __oryx_always_inline__
+xmm_t em_mask_key(void *key, xmm_t mask)
+{
+	__m128i data = _mm_loadu_si128((__m128i *)(key));
+	return _mm_and_si128(data, mask);
+}
+#endif
 
 static __oryx_always_inline__
 uint32_t em_get_ipv4_dst_port(void *ipv4h)

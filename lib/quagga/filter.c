@@ -100,7 +100,7 @@ static struct access_master access_master_ipv4 =
   NULL,
 };
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 /* Static structure for IPv6 access_list's master. */
 static struct access_master access_master_ipv6 = 
 { 
@@ -109,17 +109,17 @@ static struct access_master access_master_ipv6 =
   NULL,
   NULL,
 };
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 static struct access_master *
 access_master_get (uint8_t afi)
 {
   if (afi == AFI_IP)
     return &access_master_ipv4;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   else if (afi == AFI_IP6)
     return &access_master_ipv6;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
   return NULL;
 }
 
@@ -429,9 +429,9 @@ void
 access_list_add_hook (void (*func) (struct access_list *access))
 {
   access_master_ipv4.add_hook = func;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   access_master_ipv6.add_hook = func;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }
 
 /* Delete hook function. */
@@ -439,9 +439,9 @@ void
 access_list_delete_hook (void (*func) (struct access_list *access))
 {
   access_master_ipv4.delete_hook = func;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   access_master_ipv6.delete_hook = func;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }
 
 /* Add new filter to the end of specified access_list. */
@@ -1186,7 +1186,7 @@ filter_set_zebra (struct vty *vty, const char *name_str, const char *type_str,
 	  return CMD_WARNING;
 	}
     }
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   else if (afi == AFI_IP6)
     {
       ret = str2prefix_ipv6 (prefix_str, (struct prefix_ipv6 *) &p);
@@ -1197,7 +1197,7 @@ filter_set_zebra (struct vty *vty, const char *name_str, const char *type_str,
 		   return CMD_WARNING;
 	}
     }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
   else
     return CMD_WARNING;
 
@@ -1401,11 +1401,11 @@ ALIAS (no_access_list_remark,
        "Access list entry comment\n"
        "Comment up to 100 characters\n")
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 DEFUN (ipv6_access_list,
        ipv6_access_list_cmd,
        "ipv6 access-list WORD (deny|permit) X:X::X:X/M",
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1418,7 +1418,7 @@ DEFUN (ipv6_access_list,
 DEFUN (ipv6_access_list_exact,
        ipv6_access_list_exact_cmd,
        "ipv6 access-list WORD (deny|permit) X:X::X:X/M exact-match",
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1432,7 +1432,7 @@ DEFUN (ipv6_access_list_exact,
 DEFUN (ipv6_access_list_any,
        ipv6_access_list_any_cmd,
        "ipv6 access-list WORD (deny|permit) any",
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1446,7 +1446,7 @@ DEFUN (no_ipv6_access_list,
        no_ipv6_access_list_cmd,
        "no ipv6 access-list WORD (deny|permit) X:X::X:X/M",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1460,7 +1460,7 @@ DEFUN (no_ipv6_access_list_exact,
        no_ipv6_access_list_exact_cmd,
        "no ipv6 access-list WORD (deny|permit) X:X::X:X/M exact-match",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1475,7 +1475,7 @@ DEFUN (no_ipv6_access_list_any,
        no_ipv6_access_list_any_cmd,
        "no ipv6 access-list WORD (deny|permit) any",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Specify packets to reject\n"
@@ -1490,7 +1490,7 @@ DEFUN (no_ipv6_access_list_all,
        no_ipv6_access_list_all_cmd,
        "no ipv6 access-list WORD",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n")
 {
@@ -1521,7 +1521,7 @@ DEFUN (no_ipv6_access_list_all,
 DEFUN (ipv6_access_list_remark,
        ipv6_access_list_remark_cmd,
        "ipv6 access-list WORD remark .LINE",
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Access list entry comment\n"
@@ -1545,7 +1545,7 @@ DEFUN (no_ipv6_access_list_remark,
        no_ipv6_access_list_remark_cmd,
        "no ipv6 access-list WORD remark",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Access list entry comment\n")
@@ -1557,12 +1557,12 @@ ALIAS (no_ipv6_access_list_remark,
        no_ipv6_access_list_remark_arg_cmd,
        "no ipv6 access-list WORD remark .LINE",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Access list entry comment\n"
        "Comment up to 100 characters\n")
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 void config_write_access_zebra (struct vty *, struct filter *);
 void config_write_access_cisco (struct vty *, struct filter *);
@@ -1699,12 +1699,12 @@ DEFUN (show_ip_access_list_name,
   return filter_show (vty, argv[0], AFI_IP);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 DEFUN (show_ipv6_access_list,
        show_ipv6_access_list_cmd,
        "show ipv6 access-list",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        "List IPv6 access lists\n")
 {
   return filter_show (vty, NULL, AFI_IP6);
@@ -1714,13 +1714,13 @@ DEFUN (show_ipv6_access_list_name,
        show_ipv6_access_list_name_cmd,
        "show ipv6 access-list WORD",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        "List IPv6 access lists\n"
        "IPv6 zebra access-list\n")
 {
   return filter_show (vty, argv[0], AFI_IP6);
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 void
 config_write_access_cisco (struct vty *vty, struct filter *mfilter)
@@ -1952,10 +1952,10 @@ access_list_init_ipv4 (void)
   install_element (CONFIG_NODE, &no_access_list_remark_arg_cmd);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 static struct cmd_node access_ipv6_node =
 {
-  ACCESS_IPV6_NODE,
+  ACCESS_IPv6_NODE,
   "",
   1
 };
@@ -2015,22 +2015,22 @@ access_list_init_ipv6 (void)
   install_element (CONFIG_NODE, &no_ipv6_access_list_remark_cmd);
   install_element (CONFIG_NODE, &no_ipv6_access_list_remark_arg_cmd);
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 void
 access_list_init ()
 {
   access_list_init_ipv4 ();
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   access_list_init_ipv6();
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }
 
 void
 access_list_reset ()
 {
   access_list_reset_ipv4 ();
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   access_list_reset_ipv6();
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }

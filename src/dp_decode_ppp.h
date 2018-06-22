@@ -21,21 +21,21 @@ int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
     switch (ntohs(p->ppph->protocol))
     {
         case PPP_VJ_UCOMP:
-            if (unlikely(len < (PPP_HEADER_LEN + IPV4_HEADER_LEN))) {
+            if (unlikely(len < (PPP_HEADER_LEN + IPv4_HEADER_LEN))) {
                 ENGINE_SET_INVALID_EVENT(p,PPPVJU_PKT_TOO_SMALL);
                 p->ppph = NULL;
                 return TM_ECODE_FAILED;
             }
 
-            if (likely(IPV4_GET_RAW_VER((IPV4Hdr *)(pkt + PPP_HEADER_LEN)) == 4)) {
+            if (likely(IPv4_GET_RAW_VER((IPv4Hdr *)(pkt + PPP_HEADER_LEN)) == 4)) {
                 return DecodeIPv40(tv, dtv, p, pkt + PPP_HEADER_LEN, len - PPP_HEADER_LEN, pq);
             } else
                 return TM_ECODE_FAILED;
             break;
 
         case PPP_IP:
-            if (unlikely(len < (PPP_HEADER_LEN + IPV4_HEADER_LEN))) {
-                ENGINE_SET_INVALID_EVENT(p,PPPIPV4_PKT_TOO_SMALL);
+            if (unlikely(len < (PPP_HEADER_LEN + IPv4_HEADER_LEN))) {
+                ENGINE_SET_INVALID_EVENT(p,PPPIPv4_PKT_TOO_SMALL);
                 p->ppph = NULL;
                 return TM_ECODE_FAILED;
             }
@@ -43,9 +43,9 @@ int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             return DecodeIPv40(tv, dtv, p, pkt + PPP_HEADER_LEN, len - PPP_HEADER_LEN, pq);
 
             /* PPP IPv6 was not tested */
-        case PPP_IPV6:
-            if (unlikely(len < (PPP_HEADER_LEN + IPV6_HEADER_LEN))) {
-                ENGINE_SET_INVALID_EVENT(p,PPPIPV6_PKT_TOO_SMALL);
+        case PPP_IPv6:
+            if (unlikely(len < (PPP_HEADER_LEN + IPv6_HEADER_LEN))) {
+                ENGINE_SET_INVALID_EVENT(p,PPPIPv6_PKT_TOO_SMALL);
                 p->ppph = NULL;
                 return TM_ECODE_FAILED;
             }
@@ -74,7 +74,7 @@ int DecodePPP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
         case PPP_IPXCP:
         case PPP_STIICP:
         case PPP_VINESCP:
-        case PPP_IPV6CP:
+        case PPP_IPv6CP:
         case PPP_MPLSCP:
         case PPP_LCP:
         case PPP_PAP:

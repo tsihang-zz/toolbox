@@ -83,7 +83,7 @@ uint16_t UDPV4Checksum0(uint16_t *shdr, uint16_t *pkt,
 /**
  * \brief Calculate or valid the checksum for the UDP packet
  *
- * \param shdr Pointer to source address field from the IPV6 packet.  Used as a
+ * \param shdr Pointer to source address field from the IPv6 packet.  Used as a
  *             part of the psuedoheader for computing the checksum
  * \param pkt  Pointer to the start of the UDP packet
  * \param tlen Total length of the UDP packet(header + payload)

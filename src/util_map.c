@@ -111,7 +111,7 @@ int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
 }
 
 __oryx_always_extern__
-int map_table_entry_deep_lookup(const char *argv, struct map_t **map)
+int map_entry_find_same(const char *argv, struct map_t **map)
 {	
 	struct map_t *v;
 	

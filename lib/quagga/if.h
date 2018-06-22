@@ -345,12 +345,12 @@ struct connected
 #ifndef IFF_NORTEXCH
 #define IFF_NORTEXCH 0x0
 #endif /* IFF_NORTEXCH */
-#ifndef IFF_IPV4
-#define IFF_IPV4 0x0
-#endif /* IFF_IPV4 */
-#ifndef IFF_IPV6
-#define IFF_IPV6 0x0
-#endif /* IFF_IPV6 */
+#ifndef IFF_IPv4
+#define IFF_IPv4 0x0
+#endif /* IFF_IPv4 */
+#ifndef IFF_IPv6
+#define IFF_IPv6 0x0
+#endif /* IFF_IPv6 */
 #ifndef IFF_VIRTUAL
 #define IFF_VIRTUAL 0x0
 #endif /* IFF_VIRTUAL */

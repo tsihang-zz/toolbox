@@ -86,22 +86,22 @@ getsockopt_cmsg_data (struct msghdr *msgh, int level, int type)
   return NULL;
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 /* Set IPv6 packet info to the socket. */
 int
 setsockopt_ipv6_pktinfo (int sock, int val)
 {
   int ret;
     
-#ifdef IPV6_RECVPKTINFO		/*2292bis-01*/
-  ret = setsockopt(sock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &val, sizeof(val));
+#ifdef IPv6_RECVPKTINFO		/*2292bis-01*/
+  ret = setsockopt(sock, IPPROTO_IPv6, IPv6_RECVPKTINFO, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_RECVPKTINFO : %s", safe_strerror (errno));
+    zlog_warn ("can't setsockopt IPv6_RECVPKTINFO : %s", safe_strerror (errno));
 #else	/*RFC2292*/
-  ret = setsockopt(sock, IPPROTO_IPV6, IPV6_PKTINFO, &val, sizeof(val));
+  ret = setsockopt(sock, IPPROTO_IPv6, IPv6_PKTINFO, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_PKTINFO : %s", safe_strerror (errno));
-#endif /* INIA_IPV6 */
+    zlog_warn ("can't setsockopt IPv6_PKTINFO : %s", safe_strerror (errno));
+#endif /* INIA_IPv6 */
   return ret;
 }
 
@@ -112,12 +112,12 @@ setsockopt_ipv6_checksum (int sock, int val)
   int ret;
 
 #ifdef GNU_LINUX
-  ret = setsockopt(sock, IPPROTO_RAW, IPV6_CHECKSUM, &val, sizeof(val));
+  ret = setsockopt(sock, IPPROTO_RAW, IPv6_CHECKSUM, &val, sizeof(val));
 #else
-  ret = setsockopt(sock, IPPROTO_IPV6, IPV6_CHECKSUM, &val, sizeof(val));
+  ret = setsockopt(sock, IPPROTO_IPv6, IPv6_CHECKSUM, &val, sizeof(val));
 #endif /* GNU_LINUX */
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_CHECKSUM");
+    zlog_warn ("can't setsockopt IPv6_CHECKSUM");
   return ret;
 }
 
@@ -127,9 +127,9 @@ setsockopt_ipv6_multicast_hops (int sock, int val)
 {
   int ret;
 
-  ret = setsockopt(sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &val, sizeof(val));
+  ret = setsockopt(sock, IPPROTO_IPv6, IPv6_MULTICAST_HOPS, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_MULTICAST_HOPS");
+    zlog_warn ("can't setsockopt IPv6_MULTICAST_HOPS");
   return ret;
 }
 
@@ -139,9 +139,9 @@ setsockopt_ipv6_unicast_hops (int sock, int val)
 {
   int ret;
 
-  ret = setsockopt(sock, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &val, sizeof(val));
+  ret = setsockopt(sock, IPPROTO_IPv6, IPv6_UNICAST_HOPS, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_UNICAST_HOPS");
+    zlog_warn ("can't setsockopt IPv6_UNICAST_HOPS");
   return ret;
 }
 
@@ -150,14 +150,14 @@ setsockopt_ipv6_hoplimit (int sock, int val)
 {
   int ret;
 
-#ifdef IPV6_RECVHOPLIMIT	/*2292bis-01*/
-  ret = setsockopt (sock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &val, sizeof(val));
+#ifdef IPv6_RECVHOPLIMIT	/*2292bis-01*/
+  ret = setsockopt (sock, IPPROTO_IPv6, IPv6_RECVHOPLIMIT, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_RECVHOPLIMIT");
+    zlog_warn ("can't setsockopt IPv6_RECVHOPLIMIT");
 #else	/*RFC2292*/
-  ret = setsockopt (sock, IPPROTO_IPV6, IPV6_HOPLIMIT, &val, sizeof(val));
+  ret = setsockopt (sock, IPPROTO_IPv6, IPv6_HOPLIMIT, &val, sizeof(val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_HOPLIMIT");
+    zlog_warn ("can't setsockopt IPv6_HOPLIMIT");
 #endif
   return ret;
 }
@@ -168,10 +168,10 @@ setsockopt_ipv6_multicast_loop (int sock, int val)
 {
   int ret;
     
-  ret = setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &val,
+  ret = setsockopt (sock, IPPROTO_IPv6, IPv6_MULTICAST_LOOP, &val,
 		    sizeof (val));
   if (ret < 0)
-    zlog_warn ("can't setsockopt IPV6_MULTICAST_LOOP");
+    zlog_warn ("can't setsockopt IPv6_MULTICAST_LOOP");
   return ret;
 }
 
@@ -180,7 +180,7 @@ getsockopt_ipv6_ifindex (struct msghdr *msgh)
 {
   struct in6_pktinfo *pktinfo;
   
-  pktinfo = getsockopt_cmsg_data (msgh, IPPROTO_IPV6, IPV6_PKTINFO);
+  pktinfo = getsockopt_cmsg_data (msgh, IPPROTO_IPv6, IPv6_PKTINFO);
   
   return pktinfo->ipi6_ifindex;
 }
@@ -190,15 +190,15 @@ setsockopt_ipv6_tclass(int sock, int tclass)
 {
   int ret = 0;
 
-#ifdef IPV6_TCLASS /* RFC3542 */
-  ret = setsockopt (sock, IPPROTO_IPV6, IPV6_TCLASS, &tclass, sizeof (tclass));
+#ifdef IPv6_TCLASS /* RFC3542 */
+  ret = setsockopt (sock, IPPROTO_IPv6, IPv6_TCLASS, &tclass, sizeof (tclass));
   if (ret < 0)
-    zlog_warn ("Can't set IPV6_TCLASS option for fd %d to %#x: %s",
+    zlog_warn ("Can't set IPv6_TCLASS option for fd %d to %#x: %s",
 	       sock, tclass, safe_strerror(errno));
 #endif
   return ret;
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 /*
  * Process multicast socket options for IPv4 in an OS-dependent manner.
@@ -425,7 +425,7 @@ setsockopt_ifindex (int af, int sock, ifindex_t val)
       case AF_INET:
         ret = setsockopt_ipv4_ifindex (sock, val);
         break;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
       case AF_INET6:
         ret = setsockopt_ipv6_pktinfo (sock, val);
         break;
@@ -516,7 +516,7 @@ getsockopt_ifindex (int af, struct msghdr *msgh)
       case AF_INET:
         return (getsockopt_ipv4_ifindex (msgh));
         break;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
       case AF_INET6:
         return (getsockopt_ipv6_ifindex (msgh));
         break;
@@ -582,7 +582,7 @@ sockopt_tcp_signature (int sock, union sockunion *su, const char *password)
 #define TCP_MD5_AUTH_DEL 2
   struct tcp_rfc2385_cmd {
     u_int8_t     command;    /* Command - Add/Delete */
-    u_int32_t    address;    /* IPV4 address associated */
+    u_int32_t    address;    /* IPv4 address associated */
     u_int8_t     keylen;     /* MD5 Key len (do NOT assume 0 terminated ascii) */
     void         *key;       /* MD5 Key */
   } cmd;
@@ -627,7 +627,7 @@ sockopt_tcp_signature (int sock, union sockunion *su, const char *password)
           return 0;
         }
       
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
       /* If this does not work, then all users of this sockopt will need to
        * differentiate between IPv4 and IPv6, and keep seperate sockets for
        * each. 

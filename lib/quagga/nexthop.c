@@ -42,9 +42,9 @@ nexthop_same_no_recurse (struct nexthop *next1, struct nexthop *next2)
 
   switch (next1->type)
     {
-    case NEXTHOP_TYPE_IPV4:
-    case NEXTHOP_TYPE_IPV4_IFINDEX:
-      if (! IPV4_ADDR_SAME (&next1->gate.ipv4, &next2->gate.ipv4))
+    case NEXTHOP_TYPE_IPv4:
+    case NEXTHOP_TYPE_IPv4_IFINDEX:
+      if (! IPv4_ADDR_SAME (&next1->gate.ipv4, &next2->gate.ipv4))
 	return 0;
       if (next1->ifindex && (next1->ifindex != next2->ifindex))
 	return 0;
@@ -54,19 +54,19 @@ nexthop_same_no_recurse (struct nexthop *next1, struct nexthop *next2)
       if (next1->ifindex != next2->ifindex)
 	return 0;
       break;
-#ifdef HAVE_IPV6
-    case NEXTHOP_TYPE_IPV6:
-      if (! IPV6_ADDR_SAME (&next1->gate.ipv6, &next2->gate.ipv6))
+#ifdef HAVE_IPv6
+    case NEXTHOP_TYPE_IPv6:
+      if (! IPv6_ADDR_SAME (&next1->gate.ipv6, &next2->gate.ipv6))
 	return 0;
       break;
-    case NEXTHOP_TYPE_IPV6_IFINDEX:
-    case NEXTHOP_TYPE_IPV6_IFNAME:
-      if (! IPV6_ADDR_SAME (&next1->gate.ipv6, &next2->gate.ipv6))
+    case NEXTHOP_TYPE_IPv6_IFINDEX:
+    case NEXTHOP_TYPE_IPv6_IFNAME:
+      if (! IPv6_ADDR_SAME (&next1->gate.ipv6, &next2->gate.ipv6))
 	return 0;
       if (next1->ifindex != next2->ifindex)
 	return 0;
       break;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
     default:
       /* do nothing */
       break;

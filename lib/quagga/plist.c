@@ -82,7 +82,7 @@ static struct prefix_master prefix_master_orf_v4 =
 };
   
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 /* Static structure of IPv6 prefix-list's master. */
 static struct prefix_master prefix_master_ipv6 = 
 { 
@@ -102,14 +102,14 @@ static struct prefix_master prefix_master_orf_v6 =
   NULL,
   NULL,
 };
-#endif /* HAVE_IPV6*/
+#endif /* HAVE_IPv6*/
 
 static struct prefix_master *
 prefix_master_get (uint8_t afi, int orf)
 {
   if (afi == AFI_IP)
     return orf ? &prefix_master_orf_v4 : &prefix_master_ipv4;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   if (afi == AFI_IP6)
     return orf ? &prefix_master_orf_v6 : &prefix_master_ipv6;
 #endif
@@ -367,9 +367,9 @@ void
 prefix_list_add_hook (void (*func) (struct prefix_list *plist))
 {
   prefix_master_ipv4.add_hook = func;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   prefix_master_ipv6.add_hook = func;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }
 
 /* Delete hook function. */
@@ -377,7 +377,7 @@ void
 prefix_list_delete_hook (void (*func) (struct prefix_list *plist))
 {
   prefix_master_ipv4.delete_hook = func;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   prefix_master_ipv6.delete_hook = func;
 #endif /* HAVE_IPVt6 */
 }
@@ -717,7 +717,7 @@ vty_prefix_list_install (struct vty *vty, uint8_t afi, const char *name,
 	{
 	  ret = str2prefix_ipv4 ("0.0.0.0/0", (struct prefix_ipv4 *) &p);
 	  genum = 0;
-	  lenum = IPV4_MAX_BITLEN;
+	  lenum = IPv4_MAX_BITLEN;
 	  any = 1;
 	}
       else
@@ -729,13 +729,13 @@ vty_prefix_list_install (struct vty *vty, uint8_t afi, const char *name,
 	  return CMD_WARNING;
 	}
       break;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
     case AFI_IP6:
       if (strncmp ("any", prefix, strlen (prefix)) == 0)
 	{
 	  ret = str2prefix_ipv6 ("::/0", (struct prefix_ipv6 *) &p);
 	  genum = 0;
-	  lenum = IPV6_MAX_BITLEN;
+	  lenum = IPv6_MAX_BITLEN;
 	  any = 1;
 	}
       else
@@ -862,7 +862,7 @@ vty_prefix_list_uninstall (struct vty *vty, uint8_t afi, const char *name,
 	{
 	  ret = str2prefix_ipv4 ("0.0.0.0/0", (struct prefix_ipv4 *) &p);
 	  genum = 0;
-	  lenum = IPV4_MAX_BITLEN;
+	  lenum = IPv4_MAX_BITLEN;
 	}
       else
 	ret = str2prefix_ipv4 (prefix, (struct prefix_ipv4 *) &p);
@@ -873,14 +873,14 @@ vty_prefix_list_uninstall (struct vty *vty, uint8_t afi, const char *name,
 	  return CMD_WARNING;
 	}
     }
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   else if (afi == AFI_IP6)
     {
       if (strncmp ("any", prefix, strlen (prefix)) == 0)
 	{
 	  ret = str2prefix_ipv6 ("::/0", (struct prefix_ipv6 *) &p);
 	  genum = 0;
-	  lenum = IPV6_MAX_BITLEN;
+	  lenum = IPv6_MAX_BITLEN;
 	}
       else
 	ret = str2prefix_ipv6 (prefix, (struct prefix_ipv6 *) &p);
@@ -891,7 +891,7 @@ vty_prefix_list_uninstall (struct vty *vty, uint8_t afi, const char *name,
 	  return CMD_WARNING;
 	}
     }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
   /* Lookup prefix entry. */
   pentry = prefix_list_entry_lookup(plist, &p, type, seqnum, lenum, genum);
@@ -1783,11 +1783,11 @@ DEFUN (clear_ip_prefix_list_name_prefix,
   return vty_clear_prefix_list (vty, AFI_IP, argv[0], argv[1]);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 DEFUN (ipv6_prefix_list,
        ipv6_prefix_list_cmd,
        "ipv6 prefix-list WORD (deny|permit) (X:X::X:X/M|any)",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1802,7 +1802,7 @@ DEFUN (ipv6_prefix_list,
 DEFUN (ipv6_prefix_list_ge,
        ipv6_prefix_list_ge_cmd,
        "ipv6 prefix-list WORD (deny|permit) X:X::X:X/M ge <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1818,7 +1818,7 @@ DEFUN (ipv6_prefix_list_ge,
 DEFUN (ipv6_prefix_list_ge_le,
        ipv6_prefix_list_ge_le_cmd,
        "ipv6 prefix-list WORD (deny|permit) X:X::X:X/M ge <0-128> le <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1837,7 +1837,7 @@ DEFUN (ipv6_prefix_list_ge_le,
 DEFUN (ipv6_prefix_list_le,
        ipv6_prefix_list_le_cmd,
        "ipv6 prefix-list WORD (deny|permit) X:X::X:X/M le <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1853,7 +1853,7 @@ DEFUN (ipv6_prefix_list_le,
 DEFUN (ipv6_prefix_list_le_ge,
        ipv6_prefix_list_le_ge_cmd,
        "ipv6 prefix-list WORD (deny|permit) X:X::X:X/M le <0-128> ge <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1871,7 +1871,7 @@ DEFUN (ipv6_prefix_list_le_ge,
 DEFUN (ipv6_prefix_list_seq,
        ipv6_prefix_list_seq_cmd,
        "ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) (X:X::X:X/M|any)",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -1888,7 +1888,7 @@ DEFUN (ipv6_prefix_list_seq,
 DEFUN (ipv6_prefix_list_seq_ge,
        ipv6_prefix_list_seq_ge_cmd,
        "ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M ge <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -1906,7 +1906,7 @@ DEFUN (ipv6_prefix_list_seq_ge,
 DEFUN (ipv6_prefix_list_seq_ge_le,
        ipv6_prefix_list_seq_ge_le_cmd,
        "ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M ge <0-128> le <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -1926,7 +1926,7 @@ DEFUN (ipv6_prefix_list_seq_ge_le,
 DEFUN (ipv6_prefix_list_seq_le,
        ipv6_prefix_list_seq_le_cmd,
        "ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M le <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -1944,7 +1944,7 @@ DEFUN (ipv6_prefix_list_seq_le,
 DEFUN (ipv6_prefix_list_seq_le_ge,
        ipv6_prefix_list_seq_le_ge_cmd,
        "ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M le <0-128> ge <0-128>",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -1965,7 +1965,7 @@ DEFUN (no_ipv6_prefix_list,
        no_ipv6_prefix_list_cmd,
        "no ipv6 prefix-list WORD",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n")
 {
@@ -1977,7 +1977,7 @@ DEFUN (no_ipv6_prefix_list_prefix,
        no_ipv6_prefix_list_prefix_cmd,
        "no ipv6 prefix-list WORD (deny|permit) (X:X::X:X/M|any)",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -1993,7 +1993,7 @@ DEFUN (no_ipv6_prefix_list_ge,
        no_ipv6_prefix_list_ge_cmd,
        "no ipv6 prefix-list WORD (deny|permit) X:X::X:X/M ge <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -2010,7 +2010,7 @@ DEFUN (no_ipv6_prefix_list_ge_le,
        no_ipv6_prefix_list_ge_le_cmd,
        "no ipv6 prefix-list WORD (deny|permit) X:X::X:X/M ge <0-128> le <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -2029,7 +2029,7 @@ DEFUN (no_ipv6_prefix_list_le,
        no_ipv6_prefix_list_le_cmd,
        "no ipv6 prefix-list WORD (deny|permit) X:X::X:X/M le <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -2046,7 +2046,7 @@ DEFUN (no_ipv6_prefix_list_le_ge,
        no_ipv6_prefix_list_le_ge_cmd,
        "no ipv6 prefix-list WORD (deny|permit) X:X::X:X/M le <0-128> ge <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Specify packets to reject\n"
@@ -2065,7 +2065,7 @@ DEFUN (no_ipv6_prefix_list_seq,
        no_ipv6_prefix_list_seq_cmd,
        "no ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) (X:X::X:X/M|any)",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2083,7 +2083,7 @@ DEFUN (no_ipv6_prefix_list_seq_ge,
        no_ipv6_prefix_list_seq_ge_cmd,
        "no ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M ge <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2102,7 +2102,7 @@ DEFUN (no_ipv6_prefix_list_seq_ge_le,
        no_ipv6_prefix_list_seq_ge_le_cmd,
        "no ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M ge <0-128> le <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2123,7 +2123,7 @@ DEFUN (no_ipv6_prefix_list_seq_le,
        no_ipv6_prefix_list_seq_le_cmd,
        "no ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M le <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2142,7 +2142,7 @@ DEFUN (no_ipv6_prefix_list_seq_le_ge,
        no_ipv6_prefix_list_seq_le_ge_cmd,
        "no ipv6 prefix-list WORD seq <1-4294967295> (deny|permit) X:X::X:X/M le <0-128> ge <0-128>",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2162,11 +2162,11 @@ DEFUN (no_ipv6_prefix_list_seq_le_ge,
 DEFUN (ipv6_prefix_list_sequence_number,
        ipv6_prefix_list_sequence_number_cmd,
        "ipv6 prefix-list sequence-number",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Include/exclude sequence numbers in NVGEN\n")
 {
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   prefix_master_ipv6.seqnum = 1;
 #endif
   return CMD_SUCCESS;
@@ -2176,11 +2176,11 @@ DEFUN (no_ipv6_prefix_list_sequence_number,
        no_ipv6_prefix_list_sequence_number_cmd,
        "no ipv6 prefix-list sequence-number",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Include/exclude sequence numbers in NVGEN\n")
 {
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   prefix_master_ipv6.seqnum = 0;
 #endif
   return CMD_SUCCESS;
@@ -2189,7 +2189,7 @@ DEFUN (no_ipv6_prefix_list_sequence_number,
 DEFUN (ipv6_prefix_list_description,
        ipv6_prefix_list_description_cmd,
        "ipv6 prefix-list WORD description .LINE",
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Prefix-list specific description\n"
@@ -2213,7 +2213,7 @@ DEFUN (no_ipv6_prefix_list_description,
        no_ipv6_prefix_list_description_cmd,
        "no ipv6 prefix-list WORD description",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Prefix-list specific description\n")
@@ -2225,7 +2225,7 @@ ALIAS (no_ipv6_prefix_list_description,
        no_ipv6_prefix_list_description_arg_cmd,
        "no ipv6 prefix-list WORD description .LINE",
        NO_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Prefix-list specific description\n"
@@ -2235,7 +2235,7 @@ DEFUN (show_ipv6_prefix_list,
        show_ipv6_prefix_list_cmd,
        "show ipv6 prefix-list",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR)
 {
   return vty_show_prefix_list (vty, AFI_IP6, NULL, NULL, normal_display);
@@ -2245,7 +2245,7 @@ DEFUN (show_ipv6_prefix_list_name,
        show_ipv6_prefix_list_name_cmd,
        "show ipv6 prefix-list WORD",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n")
 {
@@ -2256,7 +2256,7 @@ DEFUN (show_ipv6_prefix_list_name_seq,
        show_ipv6_prefix_list_name_seq_cmd,
        "show ipv6 prefix-list WORD seq <1-4294967295>",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "sequence number of an entry\n"
@@ -2269,7 +2269,7 @@ DEFUN (show_ipv6_prefix_list_prefix,
        show_ipv6_prefix_list_prefix_cmd,
        "show ipv6 prefix-list WORD X:X::X:X/M",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
@@ -2281,7 +2281,7 @@ DEFUN (show_ipv6_prefix_list_prefix_longer,
        show_ipv6_prefix_list_prefix_longer_cmd,
        "show ipv6 prefix-list WORD X:X::X:X/M longer",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
@@ -2294,7 +2294,7 @@ DEFUN (show_ipv6_prefix_list_prefix_first_match,
        show_ipv6_prefix_list_prefix_first_match_cmd,
        "show ipv6 prefix-list WORD X:X::X:X/M first-match",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
@@ -2307,7 +2307,7 @@ DEFUN (show_ipv6_prefix_list_summary,
        show_ipv6_prefix_list_summary_cmd,
        "show ipv6 prefix-list summary",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Summary of prefix lists\n")
 {
@@ -2318,7 +2318,7 @@ DEFUN (show_ipv6_prefix_list_summary_name,
        show_ipv6_prefix_list_summary_name_cmd,
        "show ipv6 prefix-list summary WORD",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Summary of prefix lists\n"
        "Name of a prefix list\n")
@@ -2330,7 +2330,7 @@ DEFUN (show_ipv6_prefix_list_detail,
        show_ipv6_prefix_list_detail_cmd,
        "show ipv6 prefix-list detail",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Detail of prefix lists\n")
 {
@@ -2341,7 +2341,7 @@ DEFUN (show_ipv6_prefix_list_detail_name,
        show_ipv6_prefix_list_detail_name_cmd,
        "show ipv6 prefix-list detail WORD",
        SHOW_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Detail of prefix lists\n"
        "Name of a prefix list\n")
@@ -2353,7 +2353,7 @@ DEFUN (clear_ipv6_prefix_list,
        clear_ipv6_prefix_list_cmd,
        "clear ipv6 prefix-list",
        CLEAR_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR)
 {
   return vty_clear_prefix_list (vty, AFI_IP6, NULL, NULL);
@@ -2363,7 +2363,7 @@ DEFUN (clear_ipv6_prefix_list_name,
        clear_ipv6_prefix_list_name_cmd,
        "clear ipv6 prefix-list WORD",
        CLEAR_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n")
 {
@@ -2374,14 +2374,14 @@ DEFUN (clear_ipv6_prefix_list_name_prefix,
        clear_ipv6_prefix_list_name_prefix_cmd,
        "clear ipv6 prefix-list WORD X:X::X:X/M",
        CLEAR_STR
-       IPV6_STR
+       IPv6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
 {
   return vty_clear_prefix_list (vty, AFI_IP6, argv[0], argv[1]);
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 /* Configuration write function. */
 static int
@@ -2714,12 +2714,12 @@ prefix_list_init_ipv4 (void)
   install_element (ENABLE_NODE, &clear_ip_prefix_list_name_prefix_cmd);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 
 /* Prefix-list node. */
 static struct cmd_node prefix_ipv6_node =
 {
-  PREFIX_IPV6_NODE,
+  PREFIX_IPv6_NODE,
   "",				/* Prefix list has no interface. */
   1
 };
@@ -2786,9 +2786,9 @@ void
 prefix_list_init ()
 {
   prefix_list_init_ipv4 ();
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   prefix_list_init_ipv6 ();
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 }
 
 void

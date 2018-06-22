@@ -37,19 +37,19 @@ typedef enum {
  *We determine the ip version. */
 #define IP_GET_RAW_VER(pkt) ((((pkt)[0] & 0xf0) >> 4))
 
-#define PKT_IS_IPV4(p)      (((p)->ip4h != NULL))
-#define PKT_IS_IPV6(p)      (((p)->ip6h != NULL))
+#define PKT_IS_IPv4(p)      (((p)->ip4h != NULL))
+#define PKT_IS_IPv6(p)      (((p)->ip6h != NULL))
 #define PKT_IS_TCP(p)       (((p)->tcph != NULL))
 #define PKT_IS_UDP(p)       (((p)->udph != NULL))
 #define PKT_IS_ICMPV4(p)    (((p)->icmpv4h != NULL))
 #define PKT_IS_ICMPV6(p)    (((p)->icmpv6h != NULL))
 
-#define IPH_IS_VALID(p) (PKT_IS_IPV4((p)) || PKT_IS_IPV6((p)))
+#define IPH_IS_VALID(p) (PKT_IS_IPv4((p)) || PKT_IS_IPv6((p)))
 
 /* Retrieve proto regardless of IP version */
 #define IP_GET_IPPROTO(p) \
     (p->proto ? p->proto : \
-    (PKT_IS_IPV4((p))? IPV4_GET_IPPROTO((p)) : (PKT_IS_IPV6((p))? IPV6_GET_L4PROTO((p)) : 0)))
+    (PKT_IS_IPv4((p))? IPv4_GET_IPPROTO((p)) : (PKT_IS_IPv6((p))? IPv6_GET_L4PROTO((p)) : 0)))
 
 /** After processing an alert by the thresholding module, if at
  *  last it gets triggered, we might want to stick the drop action to
@@ -80,7 +80,7 @@ typedef struct PacketAlerts_ {
  *
  * We set the rest of the struct to 0 so we can
  * prevent using memset. */
-#define SET_IPV4_SRC_ADDR(p, a) do {                              \
+#define SET_IPv4_SRC_ADDR(p, a) do {                              \
         (a)->family = AF_INET;                                    \
         (a)->addr_data32[0] = (uint32_t)(p)->ip4h->s_ip_src.s_addr; \
         (a)->addr_data32[1] = 0;                                  \
@@ -88,7 +88,7 @@ typedef struct PacketAlerts_ {
         (a)->addr_data32[3] = 0;                                  \
     } while (0)
 
-#define SET_IPV4_DST_ADDR(p, a) do {                              \
+#define SET_IPv4_DST_ADDR(p, a) do {                              \
         (a)->family = AF_INET;                                    \
         (a)->addr_data32[0] = (uint32_t)(p)->ip4h->s_ip_dst.s_addr; \
         (a)->addr_data32[1] = 0;                                  \
@@ -98,7 +98,7 @@ typedef struct PacketAlerts_ {
 
 /* Set the IPv6 addressesinto the Addrs of the Packet.
  * Make sure p->ip6h is initialized and validated. */
-#define SET_IPV6_SRC_ADDR(p, a) do {                    \
+#define SET_IPv6_SRC_ADDR(p, a) do {                    \
         (a)->family = AF_INET6;                         \
         (a)->addr_data32[0] = (p)->ip6h->s_ip6_src[0];  \
         (a)->addr_data32[1] = (p)->ip6h->s_ip6_src[1];  \
@@ -106,7 +106,7 @@ typedef struct PacketAlerts_ {
         (a)->addr_data32[3] = (p)->ip6h->s_ip6_src[3];  \
     } while (0)
 
-#define SET_IPV6_DST_ADDR(p, a) do {                    \
+#define SET_IPv6_DST_ADDR(p, a) do {                    \
         (a)->family = AF_INET6;                         \
         (a)->addr_data32[0] = (p)->ip6h->s_ip6_dst[0];  \
         (a)->addr_data32[1] = (p)->ip6h->s_ip6_dst[1];  \
@@ -143,13 +143,13 @@ typedef struct PacketAlerts_ {
         SET_PORT(SCTP_GET_DST_PORT((pkt)), *(prt)); \
     } while (0)
 
-#define GET_IPV4_SRC_ADDR_U32(p) ((p)->src.addr_data32[0])
-#define GET_IPV4_DST_ADDR_U32(p) ((p)->dst.addr_data32[0])
-#define GET_IPV4_SRC_ADDR_PTR(p) ((p)->src.addr_data32)
-#define GET_IPV4_DST_ADDR_PTR(p) ((p)->dst.addr_data32)
+#define GET_IPv4_SRC_ADDR_U32(p) ((p)->src.addr_data32[0])
+#define GET_IPv4_DST_ADDR_U32(p) ((p)->dst.addr_data32[0])
+#define GET_IPv4_SRC_ADDR_PTR(p) ((p)->src.addr_data32)
+#define GET_IPv4_DST_ADDR_PTR(p) ((p)->dst.addr_data32)
 
-#define GET_IPV6_SRC_ADDR(p) ((p)->src.addr_data32)
-#define GET_IPV6_DST_ADDR(p) ((p)->dst.addr_data32)
+#define GET_IPv6_SRC_ADDR(p) ((p)->src.addr_data32)
+#define GET_IPv6_DST_ADDR(p) ((p)->dst.addr_data32)
 #define GET_TCP_SRC_PORT(p)  ((p)->sp)
 #define GET_TCP_DST_PORT(p)  ((p)->dp)
 
@@ -307,8 +307,8 @@ typedef struct Packet_
 	u32 dsa;
 	uint16_t iphd_offset;
 
-    IPV4Hdr *ip4h;
-    IPV6Hdr *ip6h;
+    IPv4Hdr *ip4h;
+    IPv6Hdr *ip6h;
     TCPHdr *tcph;
     UDPHdr *udph;
     SCTPHdr *sctph;
@@ -322,10 +322,10 @@ typedef struct Packet_
 
 	/* IPv4 and IPv6 are mutually exclusive */
 	union {
-		IPV4Vars ip4vars;
+		IPv4Vars ip4vars;
 		struct {
-			IPV6Vars ip6vars;
-			IPV6ExtHdrs ip6eh;
+			IPv6Vars ip6vars;
+			IPv6ExtHdrs ip6eh;
 		};
 	};
 	/* Can only be one of TCP, UDP, ICMP at any given time */
@@ -405,10 +405,10 @@ typedef struct Packet_
         (p)->action = 0;                        \
         (p)->ethh = NULL;                       \
         if ((p)->ip4h != NULL) {                \
-            CLEAR_IPV4_PACKET((p));             \
+            CLEAR_IPv4_PACKET((p));             \
         }                                       \
         if ((p)->ip6h != NULL) {                \
-            CLEAR_IPV6_PACKET((p));             \
+            CLEAR_IPv6_PACKET((p));             \
         }                                       \
         if ((p)->tcph != NULL) {                \
             CLEAR_TCP_PACKET((p));              \

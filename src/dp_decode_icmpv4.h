@@ -34,7 +34,7 @@
 /** macro for icmpv4 embedded "protocol" access */
 #define ICMPV4_GET_EMB_PROTO(p)    (p)->icmpv4vars.emb_ip4_proto
 /** macro for icmpv4 embedded "ipv4h" header access */
-#define ICMPV4_GET_EMB_IPV4(p)     (p)->icmpv4vars.emb_ipv4h
+#define ICMPV4_GET_EMB_IPv4(p)     (p)->icmpv4vars.emb_ipv4h
 /** macro for icmpv4 embedded "tcph" header access */
 #define ICMPV4_GET_EMB_TCP(p)      (p)->icmpv4vars.emb_tcph
 /** macro for icmpv4 embedded "udph" header access */
@@ -51,7 +51,7 @@
     (!((p)->flags & PKT_IS_INVALID)) && \
     ((p)->icmpv4h != NULL) && \
     (ICMPV4_GET_TYPE((p)) == ICMP_DEST_UNREACH) && \
-    (ICMPV4_GET_EMB_IPV4((p)) != NULL) && \
+    (ICMPV4_GET_EMB_IPv4((p)) != NULL) && \
     ((ICMPV4_GET_EMB_TCP((p)) != NULL) || \
      (ICMPV4_GET_EMB_UDP((p)) != NULL)))
 
@@ -129,23 +129,23 @@ uint16_t ICMPV4CalculateChecksum0(uint16_t *pkt, uint16_t tlen)
  * Note, this is the IP header, plus a bit of the original packet, not the whole thing!
  */
 static __oryx_always_inline__
-int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
+int DecodePartialIPv4(Packet* p, uint8_t* partial_packet, uint16_t len)
 {
     /** Check the sizes, the header must fit at least */
-    if (len < IPV4_HEADER_LEN) {
-        oryx_logd("DecodePartialIPV4: ICMPV4_IPV4_TRUNC_PKT");
-        ENGINE_SET_INVALID_EVENT(p, ICMPV4_IPV4_TRUNC_PKT);
+    if (len < IPv4_HEADER_LEN) {
+        oryx_logd("DecodePartialIPv4: ICMPV4_IPv4_TRUNC_PKT");
+        ENGINE_SET_INVALID_EVENT(p, ICMPV4_IPv4_TRUNC_PKT);
         return -1;
     }
 
-    IPV4Hdr *icmp4_ip4h = (IPV4Hdr*)partial_packet;
+    IPv4Hdr *icmp4_ip4h = (IPv4Hdr*)partial_packet;
 
     /** Check the embedded version */
-    if (IPV4_GET_RAW_VER(icmp4_ip4h) != 4) {
+    if (IPv4_GET_RAW_VER(icmp4_ip4h) != 4) {
         /** Check the embedded version */
-        oryx_logd("DecodePartialIPV4: ICMPv4 contains Unknown IPV4 version "
-                   "ICMPV4_IPV4_UNKNOWN_VER");
-        ENGINE_SET_INVALID_EVENT(p, ICMPV4_IPV4_UNKNOWN_VER);
+        oryx_logd("DecodePartialIPv4: ICMPv4 contains Unknown IPv4 version "
+                   "ICMPV4_IPv4_UNKNOWN_VER");
+        ENGINE_SET_INVALID_EVENT(p, ICMPV4_IPv4_UNKNOWN_VER);
         return -1;
     }
 
@@ -153,35 +153,35 @@ int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
     p->icmpv4vars.emb_ipv4h = icmp4_ip4h;
 
     /** Get the IP address from the contained packet */
-    p->icmpv4vars.emb_ip4_src = IPV4_GET_RAW_IPSRC(icmp4_ip4h);
-    p->icmpv4vars.emb_ip4_dst = IPV4_GET_RAW_IPDST(icmp4_ip4h);
+    p->icmpv4vars.emb_ip4_src = IPv4_GET_RAW_IPSRC(icmp4_ip4h);
+    p->icmpv4vars.emb_ip4_dst = IPv4_GET_RAW_IPDST(icmp4_ip4h);
 
-    p->icmpv4vars.emb_ip4_hlen=IPV4_GET_RAW_HLEN(icmp4_ip4h) << 2;
+    p->icmpv4vars.emb_ip4_hlen=IPv4_GET_RAW_HLEN(icmp4_ip4h) << 2;
 
-    switch (IPV4_GET_RAW_IPPROTO(icmp4_ip4h)) {
+    switch (IPv4_GET_RAW_IPPROTO(icmp4_ip4h)) {
         case IPPROTO_TCP:
-            if (len >= IPV4_HEADER_LEN + TCP_HEADER_LEN ) {
-                p->icmpv4vars.emb_tcph = (TCPHdr*)(partial_packet + IPV4_HEADER_LEN);
+            if (len >= IPv4_HEADER_LEN + TCP_HEADER_LEN ) {
+                p->icmpv4vars.emb_tcph = (TCPHdr*)(partial_packet + IPv4_HEADER_LEN);
                 p->icmpv4vars.emb_sport = ntohs(p->icmpv4vars.emb_tcph->th_sport);
                 p->icmpv4vars.emb_dport = ntohs(p->icmpv4vars.emb_tcph->th_dport);
                 p->icmpv4vars.emb_ip4_proto = IPPROTO_TCP;
 
-                oryx_logd("DecodePartialIPV4: ICMPV4->IPV4->TCP header sport: "
+                oryx_logd("DecodePartialIPv4: ICMPV4->IPv4->TCP header sport: "
                            "%"PRIu8" dport %"PRIu8"", p->icmpv4vars.emb_sport,
                             p->icmpv4vars.emb_dport);
-            } else if (len >= IPV4_HEADER_LEN + 4) {
+            } else if (len >= IPv4_HEADER_LEN + 4) {
                 /* only access th_sport and th_dport */
-                TCPHdr *emb_tcph = (TCPHdr*)(partial_packet + IPV4_HEADER_LEN);
+                TCPHdr *emb_tcph = (TCPHdr*)(partial_packet + IPv4_HEADER_LEN);
 
                 p->icmpv4vars.emb_tcph = NULL;
                 p->icmpv4vars.emb_sport = ntohs(emb_tcph->th_sport);
                 p->icmpv4vars.emb_dport = ntohs(emb_tcph->th_dport);
                 p->icmpv4vars.emb_ip4_proto = IPPROTO_TCP;
-                oryx_logd("DecodePartialIPV4: ICMPV4->IPV4->TCP partial header sport: "
+                oryx_logd("DecodePartialIPv4: ICMPV4->IPv4->TCP partial header sport: "
                            "%"PRIu8" dport %"PRIu8"", p->icmpv4vars.emb_sport,
                             p->icmpv4vars.emb_dport);
             } else {
-                oryx_logd("DecodePartialIPV4: Warning, ICMPV4->IPV4->TCP "
+                oryx_logd("DecodePartialIPv4: Warning, ICMPV4->IPv4->TCP "
                            "header Didn't fit in the packet!");
                 p->icmpv4vars.emb_sport = 0;
                 p->icmpv4vars.emb_dport = 0;
@@ -189,17 +189,17 @@ int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
 
             break;
         case IPPROTO_UDP:
-            if (len >= IPV4_HEADER_LEN + UDP_HEADER_LEN ) {
-                p->icmpv4vars.emb_udph = (UDPHdr*)(partial_packet + IPV4_HEADER_LEN);
+            if (len >= IPv4_HEADER_LEN + UDP_HEADER_LEN ) {
+                p->icmpv4vars.emb_udph = (UDPHdr*)(partial_packet + IPv4_HEADER_LEN);
                 p->icmpv4vars.emb_sport = ntohs(p->icmpv4vars.emb_udph->uh_sport);
                 p->icmpv4vars.emb_dport = ntohs(p->icmpv4vars.emb_udph->uh_dport);
                 p->icmpv4vars.emb_ip4_proto = IPPROTO_UDP;
 
-                oryx_logd("DecodePartialIPV4: ICMPV4->IPV4->UDP header sport: "
+                oryx_logd("DecodePartialIPv4: ICMPV4->IPv4->UDP header sport: "
                            "%"PRIu8" dport %"PRIu8"", p->icmpv4vars.emb_sport,
                             p->icmpv4vars.emb_dport);
             } else {
-                oryx_logd("DecodePartialIPV4: Warning, ICMPV4->IPV4->UDP "
+                oryx_logd("DecodePartialIPv4: Warning, ICMPV4->IPv4->UDP "
                            "header Didn't fit in the packet!");
                 p->icmpv4vars.emb_sport = 0;
                 p->icmpv4vars.emb_dport = 0;
@@ -207,13 +207,13 @@ int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
 
             break;
         case IPPROTO_ICMP:
-            if (len >= IPV4_HEADER_LEN + ICMPV4_HEADER_LEN ) {
-                p->icmpv4vars.emb_icmpv4h = (ICMPV4Hdr*)(partial_packet + IPV4_HEADER_LEN);
+            if (len >= IPv4_HEADER_LEN + ICMPV4_HEADER_LEN ) {
+                p->icmpv4vars.emb_icmpv4h = (ICMPV4Hdr*)(partial_packet + IPv4_HEADER_LEN);
                 p->icmpv4vars.emb_sport = 0;
                 p->icmpv4vars.emb_dport = 0;
                 p->icmpv4vars.emb_ip4_proto = IPPROTO_ICMP;
 
-                oryx_logd("DecodePartialIPV4: ICMPV4->IPV4->ICMP header");
+                oryx_logd("DecodePartialIPv4: ICMPV4->IPv4->ICMP header");
             }
 
             break;
@@ -224,8 +224,8 @@ int DecodePartialIPV4(Packet* p, uint8_t* partial_packet, uint16_t len)
     char s[16], d[16];
     PrintInet(AF_INET, &(p->icmpv4vars.emb_ip4_src), s, sizeof(s));
     PrintInet(AF_INET, &(p->icmpv4vars.emb_ip4_dst), d, sizeof(d));
-    oryx_logd("ICMPv4 embedding IPV4 %s->%s - PROTO: %" PRIu32 " ID: %" PRIu32 "", s,d,
-            IPV4_GET_RAW_IPPROTO(icmp4_ip4h), IPV4_GET_RAW_IPID(icmp4_ip4h));
+    oryx_logd("ICMPv4 embedding IPv4 %s->%s - PROTO: %" PRIu32 " ID: %" PRIu32 "", s,d,
+            IPv4_GET_RAW_IPPROTO(icmp4_ip4h), IPv4_GET_RAW_IPID(icmp4_ip4h));
 #endif
 
     return 0;
@@ -274,7 +274,7 @@ int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
             } else {
                 /* parse IP header plus 64 bytes */
                 if (len > ICMPV4_HEADER_PKT_OFFSET) {
-                    if (DecodePartialIPV4(p, (uint8_t *)(pkt + ICMPV4_HEADER_PKT_OFFSET),
+                    if (DecodePartialIPv4(p, (uint8_t *)(pkt + ICMPV4_HEADER_PKT_OFFSET),
                                              len - ICMPV4_HEADER_PKT_OFFSET ) == 0)
                     {
                         /* ICMP ICMP_DEST_UNREACH influence TCP/UDP flows */
@@ -294,7 +294,7 @@ int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
             } else {
                 // parse IP header plus 64 bytes
                 if (len >= ICMPV4_HEADER_PKT_OFFSET)
-                    DecodePartialIPV4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET  );
+                    DecodePartialIPv4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET  );
             }
             break;
 
@@ -304,7 +304,7 @@ int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
             } else {
                 // parse IP header plus 64 bytes
                 if (len > ICMPV4_HEADER_PKT_OFFSET)
-                    DecodePartialIPV4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
+                    DecodePartialIPv4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
             }
             break;
 
@@ -322,7 +322,7 @@ int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
             } else {
                 // parse IP header plus 64 bytes
                 if (len > ICMPV4_HEADER_PKT_OFFSET)
-                    DecodePartialIPV4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
+                    DecodePartialIPv4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
             }
             break;
 
@@ -332,7 +332,7 @@ int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt
             } else {
                 // parse IP header plus 64 bytes
                 if (len > ICMPV4_HEADER_PKT_OFFSET)
-                    DecodePartialIPV4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
+                    DecodePartialIPv4( p, (uint8_t*) (pkt + ICMPV4_HEADER_PKT_OFFSET), len - ICMPV4_HEADER_PKT_OFFSET );
             }
             break;
 

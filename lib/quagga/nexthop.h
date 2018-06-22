@@ -28,21 +28,21 @@
 
 union g_addr {
   struct in_addr ipv4;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
   struct in6_addr ipv6;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 };
 
 enum nexthop_types_t
 {
   NEXTHOP_TYPE_IFINDEX = 1,      /* Directly connected.  */
   NEXTHOP_TYPE_IFNAME,           /* Interface route.  */
-  NEXTHOP_TYPE_IPV4,             /* IPv4 nexthop.  */
-  NEXTHOP_TYPE_IPV4_IFINDEX,     /* IPv4 nexthop with ifindex.  */
-  NEXTHOP_TYPE_IPV4_IFNAME,      /* IPv4 nexthop with ifname.  */
-  NEXTHOP_TYPE_IPV6,             /* IPv6 nexthop.  */
-  NEXTHOP_TYPE_IPV6_IFINDEX,     /* IPv6 nexthop with ifindex.  */
-  NEXTHOP_TYPE_IPV6_IFNAME,      /* IPv6 nexthop with ifname.  */
+  NEXTHOP_TYPE_IPv4,             /* IPv4 nexthop.  */
+  NEXTHOP_TYPE_IPv4_IFINDEX,     /* IPv4 nexthop with ifindex.  */
+  NEXTHOP_TYPE_IPv4_IFNAME,      /* IPv4 nexthop with ifname.  */
+  NEXTHOP_TYPE_IPv6,             /* IPv6 nexthop.  */
+  NEXTHOP_TYPE_IPv6_IFINDEX,     /* IPv6 nexthop with ifindex.  */
+  NEXTHOP_TYPE_IPv6_IFNAME,      /* IPv6 nexthop with ifname.  */
   NEXTHOP_TYPE_BLACKHOLE,        /* Null0 nexthop.  */
 };
 

@@ -5,9 +5,9 @@
 #define MPLS_PW_LEN             4
 #define MPLS_MAX_RESERVED_LABEL 15
 
-#define MPLS_LABEL_IPV4         0
+#define MPLS_LABEL_IPv4         0
 #define MPLS_LABEL_ROUTER_ALERT 1
-#define MPLS_LABEL_IPV6         2
+#define MPLS_LABEL_IPv6         2
 #define MPLS_LABEL_NULL         3
 
 #define MPLS_LABEL(shim)        ntohl(shim) >> 12
@@ -15,8 +15,8 @@
 
 /* Inner protocol guessing values. */
 #define MPLS_PROTO_ETHERNET_PW  0
-#define MPLS_PROTO_IPV4         4
-#define MPLS_PROTO_IPV6         6
+#define MPLS_PROTO_IPv4         4
+#define MPLS_PROTO_IPv6         6
 
 static __oryx_always_inline__
 int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
@@ -41,14 +41,14 @@ int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
     } while (MPLS_BOTTOM(shim) == 0);
 
     label = MPLS_LABEL(shim);
-    if (label == MPLS_LABEL_IPV4) {
+    if (label == MPLS_LABEL_IPv4) {
         return DecodeIPv40(tv, dtv, p, pkt, len, pq);
     }
     else if (label == MPLS_LABEL_ROUTER_ALERT) {
         /* Not valid at the bottom of the stack. */
         event = MPLS_BAD_LABEL_ROUTER_ALERT;
     }
-    else if (label == MPLS_LABEL_IPV6) {
+    else if (label == MPLS_LABEL_IPv6) {
         return DecodeIPv60(tv, dtv, p, pkt, len, pq);
     }
     else if (label == MPLS_LABEL_NULL) {
@@ -65,10 +65,10 @@ int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
 
     /* Best guess at inner packet. */
     switch (pkt[0] >> 4) {
-    case MPLS_PROTO_IPV4:
+    case MPLS_PROTO_IPv4:
         DecodeIPv40(tv, dtv, p, pkt, len, pq);
         break;
-    case MPLS_PROTO_IPV6:
+    case MPLS_PROTO_IPv6:
         DecodeIPv60(tv, dtv, p, pkt, len, pq);
         break;
 #if 0

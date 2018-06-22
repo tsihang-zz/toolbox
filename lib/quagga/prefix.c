@@ -331,7 +331,7 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
   if (p1->family == p2->family && p1->prefixlen == p2->prefixlen)
     {
       if (p1->family == AF_INET)
-	if (IPV4_ADDR_SAME (&p1->u.prefix4.s_addr, &p2->u.prefix4.s_addr))
+	if (IPv4_ADDR_SAME (&p1->u.prefix4.s_addr, &p2->u.prefix4.s_addr))
 	  return 1;
 #ifdef HAVE_IPV6
       if (p1->family == AF_INET6 )
@@ -401,7 +401,7 @@ prefix_common_bits (const struct prefix *p1, const struct prefix *p2)
   const u_char *pp2 = (const u_char *)&p2->u.prefix;
 
   if (p1->family == AF_INET)
-    length = IPV4_MAX_BYTELEN;
+    length = IPv4_MAX_BYTELEN;
 #ifdef HAVE_IPV6
   if (p1->family == AF_INET6)
     length = IPV6_MAX_BYTELEN;
@@ -481,7 +481,7 @@ str2prefix_ipv4 (const char *str, struct prefix_ipv4 *p)
 
       /* If address doesn't contain slash we assume it host address. */
       p->family = AF_INET;
-      p->prefixlen = IPV4_MAX_BITLEN;
+      p->prefixlen = IPv4_MAX_BITLEN;
 
       return ret;
     }
@@ -495,7 +495,7 @@ str2prefix_ipv4 (const char *str, struct prefix_ipv4 *p)
 
       /* Get prefix length. */
       plen = (u_char) atoi (++pnt);
-      if (plen > IPV4_MAX_PREFIXLEN)
+      if (plen > IPv4_MAX_PREFIXLEN)
 	return 0;
 
       p->family = AF_INET;
@@ -563,7 +563,7 @@ done:
 void
 masklen2ip (const int masklen, struct in_addr *netmask)
 {
-  assert (masklen >= 0 && masklen <= IPV4_MAX_BITLEN);
+  assert (masklen >= 0 && masklen <= IPv4_MAX_BITLEN);
 
   /* left shift is only defined for less than the size of the type.
    * we unconditionally use long long in case the target platform
@@ -800,7 +800,7 @@ sockunion2hostprefix (const union sockunion *su, struct prefix *prefix)
       p = prefix ? (struct prefix_ipv4 *) prefix : prefix_ipv4_new ();
       p->family = AF_INET;
       p->prefix = su->sin.sin_addr;
-      p->prefixlen = IPV4_MAX_BITLEN;
+      p->prefixlen = IPv4_MAX_BITLEN;
       return (struct prefix *) p;
     }
 #ifdef HAVE_IPV6
@@ -838,7 +838,7 @@ prefix_blen (const struct prefix *p)
   switch (p->family) 
     {
     case AF_INET:
-      return IPV4_MAX_BYTELEN;
+      return IPv4_MAX_BYTELEN;
       break;
 #ifdef HAVE_IPV6
     case AF_INET6:
@@ -942,7 +942,7 @@ void apply_classful_mask_ipv4 (struct prefix_ipv4 *p)
   
   destination = ntohl (p->prefix.s_addr);
   
-  if (p->prefixlen == IPV4_MAX_PREFIXLEN);
+  if (p->prefixlen == IPv4_MAX_PREFIXLEN);
   /* do nothing for host routes */
   else if (IN_CLASSC (destination)) 
     {
@@ -976,7 +976,7 @@ ipv4_broadcast_addr (in_addr_t hostaddr, int masklen)
   struct in_addr mask;
 
   masklen2ip (masklen, &mask);
-  return (masklen != IPV4_MAX_PREFIXLEN-1) ?
+  return (masklen != IPv4_MAX_PREFIXLEN-1) ?
 	 /* normal case */
          (hostaddr | ~mask.s_addr) :
 	 /* special case for /31 */

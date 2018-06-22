@@ -3,7 +3,7 @@
 
 /** Point to Point Protocol RFC1331 - Supported tyes */
 #define PPP_IP         0x0021       /* Internet Protocol */
-#define PPP_IPV6       0x0057       /* Internet Protocol version 6 */
+#define PPP_IPv6       0x0057       /* Internet Protocol version 6 */
 #define PPP_VJ_UCOMP   0x002f       /* VJ uncompressed TCP/IP */
 
 /** Unsupported PPP types (libpcap source reference) */
@@ -30,7 +30,7 @@
 #define PPP_IPXCP      0x802b       /* Novell IPX Control Protocol */
 #define PPP_STIICP     0x8033       /* Strean Protocol Control Protocol */
 #define PPP_VINESCP    0x8035       /* Banyan Vines Control Protocol */
-#define PPP_IPV6CP     0x8057       /* IPv6 Control Protocol */
+#define PPP_IPv6CP     0x8057       /* IPv6 Control Protocol */
 #define PPP_MPLSCP     0x8281       /* rfc 3022 */
 #define PPP_LCP        0xc021       /* Link Control Protocol */
 #define PPP_PAP        0xc023       /* Password Authentication Protocol */

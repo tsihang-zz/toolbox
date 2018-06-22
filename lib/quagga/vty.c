@@ -785,8 +785,8 @@ vty_end_config (struct vty *vty)
     case BGP_VPNV6_NODE:
     case BGP_ENCAP_NODE:
     case BGP_ENCAPV6_NODE:
-    case BGP_IPV4_NODE:
-    case BGP_IPV4M_NODE:
+    case BGP_IPv4_NODE:
+    case BGP_IPv4M_NODE:
     case BGP_IPV6_NODE:
     case BGP_IPV6M_NODE:
     case RMAP_NODE:

@@ -303,7 +303,7 @@ if_lookup_exact_address_vrf (struct in_addr src, uint16_t vrf_id)
 
 	  if (p && p->family == AF_INET)
 	    {
-	      if (IPV4_ADDR_SAME (&p->u.prefix4, &src))
+	      if (IPv4_ADDR_SAME (&p->u.prefix4, &src))
 		return ifp;
 	    }	      
 	}
@@ -331,7 +331,7 @@ if_lookup_address_vrf (struct in_addr src, uint16_t vrf_id)
 
   addr.family = AF_INET;
   addr.u.prefix4 = src;
-  addr.prefixlen = IPV4_MAX_BITLEN;
+  addr.prefixlen = IPv4_MAX_BITLEN;
 
   match = NULL;
 
@@ -508,8 +508,8 @@ if_flag_dump (unsigned long flag)
   IFF_OUT_LOG (IFF_NOXMIT, "NOXMIT");
   IFF_OUT_LOG (IFF_NORTEXCH, "NORTEXCH");
   IFF_OUT_LOG (IFF_VIRTUAL, "VIRTUAL");
-  IFF_OUT_LOG (IFF_IPV4, "IPv4");
-  IFF_OUT_LOG (IFF_IPV6, "IPv6");
+  IFF_OUT_LOG (IFF_IPv4, "IPv4");
+  IFF_OUT_LOG (IFF_IPv6, "IPv6");
 
   strlcat (logbuf, ">", BUFSIZ);
 
@@ -526,14 +526,14 @@ if_dump (const struct interface *ifp)
 
   for (ALL_LIST_ELEMENTS_RO (ifp->connected, node, c))
     zlog_info ("Interface %s vrf %u index %d metric %d mtu %d "
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
                "mtu6 %d "
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
                "%s",
                ifp->name, ifp->vrf_id, ifp->ifindex, ifp->metric, ifp->mtu,
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
                ifp->mtu6,
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
                if_flag_dump (ifp->flags));
 }
 
@@ -844,13 +844,13 @@ connected_same_prefix (struct prefix *p1, struct prefix *p2)
   if (p1->family == p2->family)
     {
       if (p1->family == AF_INET &&
-	  IPV4_ADDR_SAME (&p1->u.prefix4, &p2->u.prefix4))
+	  IPv4_ADDR_SAME (&p1->u.prefix4, &p2->u.prefix4))
 	return 1;
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
       if (p1->family == AF_INET6 &&
-	  IPV6_ADDR_SAME (&p1->u.prefix6, &p2->u.prefix6))
+	  IPv6_ADDR_SAME (&p1->u.prefix6, &p2->u.prefix6))
 	return 1;
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
     }
   return 0;
 }
@@ -889,7 +889,7 @@ connected_lookup_address (struct interface *ifp, struct in_addr dst)
 
   addr.family = AF_INET;
   addr.u.prefix4 = dst;
-  addr.prefixlen = IPV4_MAX_BITLEN;
+  addr.prefixlen = IPv4_MAX_BITLEN;
 
   match = NULL;
 
@@ -972,7 +972,7 @@ ifaddr_ipv4_add (struct in_addr *ifaddr, struct interface *ifp)
   struct prefix_ipv4 p;
 
   p.family = AF_INET;
-  p.prefixlen = IPV4_MAX_PREFIXLEN;
+  p.prefixlen = IPv4_MAX_PREFIXLEN;
   p.prefix = *ifaddr;
 
   rn = route_node_get (ifaddr_ipv4_table, (struct prefix *) &p);
@@ -993,7 +993,7 @@ ifaddr_ipv4_delete (struct in_addr *ifaddr, struct interface *ifp)
   struct prefix_ipv4 p;
 
   p.family = AF_INET;
-  p.prefixlen = IPV4_MAX_PREFIXLEN;
+  p.prefixlen = IPv4_MAX_PREFIXLEN;
   p.prefix = *ifaddr;
 
   rn = route_node_lookup (ifaddr_ipv4_table, (struct prefix *) &p);
@@ -1019,7 +1019,7 @@ ifaddr_ipv4_lookup (struct in_addr *addr, ifindex_t ifindex)
   if (addr)
     {
       p.family = AF_INET;
-      p.prefixlen = IPV4_MAX_PREFIXLEN;
+      p.prefixlen = IPv4_MAX_PREFIXLEN;
       p.prefix = *addr;
 
       rn = route_node_lookup (ifaddr_ipv4_table, (struct prefix *) &p);

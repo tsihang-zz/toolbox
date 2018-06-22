@@ -203,7 +203,7 @@ do {                                                            \
 #define VTY_GET_INTEGER(NAME,V,STR)                             \
     VTY_GET_INTEGER_RANGE(NAME,V,STR,0U,UINT32_MAX)
 
-#define VTY_GET_IPV4_ADDRESS(NAME,V,STR)                                      \
+#define VTY_GET_IPv4_ADDRESS(NAME,V,STR)                                      \
 do {                                                                             \
   int retv;                                                                   \
   retv = inet_aton ((STR), &(V));                                             \
@@ -214,7 +214,7 @@ do {                                                                            
     }                                                                         \
 } while (0)
 
-#define VTY_GET_IPV4_PREFIX(NAME,V,STR)                                       \
+#define VTY_GET_IPv4_PREFIX(NAME,V,STR)                                       \
 do {                                                                             \
   int retv;                                                                   \
   retv = str2prefix_ipv4 ((STR), &(V));                                       \

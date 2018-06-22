@@ -127,7 +127,7 @@ static void
 vrf_build_key (uint16_t vrf_id, struct prefix *p)
 {
   p->family = AF_INET;
-  p->prefixlen = IPV4_MAX_BITLEN;
+  p->prefixlen = IPv4_MAX_BITLEN;
   p->u.prefix4.s_addr = vrf_id;
 }
 

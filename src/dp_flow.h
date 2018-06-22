@@ -41,8 +41,8 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
         /* first check the direction of the flow, in other words, the client ->
          * server direction as it's most likely the ICMP error will be a
          * response to the clients traffic */
-        if ((f->src.addr_data32[0] == IPV4_GET_RAW_IPSRC_U32( ICMPV4_GET_EMB_IPV4(p) )) &&
-                (f->dst.addr_data32[0] == IPV4_GET_RAW_IPDST_U32( ICMPV4_GET_EMB_IPV4(p) )) &&
+        if ((f->src.addr_data32[0] == IPv4_GET_RAW_IPSRC_U32( ICMPV4_GET_EMB_IPv4(p) )) &&
+                (f->dst.addr_data32[0] == IPv4_GET_RAW_IPDST_U32( ICMPV4_GET_EMB_IPv4(p) )) &&
                 f->sp == p->icmpv4vars.emb_sport &&
                 f->dp == p->icmpv4vars.emb_dport &&
                 f->proto == ICMPV4_GET_EMB_PROTO(p) &&
@@ -54,8 +54,8 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
 
         /* check the less likely case where the ICMP error was a response to
          * a packet from the server. */
-        } else if ((f->dst.addr_data32[0] == IPV4_GET_RAW_IPSRC_U32( ICMPV4_GET_EMB_IPV4(p) )) &&
-                (f->src.addr_data32[0] == IPV4_GET_RAW_IPDST_U32( ICMPV4_GET_EMB_IPV4(p) )) &&
+        } else if ((f->dst.addr_data32[0] == IPv4_GET_RAW_IPSRC_U32( ICMPV4_GET_EMB_IPv4(p) )) &&
+                (f->src.addr_data32[0] == IPv4_GET_RAW_IPDST_U32( ICMPV4_GET_EMB_IPv4(p) )) &&
                 f->dp == p->icmpv4vars.emb_sport &&
                 f->sp == p->icmpv4vars.emb_dport &&
                 f->proto == ICMPV4_GET_EMB_PROTO(p) &&
@@ -87,12 +87,12 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
 
 #define COPY_TIMESTAMP(src,dst) ((dst)->tv_sec = (src)->tv_sec, (dst)->tv_usec = (src)->tv_usec)
 
-#define FLOW_COPY_IPV4_ADDR_TO_PACKET(fa, pa) do {      \
+#define FLOW_COPY_IPv4_ADDR_TO_PACKET(fa, pa) do {      \
         (pa)->family = AF_INET;                         \
         (pa)->addr_data32[0] = (fa)->addr_data32[0];    \
     } while (0)
 
-#define FLOW_COPY_IPV6_ADDR_TO_PACKET(fa, pa) do {      \
+#define FLOW_COPY_IPv6_ADDR_TO_PACKET(fa, pa) do {      \
         (pa)->family = AF_INET6;                        \
         (pa)->addr_data32[0] = (fa)->addr_data32[0];    \
         (pa)->addr_data32[1] = (fa)->addr_data32[1];    \
@@ -105,14 +105,14 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
  *
  * We set the rest of the struct to 0 so we can
  * prevent using memset. */
-#define FLOW_SET_IPV4_SRC_ADDR_FROM_PACKET(p, a) do {             \
+#define FLOW_SET_IPv4_SRC_ADDR_FROM_PACKET(p, a) do {             \
         (a)->addr_data32[0] = (uint32_t)(p)->ip4h->s_ip_src.s_addr; \
         (a)->addr_data32[1] = 0;                                  \
         (a)->addr_data32[2] = 0;                                  \
         (a)->addr_data32[3] = 0;                                  \
     } while (0)
 
-#define FLOW_SET_IPV4_DST_ADDR_FROM_PACKET(p, a) do {             \
+#define FLOW_SET_IPv4_DST_ADDR_FROM_PACKET(p, a) do {             \
         (a)->addr_data32[0] = (uint32_t)(p)->ip4h->s_ip_dst.s_addr; \
         (a)->addr_data32[1] = 0;                                  \
         (a)->addr_data32[2] = 0;                                  \
@@ -129,14 +129,14 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
 
 /* Set the IPv6 addressesinto the Addrs of the Packet.
  * Make sure p->ip6h is initialized and validated. */
-#define FLOW_SET_IPV6_SRC_ADDR_FROM_PACKET(p, a) do {   \
+#define FLOW_SET_IPv6_SRC_ADDR_FROM_PACKET(p, a) do {   \
         (a)->addr_data32[0] = (p)->ip6h->s_ip6_src[0];  \
         (a)->addr_data32[1] = (p)->ip6h->s_ip6_src[1];  \
         (a)->addr_data32[2] = (p)->ip6h->s_ip6_src[2];  \
         (a)->addr_data32[3] = (p)->ip6h->s_ip6_src[3];  \
     } while (0)
 
-#define FLOW_SET_IPV6_DST_ADDR_FROM_PACKET(p, a) do {   \
+#define FLOW_SET_IPv6_DST_ADDR_FROM_PACKET(p, a) do {   \
         (a)->addr_data32[0] = (p)->ip6h->s_ip6_dst[0];  \
         (a)->addr_data32[1] = (p)->ip6h->s_ip6_dst[1];  \
         (a)->addr_data32[2] = (p)->ip6h->s_ip6_dst[2];  \

@@ -2,64 +2,64 @@
 #include "event.h"
 
 const struct DecodeEvents_ DEvents[] = {
-    /* IPV4 EVENTS */
-    { "decoder.ipv4.pkt_too_small", IPV4_PKT_TOO_SMALL, },
-    { "decoder.ipv4.hlen_too_small", IPV4_HLEN_TOO_SMALL, },
-    { "decoder.ipv4.iplen_smaller_than_hlen", IPV4_IPLEN_SMALLER_THAN_HLEN, },
-    { "decoder.ipv4.trunc_pkt", IPV4_TRUNC_PKT, },
+    /* IPv4 EVENTS */
+    { "decoder.ipv4.pkt_too_small", IPv4_PKT_TOO_SMALL, },
+    { "decoder.ipv4.hlen_too_small", IPv4_HLEN_TOO_SMALL, },
+    { "decoder.ipv4.iplen_smaller_than_hlen", IPv4_IPLEN_SMALLER_THAN_HLEN, },
+    { "decoder.ipv4.trunc_pkt", IPv4_TRUNC_PKT, },
 
-    /* IPV4 OPTIONS */
-    { "decoder.ipv4.opt_invalid", IPV4_OPT_INVALID, },
-    { "decoder.ipv4.opt_invalid_len", IPV4_OPT_INVALID_LEN, },
-    { "decoder.ipv4.opt_malformed", IPV4_OPT_MALFORMED, },
-    { "decoder.ipv4.opt_pad_required", IPV4_OPT_PAD_REQUIRED, },
-    { "decoder.ipv4.opt_eol_required", IPV4_OPT_EOL_REQUIRED, },
-    { "decoder.ipv4.opt_duplicate", IPV4_OPT_DUPLICATE, },
-    { "decoder.ipv4.opt_unknown", IPV4_OPT_UNKNOWN, },
-    { "decoder.ipv4.wrong_ip_version", IPV4_WRONG_IP_VER, },
-    { "decoder.ipv4.icmpv6", IPV4_WITH_ICMPV6, },
+    /* IPv4 OPTIONS */
+    { "decoder.ipv4.opt_invalid", IPv4_OPT_INVALID, },
+    { "decoder.ipv4.opt_invalid_len", IPv4_OPT_INVALID_LEN, },
+    { "decoder.ipv4.opt_malformed", IPv4_OPT_MALFORMED, },
+    { "decoder.ipv4.opt_pad_required", IPv4_OPT_PAD_REQUIRED, },
+    { "decoder.ipv4.opt_eol_required", IPv4_OPT_EOL_REQUIRED, },
+    { "decoder.ipv4.opt_duplicate", IPv4_OPT_DUPLICATE, },
+    { "decoder.ipv4.opt_unknown", IPv4_OPT_UNKNOWN, },
+    { "decoder.ipv4.wrong_ip_version", IPv4_WRONG_IP_VER, },
+    { "decoder.ipv4.icmpv6", IPv4_WITH_ICMPV6, },
 
     /* ICMP EVENTS */
     { "decoder.icmpv4.pkt_too_small", ICMPV4_PKT_TOO_SMALL, },
     { "decoder.icmpv4.unknown_type", ICMPV4_UNKNOWN_TYPE, },
     { "decoder.icmpv4.unknown_code", ICMPV4_UNKNOWN_CODE, },
-    { "decoder.icmpv4.ipv4_trunc_pkt", ICMPV4_IPV4_TRUNC_PKT, },
-    { "decoder.icmpv4.ipv4_unknown_ver", ICMPV4_IPV4_UNKNOWN_VER, },
+    { "decoder.icmpv4.ipv4_trunc_pkt", ICMPV4_IPv4_TRUNC_PKT, },
+    { "decoder.icmpv4.ipv4_unknown_ver", ICMPV4_IPv4_UNKNOWN_VER, },
 
     /* ICMPv6 EVENTS */
     { "decoder.icmpv6.unknown_type", ICMPV6_UNKNOWN_TYPE,},
     { "decoder.icmpv6.unknown_code", ICMPV6_UNKNOWN_CODE,},
     { "decoder.icmpv6.pkt_too_small", ICMPV6_PKT_TOO_SMALL,},
-    { "decoder.icmpv6.ipv6_unknown_version", ICMPV6_IPV6_UNKNOWN_VER,},
-    { "decoder.icmpv6.ipv6_trunc_pkt", ICMPV6_IPV6_TRUNC_PKT,},
+    { "decoder.icmpv6.ipv6_unknown_version", ICMPV6_IPv6_UNKNOWN_VER,},
+    { "decoder.icmpv6.ipv6_trunc_pkt", ICMPV6_IPv6_TRUNC_PKT,},
     { "decoder.icmpv6.mld_message_with_invalid_hl", ICMPV6_MLD_MESSAGE_WITH_INVALID_HL,},
     { "decoder.icmpv6.unassigned_type", ICMPV6_UNASSIGNED_TYPE,},
     { "decoder.icmpv6.experimentation_type", ICMPV6_EXPERIMENTATION_TYPE,},
 
-    /* IPV6 EVENTS */
-    { "decoder.ipv6.pkt_too_small", IPV6_PKT_TOO_SMALL, },
-    { "decoder.ipv6.trunc_pkt", IPV6_TRUNC_PKT, },
-    { "decoder.ipv6.trunc_exthdr", IPV6_TRUNC_EXTHDR, },
-    { "decoder.ipv6.exthdr_dupl_fh", IPV6_EXTHDR_DUPL_FH, },
-    { "decoder.ipv6.exthdr_useless_fh", IPV6_EXTHDR_USELESS_FH, },
-    { "decoder.ipv6.exthdr_dupl_rh", IPV6_EXTHDR_DUPL_RH, },
-    { "decoder.ipv6.exthdr_dupl_hh", IPV6_EXTHDR_DUPL_HH, },
-    { "decoder.ipv6.exthdr_dupl_dh", IPV6_EXTHDR_DUPL_DH, },
-    { "decoder.ipv6.exthdr_dupl_ah", IPV6_EXTHDR_DUPL_AH, },
-    { "decoder.ipv6.exthdr_dupl_eh", IPV6_EXTHDR_DUPL_EH, },
-    { "decoder.ipv6.exthdr_invalid_optlen", IPV6_EXTHDR_INVALID_OPTLEN, },
-    { "decoder.ipv6.wrong_ip_version", IPV6_WRONG_IP_VER, },
-    { "decoder.ipv6.exthdr_ah_res_not_null", IPV6_EXTHDR_AH_RES_NOT_NULL, },
-    { "decoder.ipv6.hopopts_unknown_opt", IPV6_HOPOPTS_UNKNOWN_OPT, },
-    { "decoder.ipv6.hopopts_only_padding", IPV6_HOPOPTS_ONLY_PADDING, },
-    { "decoder.ipv6.dstopts_unknown_opt", IPV6_DSTOPTS_UNKNOWN_OPT, },
-    { "decoder.ipv6.dstopts_only_padding", IPV6_DSTOPTS_ONLY_PADDING, },
-    { "decoder.ipv6.rh_type_0", IPV6_EXTHDR_RH_TYPE_0, },
-    { "decoder.ipv6.zero_len_padn", IPV6_EXTHDR_ZERO_LEN_PADN, },
-    { "decoder.ipv6.fh_non_zero_reserved_field", IPV6_FH_NON_ZERO_RES_FIELD, },
-    { "decoder.ipv6.data_after_none_header", IPV6_DATA_AFTER_NONE_HEADER, },
-    { "decoder.ipv6.unknown_next_header", IPV6_UNKNOWN_NEXT_HEADER, },
-    { "decoder.ipv6.icmpv4", IPV6_WITH_ICMPV4, },
+    /* IPv6 EVENTS */
+    { "decoder.ipv6.pkt_too_small", IPv6_PKT_TOO_SMALL, },
+    { "decoder.ipv6.trunc_pkt", IPv6_TRUNC_PKT, },
+    { "decoder.ipv6.trunc_exthdr", IPv6_TRUNC_EXTHDR, },
+    { "decoder.ipv6.exthdr_dupl_fh", IPv6_EXTHDR_DUPL_FH, },
+    { "decoder.ipv6.exthdr_useless_fh", IPv6_EXTHDR_USELESS_FH, },
+    { "decoder.ipv6.exthdr_dupl_rh", IPv6_EXTHDR_DUPL_RH, },
+    { "decoder.ipv6.exthdr_dupl_hh", IPv6_EXTHDR_DUPL_HH, },
+    { "decoder.ipv6.exthdr_dupl_dh", IPv6_EXTHDR_DUPL_DH, },
+    { "decoder.ipv6.exthdr_dupl_ah", IPv6_EXTHDR_DUPL_AH, },
+    { "decoder.ipv6.exthdr_dupl_eh", IPv6_EXTHDR_DUPL_EH, },
+    { "decoder.ipv6.exthdr_invalid_optlen", IPv6_EXTHDR_INVALID_OPTLEN, },
+    { "decoder.ipv6.wrong_ip_version", IPv6_WRONG_IP_VER, },
+    { "decoder.ipv6.exthdr_ah_res_not_null", IPv6_EXTHDR_AH_RES_NOT_NULL, },
+    { "decoder.ipv6.hopopts_unknown_opt", IPv6_HOPOPTS_UNKNOWN_OPT, },
+    { "decoder.ipv6.hopopts_only_padding", IPv6_HOPOPTS_ONLY_PADDING, },
+    { "decoder.ipv6.dstopts_unknown_opt", IPv6_DSTOPTS_UNKNOWN_OPT, },
+    { "decoder.ipv6.dstopts_only_padding", IPv6_DSTOPTS_ONLY_PADDING, },
+    { "decoder.ipv6.rh_type_0", IPv6_EXTHDR_RH_TYPE_0, },
+    { "decoder.ipv6.zero_len_padn", IPv6_EXTHDR_ZERO_LEN_PADN, },
+    { "decoder.ipv6.fh_non_zero_reserved_field", IPv6_FH_NON_ZERO_RES_FIELD, },
+    { "decoder.ipv6.data_after_none_header", IPv6_DATA_AFTER_NONE_HEADER, },
+    { "decoder.ipv6.unknown_next_header", IPv6_UNKNOWN_NEXT_HEADER, },
+    { "decoder.ipv6.icmpv4", IPv6_WITH_ICMPV4, },
 
     /* TCP EVENTS */
     { "decoder.tcp.pkt_too_small", TCP_PKT_TOO_SMALL, },
@@ -85,8 +85,8 @@ const struct DecodeEvents_ DEvents[] = {
     /* PPP EVENTS */
     { "decoder.ppp.pkt_too_small", PPP_PKT_TOO_SMALL, },
     { "decoder.ppp.vju_pkt_too_small", PPPVJU_PKT_TOO_SMALL, },
-    { "decoder.ppp.ip4_pkt_too_small", PPPIPV4_PKT_TOO_SMALL, },
-    { "decoder.ppp.ip6_pkt_too_small", PPPIPV6_PKT_TOO_SMALL, },
+    { "decoder.ppp.ip4_pkt_too_small", PPPIPv4_PKT_TOO_SMALL, },
+    { "decoder.ppp.ip6_pkt_too_small", PPPIPv6_PKT_TOO_SMALL, },
     { "decoder.ppp.wrong_type", PPP_WRONG_TYPE, }, /** unknown & invalid protocol */
     { "decoder.ppp.unsup_proto", PPP_UNSUP_PROTO, }, /** unsupported but valid protocol */
 
@@ -129,20 +129,20 @@ const struct DecodeEvents_ DEvents[] = {
     { "decoder.sctp.pkt_too_small", SCTP_PKT_TOO_SMALL, },
 
     /* Fragmentation reasembly events. */
-    { "decoder.ipv4.frag_pkt_too_large", IPV4_FRAG_PKT_TOO_LARGE, },
-    { "decoder.ipv6.frag_pkt_too_large", IPV6_FRAG_PKT_TOO_LARGE, },
-    { "decoder.ipv4.frag_overlap", IPV4_FRAG_OVERLAP, },
-    { "decoder.ipv6.frag_overlap", IPV6_FRAG_OVERLAP, },
+    { "decoder.ipv4.frag_pkt_too_large", IPv4_FRAG_PKT_TOO_LARGE, },
+    { "decoder.ipv6.frag_pkt_too_large", IPv6_FRAG_PKT_TOO_LARGE, },
+    { "decoder.ipv4.frag_overlap", IPv4_FRAG_OVERLAP, },
+    { "decoder.ipv6.frag_overlap", IPv6_FRAG_OVERLAP, },
     /* Fragment ignored due to internal error */
-    { "decoder.ipv4.frag_ignored", IPV4_FRAG_IGNORED, },
-    { "decoder.ipv6.frag_ignored", IPV6_FRAG_IGNORED, },
+    { "decoder.ipv4.frag_ignored", IPv4_FRAG_IGNORED, },
+    { "decoder.ipv6.frag_ignored", IPv6_FRAG_IGNORED, },
 
     /* IPv4 in IPv6 events */
-    { "decoder.ipv6.ipv4_in_ipv6_too_small", IPV4_IN_IPV6_PKT_TOO_SMALL, },
-    { "decoder.ipv6.ipv4_in_ipv6_wrong_version", IPV4_IN_IPV6_WRONG_IP_VER, },
+    { "decoder.ipv6.ipv4_in_ipv6_too_small", IPv4_IN_IPv6_PKT_TOO_SMALL, },
+    { "decoder.ipv6.ipv4_in_ipv6_wrong_version", IPv4_IN_IPv6_WRONG_IP_VER, },
     /* IPv6 in IPv6 events */
-    { "decoder.ipv6.ipv6_in_ipv6_too_small", IPV6_IN_IPV6_PKT_TOO_SMALL, },
-    { "decoder.ipv6.ipv6_in_ipv6_wrong_version", IPV6_IN_IPV6_WRONG_IP_VER, },
+    { "decoder.ipv6.ipv6_in_ipv6_too_small", IPv6_IN_IPv6_PKT_TOO_SMALL, },
+    { "decoder.ipv6.ipv6_in_ipv6_wrong_version", IPv6_IN_IPv6_WRONG_IP_VER, },
 
     /* MPLS events */
     { "decoder.mpls.header_too_small", MPLS_HEADER_TOO_SMALL, },

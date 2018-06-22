@@ -241,13 +241,13 @@ route_node_match_ipv4 (const struct route_table *table,
 
   memset (&p, 0, sizeof (struct prefix_ipv4));
   p.family = AF_INET;
-  p.prefixlen = IPV4_MAX_PREFIXLEN;
+  p.prefixlen = IPv4_MAX_PREFIXLEN;
   p.prefix = *addr;
 
   return route_node_match (table, (struct prefix *) &p);
 }
 
-#ifdef HAVE_IPV6
+#ifdef HAVE_IPv6
 struct route_node *
 route_node_match_ipv6 (const struct route_table *table,
 		       const struct in6_addr *addr)
@@ -256,12 +256,12 @@ route_node_match_ipv6 (const struct route_table *table,
 
   memset (&p, 0, sizeof (struct prefix_ipv6));
   p.family = AF_INET6;
-  p.prefixlen = IPV6_MAX_PREFIXLEN;
+  p.prefixlen = IPv6_MAX_PREFIXLEN;
   p.prefix = *addr;
 
   return route_node_match (table, (struct prefix *) &p);
 }
-#endif /* HAVE_IPV6 */
+#endif /* HAVE_IPv6 */
 
 /* Lookup same prefix node.  Return NULL when we can't find route. */
 struct route_node *

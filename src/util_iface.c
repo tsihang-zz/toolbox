@@ -3,28 +3,26 @@
 
 void iface_alloc (struct iface_t **this)
 {
-	int id;
-	struct CounterCtx *per_private_ctx0;
-	struct iface_counter_ctx *if_counter_ctx0;
-	
+	int							id;
+	int							lcore;
+	char						lcore_stats_name[1024];
+	struct CounterCtx			*per_private_ctx0;
+	struct iface_counter_ctx	*if_counter_ctx0;
+
 	(*this) = NULL;
 	
 	/** create an port */
 	(*this) = kmalloc (sizeof (struct iface_t), MPF_CLR, __oryx_unused_val__);
+	BUG_ON ((*this) == NULL);
 
-	ASSERT ((*this));
-
-	(*this)->mtu = 1500;
-	(*this)->if_poll_up = netdev_up;
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
-
+	(*this)->mtu = 1500;
 	(*this)->perf_private_ctx = kmalloc(sizeof(struct CounterCtx), MPF_CLR, __oryx_unused_val__);
 	(*this)->if_counter_ctx = kmalloc(sizeof(struct iface_counter_ctx), MPF_CLR, __oryx_unused_val__);
+
 	per_private_ctx0 = (*this)->perf_private_ctx;
 	if_counter_ctx0 = (*this)->if_counter_ctx;
 	
-	int lcore;
-	char lcore_stats_name[1024];
 	for (id = QUA_RX; id < QUA_RXTX; id ++) {
 		for (lcore = 0; lcore < MAX_LCORES; lcore ++) {		
 			sprintf(lcore_stats_name, "port.%s.bytes.lcore%d", id == QUA_RX ? "rx" : "tx", lcore);
