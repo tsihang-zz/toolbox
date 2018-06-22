@@ -86,7 +86,7 @@ getsockopt_cmsg_data (struct msghdr *msgh, int level, int type)
   return NULL;
 }
 
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
 /* Set IPv6 packet info to the socket. */
 int
 setsockopt_ipv6_pktinfo (int sock, int val)
@@ -198,7 +198,7 @@ setsockopt_ipv6_tclass(int sock, int tclass)
 #endif
   return ret;
 }
-#endif /* HAVE_IPv6 */
+#endif /* HAVE_IPV6 */
 
 /*
  * Process multicast socket options for IPv4 in an OS-dependent manner.
@@ -425,7 +425,7 @@ setsockopt_ifindex (int af, int sock, ifindex_t val)
       case AF_INET:
         ret = setsockopt_ipv4_ifindex (sock, val);
         break;
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
       case AF_INET6:
         ret = setsockopt_ipv6_pktinfo (sock, val);
         break;
@@ -516,7 +516,7 @@ getsockopt_ifindex (int af, struct msghdr *msgh)
       case AF_INET:
         return (getsockopt_ipv4_ifindex (msgh));
         break;
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
       case AF_INET6:
         return (getsockopt_ipv6_ifindex (msgh));
         break;
@@ -627,7 +627,7 @@ sockopt_tcp_signature (int sock, union sockunion *su, const char *password)
           return 0;
         }
       
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
       /* If this does not work, then all users of this sockopt will need to
        * differentiate between IPv4 and IPv6, and keep seperate sockets for
        * each. 

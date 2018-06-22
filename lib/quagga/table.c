@@ -247,7 +247,7 @@ route_node_match_ipv4 (const struct route_table *table,
   return route_node_match (table, (struct prefix *) &p);
 }
 
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
 struct route_node *
 route_node_match_ipv6 (const struct route_table *table,
 		       const struct in6_addr *addr)
@@ -261,7 +261,7 @@ route_node_match_ipv6 (const struct route_table *table,
 
   return route_node_match (table, (struct prefix *) &p);
 }
-#endif /* HAVE_IPv6 */
+#endif /* HAVE_IPV6 */
 
 /* Lookup same prefix node.  Return NULL when we can't find route. */
 struct route_node *

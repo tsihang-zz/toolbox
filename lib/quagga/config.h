@@ -88,7 +88,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Linux IPv6 */
-/* #undef HAVE_IPv6 */
+/* #undef HAVE_IPV6 */
 
 /* IRDP */
 /* #undef HAVE_IRDP */

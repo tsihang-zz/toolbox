@@ -28,7 +28,7 @@ extern int setsockopt_so_recvbuf (int sock, int size);
 extern int setsockopt_so_sendbuf (const int sock, int size);
 extern int getsockopt_so_sendbuf (const int sock);
 
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
 extern int setsockopt_ipv6_pktinfo (int, int);
 extern int setsockopt_ipv6_checksum (int, int);
 extern int setsockopt_ipv6_multicast_hops (int, int);
@@ -36,12 +36,12 @@ extern int setsockopt_ipv6_unicast_hops (int, int);
 extern int setsockopt_ipv6_hoplimit (int, int);
 extern int setsockopt_ipv6_multicast_loop (int, int);
 extern int setsockopt_ipv6_tclass (int, int);
-#endif /* HAVE_IPv6 */
+#endif /* HAVE_IPV6 */
 
 /*
  * It is OK to reference in6_pktinfo here without a protecting #if
- * because this macro will only be used #if HAVE_IPv6, and in6_pktinfo
- * is not optional for HAVE_IPv6.
+ * because this macro will only be used #if HAVE_IPV6, and in6_pktinfo
+ * is not optional for HAVE_IPV6.
  */
 #define SOPT_SIZE_CMSG_PKTINFO_IPv6() (sizeof (struct in6_pktinfo));
 

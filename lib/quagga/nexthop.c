@@ -54,7 +54,7 @@ nexthop_same_no_recurse (struct nexthop *next1, struct nexthop *next2)
       if (next1->ifindex != next2->ifindex)
 	return 0;
       break;
-#ifdef HAVE_IPv6
+#ifdef HAVE_IPV6
     case NEXTHOP_TYPE_IPv6:
       if (! IPv6_ADDR_SAME (&next1->gate.ipv6, &next2->gate.ipv6))
 	return 0;
@@ -66,7 +66,7 @@ nexthop_same_no_recurse (struct nexthop *next1, struct nexthop *next2)
       if (next1->ifindex != next2->ifindex)
 	return 0;
       break;
-#endif /* HAVE_IPv6 */
+#endif /* HAVE_IPV6 */
     default:
       /* do nothing */
       break;
