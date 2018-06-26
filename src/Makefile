@@ -39,10 +39,8 @@ ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 APP = et1500
 
 SRCS-cli += \
-	util_iface.c cli_iface.c\
-	util_map.c cli_map.c\
-	util_udp.c cli_udp.c\
-	util_ipset.c cli_appl.c\
+	util_iface.c util_map.c util_udp.c util_ipset.c\
+	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
 	cli_common.c
 
 SRCS-classify += \

@@ -111,6 +111,8 @@ Hello, this is " QUAGGA_PROGNAME " (version " QUAGGA_VERSION ").\r\n\
 " QUAGGA_COPYRIGHT "\r\n\
 " GIT_INFO "\r\n";
 
+char config_current[] = SYSCONFDIR "/usr/local/etc/current.conf";
+char config_default[] = SYSCONFDIR "/usr/local/etc/default.conf";
 
 static const struct facility_map {
   int facility;
@@ -711,7 +713,7 @@ config_write_host (struct vty *vty)
       if (host.enable)
         vty_out (vty, "enable password %s%s", host.enable, VTY_NEWLINE);
     }
-
+#if 0
   if (zlog_default->default_lvl != LOG_DEBUG)
     {
       vty_out (vty, "! N.B. The 'log trap' command is deprecated.%s",
@@ -778,7 +780,7 @@ config_write_host (struct vty *vty)
     vty_out (vty, "banner motd file %s%s", host.motdfile, VTY_NEWLINE);
   else if (! host.motd)
     vty_out (vty, "no banner motd%s", VTY_NEWLINE);
-
+#endif
   return 1;
 }
 
@@ -4139,7 +4141,7 @@ cmd_init (int terminal)
   host.password = NULL;
   host.enable = NULL;
   host.logfile = NULL;
-  host.config = NULL;
+  host.config = config_default;
   host.lines = -1;
   host.motd = default_motd;
   host.motdfile = NULL;

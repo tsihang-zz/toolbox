@@ -333,8 +333,8 @@ flush2_buffer:
 		dp_send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
 		len = 0;
 	}
-
 	qconf->tx_mbufs[tx_port_id].len = len;
+	
 	return 0;
 }
 

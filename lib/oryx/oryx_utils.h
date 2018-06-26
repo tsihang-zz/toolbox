@@ -10,6 +10,7 @@
 #include "fop.h"
 #include "tq.h"
 #include "parser.h"
+#include "ring.h"
 
 #define u8_tolower(c) tolower((uint8_t)(c))
 

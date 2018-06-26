@@ -2518,7 +2518,7 @@ vty_read_config (char *config_file,
   /* If -f flag specified. */
   if (config_file != NULL)
     {
-      if (! IS_DIRECTORY_SEP (config_file[0]))
+      if (!IS_DIRECTORY_SEP (config_file[0]))
         {
           __zebra_unused_result__(getcwd (cwd, MAXPATHLEN));
           tmp = XMALLOC (MTYPE_TMP, 

@@ -588,6 +588,9 @@ extern void host_config_set (char *);
 extern char *crypt (const char *passwd, const char *salt);
 extern void print_version (const char *);
 
+extern char config_current[];
+extern char config_default[];
+
 /* struct host global, ick */
 extern struct host host; 
 

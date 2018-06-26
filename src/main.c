@@ -31,9 +31,6 @@ vlib_main_t vlib_main = {
 };
 
 static unsigned short int alternative_port = 12000;
-char config_current[] = SYSCONFDIR "/usr/local/etc/current.conf";
-char config_default[] = SYSCONFDIR "/usr/local/etc/default.conf";
-
 struct thread_master *master;
 
 #if 0
