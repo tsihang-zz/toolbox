@@ -67,7 +67,7 @@ struct appl_t {
 	uint8_t				uc_keyword_encrypt[256];	/** RC4 encrypt keyword. */
 	char				*sc_keyword;		/** Keyword before enctypt. */
 	uint64_t			ull_create_time;
-	os_lock_t			ol_lock;
+	os_mutex_t			ol_lock;
 
 	uint32_t			ul_map_mask;		/** map for this application belong to. */
 	struct appl_priv_t	priv[32];			/** private data for this application. */
@@ -97,7 +97,7 @@ struct appl_t {
 #define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {
 	uint32_t				ul_flags;
-	os_lock_t				lock;
+	os_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t 	*htable;
 	uint32_t				nb_appls;

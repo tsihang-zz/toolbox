@@ -19,8 +19,7 @@ extern void appl_init(vlib_main_t *vm);
 extern void port_init(vlib_main_t *vm);
 extern void udp_init(vlib_main_t *vm);
 extern void map_init(vlib_main_t *vm);
-
-extern void common_cli(void);
+extern void common_cli(vlib_main_t *vm);
 
 /** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
 #define DPDK_MBUF_PRIVATE_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)))
@@ -182,7 +181,7 @@ int main (int argc, char **argv)
 	uint32_t val_start, val_end;
 	int ret;
 
-	ret = format_range ("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
+	ret = format_range("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
 	printf ("ret = %d, start %d end %d\n",
 		ret, val_start, val_end);
 
@@ -197,6 +196,8 @@ int main (int argc, char **argv)
 
 	oryx_initialize();
 
+	fq_sample();
+	
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
@@ -216,7 +217,7 @@ int main (int argc, char **argv)
 	//udp_init(&vlib_main);
 	appl_init(&vlib_main);
 	map_init(&vlib_main);
-	common_cli();
+	common_cli(&vlib_main);
 	oryx_task_registry(&cli_register);
 
 	oryx_task_launch();

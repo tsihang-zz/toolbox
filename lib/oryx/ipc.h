@@ -48,18 +48,19 @@ oryx_status_t oryx_thread_cond_signal(oryx_thread_cond_t *cptr) { return thread_
 static __oryx_always_inline__
 oryx_status_t oryx_thread_cond_wait(oryx_thread_cond_t *cptr, oryx_thread_mutex_t *mptr) { return thread_cond_wait(cptr, mptr); }
 
-typedef oryx_thread_mutex_t	os_lock_t;
-typedef oryx_thread_cond_t	os_cond_t;
-
-#define do_lock(lock)\
+typedef pthread_mutex_t	os_mutex_t;
+#define do_mutex_init(lock)\
+	pthread_mutex_init(lock, PTHREAD_MUTEX_DEFAULT)
+#define do_mutex_lock(lock)\
 	oryx_thread_mutex_lock(lock)
-#define do_unlock(lock)\
+#define do_mutex_unlock(lock)\
 	oryx_thread_mutex_unlock(lock)
-#define do_trylock(lock)\
+#define do_mutex_trylock(lock)\
 	oryx_thread_mutex_trylock(lock)
-#define do_destroy_lock(lock)\
-	oryx_thread_mutex_destroy(lock)
+#define do_mutex_destroy(lock)\
+	pthread_mutex_destroy(lock)
 
+typedef pthread_cond_t	os_cond_t;
 #define do_cond_signal(cond)\
 	oryx_thread_cond_signal(cond)
 #define do_cond_destroy(cond)\
@@ -68,31 +69,34 @@ typedef oryx_thread_cond_t	os_cond_t;
 	pthread_cond_wait
 
 /* rwlocks */
-#define SCRWLock pthread_rwlock_t
-#define SCRWLockInit(rwl, rwlattr ) pthread_rwlock_init(rwl, rwlattr)
-#define SCRWLockWRLock(rwl) pthread_rwlock_wrlock(rwl)
-#define SCRWLockRDLock(rwl) pthread_rwlock_rdlock(rwl)
-#define SCRWLockTryWRLock(rwl) pthread_rwlock_trywrlock(rwl)
-#define SCRWLockTryRDLock(rwl) pthread_rwlock_tryrdlock(rwl)
-#define SCRWLockUnlock(rwl) pthread_rwlock_unlock(rwl)
-#define SCRWLockDestroy pthread_rwlock_destroy
+typedef pthread_rwlock_t	os_rwlock_t;
+#define do_rwlock_init(rwl, rwlattr)\
+	pthread_rwlock_init(rwl, rwlattr)
+#define do_rwlock_lock_wr(rwl)\
+	pthread_rwlock_wrlock(rwl)
+#define do_rwlock_lock_rd(rwl)\
+	pthread_rwlock_rdlock(rwl)
+#define do_rwlock_trylock_wr(rwl)\
+	pthread_rwlock_trywrlock(rwl)
+#define do_rwlock_trylock_rd(rwl)\
+	pthread_rwlock_tryrdlock(rwl)
+#define do_rwlock_unlock(rwl)\
+	pthread_rwlock_unlock(rwl)
+#define do_rwlock_destroy(rwl)\
+	pthread_rwlock_destroy(rwl)
 
 /* spinlocks */
-#if ((_POSIX_SPIN_LOCKS - 200112L) < 0L) || defined HELGRIND
-#define SCSpinlock                              os_lock_t
-#define SCSpinLock(spin)                        do_lock((spin))
-#define SCSpinTrylock(spin)                     do_trylock((spin))
-#define SCSpinUnlock(spin)                      do_unlock((spin))
-#define SCSpinInit(spin, spin_attr)             pthread_mutex_init((spin), NULL)
-#define SCSpinDestroy(spin)                     do_destroy_lock((spin))
-#else /* no spinlocks */
-#define SCSpinlock                              pthread_spinlock_t
-#define SCSpinLock(spin)                        pthread_spin_lock(spin)
-#define SCSpinTrylock(spin)                     pthread_spin_trylock(spin)
-#define SCSpinUnlock(spin)                      pthread_spin_unlock(spin)
-#define SCSpinInit(spin, spin_attr)             pthread_spin_init(spin, spin_attr)
-#define SCSpinDestroy(spin)                     pthread_spin_destroy(spin)
-#endif /* no spinlocks */
+typedef pthread_spinlock_t	os_spinlock_t;
+#define do_spin_lock(spin)\
+	pthread_spin_lock(spin)
+#define do_spin_trylock(spin)\
+	pthread_spin_trylock(spin)
+#define do_spin_unlock(spin)\
+	pthread_spin_unlock(spin)
+#define do_spin_init(spin, spin_attr)\
+	pthread_spin_init(spin, spin_attr)
+#define do_spin_destroy(spin)\
+	pthread_spin_destroy(spin)
 
 
 #endif

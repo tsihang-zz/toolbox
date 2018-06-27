@@ -1,7 +1,6 @@
 #ifndef ORYX_UTILS_H
 #define ORYX_UTILS_H
 
-#include "ethtool.h"
 #include "rbtree.h"
 #include "list.h"
 #include "lru.h"
@@ -11,6 +10,9 @@
 #include "tq.h"
 #include "parser.h"
 #include "ring.h"
+#include "memory.h"
+#include "memcache.h"
+#include "ethtool.h"
 
 #define u8_tolower(c) tolower((uint8_t)(c))
 

@@ -82,9 +82,9 @@ typedef struct oryx_actq_t {
 	u32 ul_threshold_min;
 	
 	/** Critical lock for this queue. */
-	os_lock_t *ol_actq_lock;
+	os_mutex_t *ol_actq_lock;
 
-	os_lock_t *ol_lock;
+	os_mutex_t *ol_lock;
 	os_cond_t *ol_cond;
 	
 	u32 ul_peek_backlog;

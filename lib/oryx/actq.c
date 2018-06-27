@@ -38,9 +38,9 @@ static struct oryx_actq_mgr_t actq_mgr = {
 static void _wakeup (struct oryx_actq_t *actq)
 {	
 	if (actq->ul_flags & ACTQ_ENABLE_TRIGGER) {
-		do_lock (actq->ol_lock);
+		do_mutex_lock (actq->ol_lock);
 		oryx_thread_cond_signal(actq->ol_cond);
-		do_unlock (actq->ol_lock);
+		do_mutex_unlock (actq->ol_lock);
 	}
 }
 
@@ -48,9 +48,9 @@ static void _stupor (struct oryx_actq_t *actq)
 {
 	if (atomic_read(&actq->ul_buffered_blocks) == 0) {
 		if (actq->ul_flags & ACTQ_ENABLE_TRIGGER) {
-			do_lock (actq->ol_lock);
+			do_mutex_lock (actq->ol_lock);
 			oryx_thread_cond_wait(actq->ol_cond, actq->ol_lock);		
-			do_unlock (actq->ol_lock);
+			do_mutex_unlock (actq->ol_lock);
 		}
 	}
 }
@@ -209,12 +209,12 @@ oryx_status_t actq_inner_write (struct oryx_actq_t *actq,
 		actq->ul_peek_backlog = MAX(ul_current_backlog, actq->ul_peek_backlog);
 
 		/** write raw to Write Queue. */
-		do_lock(actq->ol_actq_lock);	
+		do_mutex_lock(actq->ol_actq_lock);	
 		list_add_tail (&inner_raw->node, &actq->head);
 		/**
 		 * tracker ("%p, data-> %p\n", inner_raw, RAW_DATA(inner_raw));
 		 */
-		do_unlock(actq->ol_actq_lock);
+		do_mutex_unlock(actq->ol_actq_lock);
 		actq->fn_wakeup(actq);
 		return 0;
 	}
@@ -234,7 +234,7 @@ oryx_status_t actq_inner_read (struct oryx_actq_t *actq,
 	if (actq->ul_flags & ACTQ_ENABLE_READ) {
 		struct oryx_actq_raw_t *pos, *n;
 
-		do_lock(actq->ol_actq_lock);
+		do_mutex_lock(actq->ol_actq_lock);
 		list_for_each_entry_safe (pos, n, &actq->head, node) {
 			/** Read raw from Read Queue. */
 			list_del (&pos->node);
@@ -250,7 +250,7 @@ oryx_status_t actq_inner_read (struct oryx_actq_t *actq,
 
 			break;
 		}
-		do_unlock(actq->ol_actq_lock);
+		do_mutex_unlock(actq->ol_actq_lock);
 	}
 	
 	return s;

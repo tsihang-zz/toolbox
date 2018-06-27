@@ -103,7 +103,7 @@ typedef struct vlib_port_main {
 	struct oryx_timer_t		*link_detect_tmr;
 	u32						link_detect_tmr_interval;
 	u32						poll_interval;
-	os_lock_t				lock;
+	os_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
 	

@@ -46,9 +46,9 @@ struct oryx_htable_t
 #define HTABLE_PRINT_INFO	(1 << 1)
 	u32 ul_flags;
 
-	os_lock_t *os_lock;
-	oryx_status_t (*ht_lock_fn)(os_lock_t *lock);
-	oryx_status_t (*ht_unlock_fn)(os_lock_t *lock);
+	os_mutex_t *os_lock;
+	oryx_status_t (*ht_lock_fn)(os_mutex_t *lock);
+	oryx_status_t (*ht_unlock_fn)(os_mutex_t *lock);
 };
 
 

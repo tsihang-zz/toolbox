@@ -64,27 +64,27 @@ int iface_rename(vlib_port_main_t *pm,
 
 int iface_add(vlib_port_main_t *pm, struct iface_t *this)
 {
-	do_lock (&pm->lock);
+	do_mutex_lock (&pm->lock);
 	int r = oryx_htable_add(pm->htable, iface_alias(this),
 						strlen((const char *)iface_alias(this)));
 	if (r == 0) {
 		vec_set_index (pm->entry_vec, this->ul_id, this);
 		pm->ul_n_ports ++;
 	}
-	do_unlock (&pm->lock);
+	do_mutex_unlock (&pm->lock);
 	return r;
 }
 
 int iface_del(vlib_port_main_t *pm, struct iface_t *this)
 {
-	do_lock (&pm->lock);
+	do_mutex_lock (&pm->lock);
 	int r = oryx_htable_del(pm->htable, iface_alias(this),
 						strlen((const char *)iface_alias(this)));
 	if (r == 0) {
 		vec_unset (pm->entry_vec, this->ul_id);
 		pm->ul_n_ports --;
 	}
-	do_unlock (&pm->lock);
+	do_mutex_unlock (&pm->lock);
 	return r;
 }
 

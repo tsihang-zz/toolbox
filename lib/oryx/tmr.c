@@ -5,12 +5,12 @@ typedef struct oryx_tmr_mgr_t {
 	/** sigtmr head */
 	struct list_head sigtmr_head;
 
-	os_lock_t ol_sigtmr_lock;
+	os_mutex_t ol_sigtmr_lock;
 	atomic64_t  sigtmr_cur_ticks;
 	
 	/** advanced tmr head */
 	struct list_head tmr_head;
-	os_lock_t ol_tmr_lock;
+	os_mutex_t ol_tmr_lock;
 	atomic64_t  tmr_cur_ticks;
 
 	u32 ul_tmr_cnt;
@@ -215,7 +215,7 @@ static struct oryx_task_t advanced_tmr_task =
 
 void oryx_tmr_start (struct oryx_timer_t *tmr)
 {
-	os_lock_t *lock;
+	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
 	/** lookup alias. */
@@ -234,7 +234,7 @@ void oryx_tmr_start (struct oryx_timer_t *tmr)
 
 void oryx_tmr_stop (struct oryx_timer_t *tmr)
 {
-	os_lock_t *lock;
+	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
 	/** lookup alias. */
@@ -253,7 +253,7 @@ void oryx_tmr_stop (struct oryx_timer_t *tmr)
 
 void oryx_tmr_destroy (struct oryx_timer_t *tmr)
 {
-	os_lock_t *lock;
+	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
 	/** lookup alias. */
@@ -297,7 +297,7 @@ struct oryx_timer_t *oryx_tmr_create (int module,
     struct oryx_timer_t *_this = NULL, *p;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
     struct list_head *h;
-	os_lock_t *lock;
+	os_mutex_t *lock;
 	
     if (unlikely(!sc_alias)){
             printf ( 

@@ -25,26 +25,26 @@ typedef struct FlowQueue_
     uint32_t dbg_maxlen;
 #endif /* DBG_PERF */
 #ifdef FQLOCK_MUTEX
-    os_lock_t m;
+    os_mutex_t m;
 #elif defined FQLOCK_SPIN
-    SCSpinlock s;
+    os_spinlock_t s;
 #else
     #error Enable FQLOCK_SPIN or FQLOCK_MUTEX
 #endif
 } FlowQueue;
 
 #ifdef FQLOCK_SPIN
-    #define FQLOCK_INIT(q) SCSpinInit(&(q)->s, 0)
-    #define FQLOCK_DESTROY(q) SCSpinDestroy(&(q)->s)
-    #define FQLOCK_LOCK(q) SCSpinLock(&(q)->s)
-    #define FQLOCK_TRYLOCK(q) SCSpinTrylock(&(q)->s)
-    #define FQLOCK_UNLOCK(q) SCSpinUnlock(&(q)->s)
+    #define FQLOCK_INIT(q) do_spin_init(&(q)->s, 0)
+    #define FQLOCK_DESTROY(q) do_spin_destroy(&(q)->s)
+    #define FQLOCK_LOCK(q) do_spin_lock(&(q)->s)
+    #define FQLOCK_TRYLOCK(q) do_spin_trylock(&(q)->s)
+    #define FQLOCK_UNLOCK(q) do_spin_unlock(&(q)->s)
 #elif defined FQLOCK_MUTEX
     #define FQLOCK_INIT(q) pthread_mutex_init(&(q)->m, NULL)
-    #define FQLOCK_DESTROY(q) do_destroy_lock(&(q)->m)
-    #define FQLOCK_LOCK(q) do_lock(&(q)->m)
-    #define FQLOCK_TRYLOCK(q) do_trylock(&(q)->m)
-    #define FQLOCK_UNLOCK(q) do_unlock(&(q)->m)
+    #define FQLOCK_DESTROY(q) do_mutex_destroy(&(q)->m)
+    #define FQLOCK_LOCK(q) do_mutex_lock(&(q)->m)
+    #define FQLOCK_TRYLOCK(q) do_mutex_trylock(&(q)->m)
+    #define FQLOCK_UNLOCK(q) do_mutex_unlock(&(q)->m)
 #else
     #error Enable FQLOCK_SPIN or FQLOCK_MUTEX
 #endif

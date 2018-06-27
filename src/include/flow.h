@@ -205,9 +205,9 @@ typedef struct Flow_
     uint16_t protodetect_dp; /**< 0 if not used */
 
 #ifdef FLOWLOCK_RWLOCK
-    SCRWLock r;
+    os_rwlock_t r;
 #elif defined FLOWLOCK_MUTEX
-    os_lock_t m;
+    os_mutex_t m;
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
@@ -314,9 +314,9 @@ typedef struct FlowBucket_ {
     Flow *head;
     Flow *tail;
 #ifdef FBLOCK_MUTEX
-    os_lock_t m;
+    os_mutex_t m;
 #elif defined FBLOCK_SPIN
-    SCSpinlock s;
+    os_spinlock_t s;
 #else
     #error Enable FBLOCK_SPIN or FBLOCK_MUTEX
 #endif
@@ -329,38 +329,38 @@ typedef struct FlowBucket_ {
 } __attribute__((aligned(64))) FlowBucket;
 
 #ifdef FLOWLOCK_RWLOCK
-    #define FLOWLOCK_INIT(fb) SCRWLockInit(&(fb)->r, NULL)
-    #define FLOWLOCK_DESTROY(fb) SCRWLockDestroy(&(fb)->r)
-    #define FLOWLOCK_RDLOCK(fb) SCRWLockRDLock(&(fb)->r)
-    #define FLOWLOCK_WRLOCK(fb) SCRWLockWRLock(&(fb)->r)
-    #define FLOWLOCK_TRYRDLOCK(fb) SCRWLockTryRDLock(&(fb)->r)
-    #define FLOWLOCK_TRYWRLOCK(fb) SCRWLockTryWRLock(&(fb)->r)
-    #define FLOWLOCK_UNLOCK(fb) SCRWLockUnlock(&(fb)->r)
+    #define FLOWLOCK_INIT(fb) do_rwlock_init(&(fb)->r, NULL)
+    #define FLOWLOCK_DESTROY(fb) do_rwlock_destroy(&(fb)->r)
+    #define FLOWLOCK_RDLOCK(fb) do_rwlock_lock_rd(&(fb)->r)
+    #define FLOWLOCK_WRLOCK(fb) do_rwlock_lock_wr(&(fb)->r)
+    #define FLOWLOCK_TRYRDLOCK(fb) do_rwlock_trylock_rd(&(fb)->r)
+    #define FLOWLOCK_TRYWRLOCK(fb) do_rwlock_trylock_wr(&(fb)->r)
+    #define FLOWLOCK_UNLOCK(fb) do_rwlock_unlock(&(fb)->r)
 #elif defined FLOWLOCK_MUTEX
-    #define FLOWLOCK_INIT(fb) pthread_mutex_init(&(fb)->m, NULL)
-    #define FLOWLOCK_DESTROY(fb) do_destroy_lock(&(fb)->m)
-    #define FLOWLOCK_RDLOCK(fb) do_lock(&(fb)->m)
-    #define FLOWLOCK_WRLOCK(fb) do_lock(&(fb)->m)
-    #define FLOWLOCK_TRYRDLOCK(fb) do_trylock(&(fb)->m)
-    #define FLOWLOCK_TRYWRLOCK(fb) do_trylock(&(fb)->m)
-    #define FLOWLOCK_UNLOCK(fb) do_unlock(&(fb)->m)
+    #define FLOWLOCK_INIT(fb) do_mutex_init(&(fb)->m)
+    #define FLOWLOCK_DESTROY(fb) do_mutex_destroy(&(fb)->m)
+    #define FLOWLOCK_RDLOCK(fb) do_mutex_lock(&(fb)->m)
+    #define FLOWLOCK_WRLOCK(fb) do_mutex_lock(&(fb)->m)
+    #define FLOWLOCK_TRYRDLOCK(fb) do_mutex_trylock(&(fb)->m)
+    #define FLOWLOCK_TRYWRLOCK(fb) do_mutex_trylock(&(fb)->m)
+    #define FLOWLOCK_UNLOCK(fb) do_mutex_unlock(&(fb)->m)
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
 
 
 #ifdef FBLOCK_SPIN
-    #define FBLOCK_INIT(fb) SCSpinInit(&(fb)->s, 0)
-    #define FBLOCK_DESTROY(fb) SCSpinDestroy(&(fb)->s)
-    #define FBLOCK_LOCK(fb) SCSpinLock(&(fb)->s)
-    #define FBLOCK_TRYLOCK(fb) SCSpinTrylock(&(fb)->s)
-    #define FBLOCK_UNLOCK(fb) SCSpinUnlock(&(fb)->s)
+    #define FBLOCK_INIT(fb) do_spin_init(&(fb)->s, 0)
+    #define FBLOCK_DESTROY(fb) do_spin_destroy(&(fb)->s)
+    #define FBLOCK_LOCK(fb) do_spin_lock(&(fb)->s)
+    #define FBLOCK_TRYLOCK(fb) do_spin_trylock(&(fb)->s)
+    #define FBLOCK_UNLOCK(fb) do_spin_unlock(&(fb)->s)
 #elif defined FBLOCK_MUTEX
     #define FBLOCK_INIT(fb) pthread_mutex_init(&(fb)->m, NULL)
-    #define FBLOCK_DESTROY(fb) do_destroy_lock(&(fb)->m)
-    #define FBLOCK_LOCK(fb) do_lock(&(fb)->m)
-    #define FBLOCK_TRYLOCK(fb) do_trylock(&(fb)->m)
-    #define FBLOCK_UNLOCK(fb) do_unlock(&(fb)->m)
+    #define FBLOCK_DESTROY(fb) do_mutex_destroy(&(fb)->m)
+    #define FBLOCK_LOCK(fb) do_mutex_lock(&(fb)->m)
+    #define FBLOCK_TRYLOCK(fb) do_mutex_trylock(&(fb)->m)
+    #define FBLOCK_UNLOCK(fb) do_mutex_unlock(&(fb)->m)
 #else
     #error Enable FBLOCK_SPIN or FBLOCK_MUTEX
 #endif

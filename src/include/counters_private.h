@@ -43,7 +43,7 @@ typedef struct StatsPublicThreadContext_ {
     uint16_t curr_id;
 
     /* mutex to prevent simultaneous access during update_counter/output_stat */
-    os_lock_t m;
+    os_mutex_t m;
 } StatsPublicThreadContext;
 
 

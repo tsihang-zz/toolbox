@@ -3,7 +3,7 @@
 
 struct oryx_kmcache_t {
 	const char *name;
-	os_lock_t *lock;
+	os_mutex_t *lock;
 	/** Object size. */
 	size_t obj_size;
 	size_t off;

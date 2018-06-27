@@ -63,7 +63,7 @@ struct CounterCtx {
     atomic_t curr_id;
 
 	/** lock for head. */
-	os_lock_t m;
+	os_mutex_t m;
 
 	/* size of head array in elements */
     uint32_t size;
@@ -75,7 +75,7 @@ struct CounterCtx {
 
 struct StatsGlobalCtx {
 	struct oryx_htable_t *counter_id_hash;
-	os_lock_t lock;
+	os_mutex_t lock;
 };
 
 

@@ -47,7 +47,7 @@ SRCS-classify += \
 	rfc.c em.c lpm.c acl.c
 
 SRCS-dp_dpdk += \
-	dpdk.c dpdk_rss.c 
+	queue.c mpool.c dpdk.c dpdk_rss.c 
 
 SRCS-dp_flow += \
 	dp_flow.c dp_flow_queue.c

@@ -11,8 +11,8 @@ void *oryx_kc_alloc(struct oryx_kmcache_t *cachep)
 {
 	void *node = NULL;
 
-	do_lock (cachep->lock);
-	do_unlock (cachep->lock);
+	do_mutex_lock (cachep->lock);
+	do_mutex_unlock (cachep->lock);
 
 	node = kmalloc(cachep->obj_size, MPF_CLR, __oryx_unused_val__);
 	if (cachep->ctor)
@@ -25,12 +25,12 @@ void oryx_kc_free(struct oryx_kmcache_t *cachep, void *objp)
 {
 	assert(objp);
 
-	do_lock (cachep->lock);
+	do_mutex_lock (cachep->lock);
 	/**
 	 * FIXME UP.
 	 */
 	 kfree (objp);
-	do_unlock(cachep->lock);
+	do_mutex_unlock(cachep->lock);
 }
 
 

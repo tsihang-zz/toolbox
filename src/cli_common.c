@@ -271,7 +271,7 @@ DEFUN(clear_dp_stats,
 	return CMD_SUCCESS;
 }
 
-void common_cli(void)
+void common_cli(vlib_main_t *vm)
 {
 	ThreadVars *tv;
 	

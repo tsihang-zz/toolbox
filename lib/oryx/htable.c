@@ -2,14 +2,14 @@
 #include "oryx.h"
 
 static __oryx_always_inline__
-oryx_status_t func_lock (os_lock_t *lock)
+oryx_status_t func_lock (os_mutex_t *lock)
 {
 	lock = lock;
 	return 0;
 }
 
 static __oryx_always_inline__
-oryx_status_t func_unlock (os_lock_t *lock)
+oryx_status_t func_unlock (os_mutex_t *lock)
 {
 	lock = lock;
 	return 0;

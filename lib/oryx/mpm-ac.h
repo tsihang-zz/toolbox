@@ -74,13 +74,13 @@ static __oryx_always_inline__ void CudaBufferPacket(CudaThreadVars *ctv, Packet 
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled) {
         while (!p->cuda_pkt_vars.cuda_done) {
-            do_lock(&p->cuda_pkt_vars.cuda_mutex);
+            do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
             if (p->cuda_pkt_vars.cuda_done) {
-                do_unlock(&p->cuda_pkt_vars.cuda_mutex);
+                do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
                 break;
             } else {
                 do_cond_wait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
-                do_unlock(&p->cuda_pkt_vars.cuda_mutex);
+                do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
             }
         }
     }
