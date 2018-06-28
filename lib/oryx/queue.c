@@ -24,9 +24,9 @@ int fq_new(const char *fq_name, struct qctx_t ** fq)
 }
 
 /**
- *  \brief Destroy a flow queue
+ *  \brief Destroy a queue
  *
- *  \param q the flow queue to destroy
+ *  \param q the queue to destroy
  */
 void fq_destroy (struct qctx_t * fq)
 {

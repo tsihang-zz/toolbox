@@ -181,6 +181,12 @@ int main (int argc, char **argv)
 	uint32_t val_start, val_end;
 	int ret;
 
+#if defined(BUILD_DEBUG)
+	printf("RUN in debug mode\n");
+#else
+	printf("RUN in release mode\n");
+#endif
+
 	ret = format_range("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
 	printf ("ret = %d, start %d end %d\n",
 		ret, val_start, val_end);

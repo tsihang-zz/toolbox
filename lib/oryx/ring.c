@@ -25,60 +25,15 @@ int oryx_ring_create(const char *ring_name,
 	}
 	memset(r->data, 0, sizeof(struct oryx_ring_data_t) * nb_data);
 	
-	r->rp		= 0;
-	r->wp		= nb_data;
-	r->nb_data	= nb_data;
-	r->ul_flags	= flags;
+	r->rp			= 0;
+	r->wp			= nb_data;
+	r->nb_data		= nb_data;
+	r->ul_flags		= flags;
 	r->ring_name	= ring_name;
-
+	RLOCK_INIT(r);
+	
 	(*ring) = r;
 	return 0;	
-}
-
-
-int oryx_ring_get(struct oryx_ring_t *ring, void **data, uint16_t *data_size)
-{
-	uint32_t rp = 0;
-
-	/** ring invalid */
-	if(unlikely(!ring))
-		return -1;
-	
-	(*data)		= NULL;
-	(*data_size)	= 0;
-
-	rp = ring->rp;
-	if(rp == ring->wp) {
-		return 0; /** no new data in ring. */
-	}
-
-	(*data)		= ring->data[rp].v;
-	(*data_size)	= ring->data[rp].s;
-	ring->rp 	= (ring->rp + 1) % ring->nb_data;
-	ring->ul_rp_times ++;
-	
-	return 0;
-}
-
-int oryx_ring_put(struct oryx_ring_t *ring, void *data, uint16_t data_size)
-{
-	uint32_t wp = 0;
-
-	if(unlikely(!ring))
-		return -1;
-	
-	wp = ring->wp;
-	if(((wp + 1) % ring->nb_data) == ring->rp){
-		/** ring full */
-		return -1;
-	}	
-
-	ring->data[wp].v	= data;
-	ring->data[wp].s	= data_size;
-	ring->wp		= (ring->wp + 1) % ring->nb_data;
-	ring->ul_wp_times ++;
-	
-	return 0;
 }
 
 void oryx_ring_dump(struct oryx_ring_t *ring)
