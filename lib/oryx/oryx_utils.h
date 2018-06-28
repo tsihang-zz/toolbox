@@ -12,6 +12,8 @@
 #include "ring.h"
 #include "memory.h"
 #include "memcache.h"
+#include "queue.h"
+#include "mpool.h"
 #include "ethtool.h"
 
 #define u8_tolower(c) tolower((uint8_t)(c))

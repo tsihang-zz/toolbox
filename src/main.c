@@ -196,8 +196,6 @@ int main (int argc, char **argv)
 
 	oryx_initialize();
 
-	fq_sample();
-	
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
