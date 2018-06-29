@@ -339,7 +339,7 @@ prefix_same (const struct prefix *p1, const struct prefix *p2)
 	  return 1;
 #endif /* HAVE_IPV6 */
       if (p1->family == AF_ETHERNET) {
-	if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHER_ADDR_LEN))
+	if (!memcmp(p1->u.prefix_eth.octet, p2->u.prefix_eth.octet, ETHERADDRL))
 	    return 1;
       }
     }
@@ -846,7 +846,7 @@ prefix_blen (const struct prefix *p)
       break;
 #endif /* HAVE_IPV6 */
     case AF_ETHERNET:
-      return ETHER_ADDR_LEN;
+      return ETHERADDRL;
     }
   return 0;
 }
@@ -887,10 +887,10 @@ prefix2str (union prefix46constptr pu, char *str, int size)
     int		i;
     char	*s = str;
 
-    assert(size > (3*ETHER_ADDR_LEN) + 1 /* slash */ + 3 /* plen */ );
-    for (i = 0; i < ETHER_ADDR_LEN; ++i) {
+    assert(size > (3*ETHERADDRL) + 1 /* slash */ + 3 /* plen */ );
+    for (i = 0; i < ETHERADDRL; ++i) {
 	sprintf(s, "%02x", p->u.prefix_eth.octet[i]);
-	if (i < (ETHER_ADDR_LEN - 1)) {
+	if (i < (ETHERADDRL - 1)) {
 	    *(s+2) = ':';
 	    s += 3;
 	} else {

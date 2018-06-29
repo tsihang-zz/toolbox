@@ -35,8 +35,8 @@ atomic_t n_map_elements = ATOMIC_INIT(0);
 	vty_out (vty, "%s(Success)%s %s map \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
-static __oryx_always_inline__
-void map_free (const ht_value_t v)
+static void
+map_free (const ht_value_t v)
 {
 	/** Never free here! */
 }

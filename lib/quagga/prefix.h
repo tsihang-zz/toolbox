@@ -41,16 +41,12 @@
 #define ETHERADDRL 6
 #endif
 
-#ifndef ETHER_ADDR_LEN
-#define ETHER_ADDR_LEN  ETHERADDRL
-#endif
-
 /*
  * there isn't a portable ethernet address type. We define our
  * own to simplify internal handling
  */
 struct ethaddr {
-    u_char octet[ETHER_ADDR_LEN];
+    u_char octet[ETHERADDRL];
 } __packed;
 
 
