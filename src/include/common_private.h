@@ -61,7 +61,7 @@ enum {
 	QUAS,
 };
 
-typedef struct vlib_main_s
+typedef struct vlib_main
 {
 	int					argc;
 	char				*argv[1024];

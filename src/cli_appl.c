@@ -470,7 +470,7 @@ DEFUN(test_application,
   return CMD_SUCCESS;
 }
 
-void appl_init(vlib_main_t *vm)
+void vlib_appl_init(vlib_main_t *vm)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
 

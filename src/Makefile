@@ -38,6 +38,9 @@ ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 #
 APP = et1500
 
+SRCS-kafka += \
+	kafka.c
+
 SRCS-cli += \
 	util_iface.c util_map.c util_udp.c util_ipset.c\
 	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
@@ -67,6 +70,7 @@ SRCS-y += \
 	$(SRCS-dp_flow) \
 	$(SRCS-dp_dpdk) \
 	$(SRCS-cli) \
+	$(SRCS-kafka)
 
 #CFLAGS += $(WERROR_FLAGS)
 CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wpointer-arith -Wcast-align -Wfloat-equal -Wsign-compare
@@ -84,11 +88,14 @@ CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/include\
 		  -I$(SRCDIR)/../lib\
 		  -I$(SRCDIR)/../lib/quagga\
-		  -I$(SRCDIR)/../lib/oryx
+		  -I$(SRCDIR)/../lib/oryx\
+		  -I$(SRCDIR)/../lib/librdkafka/include
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lyaml -lpcap
 
+LDLIBS += -L/usr/local/lib
+LDLIBS += -lrdkafka
 
 LDLIBS += -L$(subst src,lib/oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

@@ -5,7 +5,7 @@
 
 extern atomic_t n_application_elements;
 
-extern void appl_init(vlib_main_t *vm);
+extern void vlib_appl_init(vlib_main_t *vm);
 
 #define split_foreach_application_func1_param0(argv_x, func)\
 		const char *split = ",";/** split tokens */\

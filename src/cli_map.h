@@ -2,7 +2,7 @@
 #define CLI_MAP_H
 
 extern atomic_t n_map_elements;
-extern void map_init(vlib_main_t *vm);
+extern void vlib_map_init(vlib_main_t *vm);
 
 #define split_foreach_map_func1_param0(argv_x, func) {\
 	const char *split = ",";/** split tokens */\

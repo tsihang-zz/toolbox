@@ -15,7 +15,7 @@
 #define	DIM(a)	(sizeof (a) / sizeof ((a)[0]))
 #endif
 
-vlib_port_main_t vlib_port_main = {
+vlib_iface_main_t vlib_iface_main = {
 	.lock = INIT_MUTEX_VAL,
 };
 
@@ -29,14 +29,14 @@ vlib_port_main_t vlib_port_main = {
 
 atomic_t n_intf_elements = ATOMIC_INIT(0);
 
-static __oryx_always_inline__
-void port_free (const ht_value_t v)
+static
+void ht_iface_free (const ht_value_t v)
 {
 	/** Never free here! */
 }
 
-static uint32_t
-port_hval (struct oryx_htable_t *ht,
+static
+uint32_t ht_iface_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
@@ -55,8 +55,8 @@ port_hval (struct oryx_htable_t *ht,
      return hv;
 }
 
-static int
-port_cmp (const ht_value_t v1, 
+static
+int ht_iface_cmp (const ht_value_t v1, 
 		uint32_t s1,
 		const ht_value_t v2,
 		uint32_t s2)
@@ -70,33 +70,33 @@ port_cmp (const ht_value_t v1,
 	return xret;
 }
 
-/** if a null port specified, map_entry_output display all */
+/** if a null iface specified, map_entry_output display all */
 static __oryx_always_inline__
-void iface_entry_out (struct iface_t *port, struct vty *vty)
+void iface_entry_out (struct iface_t *iface, struct vty *vty)
 {
-	BUG_ON(port == NULL);
+	BUG_ON(iface == NULL);
 	
 	vty_out (vty, "%s", VTY_NEWLINE);
-	/** find this port named 'alias'. */
-	vty_out (vty, "%16s\"%s\"(%u)%s", "Port ", iface_alias(port), port->ul_id, VTY_NEWLINE);
+	/** find this iface named 'alias'. */
+	vty_out (vty, "%16s\"%s\"(%u)%s", "Port ", iface_alias(iface), iface->ul_id, VTY_NEWLINE);
 
 	vty_out (vty, "	%16s%02X:%02X:%02X:%02X:%02X:%02X%s", 
 		"Mac: ", 
-		port->eth_addr[0], port->eth_addr[1], port->eth_addr[2],
-		port->eth_addr[3], port->eth_addr[4], port->eth_addr[5], VTY_NEWLINE);
+		iface->eth_addr[0], iface->eth_addr[1], iface->eth_addr[2],
+		iface->eth_addr[3], iface->eth_addr[4], iface->eth_addr[5], VTY_NEWLINE);
 
-	if (port->ul_flags & NETDEV_ADMIN_UP) {
+	if (iface->ul_flags & NETDEV_ADMIN_UP) {
 		struct oryx_fmt_buff_t fmt = FMT_BUFF_INITIALIZATION;
-		if (port->type == ETH_XE)
-			oryx_format(&fmt, "%d Mbps - %s", port->link_speed, ethtool_duplex(port->link_duplex));
+		if (iface->type == ETH_XE)
+			oryx_format(&fmt, "%d Mbps - %s", iface->link_speed, ethtool_duplex(iface->link_duplex));
 		else
-			oryx_format(&fmt, "%s Mbps - %s", ethtool_speed(port->link_speed), ethtool_duplex(port->link_duplex));
+			oryx_format(&fmt, "%s Mbps - %s", ethtool_speed(iface->link_speed), ethtool_duplex(iface->link_duplex));
 		vty_out (vty, " %16s%s, %s%s", 
-				"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", FMT_DATA(fmt), VTY_NEWLINE);
+				"State: ", (iface->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", FMT_DATA(fmt), VTY_NEWLINE);
 		oryx_format_free(&fmt);
 	} else {
 		vty_out (vty, " %16s%s%s", 
-				"State: ", (port->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
+				"State: ", (iface->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
 	}
 
 	
@@ -126,7 +126,7 @@ void iface_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 }
 
 	
-/** if a null port specified, map_entry_output display all */
+/** if a null iface specified, map_entry_output display all */
 static __oryx_always_inline__
 void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 {
@@ -156,7 +156,7 @@ void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 	}
 
 	{
-		/** find this port named 'alias'. */
+		/** find this iface named 'alias'. */
 	
 		sprintf (format, "%s(%02u)", iface_alias(iface), iface_id(iface));
 		vty_out (vty, "%20s", format);
@@ -185,26 +185,26 @@ void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 }
 
 static __oryx_always_inline__
-void iface_entry_config (struct iface_t *port,
+void iface_entry_config (struct iface_t *iface,
 			struct vty *vty, const struct prefix_t *var)
 {
-	u32 ul_flags = port->ul_flags;
-	vlib_port_main_t *pm = &vlib_port_main;
+	u32 ul_flags = iface->ul_flags;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	
 	switch (var->cmd)
 	{
 		case INTERFACE_SET_ALIAS:
-			if (strlen ((char *)var->v) > sizeof (iface_alias(port))) {
-				VTY_ERROR_PORT("invalid alias", iface_alias(port));
+			if (strlen ((char *)var->v) > sizeof (iface_alias(iface))) {
+				VTY_ERROR_PORT("invalid alias", iface_alias(iface));
 				break;
 			}
 			struct iface_t *exist;/** check same alias. */
 			iface_lookup_alias(pm, (const char *)var->v, &exist);
 			if (exist) {
-				VTY_ERROR_PORT("alias been named by a port", iface_alias(exist));
+				VTY_ERROR_PORT("alias been named by a iface", iface_alias(exist));
 				break;
 			}	
-			iface_rename(pm, port, (const char *)var->v);
+			iface_rename(pm, iface, (const char *)var->v);
 			break;
 			
 		case INTERFACE_SET_MTU:
@@ -214,7 +214,7 @@ void iface_entry_config (struct iface_t *port,
 			ul_flags |= NETDEV_LOOPBACK;
 			if (!strncmp ((char *)var->v, "d", 1))
 				ul_flags &= ~NETDEV_LOOPBACK;
-			port->ul_flags = ul_flags;
+			iface->ul_flags = ul_flags;
 			break;
 			
 		case INTERFACE_CLEAR_STATS:
@@ -238,7 +238,8 @@ DEFUN(show_interfacce,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
+	
 	vty_out (vty, "Trying to display %s%d%s elements ...%s", 
 		draw_color(COLOR_RED), vec_active(pm->entry_vec), draw_color(COLOR_FIN), 
 		VTY_NEWLINE);
@@ -267,9 +268,11 @@ DEFUN(show_interfacce_stats,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
+	
 	vty_out(vty, "Trying to display %d elements ...%s", 
 			vec_active(pm->entry_vec), VTY_NEWLINE);
+
 	vty_out(vty, "%20s%20s%20s%s", "Port", "Rx(p/b)", "Tx(p/b)", VTY_NEWLINE);
 	
 	if (argc == 0) {
@@ -298,7 +301,7 @@ DEFUN(clear_interface_stats,
 	KEEP_QUITE_STR
 	KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	vty_out(vty, "Trying to display %d elements ...%s", 
 			vec_active(pm->entry_vec), VTY_NEWLINE);
 
@@ -324,7 +327,7 @@ DEFUN(interface_alias,
 	  KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_ALIAS,
 		.v = (const char *)argv[1],
@@ -351,7 +354,7 @@ DEFUN(interface_mtu,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_MTU,
 		.v = (const char *)argv[1],
@@ -380,7 +383,7 @@ DEFUN(interface_looback,
       KEEP_QUITE_STR
       KEEP_QUITE_CSTR)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_LOOPBACK,
 		.v = (const char *)argv[1],
@@ -423,9 +426,9 @@ static int iface_poll_linkstate(struct iface_t *this)
 		}
 		/** down -> up */
 		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) {
-			this->link_autoneg = 1;
-			this->link_duplex = ethtool.duplex;
-			this->link_speed = ethtool.speed;
+			this->link_autoneg	= 1;
+			this->link_duplex	= ethtool.duplex;
+			this->link_speed	= ethtool.speed;
 			oryx_logn("%s is Link Up - Speed %s Mbps - %s", iface_alias(this),
 				ethtool_speed(ethtool.speed), ethtool_duplex(ethtool.duplex));
 		}
@@ -448,9 +451,9 @@ static int iface_poll_linkstate(struct iface_t *this)
 			oryx_logn("%s is down", iface_alias(this));
 		}
 		if (!(this->ul_flags & NETDEV_ADMIN_UP) && rv == 1) { /** down -> up */
-			this->link_autoneg = 1;
-			this->link_duplex = link.link_duplex;
-			this->link_speed = link.link_speed;
+			this->link_autoneg	= 1;
+			this->link_duplex	= link.link_duplex;
+			this->link_speed	= link.link_speed;
 			oryx_logn("%s is Link Up - Speed %u Mbps - %s", iface_alias(this), 
 				(unsigned)link.link_speed, (link.link_duplex == ETH_LINK_FULL_DUPLEX) ? \
 					("Full-Duplex") : ("Half-Duplex"));
@@ -697,7 +700,7 @@ static void register_ports(void)
 	int i;
 	struct iface_t *new;
 	struct iface_t *this;
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	int n_ports_now = vec_count(pm->entry_vec);
 
 	/** SW<->CPU ports, only one. */
@@ -705,8 +708,8 @@ static void register_ports(void)
 
 		this = &iface_list[i];
 		
-		/** lan1-lan8 are not vfio-pci drv port. */
-		if(this->type == ETH_GE && this->ul_flags & NETDEV_PANEL) {
+		/** lan1-lan8 are not vfio-pci drv iface. */
+		if (this->type == ETH_GE && (this->ul_flags & NETDEV_PANEL)) {
 			if (!netdev_exist(this->sc_alias_fixed)) {
 				continue;
 			}
@@ -715,15 +718,15 @@ static void register_ports(void)
 		iface_alloc(&new);
 		if (!new) {
 			oryx_panic(-1, 
-				"Can not alloc memory for a port");
+				"Can not alloc memory for a iface");
 		} else {
 			memcpy(&new->sc_alias[0], this->sc_alias_fixed, strlen(this->sc_alias_fixed));
-			new->sc_alias_fixed = this->sc_alias_fixed;
-			new->type = this->type;
-			new->if_poll_state = this->if_poll_state;
-			new->if_poll_up = this->if_poll_up;
-			new->ul_id = n_ports_now + i;
-			new->ul_flags = this->ul_flags;
+			new->sc_alias_fixed		= this->sc_alias_fixed;
+			new->type				= this->type;
+			new->if_poll_state		= this->if_poll_state;
+			new->if_poll_up			= this->if_poll_up;
+			new->ul_id				= n_ports_now + i;
+			new->ul_flags			= this->ul_flags;
 			if (!iface_add(pm, new))
 				oryx_logn("registering interface %s ... success", iface_alias(new));
 			else
@@ -734,10 +737,10 @@ static void register_ports(void)
 
 
 static __oryx_always_inline__
-void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
-	vlib_port_main_t *pm = &vlib_port_main;	
+	vlib_iface_main_t *pm = &vlib_iface_main;	
 	int each;
 	struct iface_t *this;
 
@@ -747,31 +750,31 @@ void port_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 			if (this->if_poll_state)
 				this->if_poll_state(this);
 
-			/** poll a port up if need. */
+			/** poll a iface up if need. */
 			if(this->ul_flags & NETDEV_POLL_UP) {
 				/** up this interface right now. */
 				if(this->if_poll_up) {
 					this->if_poll_up(this);
 				} else {
 					oryx_loge(-1,
-						"ethdev up driver is not registered, this port will down forever.");
+						"ethdev up driver is not registered, this iface will down forever.");
 				}
 			}
 		}
 	}
 }
 
-void port_init(vlib_main_t *vm)
+void vlib_iface_init(vlib_main_t *vm)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 
 	pm->link_detect_tmr_interval = 3;
 	pm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-			port_hval, port_cmp, port_free, 0);
+					ht_iface_hval, ht_iface_cmp, ht_iface_free, 0);
 	pm->entry_vec = vec_init (MAX_PORTS);
 	
 	if (pm->htable == NULL || pm->entry_vec == NULL) {
-		printf ("vlib port main init error!\n");
+		printf ("vlib iface main init error!\n");
 		exit(0);
 	}
 	    
@@ -784,9 +787,9 @@ void port_init(vlib_main_t *vm)
 
 	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
-	pm->link_detect_tmr = oryx_tmr_create(1, "port activity monitoring tmr", 
+	pm->link_detect_tmr = oryx_tmr_create(1, "iface activity monitoring tmr", 
 							ul_activity_tmr_setting_flags,
-							port_activity_prob_tmr_handler,
+							iface_activity_prob_tmr_handler,
 							0, NULL, pm->link_detect_tmr_interval);
 
 	register_ports();

@@ -47,7 +47,7 @@ void iface_alloc (struct iface_t **this)
 			per_private_ctx0);
 }
 
-int iface_rename(vlib_port_main_t *pm, 
+int iface_rename(vlib_iface_main_t *pm, 
 				struct iface_t *this, const char *new_name)
 {
 	/** Delete old alias from hash table. */
@@ -61,7 +61,7 @@ int iface_rename(vlib_port_main_t *pm,
 
 
 
-int iface_add(vlib_port_main_t *pm, struct iface_t *this)
+int iface_add(vlib_iface_main_t *pm, struct iface_t *this)
 {
 	do_mutex_lock (&pm->lock);
 	int r = oryx_htable_add(pm->htable, iface_alias(this),
@@ -74,7 +74,7 @@ int iface_add(vlib_port_main_t *pm, struct iface_t *this)
 	return r;
 }
 
-int iface_del(vlib_port_main_t *pm, struct iface_t *this)
+int iface_del(vlib_iface_main_t *pm, struct iface_t *this)
 {
 	do_mutex_lock (&pm->lock);
 	int r = oryx_htable_del(pm->htable, iface_alias(this),

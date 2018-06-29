@@ -4,7 +4,7 @@
 #include "iface_private.h"
 
 extern atomic_t n_intf_elements;
-extern void port_init(vlib_main_t *vm);
+extern void vlib_iface_init(vlib_main_t *vm);
 
 #define split_foreach_port_func1(argv_x, func){\
 	const char *split = ",";/** split tokens */\
@@ -12,7 +12,7 @@ extern void port_init(vlib_main_t *vm);
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
@@ -87,7 +87,7 @@ extern void port_init(vlib_main_t *vm);
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
@@ -163,7 +163,7 @@ extern void port_init(vlib_main_t *vm);
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
 	atomic_set(&n_intf_elements, 0);\
 	if (!strcmp (alias_list, "*")) {\
@@ -234,7 +234,7 @@ extern void port_init(vlib_main_t *vm);
 
 #define foreach_port_func1_param0(argv_x, func)\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\
@@ -246,7 +246,7 @@ extern void port_init(vlib_main_t *vm);
 
 #define foreach_port_func1_param1(argv_x, func, param0)\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\
@@ -258,7 +258,7 @@ extern void port_init(vlib_main_t *vm);
 
 #define foreach_port_func1_param2(argv_x, func, param0, param1)\
 		int each;\
-		oryx_vector vec = vlib_port_main.entry_vec;\
+		oryx_vector vec = vlib_iface_main.entry_vec;\
 		atomic_set(&n_intf_elements, 0);\
 		struct iface_t *v;\
 		vec_foreach_element(vec, each, v){\
@@ -271,7 +271,7 @@ extern void port_init(vlib_main_t *vm);
 
 #define foreach_port_func0_param0_func1_param1(argv_x, func0, param0, func1, param1)\
 	int each;\
-	oryx_vector vec = vlib_port_main.entry_vec;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
 	atomic_set(&n_intf_elements, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\

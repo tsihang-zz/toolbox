@@ -201,6 +201,8 @@ int main (int argc, char **argv)
 
 	oryx_initialize();
 
+	//kafka_main(argc, argv);
+	
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;
@@ -213,11 +215,10 @@ int main (int argc, char **argv)
 	vty_init(master);
 	memory_init();
 	
-	port_init(&vlib_main);
+	vlib_iface_init(&vlib_main);
+	vlib_appl_init(&vlib_main);
+	vlib_map_init(&vlib_main);
 
-	//udp_init(&vlib_main);
-	appl_init(&vlib_main);
-	map_init(&vlib_main);
 	common_cli(&vlib_main);
 	oryx_task_registry(&cli_register);
 

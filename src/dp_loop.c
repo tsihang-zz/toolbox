@@ -232,7 +232,7 @@ int dp_send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint32_t
 	uint16_t		nb_tx_pkts;
 	struct iface_t		*tx_iface = NULL;
 	struct rte_mbuf 	**m_table;
-	vlib_port_main_t	*pm = &vlib_port_main;
+	vlib_iface_main_t	*pm = &vlib_iface_main;
 
 	/** port ID -> iface */
 	iface_lookup_id(pm, tx_port_id, &tx_iface);
@@ -266,7 +266,7 @@ int dp_send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	uint32_t		cpu_dsa = 0;
 	uint32_t		tx_panel_ge_id = 0;
 	struct iface_t		*tx_panel_iface = NULL;
-	vlib_port_main_t	*pm = &vlib_port_main;
+	vlib_iface_main_t	*pm = &vlib_iface_main;
 	
 	if (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID) {
 		Packet *p = GET_MBUF_PRIVATE(Packet, m);
@@ -343,7 +343,7 @@ void dp_classify_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int index)
 {
 	Packet			*p;
-	vlib_port_main_t	*pm = &vlib_port_main;
+	vlib_iface_main_t	*pm = &vlib_iface_main;
 	struct rte_mbuf 	*pkt = pkts_in[index];
 	struct iface_t		*rx_panel_iface = NULL;
 	
@@ -612,7 +612,7 @@ int main_loop (void *ptr_data)
 	ThreadVars		*tv;
 	DecodeThreadVars	*dtv;
 	vlib_main_t		*vm = (vlib_main_t *)ptr_data;
-	vlib_port_main_t	*pm = &vlib_port_main;
+	vlib_iface_main_t	*pm = &vlib_iface_main;
 	vlib_map_main_t		*mm = &vlib_map_main;
 
 	struct lcore_conf	*qconf;

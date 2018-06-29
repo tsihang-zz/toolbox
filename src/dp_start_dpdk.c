@@ -55,14 +55,14 @@ static int dp_dpdk_check_port(vlib_main_t *vm)
 {
 	u8 portid;
 	struct iface_t *this;
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	int n_ports_now = vec_count(pm->entry_vec);
 
 	if(!(vm->ul_flags & VLIB_PORT_INITIALIZED)) {
 		oryx_panic(-1, "Run port initialization first.");
 	}
 	
-	/* register to vlib_port_main. */
+	/* register to vlib_iface_main. */
 	for (portid = 0; portid < vm->nb_dpdk_ports; portid ++) {
 		iface_lookup_id(pm, portid, &this);
 		if(!this) {

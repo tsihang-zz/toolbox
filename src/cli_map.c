@@ -253,7 +253,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 {
 	int i;
 	char tmstr[100];
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 	vlib_appl_main_t *am = &vlib_appl_main;
 	struct iface_t *iface;
 	struct appl_t  *appl;
@@ -611,7 +611,7 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 	struct map_t		*map;
 	struct iface_t		*iface;
 	vlib_map_main_t		*mm = &vlib_map_main;
-	vlib_port_main_t	*pm = &vlib_port_main;
+	vlib_iface_main_t	*pm = &vlib_iface_main;
 
 	/** here need a signal from iface.link_detect timer. */
 	vec_foreach_element(mm->entry_vec, each_map, map) {
@@ -647,8 +647,7 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 	}
 }
 
-
-void map_init(vlib_main_t *vm)
+void vlib_map_init(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 

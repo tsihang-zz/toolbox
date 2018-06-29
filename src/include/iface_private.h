@@ -59,10 +59,10 @@ struct iface_t {
 
 	int						(*if_poll_state)(struct iface_t *this);
 	int						(*if_poll_up)(struct iface_t *this);	
-	uint32_t				ul_id;				/**A panel interface ID. 
+	uint32_t				ul_id;				/* A panel interface ID. 
 											 	 * enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
 											 	 * Can be translated by TO_INFACE_ID(Frame.vlan) */
-	char					sc_alias[32];		/**Port name.
+	char					sc_alias[32];		/* Port name.
 												 * for example, Gn_b etc... 
 												 * can be overwritten by CLI. */
 	char					eth_addr[6];		/** ethernet address for this port. */
@@ -97,7 +97,7 @@ struct iface_t {
 		(iface)->if_counter_ctx->lcore_counter_bytes[rx_tx][(lcore)], nb_bytes);
 
 #define VLIB_PM_LINK_TRANSITION_DETECTED			(1 << 0)
-typedef struct vlib_port_main {
+typedef struct vlib_iface_main {
 	int						ul_n_ports;	/* dpdk_ports + sw_ports */
 	uint32_t				ul_flags;
 	struct oryx_timer_t		*link_detect_tmr;
@@ -107,12 +107,12 @@ typedef struct vlib_port_main {
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
 	
-}vlib_port_main_t;
+}vlib_iface_main_t;
 
-extern vlib_port_main_t vlib_port_main;
+extern vlib_iface_main_t vlib_iface_main;
 
 static __oryx_always_inline__
-int iface_lookup_id0(vlib_port_main_t *pm,
+int iface_lookup_id0(vlib_iface_main_t *pm,
 				u32 id, struct iface_t **this)
 {
 	BUG_ON(pm->entry_vec == NULL);
@@ -136,7 +136,7 @@ int iface_lookup_id0(vlib_port_main_t *pm,
 #endif
 
 static __oryx_always_inline__
-int iface_lookup_alias(vlib_port_main_t *pm,
+int iface_lookup_alias(vlib_iface_main_t *pm,
 				const char *alias, struct iface_t **this)
 {
 	(*this) = NULL;
@@ -153,7 +153,7 @@ static __oryx_always_inline__
 void iface_table_entry_lookup (struct prefix_t *lp, 
 				struct iface_t **p)
 {
-	vlib_port_main_t *pm = &vlib_port_main;
+	vlib_iface_main_t *pm = &vlib_iface_main;
 
 	ASSERT (lp);
 	ASSERT (p);
@@ -171,11 +171,11 @@ void iface_table_entry_lookup (struct prefix_t *lp,
 }
 
 void iface_alloc (struct iface_t **);
-int iface_rename(vlib_port_main_t *pm, 
+int iface_rename(vlib_iface_main_t *pm, 
 				struct iface_t *this, const char *new_name);
-int iface_add(vlib_port_main_t *pm, struct iface_t *this);
+int iface_add(vlib_iface_main_t *pm, struct iface_t *this);
 
-int iface_del(vlib_port_main_t *pm, struct iface_t *this);
+int iface_del(vlib_iface_main_t *pm, struct iface_t *this);
 
 
 #endif
