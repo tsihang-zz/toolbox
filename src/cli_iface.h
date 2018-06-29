@@ -4,6 +4,7 @@
 #include "iface_private.h"
 
 extern atomic_t n_intf_elements;
+extern void port_init(vlib_main_t *vm);
 
 #define split_foreach_port_func1(argv_x, func){\
 	const char *split = ",";/** split tokens */\
@@ -23,7 +24,7 @@ extern atomic_t n_intf_elements;
 			}\
 		}\
 	} else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -98,7 +99,7 @@ extern atomic_t n_intf_elements;
 			}\
 		}\
 	} else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -174,7 +175,7 @@ extern atomic_t n_intf_elements;
 			}\
 		}\
 	} else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\

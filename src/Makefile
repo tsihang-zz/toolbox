@@ -69,9 +69,8 @@ SRCS-y += \
 	$(SRCS-cli) \
 
 #CFLAGS += $(WERROR_FLAGS)
-CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wpointer-arith -Wcast-align
-CFLAGS_SRC += -Wundef -Wwrite-strings -Wnested-externs -Wformat-nonliteral
-CFLAGS_SRC += -Wformat-security
+CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wpointer-arith -Wcast-align -Wfloat-equal -Wsign-compare
+CFLAGS_SRC += -Wundef -Wwrite-strings -Wnested-externs -Wformat-nonliteral -Wformat-security
 CFLAGS_SRC += -Wno-missing-declarations -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function
 #CFLAGS_SRC += -Wall -Wmissing-prototypes -Wold-style-definition -Wcast-qual
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)

@@ -19,15 +19,14 @@ atomic_t n_application_elements = ATOMIC_INIT(0);
 			atomic_read(&n_application_elements), am->nb_appls, VTY_NEWLINE);
 
 static __oryx_always_inline__
-void appl_free (void __oryx_unused__ *v)
+void appl_free (const ht_value_t v)
 {
-	v = v; /** To avoid warnings. */
-
+	/** To avoid warnings. */
 }
 
 static uint32_t
 appl_hval (struct oryx_htable_t *ht,
-		void *v, uint32_t s) 
+		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -46,9 +45,9 @@ appl_hval (struct oryx_htable_t *ht,
 }
 
 static int
-appl_cmp (void *v1, 
+appl_cmp (const ht_value_t v1, 
 		uint32_t s1,
-		void *v2,
+		const ht_value_t v2,
 		uint32_t s2)
 {
 	int xret = 0;
@@ -62,7 +61,7 @@ appl_cmp (void *v1,
 
 #define VTY_ERROR_APPLICATION(prefix, alias)\
 			vty_out (vty, "%s(Error)%s %s application \"%s\"%s", \
-				draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, alias, VTY_NEWLINE)
+				draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, (const char *)alias, VTY_NEWLINE)
 		
 #define VTY_SUCCESS_APPLICATION(prefix, v)\
 			vty_out (vty, "%s(Success)%s %s application \"%s\"(%u)%s", \
@@ -173,7 +172,8 @@ static int no_appl_table_entry (struct appl_t *appl, struct vty *vty)
 	return 0;
 }
 
-static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *value)
+static int appl_entry_desenitize (struct appl_t *appl,
+					struct vty *vty, const char *value)
 {
 	char keyword_backup[256] = {0};
 
@@ -195,7 +195,8 @@ static int appl_entry_desenitize (struct appl_t *appl, struct vty *vty, char *va
 	return 0;
 }
 
-static int appl_entry_priority (struct appl_t *appl, struct vty *vty, char *value)
+static int appl_entry_priority (struct appl_t *appl,
+					struct vty *vty, const char *value)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
 	vlib_main_t *vm = am->vm;
@@ -289,20 +290,20 @@ DEFUN(new_application,
 
 	appl_table_entry_deep_lookup((const char *)argv[0], &appl);
 	if (likely(appl)) {
-		VTY_ERROR_APPLICATION ("same", (char *)argv[0]);
+		VTY_ERROR_APPLICATION ("same", argv[0]);
 		appl_entry_output (appl, vty);
 		return CMD_SUCCESS;
 	} 
 
-	appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
+	appl_entry_new (&appl, (const char *)argv[0], APPL_TYPE_STREAM);
 	if (unlikely (!appl)) {
-		VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
+		VTY_ERROR_APPLICATION ("alloc", argv[0]);
 		return CMD_SUCCESS;
 	}
 
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
-		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+		VTY_ERROR_APPLICATION("add", argv[0]);
 	}
 			
     return CMD_SUCCESS;
@@ -340,31 +341,31 @@ DEFUN(new_application1,
 
 	appl_table_entry_deep_lookup((const char *)argv[0], &appl);
 	if (likely(appl)) {
-		VTY_ERROR_APPLICATION ("same", (char *)argv[0]);
+		VTY_ERROR_APPLICATION ("same", argv[0]);
 		appl_entry_output (appl, vty);
 		return CMD_SUCCESS;
 	}
 
-	appl_entry_new (&appl, (char *)argv[0], APPL_TYPE_STREAM);
+	appl_entry_new (&appl, (const char *)argv[0], APPL_TYPE_STREAM);
 	if (unlikely (!appl)) {
-		VTY_ERROR_APPLICATION ("alloc", (char *)argv[0]);
+		VTY_ERROR_APPLICATION ("alloc", argv[0]);
 		return CMD_SUCCESS;
 	}
 	
-	if(appl_entry_format (appl, NULL, "unused var", 
-		(char *)argv[1]	/** VLAN */, 
-		(char *)argv[2]	/** IPSRC */, 
-		(char *)argv[3]	/** IPDST */, 
-		(char *)argv[4]	/** PORTSRC */, 
-		(char *)argv[5]	/** PORTDST */, 
-		(char *)argv[6])/** PROTO */
+	if(appl_entry_format (appl, NULL, (const char *)"unused var", 
+		(const char *)argv[1]	/** VLAN */, 
+		(const char *)argv[2]	/** IPSRC */, 
+		(const char *)argv[3]	/** IPDST */, 
+		(const char *)argv[4]	/** PORTSRC */, 
+		(const char *)argv[5]	/** PORTDST */, 
+		(const char *)argv[6])/** PROTO */
 	) {
 		vty_out(vty, "error command %s", VTY_NEWLINE);
 	}
 	
 	/** Add appl to hash table. */
 	if (appl_entry_add (am, appl)) {
-		VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+		VTY_ERROR_APPLICATION("add", argv[0]);
 	}
 	
     return CMD_SUCCESS;
@@ -380,7 +381,7 @@ DEFUN(set_application_desensitize,
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
 	split_foreach_application_func1_param2 (argv[0], 
-		appl_entry_desenitize, vty, (char *)argv[1]);
+		appl_entry_desenitize, vty, (const char *)argv[1]);
 
 	PRINT_SUMMARY;
 	
@@ -397,7 +398,7 @@ DEFUN(set_application_priority,
 {
   vlib_appl_main_t *am = &vlib_appl_main;
   split_foreach_application_func1_param2 (argv[0], 
-	  appl_entry_priority, vty, (char *)argv[1]);
+	  appl_entry_priority, vty, (const char *)argv[1]);
 
   PRINT_SUMMARY;
   
@@ -443,26 +444,27 @@ DEFUN(test_application,
 	  oryx_ipaddr_generate(ip_src);
 	  oryx_ipaddr_generate(ip_dst);
 	  
-	  appl_entry_new (&appl, (char *)&alias[0], APPL_TYPE_STREAM);
+	  appl_entry_new (&appl, (const char *)&alias[0], APPL_TYPE_STREAM);
 	  if (unlikely (!appl)) {
 		  VTY_ERROR_APPLICATION ("alloc", (char *)&alias[0]);
 		  return CMD_SUCCESS;
 	  }
 	  
-	  if(appl_entry_format (appl, NULL, "unused var", 
-		  (char *)"any" /** VLAN */, 
-		  (char *)&ip_src[0] /** IPSRC */, 
-		  (char *)&ip_dst[0] /** IPDST */, 
-		  (char *)"any" /** PORTSRC */, 
-		  (char *)"any" /** PORTDST */, 
-		  (char *)"any")/** PROTO */
+	  if(appl_entry_format (appl, NULL,
+	  	  (const char *)"unused var", 
+		  (const char *)"any" /** VLAN */, 
+		  (const char *)&ip_src[0] /** IPSRC */, 
+		  (const char *)&ip_dst[0] /** IPDST */, 
+		  (const char *)"any" /** PORTSRC */, 
+		  (const char *)"any" /** PORTDST */, 
+		  (const char *)"any")/** PROTO */
 	  ) {
 		  vty_out(vty, "error command %s", VTY_NEWLINE);
 	  }
 	  
 	  /** Add appl to hash table. */
 	  if (appl_entry_add (am, appl)) {
-		  VTY_ERROR_APPLICATION("add", (char *)argv[0]);
+		  VTY_ERROR_APPLICATION("add", argv[0]);
 	  }
   }
   return CMD_SUCCESS;

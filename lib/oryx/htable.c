@@ -17,7 +17,7 @@ oryx_status_t func_unlock (os_mutex_t *lock)
 
 
 static __oryx_always_inline__
-void func_free (ht_value_t v)
+void func_free (const ht_value_t v)
 {
 #ifdef ORYX_HASH_DEBUG
 	printf ("free %s, %p\n", (char *)v, v);
@@ -27,7 +27,7 @@ void func_free (ht_value_t v)
 
 static ht_key_t
 func_hash (struct oryx_htable_t *ht,
-		void *v, u32 s) 
+		const ht_value_t v, u32 s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -46,9 +46,9 @@ func_hash (struct oryx_htable_t *ht,
 }
 
 static int
-func_cmp (ht_value_t v1, 
+func_cmp (const ht_value_t v1, 
 		u32 s1,
-		ht_value_t v2,
+		const ht_value_t v2,
 		u32 s2)
 {
 	int xret = 0;
@@ -251,7 +251,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
     return -1;
 }
 
-void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
+void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, u32 datalen)
 {
     ht_key_t hash = 0;
 

@@ -2,6 +2,7 @@
 #define CLI_MAP_H
 
 extern atomic_t n_map_elements;
+extern void map_init(vlib_main_t *vm);
 
 #define split_foreach_map_func1_param0(argv_x, func) {\
 	const char *split = ",";/** split tokens */\
@@ -23,7 +24,7 @@ extern atomic_t n_map_elements;
 			}\
 		}\
 	}  else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -101,7 +102,7 @@ extern atomic_t n_map_elements;
 			}\
 		}\
 	}  else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -179,7 +180,7 @@ extern atomic_t n_map_elements;
 			}\
 		}\
 	}  else {\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\

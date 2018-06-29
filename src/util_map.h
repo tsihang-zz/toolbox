@@ -4,7 +4,10 @@
 #include "map_private.h"
 #include "appl_private.h"
 
-int map_entry_new (struct map_t **map, char *alias, char *from, char *to);
+int map_entry_new (struct map_t **map,
+				const char *alias,
+				const char *from,
+				const char *to);
 
 int map_entry_find_same(const char *argv, struct map_t **map);
 

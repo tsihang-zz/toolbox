@@ -29,7 +29,7 @@ extern PacketQueue g_pq[];
 extern void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 extern void dpdk_env_setup(vlib_main_t *vm);
 
-void dp_end_dpdk(struct vlib_main_t *vm)
+void dp_end_dpdk(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
 	u8 portid;
@@ -51,7 +51,7 @@ static const char *enp5s0fx[] = {
 	"enp5s0f3"
 };
 
-static int dp_dpdk_check_port(struct vlib_main_t *vm)
+static int dp_dpdk_check_port(vlib_main_t *vm)
 {
 	u8 portid;
 	struct iface_t *this;
@@ -81,7 +81,7 @@ main_loop(__attribute__((unused)) void *dummy);
 extern void dpdk_format_eal_args (vlib_main_t *vm);
 
 
-void dp_init_dpdk(struct vlib_main_t *vm)
+void dp_init_dpdk(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
 
@@ -91,7 +91,7 @@ void dp_init_dpdk(struct vlib_main_t *vm)
 	dpdk_env_setup(vm);
 }
 
-void dp_start_dpdk(struct vlib_main_t *vm) {
+void dp_start_dpdk(vlib_main_t *vm) {
 
 	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);

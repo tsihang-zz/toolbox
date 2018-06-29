@@ -13,12 +13,11 @@
 #include "prefix.h"
 #include "dp_decode.h"
 #include "dp_main.h"
+#include "cli_appl.h"
+#include "cli_iface.h"
+#include "cli_map.h"
 
 /** CLI decalre */
-extern void appl_init(vlib_main_t *vm);
-extern void port_init(vlib_main_t *vm);
-extern void udp_init(vlib_main_t *vm);
-extern void map_init(vlib_main_t *vm);
 extern void common_cli(vlib_main_t *vm);
 
 /** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
@@ -215,8 +214,6 @@ int main (int argc, char **argv)
 	memory_init();
 	
 	port_init(&vlib_main);
-
-	dp_init_dpdk(&vlib_main);
 
 	//udp_init(&vlib_main);
 	appl_init(&vlib_main);

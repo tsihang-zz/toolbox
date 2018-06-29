@@ -562,7 +562,7 @@ typedef enum {
 
 
 /* Current function name.  Need (char *) cast to silence gcc4 pointer signedness warning. */
-#define oryx_error_function ((char *) __FUNCTION__)
+#define oryx_error_function ((const char *) __FUNCTION__)
 
 #define ASSERT_ENABLE	1
 

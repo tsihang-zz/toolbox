@@ -4,8 +4,8 @@
 extern void
 notify_dp(vlib_main_t *vm, int signum);
 extern void
-dp_start(struct vlib_main_t *vm);
+dp_start(vlib_main_t *vm);
 extern void
-dp_end(struct vlib_main_t *vm);
+dp_end(vlib_main_t *vm);
 
 #endif

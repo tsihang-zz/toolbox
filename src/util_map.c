@@ -82,7 +82,10 @@ int map_entry_remove_appl (struct appl_t *appl, struct map_t *map)
 }
 
 __oryx_always_extern__
-int map_entry_new (struct map_t **map, char *alias, char *from, char *to)
+int map_entry_new (struct map_t **map,
+				const char *alias,
+				const char *from,
+				const char *to)
 {
 	u8 table = MPM_TABLE0;
 
@@ -117,15 +120,15 @@ int map_entry_find_same(const char *argv, struct map_t **map)
 	
 	struct prefix_t lp_al = {
 		.cmd = LOOKUP_ALIAS,
-		.s = strlen ((char *)argv),
+		.s = strlen (argv),
 		.v = (char *)argv,
 	};
 
 	map_table_entry_lookup (&lp_al, &v);
 	if (unlikely (!v)) {
 		/** try id lookup if alldigit input. */
-		if (isalldigit ((char *)argv)) {
-			u32 id = atoi((char *)argv);
+		if (isalldigit (argv)) {
+			u32 id = atoi(argv);
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,
 				.v = (void *)&id,

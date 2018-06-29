@@ -117,7 +117,7 @@ typedef struct {
 	volatile oryx_vector	entry_vec;
 	struct oryx_timer_t		*online_port_update_tmr;
 	struct oryx_htable_t	*htable;	
-	struct vlib_main_t		*vm;
+	void					*vm;
 }vlib_map_main_t;
 
 extern vlib_map_main_t vlib_map_main;

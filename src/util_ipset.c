@@ -17,13 +17,14 @@ void appl_inherit(struct appl_t *son, struct appl_t *father)
 }
 
 int appl_entry_format (struct appl_t *appl,
-	u32 __oryx_unused__*rule_id, const char *unused_var,
-	char __oryx_unused__*vlan,
-	char __oryx_unused__*sip,
-	char __oryx_unused__*dip,
-	char __oryx_unused__*sp,
-	char __oryx_unused__*dp,
-	char __oryx_unused__*proto)
+	const u32 __oryx_unused__*rule_id,
+	const char *unused_var,
+	const char __oryx_unused__*vlan,
+	const char __oryx_unused__*sip,
+	const char __oryx_unused__*dip,
+	const char __oryx_unused__*sp,
+	const char __oryx_unused__*dp,
+	const char __oryx_unused__*proto)
 {
 	struct prefix_ipv4 ip4;
 	uint32_t val_start, val_end;
@@ -139,7 +140,7 @@ int appl_entry_format (struct appl_t *appl,
 }
 
 void appl_entry_new (struct appl_t **appl, 
-			char *alias, u32 __oryx_unused__ type)
+			const char *alias, u32 __oryx_unused__ type)
 {
 	/** create an appl */
 	(*appl) = kmalloc (sizeof (struct appl_t), MPF_CLR, __oryx_unused_val__);
@@ -219,7 +220,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 	
 	} else {
 		/** Add appl_alias(appl) to hash table for controlplane fast lookup */
-		r = oryx_htable_add(am->htable, appl_alias(appl), strlen((const char *)appl_alias(appl)));
+		r = oryx_htable_add(am->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 		if (r != 0)
 			goto finish;
 		
@@ -243,8 +244,8 @@ int appl_table_entry_deep_lookup(const char *argv,
 	
 	struct prefix_t lp_al = {
 		.cmd = LOOKUP_ALIAS,
-		.s = strlen ((char *)argv),
-		.v = (char *)argv,
+		.s = strlen (argv),
+		.v = (void *)argv,
 	};
 
 	appl_table_entry_lookup (&lp_al, &v);
@@ -252,12 +253,12 @@ int appl_table_entry_deep_lookup(const char *argv,
 		(*appl) = v;
 	} else {
 		/** try id lookup if alldigit input. */
-		if (isalldigit ((char *)argv)) {
-			u32 id = atoi((char *)argv);
+		if (isalldigit (argv)) {
+			u32 id = atoi(argv);
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,
 				.v = (void *)&id,
-				.s = strlen ((char *)argv),
+				.s = strlen (argv),
 			};
 			appl_table_entry_lookup (&lp_id, &v);
 			(*appl) = v;

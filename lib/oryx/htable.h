@@ -32,13 +32,13 @@ struct oryx_htable_t
 	int count;
 
 	/** function for create a hash value with the given parameter *v */
-	uint32_t (*hash_fn)(struct oryx_htable_t *, ht_value_t, u32);
+	uint32_t (*hash_fn)(struct oryx_htable_t *, const ht_value_t, u32);
 
 	/** 0: equal, otherwise a value less than zero returned*/
-	int (*cmp_fn)(ht_value_t, u32, ht_value_t, u32);
+	int (*cmp_fn)(const ht_value_t, u32, const ht_value_t, u32);
 
 	/** function for vlaue of oryx_hbucket_t releasing */
-	void (*free_fn)(void *);
+	void (*free_fn)(const ht_value_t);
 
 	/** Synchronized hash table. 
 	 *  Caller can use the hash table safely without maintaining a thread-safe-lock. */

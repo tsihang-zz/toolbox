@@ -21,7 +21,7 @@ vlib_port_main_t vlib_port_main = {
 
 #define VTY_ERROR_PORT(prefix, alias)\
 	vty_out (vty, "%s(Error)%s %s port \"%s\"%s", \
-		draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, alias, VTY_NEWLINE)
+		draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, (const char *)alias, VTY_NEWLINE)
 
 #define VTY_SUCCESS_PORT(prefix, v)\
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
@@ -30,15 +30,14 @@ vlib_port_main_t vlib_port_main = {
 atomic_t n_intf_elements = ATOMIC_INIT(0);
 
 static __oryx_always_inline__
-void port_free (ht_value_t v)
+void port_free (const ht_value_t v)
 {
 	/** Never free here! */
-	v = v;
 }
 
 static uint32_t
 port_hval (struct oryx_htable_t *ht,
-		ht_value_t v, uint32_t s) 
+		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -57,9 +56,9 @@ port_hval (struct oryx_htable_t *ht,
 }
 
 static int
-port_cmp (ht_value_t v1, 
+port_cmp (const ht_value_t v1, 
 		uint32_t s1,
-		ht_value_t v2,
+		const ht_value_t v2,
 		uint32_t s2)
 {
 	int xret = 0;
@@ -186,26 +185,23 @@ void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 }
 
 static __oryx_always_inline__
-void iface_entry_config (struct iface_t *port, void __oryx_unused__ *vty_, void *arg)
+void iface_entry_config (struct iface_t *port,
+			struct vty *vty, const struct prefix_t *var)
 {
-	struct vty *vty = vty_;
-	struct prefix_t *var;
 	u32 ul_flags = port->ul_flags;
 	vlib_port_main_t *pm = &vlib_port_main;
-
-	var = (struct prefix_t *)arg;
-
+	
 	switch (var->cmd)
 	{
 		case INTERFACE_SET_ALIAS:
 			if (strlen ((char *)var->v) > sizeof (iface_alias(port))) {
-				VTY_ERROR_PORT("invalid alias", (char *)iface_alias(port));
+				VTY_ERROR_PORT("invalid alias", iface_alias(port));
 				break;
 			}
 			struct iface_t *exist;/** check same alias. */
 			iface_lookup_alias(pm, (const char *)var->v, &exist);
 			if (exist) {
-				VTY_ERROR_PORT("alias been named by a port", (char *)iface_alias(exist));
+				VTY_ERROR_PORT("alias been named by a port", iface_alias(exist));
 				break;
 			}	
 			iface_rename(pm, port, (const char *)var->v);
@@ -331,12 +327,12 @@ DEFUN(interface_alias,
 	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_ALIAS,
-		.v = (char *)argv[1],
+		.v = (const char *)argv[1],
 		.s = __oryx_unused_val__,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], iface_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
 	
@@ -358,12 +354,12 @@ DEFUN(interface_mtu,
 	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_MTU,
-		.v = (char *)argv[1],
+		.v = (const char *)argv[1],
 		.s = __oryx_unused_val__,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], iface_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
 	
@@ -387,20 +383,19 @@ DEFUN(interface_looback,
 	vlib_port_main_t *pm = &vlib_port_main;
 	struct prefix_t var = {
 		.cmd = INTERFACE_SET_LOOPBACK,
-		.v = (char *)argv[1],
+		.v = (const char *)argv[1],
 		.s = __oryx_unused_val__,
 	};
 	
 	split_foreach_port_func1_param2 (
-		argv[0], iface_entry_config, vty, (void *)&var);
+		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
 	
 	return CMD_SUCCESS;
 }
 
-static __oryx_always_inline__
-int dpdk_iface_is_up(uint32_t portid, struct rte_eth_link *link)
+static int dpdk_iface_is_up(uint32_t portid, struct rte_eth_link *link)
 {
 	rte_eth_link_get_nowait(portid, link);
 	
@@ -413,7 +408,7 @@ int dpdk_iface_is_up(uint32_t portid, struct rte_eth_link *link)
 
 int link_trasition_detected = 0;
 
-int iface_poll_linkstate(struct iface_t *this)
+static int iface_poll_linkstate(struct iface_t *this)
 {
 	int rv;
 	struct ethtool_cmd ethtool;
@@ -476,7 +471,7 @@ int iface_poll_linkstate(struct iface_t *this)
 	return 0;
 }
 
-int iface_poll_up(struct iface_t *this)
+static int iface_poll_up(struct iface_t *this)
 {
 	if (this->type == ETH_GE)
 		return netdev_up(this->sc_alias_fixed);
@@ -697,8 +692,7 @@ static struct iface_t iface_list[] = {
 
 };
 
-
-void register_ports(void)
+static void register_ports(void)
 {
 	int i;
 	struct iface_t *new;

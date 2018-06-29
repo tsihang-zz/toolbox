@@ -5,6 +5,8 @@
 
 extern atomic_t n_application_elements;
 
+extern void appl_init(vlib_main_t *vm);
+
 #define split_foreach_application_func1_param0(argv_x, func)\
 		const char *split = ",";/** split tokens */\
 		char *token = NULL;\
@@ -14,7 +16,7 @@ extern atomic_t n_application_elements;
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -79,7 +81,7 @@ extern atomic_t n_application_elements;
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -145,7 +147,7 @@ extern atomic_t n_application_elements;
 		oryx_vector vec = vlib_appl_main.entry_vec;\
 		struct appl_t *v = NULL;\
 		atomic_set(&n_application_elements, 0);\
-		memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+		memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
@@ -212,7 +214,7 @@ extern atomic_t n_application_elements;
 				oryx_vector vec = vlib_appl_main.entry_vec;\
 				struct appl_t *v = NULL;\
 				atomic_set(&n_application_elements, 0);\
-				memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
+				memcpy (alias_list, (const void *)argv_x, strlen ((const char *)argv_x));\
 				token = strtok_r (alias_list, split, &save);\
 				while (token) {\
 					if (token) {\

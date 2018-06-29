@@ -8,13 +8,13 @@ PacketQueue g_pq[MAX_LCORES];
 volatile bool force_quit = false;
 
 #if defined(HAVE_DPDK)
-void dpdk_env_setup(struct vlib_main_t *vm);
-void dp_start_dpdk(struct vlib_main_t *vm);
-void dp_end_dpdk(struct vlib_main_t *vm);
+extern void dp_init_dpdk(vlib_main_t *vm);
+void dpdk_env_setup(vlib_main_t *vm);
+void dp_start_dpdk(vlib_main_t *vm);
+void dp_end_dpdk(vlib_main_t *vm);
 #endif
 
-void
-dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
+static void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
 {
 	/* register counters */
 	dtv->counter_pkts = 
@@ -173,8 +173,7 @@ notify_dp(vlib_main_t *vm, int signum)
 	}
 }
 
-
-void dp_start(struct vlib_main_t *vm)
+void dp_start(vlib_main_t *vm)
 {
 	int i;
 	ThreadVars *tv;
@@ -182,6 +181,7 @@ void dp_start(struct vlib_main_t *vm)
 	char thrgp_name[128] = {0}; 
 
 #if defined(HAVE_DPDK)
+	dp_init_dpdk(vm);
 	dp_start_dpdk(vm);
 #else
 	vm->nb_lcores = MAX_LCORES;
@@ -202,7 +202,7 @@ void dp_start(struct vlib_main_t *vm)
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }
 
-void dp_end(struct vlib_main_t *vm)
+void dp_end(vlib_main_t *vm)
 {
 #if defined(HAVE_DPDK)
 	dp_end_dpdk(vm);

@@ -29,22 +29,21 @@ atomic_t n_map_elements = ATOMIC_INIT(0);
 
 #define VTY_ERROR_MAP(prefix, alias)\
 	vty_out (vty, "%s(Error)%s %s map \"%s\"%s", \
-		draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, alias, VTY_NEWLINE)
+		draw_color(COLOR_RED), draw_color(COLOR_FIN), prefix, (const char *)alias, VTY_NEWLINE)
 
 #define VTY_SUCCESS_MAP(prefix, v)\
 	vty_out (vty, "%s(Success)%s %s map \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
 static __oryx_always_inline__
-void map_free (void __oryx_unused__ *v)
+void map_free (const ht_value_t v)
 {
 	/** Never free here! */
-	v = v;
 }
 
 static uint32_t
 map_hval (struct oryx_htable_t *ht,
-		void *v, uint32_t s) 
+		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -63,9 +62,9 @@ map_hval (struct oryx_htable_t *ht,
 }
 
 static int
-map_cmp (void *v1, 
+map_cmp (const ht_value_t v1, 
 		uint32_t s1,
-		void *v2,
+		const ht_value_t v2,
 		uint32_t s2)
 {
 	int xret = 0;
@@ -78,7 +77,7 @@ map_cmp (void *v1,
 }
 
 static __oryx_always_inline__
-void map_ports (struct map_t *map, char *iface_str, u8 from_to)
+void map_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
@@ -89,7 +88,7 @@ void map_ports (struct map_t *map, char *iface_str, u8 from_to)
 }
 
 static __oryx_always_inline__
-void unmap_ports (struct map_t *map, char *iface_str, u8 from_to)
+void unmap_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
@@ -100,7 +99,7 @@ void unmap_ports (struct map_t *map, char *iface_str, u8 from_to)
 }
 
 static __oryx_always_inline__
-void unmap_all_ports (struct map_t *map, u8 from_to)
+void unmap_all_ports (struct map_t *map, const uint8_t from_to)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
@@ -158,7 +157,7 @@ void map_inherit(struct map_t *son, struct map_t *father)
 	map_ports (son, son->port_list_str[QUA_TX], QUA_TX);
 }
 
-int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
+static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 {
 	int r = 0;
 	
@@ -211,7 +210,7 @@ finish:
 	return r;
 }
 
-int no_map_table_entry (struct map_t *map)
+static int no_map_table_entry (struct map_t *map)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_appl_main_t *am = &vlib_appl_main;
@@ -418,20 +417,20 @@ DEFUN(new_map,
 
 	map_entry_find_same((const char *)argv[0], &map);
 	if (likely(map)) {
-		VTY_ERROR_MAP ("same", (char *)argv[0]);
+		VTY_ERROR_MAP ("same", argv[0]);
 		map_entry_output (map, vty);
 		return CMD_SUCCESS;
 	}
 
-	map_entry_new (&map, (char *)argv[0], (char *)argv[1], (char *)argv[2]);
+	map_entry_new (&map, (const char *)argv[0], (const char *)argv[1], (const char *)argv[2]);
 
 	if (unlikely (!map)) {
-		VTY_ERROR_MAP ("new", (char *)argv[0]);
+		VTY_ERROR_MAP ("new", argv[0]);
 		return CMD_SUCCESS;
 	}
 	
 	if (map_table_entry_add (mm, map)) {
-		VTY_ERROR_MAP ("new", (char *)argv[0]);
+		VTY_ERROR_MAP ("new", argv[0]);
 	}
 			
     return CMD_SUCCESS;
@@ -455,7 +454,7 @@ DEFUN(map_add_rm_port,
 
 	map_entry_find_same((const char *)argv[0], &map);
 	if (unlikely(!map)) {
-		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
+		VTY_ERROR_MAP ("non-existent", argv[0]);
 		return CMD_SUCCESS;
 	}
 
@@ -464,8 +463,8 @@ DEFUN(map_add_rm_port,
 	if(!strncmp(argv[2], "r", 1))
 		qua = QUA_RX;
 
-	add ? map_ports  (map, (char *)argv[3], qua):\
-		   unmap_ports(map, (char *)argv[3], qua);
+	add ? map_ports  (map, (const char *)argv[3], qua):\
+		   unmap_ports(map, (const char *)argv[3], qua);
 
 	return CMD_SUCCESS;
 }
@@ -487,7 +486,7 @@ DEFUN(map_application,
 
 	map_entry_find_same((const char *)argv[0], &map);
 	if(unlikely(!map)) {
-		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
+		VTY_ERROR_MAP ("non-existent", argv[0]);
 		return CMD_SUCCESS;
 	}
 
@@ -520,7 +519,7 @@ DEFUN(no_map_applicatio,
 
 	map_entry_find_same((const char *)argv[0], &map);
 	if (unlikely (!map)) {
-		VTY_ERROR_MAP ("non-existent", (char *)argv[0]);
+		VTY_ERROR_MAP ("non-existent", argv[0]);
 		return CMD_SUCCESS;
 	}
 
@@ -584,7 +583,7 @@ DEFUN(test_map,
 			return CMD_SUCCESS;
 		}
 
-		map_entry_new (&map, (char *)&alias[0], (char *)"lan*", (char *)"lan*");
+		map_entry_new (&map, (const char *)&alias[0], (const char *)"lan*", (const char *)"lan*");
 
 		if (unlikely (!map)) {
 			VTY_ERROR_MAP ("new", (char *)&alias[0]);
@@ -592,7 +591,7 @@ DEFUN(test_map,
 		}
 
 		if (map_table_entry_add (mm, map)) {
-			VTY_ERROR_MAP ("new", (char *)argv[0]);
+			VTY_ERROR_MAP ("new", argv[0]);
 		}
 	}
 	return CMD_SUCCESS;

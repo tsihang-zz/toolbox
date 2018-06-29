@@ -150,7 +150,7 @@ void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 	argv = argv;
 }
 
-void dp_start_pcap(struct vlib_main_t *vm) {
+void dp_start_pcap(vlib_main_t *vm) {
 	u32 nb_lcores = MAX_LCORES;
 
 	vm->nb_lcores = MAX_LCORES;
@@ -164,7 +164,7 @@ void dp_start_pcap(struct vlib_main_t *vm) {
 	oryx_task_registry(&netdev_task);
 }
 
-void dp_end_pcap(struct vlib_main_t *vm) {
+void dp_end_pcap(vlib_main_t *vm) {
 	printf("Closing netdev %s...", netdev.devname);
 	printf(" Done\n");
 	printf("Bye...\n");

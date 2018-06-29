@@ -101,7 +101,7 @@ typedef struct {
 	oryx_vector				entry_vec;
 	struct oryx_htable_t 	*htable;
 	uint32_t				nb_appls;
-	struct vlib_main_t		*vm;
+	void					*vm;
 }vlib_appl_main_t;
 
 extern vlib_appl_main_t vlib_appl_main;
@@ -126,7 +126,7 @@ void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct ap
 {
 	BUG_ON(alias == NULL);
 	void *s = oryx_htable_lookup (am->htable, (ht_value_t)alias,
-						strlen((const char *)alias));
+						strlen(alias));
 	if (s) {
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
 	}
