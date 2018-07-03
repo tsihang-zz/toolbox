@@ -36,13 +36,13 @@ atomic_t n_map_elements = ATOMIC_INIT(0);
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
 static void
-map_free (const ht_value_t v)
+ht_map_free (const ht_value_t v)
 {
 	/** Never free here! */
 }
 
 static uint32_t
-map_hval (struct oryx_htable_t *ht,
+ht_map_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
@@ -62,7 +62,7 @@ map_hval (struct oryx_htable_t *ht,
 }
 
 static int
-map_cmp (const ht_value_t v1, 
+ht_map_cmp (const ht_value_t v1, 
 		uint32_t s1,
 		const ht_value_t v2,
 		uint32_t s2)
@@ -83,7 +83,7 @@ void map_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
-	split_foreach_port_func1_param2 (
+	foreach_iface_split_func1_param2 (
 		iface_str, map_entry_add_port, map, from_to);
 }
 
@@ -94,7 +94,7 @@ void unmap_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
-	split_foreach_port_func1_param2 (
+	foreach_iface_split_func1_param2 (
 		iface_str, map_entry_remove_port, map, from_to);
 }
 
@@ -104,7 +104,7 @@ void unmap_all_ports (struct map_t *map, const uint8_t from_to)
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
 #endif
-	foreach_port_func1_param2 (
+	foreach_iface_func1_param2 (
 		NULL, map_entry_remove_port, map, from_to);
 }
 
@@ -650,11 +650,12 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
 void vlib_map_init(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
+	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
 	mm->vm			=	vm;
 	mm->entry_vec	=	vec_init (MAX_MAPS);
 	mm->htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-									map_hval, map_cmp, map_free, 0);	
+									ht_map_hval, ht_map_cmp, ht_map_free, 0);	
 	if (mm->htable == NULL || 
 		mm->entry_vec == NULL) {
 		printf ("vlib map main init error!\n");
@@ -669,8 +670,6 @@ void vlib_map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &sync_appl_cmd);
 	install_element (CONFIG_NODE, &test_map_cmd);
 	install_element (CONFIG_NODE, &map_add_rm_port_cmd);
-
-	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
 	mm->online_port_update_tmr = oryx_tmr_create(1, "map online port update tmr", 
 										ul_activity_tmr_setting_flags,

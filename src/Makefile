@@ -39,7 +39,8 @@ ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 APP = et1500
 
 SRCS-kafka += \
-	kafka.c
+	kafkac.c\
+	kafkap.c
 
 SRCS-cli += \
 	util_iface.c util_map.c util_udp.c util_ipset.c\

@@ -18,14 +18,14 @@ atomic_t n_application_elements = ATOMIC_INIT(0);
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
 			atomic_read(&n_application_elements), am->nb_appls, VTY_NEWLINE);
 
-static __oryx_always_inline__
-void appl_free (const ht_value_t v)
+static void
+ht_appl_free (const ht_value_t v)
 {
 	/** To avoid warnings. */
 }
 
 static uint32_t
-appl_hval (struct oryx_htable_t *ht,
+ht_appl_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
@@ -45,7 +45,7 @@ appl_hval (struct oryx_htable_t *ht,
 }
 
 static int
-appl_cmp (const ht_value_t v1, 
+ht_appl_cmp (const ht_value_t v1, 
 		uint32_t s1,
 		const ht_value_t v2,
 		uint32_t s2)
@@ -98,9 +98,9 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	if(appl->ip_src_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
 	} else {
-		ip4.family = AF_INET;
-		ip4.prefixlen = appl->ip_src_mask;
-		ip4.prefix.s_addr = hton32(appl->ip_src);
+		ip4.family			= AF_INET;
+		ip4.prefixlen		= appl->ip_src_mask;
+		ip4.prefix.s_addr	= hton32(appl->ip_src);
 		p = (struct prefix *)&ip4;
 		prefix2str_ (p, (char *)&pfx_buf[HD_SRC][0], INET_ADDRSTRLEN);
 	}
@@ -108,9 +108,9 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	if(appl->ip_dst_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_DST][0], "%s", "any");
 	} else {
-		ip4.family = AF_INET;
-		ip4.prefixlen = appl->ip_dst_mask;
-		ip4.prefix.s_addr = hton32(appl->ip_dst);
+		ip4.family			= AF_INET;
+		ip4.prefixlen		= appl->ip_dst_mask;
+		ip4.prefix.s_addr	= hton32(appl->ip_dst);
 		p = (struct prefix *)&ip4;
 		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
 	}
@@ -134,18 +134,10 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	}
 	
 	vty_out (vty, "%24s%4u%8u%20s%20s%10s%10s%10s%12s%08x%23s%s", 
-		appl_alias(appl),
-		appl_id(appl),
-		appl->priority,
-		pfx_buf[HD_SRC],
-		pfx_buf[HD_DST],
-		port_buf[HD_SRC],
-		port_buf[HD_DST],
-		proto_buf, 
-		(appl->ul_flags & APPL_CHANGED) ? "!synced" : "synced",
-		appl->ul_map_mask,
-		tmstr,
-		VTY_NEWLINE);
+				appl_alias(appl), appl_id(appl), appl->priority,
+				pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
+				(appl->ul_flags & APPL_CHANGED) ? "!synced" : "synced",
+				appl->ul_map_mask, tmstr, VTY_NEWLINE);
 
 	return 0;
 }
@@ -177,7 +169,6 @@ static int appl_entry_desenitize (struct appl_t *appl,
 {
 	char keyword_backup[256] = {0};
 
-	
 	if (appl->sc_keyword) {
 		memcpy (keyword_backup, appl->sc_keyword, strlen (appl->sc_keyword));
 		free (appl->sc_keyword);
@@ -352,14 +343,13 @@ DEFUN(new_application1,
 		return CMD_SUCCESS;
 	}
 	
-	if(appl_entry_format (appl, NULL, (const char *)"unused var", 
-		(const char *)argv[1]	/** VLAN */, 
-		(const char *)argv[2]	/** IPSRC */, 
-		(const char *)argv[3]	/** IPDST */, 
-		(const char *)argv[4]	/** PORTSRC */, 
-		(const char *)argv[5]	/** PORTDST */, 
-		(const char *)argv[6])/** PROTO */
-	) {
+	if (appl_entry_format (appl, NULL, (const char *)"unused var", 
+					(const char *)argv[1]	/** VLAN */, 
+					(const char *)argv[2]	/** IPSRC */, 
+					(const char *)argv[3]	/** IPDST */, 
+					(const char *)argv[4]	/** PORTSRC */, 
+					(const char *)argv[5]	/** PORTDST */, 
+					(const char *)argv[6])/** PROTO */) {
 		vty_out(vty, "error command %s", VTY_NEWLINE);
 	}
 	
@@ -411,15 +401,15 @@ DEFUN(test_application,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-  const char *range = "150:180";
-  const char *mask = "150/255";
+  const char *range	= "150:180";
+  const char *mask	= "150/255";
   uint32_t val_start, val_end;
   uint32_t val, val_mask;
-  int ret;
-  vlib_appl_main_t *am = &vlib_appl_main;
-  struct appl_t *appl = NULL;
+  int ret, i;
   char alias[32] = {0};
   char ip_src[32], ip_dst[32];
+  vlib_appl_main_t *am	= &vlib_appl_main;
+  struct appl_t *appl	= NULL;
 	
   ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
   vty_out (vty, "%s ret = %d, start %d end %d%s", range,
@@ -428,8 +418,6 @@ DEFUN(test_application,
   ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
   vty_out (vty, "%s ret = %d, %d/%d%s", mask,
 	  ret, val, val_mask, VTY_NEWLINE);
-
-  int i = 0;
 
   for (i = 0; i < MAX_APPLICATIONS; i ++) {
      memset(alias, 0, 31);
@@ -451,14 +439,13 @@ DEFUN(test_application,
 	  }
 	  
 	  if(appl_entry_format (appl, NULL,
-	  	  (const char *)"unused var", 
-		  (const char *)"any" /** VLAN */, 
-		  (const char *)&ip_src[0] /** IPSRC */, 
-		  (const char *)&ip_dst[0] /** IPDST */, 
-		  (const char *)"any" /** PORTSRC */, 
-		  (const char *)"any" /** PORTDST */, 
-		  (const char *)"any")/** PROTO */
-	  ) {
+			  	  (const char *)"unused var", 
+				  (const char *)"any" /** VLAN */, 
+				  (const char *)&ip_src[0] /** IPSRC */, 
+				  (const char *)&ip_dst[0] /** IPDST */, 
+				  (const char *)"any" /** PORTSRC */, 
+				  (const char *)"any" /** PORTDST */, 
+				  (const char *)"any")/** PROTO */) {
 		  vty_out(vty, "error command %s", VTY_NEWLINE);
 	  }
 	  
@@ -474,10 +461,10 @@ void vlib_appl_init(vlib_main_t *vm)
 {
 	vlib_appl_main_t *am = &vlib_appl_main;
 
-	am->vm = vm;
-	am->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-			appl_hval, appl_cmp, appl_free, 0);
-	am->entry_vec = vec_init (MAX_APPLICATIONS);
+	am->vm			= vm;
+	am->entry_vec	= vec_init (MAX_APPLICATIONS);
+	am->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+							ht_appl_hval, ht_appl_cmp, ht_appl_free, 0);
 	
 	if (am->htable == NULL || am->entry_vec == NULL) {
 		printf ("vlib application main init error!\n");

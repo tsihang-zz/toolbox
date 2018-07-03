@@ -1,49 +1,36 @@
 #ifndef __TASK_H__
 #define __TASK_H__
 
+#define DEFAULT_ATTR_VAL	NULL
 
 struct oryx_task_t {
-
 #define THIS 0
-
-    /** Not used, setup with macro THIS. */
-    const int module;
+    const int			module;	/** Not used, setup with macro THIS. */
 
 #define PID_INVALID (~0)
-	oryx_os_thread_t pid;
+	oryx_os_thread_t	pid;
 
 #define TASK_NAME_SIZE 128
-	char sc_alias[TASK_NAME_SIZE + 1];
+	char				sc_alias[TASK_NAME_SIZE + 1];
 
 #define INVALID_CORE (-1)
-	/** lcore, kernel schedule if eque INVALID_CORE */
-	u32 ul_lcore;
-
-#define DEFAULT_ATTR_VAL	NULL
-	/** attr of current task */
-	//oryx_thread_attr_t *attr;
+	uint32_t			ul_lcore;	/** lcore, kernel schedule if eque INVALID_CORE */
 
 #define KERNEL_SCHED    (~0)
-	/** priority of current task */
-	u32 ul_prio;
-
-	/** argument count */
-	int argc;
-	/** arguments */
-	void *argv;
-
-	/** Executive entry */
-	void * (*fn_handler)(void *);
+	uint32_t			ul_prio;/** priority of current task */
+	int					argc;	/** argument count for this task. */
+	void				*argv;	/** arguments array for this task. */
+	void 				*(*fn_handler)(void *);	/** Executive entry */
 
 	/** allowed or forbidden */
 #define TASK_CAN_BE_RECYCLABLE	(1 << 0)
 #define TASK_RUNNING	(1 << 1)
-	u32 ul_flags;
+	uint32_t			ul_flags;
 
-	struct list_head   list;
+	struct list_head	list;
 
-	u64 ull_startup_time;
-	u64 ull_stop_time;
+	uint64_t			ull_startup_time;
+	uint64_t			ull_stop_time;
 
 };
 

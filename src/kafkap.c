@@ -1,23 +1,13 @@
-#include <stdio.h>
-#include <signal.h>
-#include <string.h>
-
-
-/* Typical include path would be <librdkafka/rdkafka.h>, but this program
- * is builtin from within the librdkafka source tree and thus differs. */
-#include "rdkafka.h"
-
+#include "oryx.h"
+#include "kafka.h"
 
 static int run = 1;
 
-/**
- * @brief Signal termination of program
- */
-static void stop (int sig) {
-        run = 0;
-        fclose(stdin); /* abort fgets() */
-}
-
+struct kafka_producer_param_t kpp = {
+	.bytes = 0,
+	.packets = 0,
+	.errors = 0,
+};
 
 /**
  * @brief Message delivery report callback.
@@ -32,116 +22,36 @@ static void stop (int sig) {
  */
 static void dr_msg_cb (rd_kafka_t *rk,
                        const rd_kafka_message_t *rkmessage, void *opaque) {
-        if (rkmessage->err)
-                fprintf(stderr, "%% Message delivery failed: %s\n",
-                        rd_kafka_err2str(rkmessage->err));
-        else
-                fprintf(stderr,
-                        "%% Message delivered (%zd bytes, "
-                        "partition %"PRId32")\n",
-                        rkmessage->len, rkmessage->partition);
-
+        struct kafka_producer_param_t *k = &kpp;
+		if (rkmessage->err)
+			k->errors ++;
+		else {
+			k->bytes += rkmessage->len;
+			k->packets ++;
+		}
         /* The rkmessage is destroyed automatically by librdkafka */
 }
 
 
+void *kafka_producer (void *argv) {
 
-int kafka_main (int argc, char **argv) {
         rd_kafka_t *rk;         /* Producer instance handle */
         rd_kafka_topic_t *rkt;  /* Topic object */
         rd_kafka_conf_t *conf;  /* Temporary configuration object */
-        char errstr[512];       /* librdkafka API error reporting buffer */
         char buf[512];          /* Message value temporary buffer */
-        const char *brokers;    /* Argument: broker list */
-        const char *topic;      /* Argument: topic to produce to */
-
-#if 0
-        /*
-         * Argument validation
-         */
-        if (argc != 3) {
-                fprintf(stderr, "%% Usage: %s <broker> <topic>\n", argv[0]);
-                return 1;
-        }
-
-        brokers = argv[1];
-        topic   = argv[2];
-#else
-		brokers = "localhost:9002";
-		topic	= "hello kafka";
-#endif
-
-        /*
-         * Create Kafka client configuration place-holder
-         */
-        conf = rd_kafka_conf_new();
-
-        /* Set bootstrap broker(s) as a comma-separated list of
-         * host or host:port (default port 9092).
-         * librdkafka will use the bootstrap brokers to acquire the full
-         * set of brokers from the cluster. */
-        if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers,
-                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
-                fprintf(stderr, "%s\n", errstr);
-                return 1;
-        }
-
-        /* Set the delivery report callback.
-         * This callback will be called once per message to inform
-         * the application if delivery succeeded or failed.
-         * See dr_msg_cb() above. */
-        rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
-
-
-        /*
-         * Create producer instance.
-         *
-         * NOTE: rd_kafka_new() takes ownership of the conf object
-         *       and the application must not reference it again after
-         *       this call.
-         */
-        rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-        if (!rk) {
-                fprintf(stderr,
-                        "%% Failed to create new producer: %s\n", errstr);
-                return 1;
-        }
-
-
-        /* Create topic object that will be reused for each message
-         * produced.
-         *
-         * Both the producer instance (rd_kafka_t) and topic objects (topic_t)
-         * are long-lived objects that should be reused as much as possible.
-         */
-        rkt = rd_kafka_topic_new(rk, topic, NULL);
-        if (!rkt) {
-                fprintf(stderr, "%% Failed to create topic object: %s\n",
-                        rd_kafka_err2str(rd_kafka_last_error()));
-                rd_kafka_destroy(rk);
-                return 1;
-        }
-
-        /* Signal handler for clean shutdown */
-        signal(SIGINT, stop);
+		struct kafka_param_t *kp = (struct kafka_param_t *)argv;
+		
+		if (kafka_init_env(RD_KAFKA_PRODUCER, kp, &rk, &conf, &rkt))
+			return NULL;
 
         fprintf(stderr,
                 "%% Type some text and hit enter to produce message\n"
                 "%% Or just hit enter to only serve delivery reports\n"
                 "%% Press Ctrl-C or Ctrl-D to exit\n");
-
-        while (run && fgets(buf, sizeof(buf), stdin)) {
-                size_t len = strlen(buf);
-
-                if (buf[len-1] == '\n') /* Remove newline */
-                        buf[--len] = '\0';
-
-                if (len == 0) {
-                        /* Empty line: only serve delivery reports */
-                        rd_kafka_poll(rk, 0/*non-blocking */);
-                        continue;
-                }
-
+        //while (run && fgets(buf, sizeof(buf), stdin)) {
+        while (run) {
+				usleep (1000);
+				size_t len = oryx_pattern_generate(buf, 511);
                 /*
                  * Send/Produce message.
                  * This is an asynchronous call, on success it will only
@@ -167,7 +77,7 @@ int kafka_main (int argc, char **argv) {
                             /* Message opaque, provided in
                              * delivery report callback as
                              * msg_opaque. */
-                            NULL) == -1) {
+                            (void *)&kpp) == -1) {
                         /**
                          * Failed to *enqueue* message for producing.
                          */
@@ -192,12 +102,7 @@ int kafka_main (int argc, char **argv) {
                                 rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                                 goto retry;
                         }
-                } else {
-                        fprintf(stderr, "%% Enqueued message (%zd bytes) "
-                                "for topic %s\n",
-                                len, rd_kafka_topic_name(rkt));
-                }
-
+                } 
 
                 /* A producer application should continually serve
                  * the delivery report queue by calling rd_kafka_poll()
@@ -211,6 +116,12 @@ int kafka_main (int argc, char **argv) {
                  * delivery report callback served (and any other callbacks
                  * you register). */
                 rd_kafka_poll(rk, 0/*non-blocking*/);
+
+				if ((kpp.packets % 10000) == 0) {
+	                fprintf(stderr, "%% Delivered messages (%zd bytes, %zd packets) "
+	                    "for topic %s\n",
+	                    kpp.bytes, kpp.packets, rd_kafka_topic_name(rkt));
+				}
         }
 
 
@@ -226,6 +137,6 @@ int kafka_main (int argc, char **argv) {
         /* Destroy the producer instance */
         rd_kafka_destroy(rk);
 
-        return 0;
+        return NULL;
 }
 

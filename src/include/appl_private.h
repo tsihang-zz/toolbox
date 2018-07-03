@@ -91,8 +91,8 @@ struct appl_t {
 
 }__attribute__((__packed__));
 
-#define appl_id(appl) ((appl)->ul_id)
-#define appl_alias(appl) ((appl)->sc_alias)
+#define appl_id(appl)		((appl)->ul_id)
+#define appl_alias(appl)	((appl)->sc_alias)
 
 #define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {

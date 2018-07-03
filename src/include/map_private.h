@@ -4,11 +4,11 @@
 #define MAP_PREFIX	"map"
 #define MAX_MAPS 	(32)	/** a uint32_t per bit value. */
 
-/** 
-	Make signature id (outer). 
-	UDP_N_PATTERNS define the maximum patterns per udp. 
-	so 8bits for pattern can support maxmum 255 patterns. 
-*/
+/*
+ * Make signature id (outer). 
+ * UDP_N_PATTERNS define the maximum patterns per udp. 
+ * so 8bits for pattern can support maxmum 255 patterns. 
+ */
 #define UDP_ID_OFFSET	(8)
 #define PATTERN_ID_OFFSET (0)
 #define MAP_ID_OFFSET	(0)
@@ -97,8 +97,8 @@ struct map_t {
 	
 };
 
-#define map_id(map) ((map)->ul_id)
-#define map_alias(map) ((map)->sc_alias)
+#define map_id(map)		((map)->ul_id)
+#define map_alias(map)	((map)->sc_alias)
 
 #define map_rx_has_iface(map,iface)\
 	((map)->rx_panel_port_mask & (1 << iface_id((iface))))

@@ -27,7 +27,7 @@ vlib_iface_main_t vlib_iface_main = {
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, iface_alias(v), v->ul_id, VTY_NEWLINE)
 
-atomic_t n_intf_elements = ATOMIC_INIT(0);
+atomic_t nb_ifaces = ATOMIC_INIT(0);
 
 static
 void ht_iface_free (const ht_value_t v)
@@ -227,7 +227,7 @@ void iface_entry_config (struct iface_t *iface,
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-		atomic_read(&n_intf_elements), (int)vec_count(pm->entry_vec), VTY_NEWLINE);
+		atomic_read(&nb_ifaces), (int)vec_count(pm->entry_vec), VTY_NEWLINE);
 
 DEFUN(show_interfacce,
       show_interface_cmd,
@@ -247,11 +247,11 @@ DEFUN(show_interfacce,
 	vty_out (vty, "%16s%s", "_______________________________________________", VTY_NEWLINE);
 
 	if (argc == 0) {
-		foreach_port_func1_param1 (
+		foreach_iface_func1_param1 (
 			argv[0], iface_entry_out, vty);
 	}
 	else {
-		split_foreach_port_func1_param1 (
+		foreach_iface_split_func1_param1 (
 			argv[0], iface_entry_out, vty);
 	}
 
@@ -276,11 +276,11 @@ DEFUN(show_interfacce_stats,
 	vty_out(vty, "%20s%20s%20s%s", "Port", "Rx(p/b)", "Tx(p/b)", VTY_NEWLINE);
 	
 	if (argc == 0) {
-		foreach_port_func1_param1 (
+		foreach_iface_func1_param1 (
 			argv[0], iface_entry_stat_out, vty);
 	}
 	else {
-		split_foreach_port_func1_param1 (
+		foreach_iface_split_func1_param1 (
 			argv[0], iface_entry_stat_out, vty);
 	}
 
@@ -306,11 +306,11 @@ DEFUN(clear_interface_stats,
 			vec_active(pm->entry_vec), VTY_NEWLINE);
 
 	if (argc == 0) {
-		foreach_port_func1_param1 (
+		foreach_iface_func1_param1 (
 			argv[0], iface_entry_stat_clear, vty);
 	}
 	else {
-		split_foreach_port_func1_param1 (
+		foreach_iface_split_func1_param1 (
 			argv[0], iface_entry_stat_clear, vty);
 	}
 	
@@ -334,7 +334,7 @@ DEFUN(interface_alias,
 		.s = __oryx_unused_val__,
 	};
 	
-	split_foreach_port_func1_param2 (
+	foreach_iface_split_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -361,7 +361,7 @@ DEFUN(interface_mtu,
 		.s = __oryx_unused_val__,
 	};
 	
-	split_foreach_port_func1_param2 (
+	foreach_iface_split_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -390,7 +390,7 @@ DEFUN(interface_looback,
 		.s = __oryx_unused_val__,
 	};
 	
-	split_foreach_port_func1_param2 (
+	foreach_iface_split_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -485,212 +485,217 @@ static int iface_poll_up(struct iface_t *this)
 static struct iface_t iface_list[] = {
 
 	{
-		"enp5s0f1",
-		ETH_XE,
-		NETDEV_MARVELL_DSA,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"enp5s0f1",
+		.type			=	ETH_XE,
+		.ul_flags		=	NETDEV_MARVELL_DSA,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up		=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed		=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx		=	NULL
 	},
 	
 	{
-		"enp5s0f2",
-		ETH_XE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed	=	"enp5s0f2",
+		.type			=	ETH_XE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
+
 	},
 
 	{
-		"enp5s0f3",
-		ETH_XE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"enp5s0f3",
+		.type			=	ETH_XE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
+
 	},
 	
 	{
-		"lan5",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed	=	"lan5",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
+
 	},
 
 	{
-		"lan6",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan6",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
+
 	},
 
 	{
-		"lan7",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan7",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
+
 	},
 
 	{
-		"lan8",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan8",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
 	},
 	
 	{
-		"lan1",
-		ETH_GE,
-		NETDEV_PANEL | NETDEV_MARVELL_DSA,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan1",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
 	},
 	
 	{
-		"lan2",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan2",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
 	},
 	
 	{
-		"lan3",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan3",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
 	},
 	
 	{
-		"lan4",
-		ETH_GE,
-		NETDEV_PANEL,
-		iface_poll_linkstate,
-		iface_poll_up,
-		-1,
-		" ",
-		{0,0,0,0,0,0},
-		0,
-		0,
-		0,
-		0,
-		LINK_PAD0,
-		0,
-		NULL,
-		NULL
+		.sc_alias_fixed =	"lan4",
+		.type			=	ETH_GE,
+		.ul_flags		=	NETDEV_PANEL,
+		.if_poll_state	=	iface_poll_linkstate,
+		.if_poll_up 	=	iface_poll_up,
+		.ul_id			=	-1,
+		.sc_alias		=	" ",
+		.eth_addr		=	{0,0,0,0,0,0},
+		.link_speed 	=	0,
+		.link_duplex	=	0,
+		.link_autoneg	=	0,
+		.link_pad0		=	LINK_PAD0,
+		.mtu			=	0,
+		.ul_up_down_times	=	0,
+		.perf_private_ctx	=	NULL,
+		.if_counter_ctx 	=	NULL
 	}
 
 };
@@ -767,12 +772,14 @@ void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
 void vlib_iface_init(vlib_main_t *vm)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;
-
-	pm->link_detect_tmr_interval = 3;
-	pm->htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-					ht_iface_hval, ht_iface_cmp, ht_iface_free, 0);
-	pm->entry_vec = vec_init (MAX_PORTS);
+	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	
+	pm->link_detect_tmr_interval = 3;
+	pm->vm			= vm;
+	pm->entry_vec	= vec_init (MAX_PORTS);
+	pm->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+							ht_iface_hval, ht_iface_cmp, ht_iface_free, 0);
+
 	if (pm->htable == NULL || pm->entry_vec == NULL) {
 		printf ("vlib iface main init error!\n");
 		exit(0);
@@ -785,13 +792,10 @@ void vlib_iface_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &interface_mtu_cmd);
 	install_element (CONFIG_NODE, &interface_looback_cmd);
 
-	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-
 	pm->link_detect_tmr = oryx_tmr_create(1, "iface activity monitoring tmr", 
 							ul_activity_tmr_setting_flags,
 							iface_activity_prob_tmr_handler,
 							0, NULL, pm->link_detect_tmr_interval);
-
 	register_ports();
 
 	if(likely(pm->link_detect_tmr))

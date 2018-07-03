@@ -106,7 +106,7 @@ typedef struct vlib_iface_main {
 	os_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
-	
+	void					*vm;
 }vlib_iface_main_t;
 
 extern vlib_iface_main_t vlib_iface_main;
