@@ -89,7 +89,6 @@ finish:
 
 extern int oryx_ring_create(const char *ring_name, int nb_data, uint32_t flags, struct oryx_ring_t **ring);
 extern void oryx_ring_dump(struct oryx_ring_t *ring);
-extern void oryx_ring_test(void);
 
 #endif
 

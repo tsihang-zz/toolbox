@@ -29,84 +29,38 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+ifeq ($(RTE_SDK),)
+$(error "Please define RTE_SDK environment variable")
+endif
+
+# Default target, can be overriden by command line or environment
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
+
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
+# binary name
+APP = fmt
 
-#
-# library name
-#
-APP = et1500
+# all source are stored in SRCS-y
+SRCS-y := fmt_main.c
+DEPDIRS-y += ../../lib/oryx
 
-SRCS-kafka += \
-	kafkac.c\
-	kafkap.c
-
-SRCS-cli += \
-	util_iface.c util_map.c util_udp.c util_ipset.c\
-	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
-	cli_common.c
-
-SRCS-classify += \
-	rfc.c em.c lpm.c acl.c
-
-SRCS-dp_dpdk += \
-	dpdk.c dpdk_rss.c 
-
-SRCS-dp_flow += \
-	dp_flow.c dp_flow_queue.c
-
-SRCS-dp += \
-	dp_main.c dp_start_pcap.c dp_start_dpdk.c dp_loop.c dp_decode.c dp_storage.c \
-	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
-	dp_decode_arp.c dp_decode_marvell_dsa.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
-	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c
-#
-# all sources are stored in SRCS-y
-#
-SRCS-y += \
-	main.c rc4.c threadvars.c event.c\
-	$(SRCS-classify) \
-	$(SRCS-dp) \
-	$(SRCS-dp_flow) \
-	$(SRCS-dp_dpdk) \
-	$(SRCS-cli) \
-	$(SRCS-kafka)
-
-#CFLAGS += $(WERROR_FLAGS)
-CFLAGS_SRC := -W -Wall -Wstrict-prototypes -Wpointer-arith -Wcast-align -Wfloat-equal -Wsign-compare
-CFLAGS_SRC += -Wundef -Wwrite-strings -Wnested-externs -Wformat-nonliteral -Wformat-security
-CFLAGS_SRC += -Wno-missing-declarations -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function
-#CFLAGS_SRC += -Wall -Wmissing-prototypes -Wold-style-definition -Wcast-qual
+CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
 		  -DHAVE_DPDK
-		  
+			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/include\
-		  -I$(SRCDIR)/../lib\
-		  -I$(SRCDIR)/../lib/quagga\
-		  -I$(SRCDIR)/../lib/oryx\
-		  -I$(SRCDIR)/../lib/librdkafka/include
+		  -I$(SRCDIR)/../oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lyaml -lpcap
 
-LDFLAGS += -L/usr/local/lib
-LDFLAGS += -lrdkafka
-
-LDLIBS += -L$(subst src,lib/oryx,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
-
-LDLIBS += -L$(subst src,lib/quagga,$(RTE_OUTPUT))/lib
-LDLIBS += -lquagga
-
-#LDLIBS += -L$(subst src,lib/suricata/src,$(RTE_OUTPUT))/lib
-#LDLIBS += -lsuricata
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-endif

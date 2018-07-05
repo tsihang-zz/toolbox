@@ -31,84 +31,6 @@ vlib_main_t vlib_main = {
 static unsigned short int alternative_port = 12000;
 struct thread_master *master;
 
-#if 0
-#define max_dotfiles_per_line 5
-char *dotfile_buff[max_dotfiles_per_line] = {NULL};
-int dotfiles = 0;
-
-void
-format_dot_file(char *f, char *sep, void *fp)
-{	
-	int i;
-	char format_buf [1024] = {0};
-	int s = 0;
-	
-	if (strstr(f, sep)) {
-		i = dotfiles ++;
-		if (i == max_dotfiles_per_line) goto flush;
-		dotfile_buff[i] = kmalloc(64, MPF_CLR, __oryx_unused_val__);
-		sprintf(dotfile_buff[i], "%s", f);
-		return;
-	}
-	else return;
-
-flush:
-    {
-		for (i = 0; i < dotfiles; i ++) {
-			if(dotfile_buff[i]) {
-				s += sprintf(format_buf + s, "%s ", dotfile_buff[i]);		
-				kfree(dotfile_buff[i]);
-			}
-		}
-		printf ("%s\n", format_buf);
-
-		fprintf((oryx_file_t *)fp, "   %s\n", format_buf);
-		dotfiles = 0;
-	}
-}
-
-void
-format_dota_file(char*f, char *sep, void *fp)
-{
-	char *s, *d;
-	char fs[32];
-	
-	s = f;
-	d = fs;
-	
-	if (strstr(f, sep)) {
-		s += 3;
-		do {
-            if ((*d++ = *s++) == 0)
-                break;
-        } while (*s != '.');
-			
-		*d = '\0';
-		fprintf((oryx_file_t *)fp, "    %s", fs);
-	}
-}
-
-void 
-format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
-{
-	oryx_dir_t *d;
-	struct dirent *p;
-	oryx_file_t *fp;
-
-	fp = fopen ("./file", "a");
-
-	d = opendir (path);
-	if (d) {
-		while(likely((p = readdir(d)) != NULL)) {
-			/** skip . and .. */
-			if(!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
-				continue;
-			format(p->d_name, sep, fp);
-		}
-	}
-}
-#endif
-
 static __oryx_always_inline__ 
 void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char __oryx_unused__**argv)
@@ -174,80 +96,15 @@ sig_handler(int signum) {
 	}
 }
 
-#include "kafka.h"
-
-struct kafka_param_t kafka_c_param = {
-	.topic		=	"NEWTOPIC",
-	.brokers	=	"localhost:9092",
-	.partition	=	0,
-};
-
-
-struct kafka_param_t kafka_p_param = {
-	.topic		=	"NEWTOPIC",
-	.brokers	=	"localhost:9092",
-	.partition	=	0,
-};
-
-static struct oryx_task_t kafka_c =
-{
-	.module = THIS,
-	.sc_alias = "Kafka Consumer Task",
-	.fn_handler = kafka_consumer,
-	.ul_lcore = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 1,
-	.argv = &kafka_c_param,
-	.ul_flags = 0,	/** Can not be recyclable. */
-};
-
-static struct oryx_task_t kafka_p =
-{
-	.module = THIS,
-	.sc_alias = "Kafka Producer Task",
-	.fn_handler = kafka_producer,
-	.ul_lcore = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 1,
-	.argv = &kafka_p_param,
-	.ul_flags = 0,	/** Can not be recyclable. */
-};
-
 int main (int argc, char **argv)
 {
 	uint32_t id_core;
-	uint32_t val_start, val_end;
-	int ret;
 
-#if defined(BUILD_DEBUG)
-	printf("RUN in debug mode\n");
-#else
-	printf("RUN in release mode\n");
-#endif
-
-	ret = format_range("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
-	printf ("ret = %d, start %d end %d\n",
-		ret, val_start, val_end);
-
-	ret = format_range("1:20", 2048, 0, ':', &val_start, &val_end);
-	printf ("ret = %d, start %d end %d\n",
-			ret, val_start, val_end);
-
-	printf("%.2f\n", ratio_of(1,2));
-	
-	//signal(SIGINT, sig_handler);
+	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
 	oryx_initialize();
 
-	oryx_task_registry(&kafka_p);
-	oryx_task_registry(&kafka_c);
-	oryx_task_launch();
-	FOREVER{
-
-	}
-	printf ("out of forever\n");
-	
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
 		printf ("ConfYamlLoadFile error\n");
 		return 0;

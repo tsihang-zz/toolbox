@@ -3,6 +3,9 @@ linuxapp-gcc
 
 *-linuxapp-gcc
 
+x86_64-native-linuxapp-gcc
+arm64-thunderx-linuxapp-gcc
+
 bin
 .libs
 

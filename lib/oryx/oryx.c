@@ -49,9 +49,6 @@ oryx_status_t oryx_initialize(void)
 
 	oryx_format_free(&fb);
 
-	//oryx_ring_test();
-	//mpool_sample();
-
 	return ORYX_SUCCESS;
 }
 
