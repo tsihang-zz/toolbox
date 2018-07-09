@@ -93,23 +93,16 @@ void flow_deinit(struct qctx_t *q, void *v)
 int main(int argc, char ** argv)
 {
 	void *flow_pool, *flow_pool1;
-	struct element_fn_t efn = {
-		.insert = flow_insert,
-		.remove = flow_remove,
-		.verify = flow_verify,
-		.init = flow_init,
-		.deinit = flow_deinit,
-	};
 
 	oryx_initialize();
 	
 	int i = 3;
 
 	mpool_init(&flow_pool, "mempool for flow",
-					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, &efn);
+					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
 	
 	mpool_init(&flow_pool1, "mempool for flow",
-					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, &efn);
+					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
 
 	struct timeval start, end;
 	
@@ -144,10 +137,10 @@ int main(int argc, char ** argv)
 
 	while(1) {
 		mpool_init(&flow_pool, "mempool for flow",
-						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, &efn);
+						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
 		
 		mpool_init(&flow_pool1, "mempool for flow",
-						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, &efn);
+						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
 
 		mpool_uninit(flow_pool);
 		mpool_uninit(flow_pool1);

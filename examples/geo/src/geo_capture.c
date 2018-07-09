@@ -157,6 +157,7 @@ int geo_refill_prepare(struct geo_cdr_table_t *gct,
 	}
 
 	BUG_ON(h == NULL);
+	BUG_ON(h->inner_cdr_queue == NULL);
 
 	/** hold the hash entry. */
 	gce->hash_entry = h;
@@ -170,8 +171,6 @@ int geo_refill_prepare(struct geo_cdr_table_t *gct,
 		   h->ul_flags |= GEO_CDR_HASH_KEY_APPEAR_IMSI;
 		}
 	}
-	
-	/** equeue this CDR entry to local queue. */
 	
 	return 0;
 }
@@ -361,7 +360,7 @@ void *geo_refill_prepare_fn (void *argv)
 
 
 static __oryx_always_inline__
-int do_refill(struct      geo_htable_key_t *hk , struct geo_cdr_entry_t *gce, int cdr_index,
+int do_refill(struct   geo_htable_key_t *hk , struct geo_cdr_entry_t *gce, int cdr_index,
 		GEODecodeThreadVars *dtv, GEOThreadVars *tv)
 {
 	uint8_t		mme_code;
@@ -438,7 +437,7 @@ void *geo_refill_fn (void *argv)
 	GEOThreadVars *tv;
 	struct geo_cdr_table_t *gct;
 	struct geo_htable_key_t *h;
-	struct geo_cdr_entry_t *gce;
+	struct geo_cdr_entry_t *gce, *gce0;
 	struct geo_key_info_t *gk;
 	
 	FOREVER {
@@ -448,7 +447,8 @@ void *geo_refill_fn (void *argv)
 		gk			= &gce->gki;
 
 		if(gk->ul_flags & GEO_CDR_KEY_INFO_BYPASS) {
-			goto free;
+			mpool_free(cdr_pool, gce);
+			continue;
 		}
 		
 		dtv			= &gdtv[gk->cdr_index];
@@ -459,9 +459,14 @@ void *geo_refill_fn (void *argv)
 		
 		if(h->ul_flags & GEO_CDR_HASH_KEY_APPEAR_IMSI) {
 			do_refill(h, gce, gk->cdr_index, dtv, tv);
+			mpool_free(cdr_pool, gce);
+			
+		} else {
+			/* equeue this CDR entry to local queue which hold by HASH entry.
+			 * THIS queue is created at stage of refill_prepare,
+			 * when a new hash entry is created. */
+			fq_equeue((struct qctx_t *)h->inner_cdr_queue, gce);
 		}
-free:
-		mpool_free(cdr_pool, gce);
 	}
 	
 	oryx_task_deregistry_id(pthread_self());

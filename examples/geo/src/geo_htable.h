@@ -16,7 +16,7 @@ struct geo_htable_key_t {
 	uint32_t	v;		/* mtmsi or mme_ue_s1ap_id */
 	uint8_t		imsi[18];
 	uint32_t	ul_flags;
-	void		*cdr_queue;		/* A queue for CDRs which has a same hash_key. */
+	void		*inner_cdr_queue;		/* A queue for CDRs which has a same hash_key. */
 };
 
 struct oryx_htable_t *geo_cdr_hash_table;
@@ -26,7 +26,7 @@ struct oryx_htable_t *geo_cdr_hash_table;
 		.v			= -1,\
 		.imsi		= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},\
 		.ul_flags	= 0,\
-		.cdr_queue	= NULL,\
+		.inner_cdr_queue	= NULL,\
 	}
 
 static __oryx_always_inline__
@@ -35,6 +35,7 @@ struct geo_htable_key_t *alloc_hk(void)
 	struct geo_htable_key_t *h = malloc(sizeof(struct geo_htable_key_t));
 	BUG_ON(h == NULL);
 	memset(h, 0, sizeof(struct geo_htable_key_t));
+	fq_new("inner_cdr_queue", &h->inner_cdr_queue);
 	return h;
 }
 

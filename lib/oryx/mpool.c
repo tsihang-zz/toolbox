@@ -94,18 +94,12 @@ void mpool_init(void ** mp, const char *mp_name,
 	handle->nb_bytes_per_element	= CACHE_LINE_ROUNDUP(nb_bytes_per_element, cache_line_size);
 	handle->efn						= efn;
 	handle->cache_line_size			= cache_line_size;
-	handle->free_q->insert			= handle->efn->insert;
-	handle->free_q->remove			= handle->efn->remove;
-	handle->free_q->verify			= handle->efn->verify;
-	handle->free_q->init			= handle->efn->init;
-	handle->free_q->deinit			= handle->efn->deinit;
 
 	BUG_ON(handle->free_q == NULL);
 	
 	for(i = 0 ; i < (int)handle->steps ; i ++) {
 		if((element = GetMemory(handle->mem_handle, handle->nb_bytes_per_element)) == NULL)
 			exit(EXIT_FAILURE);
-		handle->free_q->init(handle->free_q, element);
 		fq_equeue(handle->free_q, element);
 		handle->nb_elements ++;
 	}
@@ -142,7 +136,6 @@ void * mpool_alloc(void * mp)
 			for(i = 0 ; i < (int)handle->steps ; i ++) {
 				if((element = GetMemory(handle->mem_handle , handle->nb_bytes_per_element)) == NULL)
 					break;
-				handle->free_q->init(handle->free_q, element);
 				fq_equeue(handle->free_q, element);
 			}
 			handle->nb_elements += i;
