@@ -13,9 +13,9 @@ typedef struct oryx_tmr_mgr_t {
 	os_mutex_t ol_tmr_lock;
 	atomic64_t  tmr_cur_ticks;
 
-	u32 ul_tmr_cnt;
+	uint32_t ul_tmr_cnt;
 
-	u32 ul_precision_msec;
+	uint32_t ul_precision_msec;
 } oryx_tmr_mgr_t;
 
 struct oryx_tmr_mgr_t tmrmgr = {
@@ -28,8 +28,7 @@ struct oryx_tmr_mgr_t tmrmgr = {
 	.ul_precision_msec = TMR_DEFAULT_PRECISION,
 };
 
-static __oryx_always_inline__ 
-void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
+void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
                 char __oryx_unused__**argv)
 {
     printf ("default %s-timer routine has occured on [%s, %u, %d]\n",
@@ -44,7 +43,7 @@ static void *tmr_alloc(void)
     t = kmalloc(sizeof(struct oryx_timer_t), MPF_CLR, -1);
     if(likely(t)){
         t->tmr_id = TMR_INVALID;
-        t->routine = tmr_default_handler;
+        t->routine = oryx_tmr_default_handler;
         t->interval_ms = 3 * 1000;
         t->ul_setting_flags = TMR_CAN_BE_RECYCLABLE;
     }
@@ -169,8 +168,8 @@ static __oryx_always_inline__
 void realtimer_init(void)
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
-	u32 sec = tm->ul_precision_msec / 1000;
-	u32 msec = tm->ul_precision_msec % 1000;
+	uint32_t sec = tm->ul_precision_msec / 1000;
+	uint32_t msec = tm->ul_precision_msec % 1000;
 
 	static struct itimerval tmr;
     
@@ -291,8 +290,8 @@ oryx_status_t oryx_tmr_initialize(void)
 * An unknown error occurs if a thread-safe function called as a routione.
 */
 struct oryx_timer_t *oryx_tmr_create (int module,
-                const char *sc_alias, u32 ul_setting_flags,
-                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv, u32 msec)
+                const char *sc_alias, uint32_t ul_setting_flags,
+                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv, uint32_t msec)
 {
     struct oryx_timer_t *_this = NULL, *p;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
@@ -334,16 +333,16 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 		oryx_thread_mutex_unlock(lock);
         goto finish;
     }
-    
-    _this->module = module;
-    _this->sc_alias = strdup(sc_alias);
-    _this->curr_ticks = 0;
-    _this->interval_ms = msec;
-    _this->routine = handler ? handler : tmr_default_handler;
-    _this->tmr_id = tmr_id_alloc(_this->module, _this->sc_alias, strlen(_this->sc_alias));
+
+	_this->argc			= argc;
+    _this->argv			= argv;
+    _this->module		= module;
+    _this->sc_alias		= sc_alias;
+    _this->curr_ticks	= 0;
+    _this->interval_ms	= msec;
+    _this->routine		= handler ? handler : oryx_tmr_default_handler;
+    _this->tmr_id		= tmr_id_alloc(_this->module, _this->sc_alias, strlen(_this->sc_alias));
     _this->ul_setting_flags = (ul_setting_flags | TMR_CAN_BE_RECYCLABLE);
-    _this->argc = argc;
-    _this->argv = argv;
 
     list_add_tail(&_this->list, h);
 	oryx_thread_mutex_unlock(lock);
@@ -351,30 +350,4 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 finish:    
     return _this;
 }
-
-#if defined (HAVE_TMR_EXAMPLE)
-void oryx_tmr_test0 (void)
-{
-	struct oryx_timer_t *tmr0, *tmr1, *tmr2;
-	u32 ul_tmr_setting_flags0, ul_tmr_setting_flags1, ul_tmr_setting_flags2;
-
-	ul_tmr_setting_flags0 = TMR_OPTIONS_PERIODIC;
-	tmr0 = oryx_tmr_create (1, "test_timer0", ul_tmr_setting_flags0,
-											  tmr_default_handler, 0, NULL, 3000);
-	oryx_tmr_start(tmr0);
-
-
-	ul_tmr_setting_flags1 = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
-	tmr1 = oryx_tmr_create (1, "test_timer1", ul_tmr_setting_flags1,
-											  tmr_default_handler, 0, NULL, 3000);
-	oryx_tmr_start(tmr1);
-
-
-	ul_tmr_setting_flags2 = TMR_OPTIONS_PERIODIC;
-	tmr2 = oryx_tmr_create (1, "test_timer2", ul_tmr_setting_flags2,
-											  tmr_default_handler, 0, NULL, 3000);
-	oryx_tmr_start(tmr2);
-
-}
-#endif
 

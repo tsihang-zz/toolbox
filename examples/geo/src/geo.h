@@ -29,7 +29,18 @@
 #include "geo16.h"
 #endif
 
-#define GEO_CDR_HASH_MODE_M_TMSI
+
+#define GEO_CDR_HAVE_REFILL_CACHE		/* CDR which without IMSI will be hold by a cache. 
+										 * When a new CDR, which with IMSI and has a same
+										 * fingerprint, and this FP is recorded by the cache.
+										 * When timeout, all CDRs in it's cache will be delivered
+										 * out after refill its own FP. */
+
+
+#define GEO_CDR_HASH_MODE_M_TMSI			0
+#define GEO_CDR_HASH_MODE_MME_UE_S1AP_ID	1
+#define GEO_CDR_HASH_MODE	GEO_CDR_HASH_MODE_M_TMSI
+
 
 #define GEO_CDR_KEY_INFO_BYPASS			(1 << 0)
 #define GEO_CDR_KEY_INFO_APPEAR_IMSI	(1 << 1)

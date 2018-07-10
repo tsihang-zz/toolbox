@@ -514,7 +514,7 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 		gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
 
 	/* no mtmsi and s1ap */
-#if defined(GEO_CDR_HASH_MODE_M_TMSI)
+#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
 	if (!(gk->ul_flags & GEO_CDR_KEY_INFO_APPEAR_MTMSI))
 		gk->ul_flags |= GEO_CDR_KEY_INFO_BYPASS;
 #else
