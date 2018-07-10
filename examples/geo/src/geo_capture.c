@@ -466,11 +466,11 @@ void *geo_refill_fn (void *argv)
 
 #if defined(GEO_CDR_HAVE_REFILL_CACHE)	
 		if(h->ul_flags & GEO_CDR_HASH_KEY_APPEAR_IMSI) {
-			if((((struct qctx_t *)h->inner_cdr_queue))->len == 0) {
+			if(fq_length((struct qctx_t *)h->inner_cdr_queue) == 0) {
 				do_refill(h, gce, gk->cdr_index, dtv, tv);
 				mpool_free(cdr_pool, gce);
 			} else {
-				while((((struct qctx_t *)h->inner_cdr_queue))->len != 0) {
+				while(fq_length((struct qctx_t *)h->inner_cdr_queue) != 0) {
 					gce0 = fq_dequeue((struct qctx_t *)h->inner_cdr_queue);
 					do_refill(h, gce0, gk->cdr_index, dtv, tv);
 					mpool_free(cdr_pool, gce0);
