@@ -277,8 +277,8 @@ typedef struct Packet_
     uint8_t proto;
 
 	/** physical rx and tx port */
-	u32 dpdk_port[QUA_RXTX];
-	u32 panel_port[QUA_RXTX];
+	uint32_t dpdk_port[QUA_RXTX];
+	uint32_t panel_port[QUA_RXTX];
 	
     /* make sure we can't be attacked on when the tunneled packet
      * has the exact same tuple as the lower levels */
@@ -304,7 +304,7 @@ typedef struct Packet_
 
 	MarvellDSAHdr *dsah;
 	/** ntoh32(this->dsah.dsa) */
-	u32 dsa;
+	uint32_t dsa;
 	uint16_t iphd_offset;
 
     IPv4Hdr *ip4h;

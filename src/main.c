@@ -32,8 +32,8 @@ static unsigned short int alternative_port = 12000;
 struct thread_master *master;
 
 static __oryx_always_inline__ 
-void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char __oryx_unused__**argv)
+void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
+                char __oryx_unused_param__**argv)
 {
     printf ("default %s-timer routine has occured on [%s, %u, %d]\n",
 		tmr->ul_setting_flags & TMR_OPTIONS_ADVANCED ? "advanced" : "sig",
@@ -41,7 +41,7 @@ void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc,
 }
 
 static __oryx_always_inline__
-void * run_cli (void __oryx_unused__*pv_par)
+void * run_cli (void __oryx_unused_param__*pv_par)
 {
 	char *vty_addr = NULL;
 	short vty_port = ZEBRA_VTY_PORT;

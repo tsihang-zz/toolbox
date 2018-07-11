@@ -31,7 +31,7 @@ enum pattern_flags_t {
 struct pattern_t {
 
 	/** ID of current pattern. */
-	u32 ul_id;
+	uint32_t ul_id;
 
 	/** Pattern length. */
 	size_t ul_size;
@@ -40,7 +40,7 @@ struct pattern_t {
 	char sc_val[PATTERN_SIZE];
 	
 	/** Defined by PATTERN_FLAGS_XXXX. */
-	u32 ul_flags;
+	uint32_t ul_flags;
 
 	/** Offset where this pattern first appears in a packet. */
 	u16 us_offset;
@@ -55,13 +55,13 @@ struct udp_t {
 	/** Unique, and can be well human-readable. */
 	char sc_alias[32];
 	/** Unique, and can be allocated by a oryx_vector function automatically. */
-	u32 ul_id;
+	uint32_t ul_id;
 	/** Patterns stored by a oryx_vector. */
 	oryx_vector patterns;
 	/** Unused. */
-	u32 ul_flags;	
+	uint32_t ul_flags;	
 	/** Datapath Output is not defined. */
-	u32 ul_dpo;
+	uint32_t ul_dpo;
 
 	/** Create time. */
 	uint64_t			ull_create_time;
@@ -72,7 +72,7 @@ struct udp_t {
 
 typedef struct {
 	int ul_n_udps;
-	u32 ul_flags;
+	uint32_t ul_flags;
 	oryx_vector entry_vec;
 	struct oryx_htable_t *htable;
 	

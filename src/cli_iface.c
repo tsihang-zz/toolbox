@@ -36,7 +36,7 @@ void ht_iface_free (const ht_value_t v)
 }
 
 static
-uint32_t ht_iface_hval (struct oryx_htable_t *ht,
+ht_key_t ht_iface_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
@@ -188,7 +188,7 @@ static __oryx_always_inline__
 void iface_entry_config (struct iface_t *iface,
 			struct vty *vty, const struct prefix_t *var)
 {
-	u32 ul_flags = iface->ul_flags;
+	uint32_t ul_flags = iface->ul_flags;
 	vlib_iface_main_t *pm = &vlib_iface_main;
 	
 	switch (var->cmd)
@@ -742,8 +742,8 @@ static void register_ports(void)
 
 
 static __oryx_always_inline__
-void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
-			int __oryx_unused__ argc, char __oryx_unused__**argv)
+void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
+			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;	
 	int each;

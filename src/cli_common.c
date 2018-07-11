@@ -20,7 +20,7 @@ int
 loglevel_unformat(const char *level_str);
 
 const char *
-loglevel_format(u32 loglevel);
+loglevel_format(uint32_t loglevel);
 
 DEFUN(set_log_level,
       set_log_level_cmd,
@@ -35,8 +35,8 @@ DEFUN(set_log_level,
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	u32 loglevel0 = UINT_MAX; 
-	u32 loglevel1 = UINT_MAX;
+	uint32_t loglevel0 = UINT_MAX; 
+	uint32_t loglevel1 = UINT_MAX;
 
 	loglevel0 = oryx_log_global_log_level;
 	loglevel1 = loglevel_unformat(argv[0]);

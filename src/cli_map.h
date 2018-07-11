@@ -11,7 +11,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 	char alias_list[128] = {0};\
 	int each;\
 	oryx_vector vec = vlib_map_main.entry_vec;\
-	u32 elements_before = vec_count(vec);\
+	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v = NULL;\
@@ -31,7 +31,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.s = strlen (token),\
@@ -89,7 +89,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 	char alias_list[128] = {0};\
 	int each;\
 	oryx_vector vec = vlib_map_main.entry_vec;\
-	u32 elements_before = vec_count(vec);\
+	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v = NULL;\
@@ -109,7 +109,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.s = strlen (token),\
@@ -167,7 +167,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 	char alias_list[128] = {0};\
 	int each;\
 	oryx_vector vec = vlib_map_main.entry_vec;\
-	u32 elements_before = vec_count(vec);\
+	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v = NULL;\
@@ -187,7 +187,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.s = strlen (token),\
@@ -241,7 +241,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 #define foreach_map_func1_param0(argv_x, func)\
 	int each;\
 	oryx_vector vec = vlib_map_main.entry_vec;\
-	u32 elements_before = vec_count(vec);\
+	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\
@@ -255,7 +255,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 #define foreach_map_func1_param1(argv_x, func, param0)\
 	int each;\
 	oryx_vector vec = vlib_map_main.entry_vec;\
-	u32 elements_before = vec_count(vec);\
+	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
 	atomic_set(&n_map_elements, 0);\
 	struct map_t *v;\

@@ -185,7 +185,7 @@
 #if defined(__GNUC__)
 #define __oryx_always_extern__		__attribute__((visibility("default")))
 #define	__oryx_always_inline__		inline __attribute__((always_inline))
-#define	__oryx_unused__				__attribute__((unused))
+#define	__oryx_unused_param__				__attribute__((unused))
 #define __oryx_noreturn__(fn)		__attribute__((noreturn))fn
 #define __oryx_hot__				__attribute__((hot))
 //#define __oryx_format_func__(f,a)	__attribute__((format(__NSString__, f, a)))
@@ -193,7 +193,7 @@
 // TODO: dllexport defines for windows
 #define __oryx_always_extern__
 #define	__oryx_always_inline__	
-#define	__oryx_unused__
+#define	__oryx_unused_param__
 #endif
 
 /* we need this to stringify the defines which are supplied at compiletime see:
@@ -241,7 +241,7 @@ typedef signed long long i64;
 typedef unsigned char u8;
 typedef unsigned char uchar;
 typedef unsigned short u16;
-typedef unsigned int u32;
+typedef unsigned int uint32_t;
 /* Floating point types. */
 typedef double f64;
 typedef float f32;
@@ -251,7 +251,7 @@ typedef void *			oryx_os_shm_t;         /**< native SHM */
 typedef oryx_int32_t	oryx_status_t;
 typedef pthread_t		oryx_os_thread_t;
 typedef void *			oryx_os_dso_handle_t;
-typedef u32 			key32_t;
+typedef uint32_t 			key32_t;
 typedef void* 			ht_value_t;
 typedef key32_t			ht_key_t;
 

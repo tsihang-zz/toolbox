@@ -38,7 +38,7 @@ typedef union MarvellDSAHdr_ {
 	uint32_t dsa;
 }__attribute__((__packed__)) MarvellDSAHdr;
 
-#define u32_offset(u32,off)	((u32) >> off)
+#define u32_offset(uint32_t,off)	((uint32_t) >> off)
 #define DSA_CMD(dsa)	  		(((dsa) >> 30) & 0x003)
 #define DSA_TAG(dsa)  			(((dsa) >> 29) & 0x001)
 #define DSA_DEV(dsa)			(((dsa) >> 24) & 0x01f)

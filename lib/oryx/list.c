@@ -10,11 +10,11 @@ void __list_add(struct list_head *new,
 			      struct list_head *next)
 {
 	WARN(next->prev != prev,
-		"list_add corruption. next->prev should be "
+		"oryx_list_add corruption. next->prev should be "
 		"prev (%p), but was %p. (next=%p).\n",
 		prev, next->prev, next);
 	WARN(prev->next != next,
-		"list_add corruption. prev->next should be "
+		"oryx_list_add corruption. prev->next should be "
 		"next (%p), but was %p. (prev=%p).\n",
 		next, prev->next, prev);
 	next->prev = new;

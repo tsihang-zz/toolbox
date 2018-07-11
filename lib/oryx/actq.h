@@ -2,7 +2,7 @@
 #define __ACTQ_H__
 
 
-typedef u32 oryx_id_t;
+typedef uint32_t oryx_id_t;
 typedef void *raw_t;
 
 typedef struct oryx_actq_raw_t {
@@ -13,7 +13,7 @@ typedef struct oryx_actq_raw_t {
 	oryx_size_t l;
 	raw_t v;
 
-	u32 ul_flags;
+	uint32_t ul_flags;
 	struct list_head node;
 } oryx_actq_raw_t;
 
@@ -27,16 +27,16 @@ typedef struct oryx_actq_prefix_t {
 	/** Alias for this queue. */
 	char sc_alias[32];
 
-	u32 ul_alias_size;
+	uint32_t ul_alias_size;
 
 	/** Priority for this queue. */
-	u32 ul_prio;
+	uint32_t ul_prio;
 
-	u32 ul_flags;
+	uint32_t ul_flags;
 
 	/* maximum buffered elements. 
 	 * effect while (ul_flags & ACTQ_ENABLE_FIXED_BUFFER) */
-	u32 ul_buffered_refcnt;
+	uint32_t ul_buffered_refcnt;
 	
 } oryx_actq_prefix_t;
 
@@ -65,7 +65,7 @@ typedef struct oryx_actq_t {
 	oryx_size_t ul_alias_size;
 
 	/** Priority for this queue. */
-	u32 ul_prio;
+	uint32_t ul_prio;
 
 	/** Unique identify for this queue. */
 	oryx_id_t ul_id;
@@ -73,13 +73,13 @@ typedef struct oryx_actq_t {
 	/** Raw data cache size. default is RAW_DATA_N_ELEMENTS
 	 * inner raw unlimited, use whole RAM. 
 	 * this case is simple. */
-	u32 ul_cache_size;
+	uint32_t ul_cache_size;
 
 	/** Up-limit threshold */
-	u32 ul_threshold_max;
+	uint32_t ul_threshold_max;
 
 	/** Low-limit threshold */
-	u32 ul_threshold_min;
+	uint32_t ul_threshold_min;
 	
 	/** Critical lock for this queue. */
 	os_mutex_t *ol_actq_lock;
@@ -87,7 +87,7 @@ typedef struct oryx_actq_t {
 	os_mutex_t *ol_lock;
 	os_cond_t *ol_cond;
 	
-	u32 ul_peek_backlog;
+	uint32_t ul_peek_backlog;
 	atomic_t ul_buffered_blocks;
 
 	/** A raw data list for this queue. */
@@ -103,14 +103,14 @@ typedef struct oryx_actq_t {
 	int ul_dq_bytes, ul_dq_blocks, ul_dq_bytes_prev, ul_dq_blocks_prev;
 
 	/** errors. */
-	u32 ul_write_error;
+	uint32_t ul_write_error;
 	
-	u32 ul_drop_refcnt;
+	uint32_t ul_drop_refcnt;
 
 	/** A oryx_vector this queue stored in. */
 	//oryx_vector v;
 
-	u32 ul_flags;
+	uint32_t ul_flags;
 
 }oryx_actq_t;
 

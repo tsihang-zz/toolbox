@@ -58,14 +58,14 @@ extern void __list_add(struct list_head *new,
 #endif
 
 /**
- * list_add - add a new entry
+ * oryx_list_add - add a new entry
  * @new: new entry to be added
  * @head: list head to add it after
  *
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-static __oryx_always_inline__ void list_add(struct list_head *new, struct list_head *head)
+static __oryx_always_inline__ void oryx_list_add(struct list_head *new, struct list_head *head)
 {
 	__list_add(new, head, head->next);
 }
@@ -161,7 +161,7 @@ static __oryx_always_inline__ void list_del_init(struct list_head *entry)
 static __oryx_always_inline__ void list_move(struct list_head *list, struct list_head *head)
 {
 	__list_del_entry(list);
-	list_add(list, head);
+	oryx_list_add(list, head);
 }
 
 /**
@@ -207,7 +207,7 @@ static __oryx_always_inline__ int list_empty(const struct list_head *head)
  * NOTE: using list_empty_careful() without synchronization
  * can only be safe if the only activity that can happen
  * to the list entry is list_del_init(). Eg. it cannot be used
- * if another CPU could re-list_add() it.
+ * if another CPU could re-oryx_list_add() it.
  */
 static __oryx_always_inline__ int list_empty_careful(const struct list_head *head)
 {

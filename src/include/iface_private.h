@@ -101,8 +101,8 @@ typedef struct vlib_iface_main {
 	int						ul_n_ports;	/* dpdk_ports + sw_ports */
 	uint32_t				ul_flags;
 	struct oryx_timer_t		*link_detect_tmr;
-	u32						link_detect_tmr_interval;
-	u32						poll_interval;
+	uint32_t						link_detect_tmr_interval;
+	uint32_t						poll_interval;
 	os_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
@@ -113,7 +113,7 @@ extern vlib_iface_main_t vlib_iface_main;
 
 static __oryx_always_inline__
 int iface_lookup_id0(vlib_iface_main_t *pm,
-				u32 id, struct iface_t **this)
+				uint32_t id, struct iface_t **this)
 {
 	BUG_ON(pm->entry_vec == NULL);
 	
@@ -160,7 +160,7 @@ void iface_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			iface_lookup_id0(pm, (*(u32*)lp->v), p);
+			iface_lookup_id0(pm, (*(uint32_t*)lp->v), p);
 			break;
 		case LOOKUP_ALIAS:
 			iface_lookup_alias(pm, (const char*)lp->v, p);

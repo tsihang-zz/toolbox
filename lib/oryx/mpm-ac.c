@@ -833,7 +833,7 @@ error:
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  * \param matchsize      We don't need this.
  */
-void ACInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void ACInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
 
@@ -885,7 +885,7 @@ void ACinitCtx(MpmCtx *mpm_ctx)
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-void ACDestroyThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void ACDestroyThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     ACPrintSearchStats(mpm_thread_ctx);
 
@@ -992,7 +992,7 @@ void ACDestroyCtx(MpmCtx *mpm_ctx)
 //#define BIT_ARRAY_ALLOC_STACK
 uint8_t *bitarray_ptr;
 #define BIT_ARRAY_DEFAULT_SIZE		102400
-uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
+uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
     const SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
@@ -1014,7 +1014,7 @@ uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
 
 /** TSIHANG */
 #ifndef BIT_ARRAY_ALLOC_STACK 
-	u32 size = BIT_ARRAY_DEFAULT_SIZE;
+	uint32_t size = BIT_ARRAY_DEFAULT_SIZE;
 
 	bitarray = bitarray_ptr;
 	if (bitarray) {		
@@ -1167,7 +1167,7 @@ int ACAddPatternCS(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
     return MpmAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
-void ACPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
+void ACPrintSearchStats(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
 {
 
 #ifdef SC_AC_COUNTERS
@@ -1180,9 +1180,9 @@ void ACPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
     return;
 }
 
-void ACPrintInfo(MpmCtx __oryx_unused__ *mpm_ctx)
+void ACPrintInfo(MpmCtx __oryx_unused_param__ *mpm_ctx)
 {
-    SCACCtx __oryx_unused__ *ctx = (SCACCtx *)mpm_ctx->ctx;
+    SCACCtx __oryx_unused_param__ *ctx = (SCACCtx *)mpm_ctx->ctx;
 #if 1
     printf("MPM AC Information:\n");
     printf("Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);

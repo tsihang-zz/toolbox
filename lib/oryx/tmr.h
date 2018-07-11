@@ -60,8 +60,8 @@ extern struct oryx_timer_t *oryx_tmr_create (int module,
                 const char *desc, uint32_t ul_setting_flags,
                 void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv, uint32_t msec);
 extern void oryx_tmr_destroy (struct oryx_timer_t *tmr);
-extern void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char __oryx_unused__**argv);
+extern void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
+                char __oryx_unused_param__**argv);
 
 #endif
 

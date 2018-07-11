@@ -125,13 +125,13 @@ int em_add_hash_key(struct em_route *entry)
  */
 void classify_setup_em(const int socketid)
 {
-	mask0 = (rte_xmm_t){.u32 = {BIT_8_TO_15, ALL_32_BITS,
+	mask0 = (rte_xmm_t){.uint32_t = {BIT_8_TO_15, ALL_32_BITS,
 				ALL_32_BITS, ALL_32_BITS} };
 	
-	mask1 = (rte_xmm_t){.u32 = {BIT_16_TO_23, ALL_32_BITS,
+	mask1 = (rte_xmm_t){.uint32_t = {BIT_16_TO_23, ALL_32_BITS,
 				ALL_32_BITS, ALL_32_BITS} };
 
-	mask2 = (rte_xmm_t){.u32 = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
+	mask2 = (rte_xmm_t){.uint32_t = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
 	
 
 	struct rte_hash_parameters ipv4_l3fwd_hash_params = {

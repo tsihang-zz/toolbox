@@ -9,7 +9,7 @@ extern atomic64_t mem_access_times;
 
 static __oryx_always_inline__
 void *kmalloc(int s, 
-                 int flags, int __oryx_unused__ node)
+                 int flags, int __oryx_unused_param__ node)
 
 {
     void *p;
@@ -33,7 +33,7 @@ void *kcalloc(int c, int s,
 
 static __oryx_always_inline__
 void *krealloc(void *sp,  int s, 
-			 int flags, int __oryx_unused__ node)
+			 int flags, int __oryx_unused_param__ node)
 {
     void *p;
  

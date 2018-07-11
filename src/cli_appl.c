@@ -24,7 +24,7 @@ ht_appl_free (const ht_value_t v)
 	/** To avoid warnings. */
 }
 
-static uint32_t
+static ht_key_t
 ht_appl_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {

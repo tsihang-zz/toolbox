@@ -138,7 +138,7 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 }
 
 static __oryx_always_inline__
-void map_entry_lookup_id0 (vlib_map_main_t *mm, u32 id, struct map_t **m)
+void map_entry_lookup_id0 (vlib_map_main_t *mm, uint32_t id, struct map_t **m)
 {
 	BUG_ON(mm->entry_vec == NULL);
 
@@ -170,7 +170,7 @@ void map_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			map_entry_lookup_id0(mm, (*(u32*)lp->v), m);
+			map_entry_lookup_id0(mm, (*(uint32_t*)lp->v), m);
 			break;
 		case LOOKUP_ALIAS:
 			map_entry_lookup_alias(mm, (char*)lp->v, m);

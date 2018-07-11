@@ -198,14 +198,14 @@ print_one_ipv4_rule(struct acl4_rule *rule, int extra)
 {
 	unsigned char a, b, c, d;
 
-	uint32_t_to_char(rule->field[SRC_FIELD_IPV4].value.u32,
+	uint32_t_to_char(rule->field[SRC_FIELD_IPV4].value.uint32_t,
 			&a, &b, &c, &d);
 	printf("%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
-			rule->field[SRC_FIELD_IPV4].mask_range.u32);
-	uint32_t_to_char(rule->field[DST_FIELD_IPV4].value.u32,
+			rule->field[SRC_FIELD_IPV4].mask_range.uint32_t);
+	uint32_t_to_char(rule->field[DST_FIELD_IPV4].value.uint32_t,
 			&a, &b, &c, &d);
 	printf("%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
-			rule->field[DST_FIELD_IPV4].mask_range.u32);
+			rule->field[DST_FIELD_IPV4].mask_range.uint32_t);
 	printf("%hu:%hu %hu:%hu 0x%hhx/0x%hhx ",
 		rule->field[SRCP_FIELD_IPV4].value.u16,
 		rule->field[SRCP_FIELD_IPV4].mask_range.u16,
@@ -260,11 +260,11 @@ void convert_acl(struct     acl_route *ar,
 	v->field[PROTO_FIELD_IPV4].value.u8 = k->proto;
 	v->field[PROTO_FIELD_IPV4].mask_range.u8 = ar->ip_next_proto_mask;
 
-	v->field[SRC_FIELD_IPV4].value.u32 = k->ip_src;
-	v->field[SRC_FIELD_IPV4].mask_range.u32 = ar->ip_src_mask;
+	v->field[SRC_FIELD_IPV4].value.uint32_t = k->ip_src;
+	v->field[SRC_FIELD_IPV4].mask_range.uint32_t = ar->ip_src_mask;
 	
-	v->field[DST_FIELD_IPV4].value.u32 = k->ip_dst;
-	v->field[DST_FIELD_IPV4].mask_range.u32 = ar->ip_dst_mask;
+	v->field[DST_FIELD_IPV4].value.uint32_t = k->ip_dst;
+	v->field[DST_FIELD_IPV4].mask_range.uint32_t = ar->ip_dst_mask;
 	
 	v->field[SRCP_FIELD_IPV4].value.u16 = k->port_src;
 	v->field[SRCP_FIELD_IPV4].mask_range.u16 = ar->port_src_mask;

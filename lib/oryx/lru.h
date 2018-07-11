@@ -37,7 +37,7 @@ struct lru_cache {
 	size_t element_off;
 
 	/* number of elements (indices) */
-	u32 nr_elements;
+	uint32_t nr_elements;
 	/* Arbitrary limit on maximum tracked objects. Practical limit is much
 	 * lower due to allocation failures, probably. For typical use cases,
 	 * nr_elements should be a few thousand at most.
@@ -47,12 +47,12 @@ struct lru_cache {
 
 	/* allow to accumulate a few (index:label) changes,
 	 * but no more than max_pending_changes */
-	u32 max_pending_changes;
+	uint32_t max_pending_changes;
 	/* number of elements currently on to_be_changed list */
-	u32 pending_changes;
+	uint32_t pending_changes;
 
 	/* statistics */
-	u32 used; /* number of elements currently on in_use list */
+	uint32_t used; /* number of elements currently on in_use list */
 	unsigned long hits, misses, starving, locked, changed;
 
 	/* see below: flag-bits for lru_cache */
@@ -101,7 +101,7 @@ extern struct lru_cache *lc_create(const char *name, struct oryx_kmcache_t *cach
 			unsigned e_count, size_t e_size, size_t e_off);
 extern void lc_reset(struct lru_cache *lc);
 extern void lc_destroy(struct lru_cache *lc);
-extern void lc_set(struct lru_cache *lc, unsigned int enr, u32 index);
+extern void lc_set(struct lru_cache *lc, unsigned int enr, uint32_t index);
 extern void lc_del(struct lru_cache *lc, struct lc_element *element);
 
 extern struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr);

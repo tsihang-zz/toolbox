@@ -271,9 +271,9 @@ unsigned long __ffs(unsigned long word)
 }
 
 #if defined(HAVE_APR_H)
-oryx_status_t oryx_atomic_initialize(oryx_pool_t __oryx_unused__ *p);
+oryx_status_t oryx_atomic_initialize(oryx_pool_t __oryx_unused_param__ *p);
 #else
-oryx_status_t oryx_atomic_initialize(void __oryx_unused__ *p);
+oryx_status_t oryx_atomic_initialize(void __oryx_unused_param__ *p);
 #endif
 
 /**

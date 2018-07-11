@@ -246,7 +246,7 @@ void MpmDestroyThreadCtx(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx);
 void MpmDestroyCtx (MpmCtx *mpm_ctx);
 
 
-uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
+uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen);
 int MpmPreparePatterns(MpmCtx *mpm_ctx);
 int MpmAddPatternCS(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,

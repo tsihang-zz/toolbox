@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = geo
 
 # all source are stored in SRCS-y
-SRCS-y := geo_main.c geo_capture.c geo_htable.c
+SRCS-y := geo_main.c geo_capture.c geo_htable.c geo_cdr_persistence.c
 DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)
@@ -56,8 +56,8 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/../oryx
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lyaml -lpcap
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lssl -lrt\
+		   -lhs -lpcre -lyaml -lpcap -lmysqlclient
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

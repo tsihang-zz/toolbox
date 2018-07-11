@@ -142,7 +142,7 @@ static struct oryx_task_t netdev_task =
 };
 
 static __oryx_always_inline__ 
-void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
+void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
                 char **argv)
 {
 	tmr = tmr;
@@ -151,7 +151,7 @@ void dp_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc
 }
 
 void dp_start_pcap(vlib_main_t *vm) {
-	u32 nb_lcores = MAX_LCORES;
+	uint32_t nb_lcores = MAX_LCORES;
 
 	vm->nb_lcores = MAX_LCORES;
 	printf ("Master Lcore @ %d/%d\n", 0,

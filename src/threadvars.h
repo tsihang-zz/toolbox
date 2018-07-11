@@ -7,7 +7,7 @@
 /** \brief Per thread variable structure */
 typedef struct ThreadVars_ {
     pthread_t t;
-	u32 lcore;
+	uint32_t lcore;
     char name[16];
     char *printable_name;
     char *thread_group_name;

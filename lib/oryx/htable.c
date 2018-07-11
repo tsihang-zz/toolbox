@@ -27,7 +27,7 @@ void func_free (const ht_value_t v)
 
 static ht_key_t
 func_hash (struct oryx_htable_t *ht,
-		const ht_value_t v, u32 s) 
+		const ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -47,9 +47,9 @@ func_hash (struct oryx_htable_t *ht,
 
 static int
 func_cmp (const ht_value_t v1, 
-		u32 s1,
+		uint32_t s1,
 		const ht_value_t v2,
-		u32 s2)
+		uint32_t s2)
 {
 	int xret = 0;
 
@@ -64,7 +64,7 @@ void oryx_htable_print(struct oryx_htable_t *ht)
 {
 	printf("\n----------- Hash Table Summary ------------\n");
 	printf("Buckets:				%" PRIu32 "\n", ht->array_size);
-	printf("Active:					%" PRIu32 "\n", ht->count);
+	printf("Active:					%" PRIu32 "\n", ht->active_count);
 	printf("Hashfn:					%pF\n", ht->hash_fn);
 	printf("Freefn:					%pF\n", ht->free_fn);
 	printf("Compfn:					%pF\n", ht->cmp_fn);
@@ -75,9 +75,9 @@ void oryx_htable_print(struct oryx_htable_t *ht)
 }
 
 struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets, 
-	ht_key_t (*hash_fn)(struct oryx_htable_t *, void *, u32), 
-	int (*cmp_fn)(void *, u32, void *, u32), 
-	void (*free_fn)(void *), u32 flags) 
+	ht_key_t (*hash_fn)(struct oryx_htable_t *, void *, uint32_t), 
+	int (*cmp_fn)(void *, uint32_t, void *, uint32_t), 
+	void (*free_fn)(void *), uint32_t flags) 
 {
 
     struct oryx_htable_t *ht = NULL;
@@ -165,7 +165,7 @@ void oryx_htable_destroy(struct oryx_htable_t *ht)
     kfree(ht);
 }
 
-int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
+int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 {
     if (ht == NULL || data == NULL)
         return -1;
@@ -190,7 +190,7 @@ int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
         hb->next = ht->array[hash];
         ht->array[hash] = hb;
     }
-    ht->count++;
+    ht->active_count++;
 	ht->ht_unlock_fn(ht->os_lock);
 #ifdef ORYX_HASH_DEBUG
 	printf ("add %s, %p\n", (char *)hb->data, hb->data);
@@ -201,7 +201,7 @@ error:
     return -1;
 }
 
-int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
+int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 {
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
@@ -217,32 +217,32 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
             ht->free_fn(ht->array[hash]->data);
         kfree(ht->array[hash]);
         ht->array[hash] = NULL;
-		ht->count --;
+		ht->active_count --;
 		ht->ht_unlock_fn(ht->os_lock);
         return 0;
     }
 
-    struct oryx_hbucket_t *hb = ht->array[hash], *prev_hb = NULL;
+    struct oryx_hbucket_t *hb = ht->array[hash], *pb = NULL;
     do {
         if (ht->cmp_fn(hb->data, hb->ul_d_size, data, datalen) == 0) {
-            if (prev_hb == NULL) {
+            if (pb == NULL) {
                 /* root bucket */
                 ht->array[hash] = hb->next;
             } else {
                 /* child bucket */
-                prev_hb->next = hb->next;
+                pb->next = hb->next;
             }
 
             /* remove this */
             if (ht->free_fn != NULL)
                 ht->free_fn(hb->data);
             kfree(hb);
-	     	ht->count --;
+	     	ht->active_count --;
 			ht->ht_unlock_fn(ht->os_lock);
             return 0;
         }
 
-        prev_hb = hb;
+        pb = hb;
         hb = hb->next;
     } while (hb != NULL);
 
@@ -251,7 +251,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, u32 datalen)
     return -1;
 }
 
-void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, u32 datalen)
+void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32_t datalen)
 {
     ht_key_t hash = 0;
 
@@ -283,4 +283,29 @@ void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, u32 da
     return NULL;
 }
 
+int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
+	void (*handler)(ht_value_t, uint32_t, void *, int), void *opaque, int opaque_size)
+{
+	int refcount = 0;
+	int i;
+	struct oryx_hbucket_t *hb;
+
+	if(handler == NULL)
+		return 0;
+	
+	ht->ht_lock_fn(ht->os_lock);
+	
+	for (i = 0; i < htable_active_slots(ht); i ++) {
+		hb = ht->array[i];
+		if (hb == NULL) continue;
+		do {
+			handler(hb->data, hb->ul_d_size, opaque, opaque_size);
+			refcount ++;
+			hb = hb->next;
+		} while (hb != NULL);
+	}
+	
+	ht->ht_unlock_fn(ht->os_lock);
+	return refcount;
+}
 

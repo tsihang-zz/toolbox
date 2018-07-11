@@ -17,14 +17,14 @@ void appl_inherit(struct appl_t *son, struct appl_t *father)
 }
 
 int appl_entry_format (struct appl_t *appl,
-	const u32 __oryx_unused__*rule_id,
+	const uint32_t __oryx_unused_param__*rule_id,
 	const char *unused_var,
-	const char __oryx_unused__*vlan,
-	const char __oryx_unused__*sip,
-	const char __oryx_unused__*dip,
-	const char __oryx_unused__*sp,
-	const char __oryx_unused__*dp,
-	const char __oryx_unused__*proto)
+	const char __oryx_unused_param__*vlan,
+	const char __oryx_unused_param__*sip,
+	const char __oryx_unused_param__*dip,
+	const char __oryx_unused_param__*sp,
+	const char __oryx_unused_param__*dp,
+	const char __oryx_unused_param__*proto)
 {
 	struct prefix_ipv4 ip4;
 	uint32_t val_start, val_end;
@@ -140,7 +140,7 @@ int appl_entry_format (struct appl_t *appl,
 }
 
 void appl_entry_new (struct appl_t **appl, 
-			const char *alias, u32 __oryx_unused__ type)
+			const char *alias, uint32_t __oryx_unused_param__ type)
 {
 	/** create an appl */
 	(*appl) = kmalloc (sizeof (struct appl_t), MPF_CLR, __oryx_unused_val__);
@@ -254,7 +254,7 @@ int appl_table_entry_deep_lookup(const char *argv,
 	} else {
 		/** try id lookup if alldigit input. */
 		if (isalldigit (argv)) {
-			u32 id = atoi(argv);
+			uint32_t id = atoi(argv);
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,
 				.v = (void *)&id,

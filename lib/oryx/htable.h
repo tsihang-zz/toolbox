@@ -5,52 +5,52 @@
 
 #define DEFAULT_HASH_CHAIN_SIZE	(1 << 10)
 
-struct oryx_hbucket_t
-{
-	/** */
-	ht_value_t data;
-
-	/** key = hash(value) */
-	ht_key_t	key;
-
-	/** sizeof (data) */
-	u32 ul_d_size;
-
-	/** conflict chain. */
-	struct oryx_hbucket_t *next;
+struct oryx_hbucket_t {
+	ht_value_t		data;
+	ht_key_t		key;			/** key = hash(value) */	
+	uint32_t		ul_d_size;		/** sizeof (data) */
+	struct oryx_hbucket_t *next;	/** conflict chain. */
 };
 
-struct oryx_htable_t
-{
-	/** hash bucket */
-	struct oryx_hbucket_t **array;
-	
-	/** sizeof hash bucket */
-	int array_size;
-
-	/** total of instance stored in bucket, maybe great than array_size in future. */
-	int count;
-
-	/** function for create a hash value with the given parameter *v */
-	uint32_t (*hash_fn)(struct oryx_htable_t *, const ht_value_t, u32);
-
-	/** 0: equal, otherwise a value less than zero returned*/
-	int (*cmp_fn)(const ht_value_t, u32, const ht_value_t, u32);
-
-	/** function for vlaue of oryx_hbucket_t releasing */
-	void (*free_fn)(const ht_value_t);
-
-	/** Synchronized hash table. 
-	 *  Caller can use the hash table safely without maintaining a thread-safe-lock. */
-#define HTABLE_SYNCHRONIZED	(1 << 0)
+#define HTABLE_SYNCHRONIZED	(1 << 0)	/* Synchronized hash table. 
+	 									 * Caller can use the hash table safely
+	 									 * without maintaining a thread-safe-lock. */
 #define HTABLE_PRINT_INFO	(1 << 1)
-	u32 ul_flags;
 
-	os_mutex_t *os_lock;
-	oryx_status_t (*ht_lock_fn)(os_mutex_t *lock);
-	oryx_status_t (*ht_unlock_fn)(os_mutex_t *lock);
+struct oryx_htable_t {
+	struct oryx_hbucket_t	**array;
+	int						array_size;		/* sizeof hash bucket */
+	int						active_count;	/* total of instance stored in bucket,
+										 	 * maybe great than array_size in future.
+								 		 	 */
+	uint32_t			ul_flags;
+
+	os_mutex_t			*os_lock;
+	oryx_status_t		(*ht_lock_fn)(os_mutex_t *lock);
+	oryx_status_t		(*ht_unlock_fn)(os_mutex_t *lock);
+
+	ht_key_t (*hash_fn)(struct oryx_htable_t *,
+						const ht_value_t,
+						uint32_t);		/* function for create a hash value
+										 * with the given parameter *v
+										 */
+	int (*cmp_fn)(const ht_value_t,
+				  uint32_t,
+				  const ht_value_t,
+				  uint32_t);			/* 0: equal,
+										 * otherwise a value less than zero returned.
+										 */
+										 
+	void (*free_fn)(const ht_value_t);	/* function for vlaue of
+										 * oryx_hbucket_t releasing.
+										 */
 };
 
+#define htable_active_slots(ht)\
+	((ht)->array_size)
+	
+#define htable_active_elements(ht)\
+	((ht)->active_count)
 
 #define HASH_JEN_MIX(a,b,c)                                             \
     do {                                                                            \
@@ -134,15 +134,17 @@ hash_data(void *key, int keylen)
 }
 
 struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets, 
-	ht_key_t (*hash_fn)(struct oryx_htable_t *, ht_value_t, u32), 
-	int (*cmp_fn)(ht_value_t, u32, ht_value_t, u32), 
+	ht_key_t (*hash_fn)(struct oryx_htable_t *, ht_value_t, uint32_t), 
+	int (*cmp_fn)(ht_value_t, uint32_t, ht_value_t, uint32_t), 
 	void (*free_fn)(ht_value_t),
-	u32 flags);
+	uint32_t flags);
 
 extern void oryx_htable_destroy(struct oryx_htable_t *ht);
 extern void oryx_htable_print(struct oryx_htable_t *ht);
-extern int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, u32 datalen);
-extern int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, u32 datalen);
-extern void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, u32 datalen);
+extern int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
+extern int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
+extern void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
+extern int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
+	void (*handler)(ht_value_t, uint32_t, void *, int), void *opaque, int opaque_size);
 
 #endif

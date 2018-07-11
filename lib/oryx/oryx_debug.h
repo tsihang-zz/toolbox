@@ -257,7 +257,7 @@ int oryx_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
 		 ORYX_LOGTYPE_ ## t, # t ": " __VA_ARGS__) :	\
 	 0)
 
-extern u32 oryx_log_global_log_level;
+extern uint32_t oryx_log_global_log_level;
 
 #define __oryx_log__(x, file, func, line, ...)                                          	\
 	    do {                                                                        \

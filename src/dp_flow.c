@@ -13,11 +13,11 @@ typedef struct FlowHashKey4_ {
         struct {
             uint32_t addrs[2];
             uint16_t ports[2];
-            uint16_t proto; /**< u16 so proto and recur add up to u32 */
-            uint16_t recur; /**< u16 so proto and recur add up to u32 */
+            uint16_t proto; /**< u16 so proto and recur add up to uint32_t */
+            uint16_t recur; /**< u16 so proto and recur add up to uint32_t */
             uint16_t vlan_id[2];
         };
-        const uint32_t u32[5];
+        const uint32_t uint32_t[5];
     };
 } FlowHashKey4;
 
@@ -26,11 +26,11 @@ typedef struct FlowHashKey6_ {
         struct {
             uint32_t src[4], dst[4];
             uint16_t ports[2];
-            uint16_t proto; /**< u16 so proto and recur add up to u32 */
-            uint16_t recur; /**< u16 so proto and recur add up to u32 */
+            uint16_t proto; /**< u16 so proto and recur add up to uint32_t */
+            uint16_t recur; /**< u16 so proto and recur add up to uint32_t */
             uint16_t vlan_id[2];
         };
-        const uint32_t u32[11];
+        const uint32_t uint32_t[11];
     };
 } FlowHashKey6;
 
@@ -207,7 +207,7 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
             fhk.vlan_id[0] = p->vlan_id[0];
             fhk.vlan_id[1] = p->vlan_id[1];
 
-            hash = hashword(fhk.u32, 5, flow_config.hash_rand);
+            hash = hashword(fhk.uint32_t, 5, flow_config.hash_rand);
 
         } else if (ICMPV4_DEST_UNREACH_IS_VALID(p)) {
             uint32_t psrc = IPv4_GET_RAW_IPSRC_U32(ICMPV4_GET_EMB_IPv4(p));
@@ -227,7 +227,7 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
             fhk.vlan_id[0] = p->vlan_id[0];
             fhk.vlan_id[1] = p->vlan_id[1];
 
-            hash = hashword(fhk.u32, 5, flow_config.hash_rand);
+            hash = hashword(fhk.uint32_t, 5, flow_config.hash_rand);
 
         } else {
             FlowHashKey4 fhk;
@@ -241,7 +241,7 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
             fhk.vlan_id[0] = p->vlan_id[0];
             fhk.vlan_id[1] = p->vlan_id[1];
 
-            hash = hashword(fhk.u32, 5, flow_config.hash_rand);
+            hash = hashword(fhk.uint32_t, 5, flow_config.hash_rand);
         }
     } else if (p->ip6h != NULL) {
         FlowHashKey6 fhk;
@@ -273,7 +273,7 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
         fhk.vlan_id[0] = p->vlan_id[0];
         fhk.vlan_id[1] = p->vlan_id[1];
 
-        hash = hashword(fhk.u32, 11, flow_config.hash_rand);
+        hash = hashword(fhk.uint32_t, 11, flow_config.hash_rand);
     }
 
     return hash;

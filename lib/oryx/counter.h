@@ -1,7 +1,7 @@
 #ifndef COUNTER_H
 #define COUNTER_H
 
-typedef u32 counter_id;
+typedef uint32_t counter_id;
 
 #if defined(COUNTER_USE_ATOMIC)
 typedef atomic64_t cu64;

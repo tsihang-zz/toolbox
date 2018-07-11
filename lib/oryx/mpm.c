@@ -482,7 +482,7 @@ void MpmDestroyCtx (MpmCtx *mpm_ctx)
 }
 
 
-uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused__ *mpm_thread_ctx,
+uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
 	return mpm_table[mpm_ctx->mpm_type].Search(mpm_ctx, mpm_thread_ctx, pmq, buf, buflen);
@@ -678,7 +678,7 @@ static __oryx_always_inline__ int MpmInitHashAdd(MpmCtx *ctx, MpmPattern *p)
  * \retval -1 On failure.
  */
 int MpmAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
-                            uint16_t __oryx_unused__ offset, uint16_t __oryx_unused__ depth, uint32_t pid,
+                            uint16_t __oryx_unused_param__ offset, uint16_t __oryx_unused_param__ depth, uint32_t pid,
                             sig_id sid, uint8_t flags)
 {
 #ifdef MPM_DEBUG

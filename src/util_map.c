@@ -128,7 +128,7 @@ int map_entry_find_same(const char *argv, struct map_t **map)
 	if (unlikely (!v)) {
 		/** try id lookup if alldigit input. */
 		if (isalldigit (argv)) {
-			u32 id = atoi(argv);
+			uint32_t id = atoi(argv);
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,
 				.v = (void *)&id,

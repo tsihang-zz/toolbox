@@ -25,7 +25,7 @@ struct netdev_t {
 	void *private;
 	atomic64_t         rank;
 
-	u32 ul_flags;
+	uint32_t ul_flags;
 };
 
 static __oryx_always_inline__

@@ -30,7 +30,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 			if (token) {\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.v = (void *)&id,\
@@ -105,7 +105,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 			if (token) {\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.s = strlen (token),\
@@ -181,7 +181,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 			if (token) {\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
-					u32 id = atoi(token);\
+					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
 						.s = strlen (token),\

@@ -21,7 +21,7 @@ typedef struct oryx_actq_mgr_t {
 	
 #define INIT_HASH_TABLE_ERROR	(1 << 0)
 #define INIT_VEC_TABLE_ERROR	(1 << 1)
-	u32 ul_flags;
+	uint32_t ul_flags;
 
 } oryx_actq_mgr_t;
 
@@ -83,13 +83,13 @@ void actq_try_alloc (struct oryx_actq_prefix_t *ap, struct oryx_actq_t **actq)
 
 }
 
-static void actq_free (void __oryx_unused__ *v)
+static void ht_actq_free (void __oryx_unused_param__ *v)
 {
 	v = v; /** To avoid warnings. */
 }
 
-static ht_key_t actq_hval (struct oryx_htable_t *ht,
-		ht_value_t v, u32 s) 
+static ht_key_t ht_actq_hval (struct oryx_htable_t *ht,
+		ht_value_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -107,10 +107,10 @@ static ht_key_t actq_hval (struct oryx_htable_t *ht,
      return hv;
 }
 
-static int actq_cmp (ht_value_t v1, 
-		u32 s1,
+static int ht_actq_cmp (ht_value_t v1, 
+		uint32_t s1,
 		ht_value_t v2,
-		u32 s2)
+		uint32_t s2)
 {
 	int xret = 0;
 
@@ -141,7 +141,7 @@ static __oryx_always_inline__
 void actq_inner_init (struct oryx_actq_mgr_t *mgr)
 {	
 	mgr->ht_table = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-			actq_hval, actq_cmp, actq_free, HTABLE_SYNCHRONIZED);
+			ht_actq_hval, ht_actq_cmp, ht_actq_free, HTABLE_SYNCHRONIZED);
 	if (unlikely (!mgr->ht_table)) {
 		mgr->ul_flags |= INIT_HASH_TABLE_ERROR;
 		goto finish;
@@ -192,7 +192,7 @@ void actq_inner_raw_try_free (struct oryx_actq_raw_t *inner_raw)
 oryx_status_t actq_inner_write (struct oryx_actq_t *actq,
 						struct oryx_actq_raw_t *inner_raw)
 {
-	const u32 ul_current_backlog = atomic_inc(&actq->ul_buffered_blocks);
+	const uint32_t ul_current_backlog = atomic_inc(&actq->ul_buffered_blocks);
 
 	if (actq->ul_flags & ACTQ_ENABLE_FIXED_BUFFER) {
 		int off = atomic_read(&actq->ul_buffered_blocks);

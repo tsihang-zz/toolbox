@@ -116,5 +116,10 @@ void * fq_dequeue (struct qctx_t *q)
     return f;
 }
 
+static __oryx_always_inline__
+int fq_length (struct qctx_t *q)
+{
+	return q->len;
+}
 
 #endif

@@ -8,7 +8,7 @@
 #if defined(GEO)
 #define NPAS_CDR_14
 #endif
-
+
 #if defined(NPAS_CDR_12)
 #include "geo12.h"
 #endif
@@ -29,13 +29,24 @@
 #include "geo16.h"
 #endif
 
+struct geo_stat_t {
+	uint64_t		rx_pkts;			/** all udp pkts */
+	uint64_t		rx_cdr_pkts;		/** all cdr pkts. */
+	uint64_t		rx_valid_cdr_pkts;	/** all cdr pkts which we care about. */	
+	uint64_t		rx_invalid_cdr_pkts;/** all invalid cdr pkts */
+	uint64_t		rx_bypass_cdr_pkts;	/** rx_bypass_cdr_pkts + rx_valid_cdr_pkts = rx_cdr_pkts */
 
+	uint64_t		total_actually_refill_pkts;
+	uint64_t		total_refill_pkts;
+};
+
+#if 0
 #define GEO_CDR_HAVE_REFILL_CACHE		/* CDR which without IMSI will be hold by a cache. 
 										 * When a new CDR, which with IMSI and has a same
 										 * fingerprint, and this FP is recorded by the cache.
 										 * When timeout, all CDRs in it's cache will be delivered
 										 * out after refill its own FP. */
-
+#endif
 
 #define GEO_CDR_HASH_MODE_M_TMSI			0
 #define GEO_CDR_HASH_MODE_MME_UE_S1AP_ID	1
@@ -53,8 +64,6 @@ struct geo_key_info_t {
 	uint32_t	mme_ue_s1ap_id;
 	char		imsi[18];
 	uint8_t		mme_code;
-	void		*v;			/** a pointer to this.m_tmsi or this.mme_ue_s1ap_id. */
-
 	uint32_t	ul_flags;
 };
 
@@ -68,13 +77,39 @@ struct geo_key_info_t {
 		}
 
 static __oryx_always_inline__
-void geo_key_info_init(struct geo_key_info_t *gk) {
-	gk->cdr_index		= -1;
-	gk->m_tmsi			= -1;
-	gk->mme_code		= -1;
-	gk->mme_ue_s1ap_id	= -1;
-	gk->ul_flags		= 0;
-	memset (&gk->imsi, 0, 18);
+void geo_key_info_dump(struct geo_key_info_t *gk, FILE *fp)
+{
+	int i;
+	
+	fprintf(fp, "%16u\t%16u\t%16u\t",
+		gk->m_tmsi,
+		gk->mme_code,
+		gk->mme_ue_s1ap_id);
+	for (i = 0; i < 15; i ++) {
+		fprintf(fp, "%02x", gk->imsi[i]);
+	}
+	fprintf(fp, "%s", "\n");
+	
+	fflush(fp);
+}
+
+static __oryx_always_inline__
+void geo_key_info_init(struct geo_key_info_t *dst, struct geo_key_info_t *src) {
+	if (!src) {
+		dst->cdr_index		= -1;
+		dst->m_tmsi			= -1;
+		dst->mme_code		= -1;
+		dst->mme_ue_s1ap_id	= -1;
+		dst->ul_flags		= 0;
+		memset (&dst->imsi, 0, 18);
+	} else {
+		dst->cdr_index		= src->cdr_index;
+		dst->m_tmsi			= src->m_tmsi;
+		dst->mme_code		= src->mme_code;
+		dst->mme_ue_s1ap_id	= src->mme_ue_s1ap_id;
+		dst->ul_flags		= src->ul_flags;
+		memcpy ((void *)&dst->imsi[0], (void *)&src->imsi[0], 18);
+	}
 }
 
 static __oryx_always_inline__

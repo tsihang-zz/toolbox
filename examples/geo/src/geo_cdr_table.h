@@ -474,7 +474,7 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1ap_id;
 			if(v->imsi[0] != 0) {
-				strncpy(gk->imsi, v->imsi, 18);
+				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
 			}
 			break;
@@ -486,7 +486,7 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1apid;
 			if(v->imsi[0] != 0) {
-				strncpy(gk->imsi, v->imsi, 18);
+				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
 			}
 			break;
@@ -498,7 +498,7 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1ap_id;
 			if(v->imsi[0] != 0) {
-				strncpy(gk->imsi, v->imsi, 18);
+				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
 			}
 			break;
@@ -508,9 +508,9 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			return -1;
 	}
 
-	if(gk->m_tmsi != (uint32_t)-1)
+	if(gk->m_tmsi != 0xFFFFFFFF)
 		gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_MTMSI;
-	if(gk->mme_ue_s1ap_id != (uint32_t)-1)
+	if(gk->mme_ue_s1ap_id != 0xFFFFFFFF)
 		gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
 
 	/* no mtmsi and s1ap */
@@ -527,7 +527,16 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 	return 0;
 }
 
+
+struct geo_log_file_t {
+	const char *fp_path;
+	const char	*fp_comment;
+	oryx_file_t *fp;
+	char	md5[16];	/** file change. */
+};
+
 struct geo_cdr_table_t {
+	struct geo_log_file_t lf;
 	uint8_t			cdr_index;
 	uint32_t		table_id;
 	const char		*cdr_name;

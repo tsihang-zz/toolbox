@@ -163,7 +163,7 @@ typedef union {
 		u8 slot: 5; 
 		u8 function: 3;
 	};
-	u32 as_u32;
+	uint32_t as_u32;
 } __attribute__ ((packed)) vlib_pci_addr_t;
 
 typedef struct {
@@ -180,10 +180,10 @@ typedef struct {
 	int uio_fd;
 
 	/* Minor device for uio device. */
-	u32 uio_minor;
+	uint32_t uio_minor;
 
 	/* Index given by unix_file_add. */
-	u32 unix_file_index;
+	uint32_t unix_file_index;
 
 } linux_pci_device_t;
 
@@ -197,7 +197,7 @@ typedef struct {
 typedef struct
 {
 	/* How to match with panel ID ??? */
-	u32 global_id;
+	uint32_t global_id;
 
 	/* Enabled or disabled by configurations */
 	u8 enable;
@@ -227,16 +227,16 @@ typedef struct {
 
 	int device_config_index_by_pci_addr;
 
-	u32 coremask;
-	u32 portmask;
-	u32 nchannels;
-	u32 num_mbufs;
-	u32 mempool_cache_size;
-	u32 mempool_priv_size;
-	u32 mempool_data_room_size;
+	uint32_t coremask;
+	uint32_t portmask;
+	uint32_t nchannels;
+	uint32_t num_mbufs;
+	uint32_t mempool_cache_size;
+	uint32_t mempool_priv_size;
+	uint32_t mempool_data_room_size;
 
 	/** unused */
-	u32 n_rx_q_per_lcore;
+	uint32_t n_rx_q_per_lcore;
 
 	/* PCI address */
 	vlib_pci_addr_t pci_addr;
@@ -267,7 +267,7 @@ typedef struct {
 	f64 stat_poll_interval;
 	
 	/* Sleep for this many usec after each device poll */
-	u32 poll_sleep_usec;
+	uint32_t poll_sleep_usec;
 
 	dpdk_config_main_t *conf;
 	
@@ -275,9 +275,9 @@ typedef struct {
 	struct rte_mempool *pktmbuf_pools;
 	struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
-	u32 n_lcores;
-	u32 n_ports;
-	u32 master_lcore;
+	uint32_t n_lcores;
+	uint32_t n_ports;
+	uint32_t master_lcore;
 	
 	/** hold threadvars, detect_thread_ctx etc. */
 	void *ext_private;

@@ -31,10 +31,10 @@ struct oryx_task_mgr_t{
 	struct list_head	head;
 
 	/** tasks statistics. */
-	u32 ul_count;
+	uint32_t ul_count;
 
 	/** task manager settings. */
-	u32 ul_setting_flags;
+	uint32_t ul_setting_flags;
 };
 
 static struct oryx_task_mgr_t taskmgr = {
@@ -156,8 +156,8 @@ void oryx_task_deregistry_id (oryx_os_thread_t pid)
 
 
 /** Thread description should not be same with registered one. */
-struct oryx_task_t *oryx_task_spawn (char __oryx_unused__*alias, 
-		uint32_t __oryx_unused__ ul_prio, void __oryx_unused__*attr,  void * (*handler)(void *), void *arg)
+struct oryx_task_t *oryx_task_spawn (char __oryx_unused_param__*alias, 
+		uint32_t __oryx_unused_param__ ul_prio, void __oryx_unused_param__*attr,  void * (*handler)(void *), void *arg)
 {
 	if(unlikely(!alias)){
 		return NULL;

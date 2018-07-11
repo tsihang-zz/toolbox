@@ -2,7 +2,7 @@
 #define GEO_HTABLE_H
 
 void ht_geo_cdr_free (const ht_value_t v);
-uint32_t ht_geo_cdr_hval (struct oryx_htable_t *ht,
+ht_key_t ht_geo_cdr_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s);
 int ht_geo_cdr_cmp (const ht_value_t v1, 
 		uint32_t s1,
@@ -35,7 +35,7 @@ struct geo_htable_key_t *alloc_hk(void)
 	struct geo_htable_key_t *h = malloc(sizeof(struct geo_htable_key_t));
 	BUG_ON(h == NULL);
 	memset(h, 0, sizeof(struct geo_htable_key_t));
-	fq_new("inner_cdr_queue", &h->inner_cdr_queue);
+	fq_new("inner_cdr_queue", (struct qctx_t *)&h->inner_cdr_queue);
 	return h;
 }
 

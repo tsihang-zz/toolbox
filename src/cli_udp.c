@@ -118,7 +118,7 @@ struct pattern_t *udp_entry_pattern_lookup (struct udp_t *udp, char *pattern, si
 	return NULL;
 }
 
-struct pattern_t *udp_entry_pattern_lookup_id (struct udp_t *udp, u32 id)
+struct pattern_t *udp_entry_pattern_lookup_id (struct udp_t *udp, uint32_t id)
 {
 	BUG_ON(udp == NULL);
 	BUG_ON(udp->patterns == NULL);
@@ -187,8 +187,8 @@ static void udp_entry_output (struct udp_t *udp, struct vty *vty)
 	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Udp ", udp->sc_alias, udp->ul_id, tmstr, VTY_NEWLINE);
 
 	u8 qua;
-	u32 passed_maps;
-	u32 dropped_maps;
+	uint32_t passed_maps;
+	uint32_t dropped_maps;
 	oryx_vector v;
 
 	qua = QUA_PASS;
@@ -341,12 +341,12 @@ static void udp_entry_remove_and_destroy (struct udp_t *udp)
 	udp_entry_destroy(udp);
 }
 
-static int udp_entry_destroy_strict (struct udp_t *udp, struct vty __oryx_unused__ *vty)
+static int udp_entry_destroy_strict (struct udp_t *udp, struct vty __oryx_unused_param__ *vty)
 {
 	struct map_t *m;
 	oryx_vector v0, v1;
 	int i;
-	u32 c0, c1;
+	uint32_t c0, c1;
 	
 	v0 = udp->qua[QUA_DROP];
 	v1 = udp->qua[QUA_PASS];
@@ -408,7 +408,7 @@ struct udp_t *udp_entry_lookup (char *alias)
 		sc_alias);
 }
 
-struct udp_t *udp_entry_lookup_id (u32 id)
+struct udp_t *udp_entry_lookup_id (uint32_t id)
 {
 	vlib_udp_main_t *vp = &vlib_udp_main;
 
@@ -662,11 +662,11 @@ static void * thread_fn (void *a)
 	oryx_status_t s;
 	const char *patterns_file = local_path_pattern_file_txt;
 	oryx_size_t rl = 0;
-	u32 random_string_input_size = 0;
+	uint32_t random_string_input_size = 0;
 	MpmCtx mpm_ctx;
 	MpmThreadCtx mpm_thread_ctx;
 	PrefilterRuleStore pmq;
-	const u32 fixed_heap_size = 1024000;
+	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
 	struct  timeval  end;
 	u64 t;
@@ -744,7 +744,7 @@ static void * thread_fn (void *a)
 	u64 longest_cost = 1;
 	u64 shortest_cost = 10000000;
 	int times = 10000;
-	u32 matched_size = 0;
+	uint32_t matched_size = 0;
 
     	char *buf = kmalloc (fixed_heap_size, MPF_CLR, __oryx_unused_val__);
 	ASSERT(buf);
@@ -831,11 +831,11 @@ DEFUN(test_udp,
 	oryx_status_t s;
 	const char *patterns_file = local_path_pattern_file_txt;
 	oryx_size_t rl = 0;
-	u32 random_string_input_size = 0;
+	uint32_t random_string_input_size = 0;
 	MpmCtx mpm_ctx;
 	MpmThreadCtx mpm_thread_ctx;
 	PrefilterRuleStore pmq;
-	const u32 fixed_heap_size = 1024000;
+	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
 	struct  timeval  end;
 	u64 t;
@@ -909,7 +909,7 @@ DEFUN(test_udp,
 	u64 longest_cost = 1;
 	u64 shortest_cost = 10000000;
 	int times = 10000;
-	u32 matched_size = 0;
+	uint32_t matched_size = 0;
 
     char *buf = kmalloc (fixed_heap_size, MPF_CLR, __oryx_unused_val__);
 	ASSERT(buf);

@@ -133,7 +133,7 @@ void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct ap
 }
 
 static __oryx_always_inline__
-void appl_entry_lookup_id0 (vlib_appl_main_t *am, u32 id, struct appl_t **appl)
+void appl_entry_lookup_id0 (vlib_appl_main_t *am, uint32_t id, struct appl_t **appl)
 {
 	BUG_ON(am->entry_vec == NULL);
 
@@ -166,7 +166,7 @@ void appl_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			appl_entry_lookup_id0(am, (*(u32*)lp->v), appl);
+			appl_entry_lookup_id0(am, (*(uint32_t*)lp->v), appl);
 			break;
 		case LOOKUP_ALIAS:
 			appl_entry_lookup_alias(am, (const char*)lp->v, appl);

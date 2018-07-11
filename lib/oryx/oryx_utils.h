@@ -15,6 +15,8 @@
 #include "queue.h"
 #include "mpool.h"
 #include "ethtool.h"
+#include "sqlconnector.h"
+#include "mdx.h"
 
 #define u8_tolower(c) tolower((uint8_t)(c))
 

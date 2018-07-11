@@ -91,7 +91,7 @@ void lc_reset(struct lru_cache *lc)
 		e->lc_index = i;
 		e->lc_number = LC_FREE;
 		e->lc_new_number = LC_FREE;
-		list_add(&e->list, &lc->free);
+		oryx_list_add(&e->list, &lc->free);
 	}
 }
 
@@ -228,7 +228,7 @@ struct lru_cache *lc_create(const char *name, struct oryx_kmcache_t *cache,
 		e->lc_number = LC_FREE;
 		e->lc_new_number = LC_FREE;
 		/** add lc_element to lru_cache's free list. */
-		list_add(&e->list, &lc->free);
+		oryx_list_add(&e->list, &lc->free);
 		/** save lc_element in tracked object to current lru_cache->lc_element. */
 		element[i] = e;
 	}
@@ -536,7 +536,7 @@ unsigned int lc_index_of(struct lru_cache *lc, struct lc_element *e)
  *
  * Used to initialize the active set to some previously recorded state.
  */
-void lc_set(struct lru_cache *lc, unsigned int enr, u32 index)
+void lc_set(struct lru_cache *lc, unsigned int enr, uint32_t index)
 {
 	struct lc_element *e;
 	struct list_head *lh;
@@ -573,7 +573,7 @@ void lc_seq_dump_details(FILE *seq, struct lru_cache *lc, char *utext,
 {
 	unsigned int nr_elements = lc->nr_elements;
 	struct lc_element *e;
-	u32 i;
+	uint32_t i;
 
 	fprintf(seq, "\tnn: lc_number (new nr) refcnt %s\n ", utext);
 	for (i = 0; i < nr_elements; i++) {

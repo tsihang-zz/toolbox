@@ -10,7 +10,7 @@ void ht_geo_cdr_free (const ht_value_t v)
 	/** Never free here! */
 }
 
-uint32_t ht_geo_cdr_hval (struct oryx_htable_t *ht,
+ht_key_t ht_geo_cdr_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
 	struct geo_htable_key_t hk = GEO_CDR_HASH_KEY_INIT_VAL;

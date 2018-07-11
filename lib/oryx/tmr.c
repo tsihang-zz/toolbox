@@ -28,8 +28,8 @@ struct oryx_tmr_mgr_t tmrmgr = {
 	.ul_precision_msec = TMR_DEFAULT_PRECISION,
 };
 
-void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
-                char __oryx_unused__**argv)
+void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
+                char __oryx_unused_param__**argv)
 {
     printf ("default %s-timer routine has occured on [%s, %u, %d]\n",
 		tmr->ul_setting_flags & TMR_OPTIONS_ADVANCED ? "advanced" : "sig",
@@ -60,7 +60,7 @@ void tmr_free(struct oryx_timer_t *t)
 }
 
 static __oryx_always_inline__ 
-oryx_tmr_id tmr_id_alloc(int __oryx_unused__ module, 
+oryx_tmr_id tmr_id_alloc(int __oryx_unused_param__ module, 
                 const char *sc_alias, 
                 size_t s)
 {
@@ -184,7 +184,7 @@ void realtimer_init(void)
 }
 
 static __oryx_always_inline__
-void * tmr_daemon (void __oryx_unused__*pv_par )
+void * tmr_daemon (void __oryx_unused_param__*pv_par )
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	

@@ -36,12 +36,12 @@ atomic_t n_map_elements = ATOMIC_INIT(0);
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
 static void
-ht_map_free (const ht_value_t v)
+ht_map_free (const ht_value_t __oryx_unused_param__ v)
 {
 	/** Never free here! */
 }
 
-static uint32_t
+static ht_key_t
 ht_map_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
@@ -598,8 +598,8 @@ DEFUN(test_map,
 }
 
 static __oryx_always_inline__
-void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
-			int __oryx_unused__ argc, char __oryx_unused__**argv)
+void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused_param__*tmr,
+			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
 {
 	int 				i;
 	int					each_map;

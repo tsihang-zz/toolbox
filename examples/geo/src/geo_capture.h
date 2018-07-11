@@ -86,7 +86,7 @@ typedef struct GEODecodeThreadVars_s {
 
 typedef struct GEOThreadVars_ {
     pthread_t t;
-	u32 lcore;
+	uint32_t lcore;
     char name[16];
     char *printable_name;
     char *thread_group_name;
