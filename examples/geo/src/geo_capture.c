@@ -204,8 +204,6 @@ void geo_update_stats(struct geo_key_info_t *gk,
 
 	if(gk->ul_flags & GEO_CDR_KEY_INFO_BYPASS) {
 		dtv->counter_bypassed ++;
-		/* there is no enough info for refill, so we bypass it ASAP. */
-		geo_stat.rx_bypass_cdr_pkts ++;
 	}
 }
 
@@ -213,7 +211,7 @@ void geo_update_stats(struct geo_key_info_t *gk,
 static __oryx_always_inline__
 void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 		const struct pcap_pkthdr *pcaphdr,
-		u_char *packet)
+		const u_char *packet)
 {
 	int			is_udp = 0;
 	int			pl = 0;
@@ -225,7 +223,6 @@ void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	struct geo_cdr_entry_t *gce;
 	GEODecodeThreadVars *dtv;
 	GEOThreadVars *tv;
-	int i;
 
 	geo_decode(pcaphdr, (char *)packet, &is_udp, &pl_off, &pl);
 	if (!is_udp)
@@ -236,7 +233,7 @@ void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	cdr_start = (char *)&packet[pl_off];
 	GetCDRIndex(cdr_start, &cdr_index);
 	cdr_head = (full_record_cdr_head_t *)cdr_start;
-	if((pl != CDR_LEN(cdr_head)) ||
+	if ((pl != CDR_LEN(cdr_head)) ||
 		(cdr_index >= cdr_num || cdr_index == cdr_source)) {
 		oryx_logn("plen %u, pl_off %u(%zd), pl_len %u, cdr_len %u",
 						pcaphdr->len,
@@ -263,11 +260,12 @@ void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	tv		= &gtv[cdr_index];
 
 	geo_get_key_info(cdr_start, &gk, cdr_index);
-	
 	geo_update_stats(&gk, dtv, tv);
 	
 	/* Prepare for those CDRs which will not be bypassed. */
 	if (gk.ul_flags & GEO_CDR_KEY_INFO_BYPASS) {
+		/* there is no enough info for refill, so we bypass it ASAP. */
+		geo_stat.rx_bypass_cdr_pkts ++;
 		geo_key_info_dump(&gk, stdout);
 		return;
 	}
@@ -542,9 +540,6 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 	uint64_t rx_cdr_mtmsi = 0;			
 	uint64_t rx_cdr_no_mtmsi = 0;
 	uint64_t rx_cdr_mme_ue_s1ap_id = 0;
-	uint64_t rx_cdr_no_mme_ue_s1ap_id = 0;
-	uint64_t rx_cdr_imsi_mme_ue_s1ap_id = 0;
-	uint64_t rx_cdr_imsi_mtmis = 0;
 	uint64_t rx_cdr_has_imsi_pkts = 0;
 	uint64_t rx_cdr_no_imsi_pkts = 0;
 	uint64_t rx_cdr_total_refill_pkts = 0;
@@ -552,7 +547,6 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 
 	char file_clear_cmd[64] = "cat /dev/null > ";
 	GEODecodeThreadVars		*dtv;
-	GEOThreadVars			*tv;
 	struct geo_cdr_table_t	*gct;
 
 	rx_pkts				= geo_stat.rx_pkts;
@@ -560,8 +554,6 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 	rx_bypass_cdr_pkts	= geo_stat.rx_bypass_cdr_pkts;
 	rx_valid_cdr_pkts	= geo_stat.rx_valid_cdr_pkts;
 	
-#if 1
-
 	strcat (file_clear_cmd, cdr_stats_out_fp.fp_path);
 	system(file_clear_cmd);
 	fseek(cdr_stats_out_fp.fp, 0, SEEK_SET);
@@ -572,7 +564,6 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 	for (i = 0; i < cdr_num; i ++) {
 
 		dtv	= &gdtv[i];
-		tv	= &gtv[i];
 		gct	= geo_cdr_tables[i];
 		
 		if(i == cdr_s1_mme_signal ||
@@ -583,14 +574,11 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 
 			rx_cdr_no_mtmsi		= dtv->counter_no_mtmsi;
 			rx_cdr_mtmsi		= dtv->counter_mtmsi;
-			rx_cdr_no_mme_ue_s1ap_id		= dtv->counter_no_mme_ue_s1ap_id;
 			rx_cdr_mme_ue_s1ap_id			= dtv->counter_mme_ue_s1ap_id;
 			rx_cdr_has_imsi_pkts			= dtv->counter_has_imsi;
 			rx_cdr_no_imsi_pkts				= dtv->counter_no_imsi;
 			rx_cdr_total_refill_pkts		= dtv->counter_total_refill;
 			rx_cdr_refilled_deta			= dtv->counter_refilled_deta;
-			rx_cdr_imsi_mme_ue_s1ap_id		= dtv->counter_has_imsi_mme_ue_s1apid;
-			rx_cdr_imsi_mtmis				= dtv->counter_has_imsi_mtmsi;
 			
 			if(rx_signal_cdr_pkts) {
 				
@@ -598,10 +586,7 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_pkts: ", rx_signal_cdr_pkts, ratio_of(rx_signal_cdr_pkts, rx_valid_cdr_pkts));
 				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_mtmis: ", rx_cdr_mtmsi, ratio_of(rx_cdr_mtmsi, rx_signal_cdr_pkts));
 				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_mme_ue_s1ap_id: ", rx_cdr_mme_ue_s1ap_id, ratio_of(rx_cdr_mme_ue_s1ap_id, rx_signal_cdr_pkts));
-				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%\n",  " ", "rx_has_imsi: ", rx_cdr_has_imsi_pkts, ratio_of(rx_cdr_has_imsi_pkts, rx_signal_cdr_pkts));
 				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_no_imsi: ",  rx_cdr_no_imsi_pkts, ratio_of(rx_cdr_no_imsi_pkts, rx_signal_cdr_pkts));
-				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_imsi_and_mtmsi: ", rx_cdr_imsi_mtmis, ratio_of(rx_cdr_imsi_mtmis, rx_cdr_mtmsi));
-				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f%%\n", " ", "rx_imsi_and_s1apid: ", rx_cdr_imsi_mme_ue_s1ap_id, ratio_of(rx_cdr_imsi_mme_ue_s1ap_id, rx_cdr_mme_ue_s1ap_id));
 				fprintf(cdr_stats_out_fp.fp, "%32s%32s%16lu%16.2f% (+%u, %-03.2f%%)\n", " ", "refill result: ",
 									rx_cdr_has_imsi_pkts,
 									ratio_of(rx_cdr_has_imsi_pkts, rx_signal_cdr_pkts),
@@ -612,7 +597,6 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 			}
 		}
 	}
-#endif
 }
 
 static void geo_cdr_age(ht_value_t __oryx_unused_param__ v,
@@ -633,41 +617,35 @@ void geo_refill_queue_age_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unuse
 }
 
 static __oryx_always_inline__ 
-void geo_cdr_load_db_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-				char **argv) {
-	int i;
-	struct geo_cdr_table_t *gct;
-	int fd = -1;
-	int nread;
-	MD5_CTX ctx;
-	char data_buf[1024];
-	unsigned char md5[16];
-	char sql[256];
+void geo_cdr_load_db_tmr_handler(struct oryx_timer_t *tmr,
+		int __oryx_unused_param__ argc,  char **argv) {
+	int			i;
+	int			fd = -1;
+	int			nread;
+	char		data_buf[1024];
+	char		sql[256];
+	MD5_CTX		ctx;
+	unsigned char			md5[16];
+	struct geo_cdr_table_t	*gct;
 	  
 	for (i = 0; i < cdr_num; i ++) {
-		gct = geo_cdr_tables[i];
-		if(!gct) continue;
-		
+		if(NULL == (gct = geo_cdr_tables[i])) continue;
+		if((fd = open(gct->lf.fp_path, O_RDONLY)) == -1) continue;
+
 		MD5Init(&ctx);
-
-		fd = open(gct->lf.fp_path, O_RDONLY);
-
-		if(fd == -1)	continue;
 		while(nread = read(fd, data_buf, sizeof(data_buf)), nread > 0)
 			MD5Update(&ctx, data_buf, nread);
 
-		MD5Final(md5, &ctx);
-
 		close(fd);
+		MD5Final(md5, &ctx);
 		
-		if(!memcmp(gct->lf.md5, md5, 16)) {
+		if(!memcmp(&gct->lf.md5[0], &md5[0], 16)) {
 			continue;
 		}
 		
 		/** hold the md5. */
-		memcpy(gct->lf.md5, md5, 16);
-		//lseek(fd, 0, SEEK_SET);
-		/** db load */
+		memcpy(&gct->lf.md5[0], &md5[0], 16);
+
 		sprintf(sql, "DELETE from %s",
 				geo_cdr_tables[i]->cdr_name);
 		sqlctx->sql_cmd_type = SQLCMD_DELETE;
@@ -676,9 +654,7 @@ void geo_cdr_load_db_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_par
 		sprintf(sql, "LOAD DATA LOCAL INFILE '%s' into table %s", gct->lf.fp_path, geo_cdr_tables[i]->cdr_name);
 		sqlctx->sql_cmd_type = SQLCMD_LOAD_INFILE;
 		sqlee_run (sqlctx, sql);
-		
 	}
-
 }
 
 void cdr_table_register(struct geo_cdr_table_t *gct)
@@ -693,42 +669,6 @@ void cdr_table_register(struct geo_cdr_table_t *gct)
 	
 	geo_cdr_tables[gct->cdr_index] = gct;
 }
-
-static struct geo_cdr_table_t cdr_s1_mme = {
-	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1mme.txt",
-		.fp_comment =	"valid cdr record out logging.",
-		.fp 		=	NULL,
-	},
-	.cdr_index = cdr_s1_mme_signal,
-	.table_id = 0,
-	.cdr_name = "s1_mme_signal",
-	.length	= sizeof(full_record_s1_mme_signal_t),
-};
-
-static struct geo_cdr_table_t cdr_s1_emm = {
-	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1emm.txt",
-		.fp_comment =	"valid cdr record out logging.",
-		.fp 		=	NULL,
-	},
-	.cdr_index = cdr_s1_emm_signal,
-	.table_id = 0,
-	.cdr_name = "s1_emm_signal",
-	.length	= sizeof(full_record_s1_emm_signal_t),
-};
-
-static struct geo_cdr_table_t cdr_s1ap_handover = {
-	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1ap_handover.txt",
-		.fp_comment =	"valid cdr record out logging.",
-		.fp 		=	NULL,
-	},
-	.cdr_index = cdr_s1ap_handover_signal,
-	.table_id = 0,
-	.cdr_name = "s1ap_handover_signal",
-	.length	= sizeof(full_record_s1ap_handover_signal_t),
-};
 
 void geo_start_pcap(void) {
 
@@ -782,7 +722,7 @@ void geo_start_pcap(void) {
 	oryx_tmr_start(oryx_tmr_create (1, "refill_queue_age_tmr", (TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
 												  geo_refill_queue_age_tmr_handler, 0, NULL, 3000));
 	oryx_tmr_start(oryx_tmr_create (1, "cdr_load_db_tmr", (TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
-												  geo_cdr_load_db_tmr_handler, 0, NULL, 3000));
+												  geo_cdr_load_db_tmr_handler, 0, NULL, 30000));
 
 }
 

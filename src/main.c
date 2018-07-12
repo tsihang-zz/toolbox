@@ -96,7 +96,10 @@ sig_handler(int signum) {
 	}
 }
 
-int main (int argc, char **argv)
+int main (
+	int	__oryx_unused_param__	argc,
+	char	__oryx_unused_param__	** argv
+)
 {
 	uint32_t id_core;
 

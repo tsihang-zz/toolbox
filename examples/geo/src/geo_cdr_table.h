@@ -473,6 +473,11 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->mme_code		= v->mme_code;
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1ap_id;
+			if(gk->m_tmsi != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_MTMSI;
+			if(gk->mme_ue_s1ap_id != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
+
 			if(v->imsi[0] != 0) {
 				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
@@ -485,6 +490,11 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->mme_code		= v->mme_code;
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1apid;
+			if(gk->m_tmsi != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_MTMSI;
+			if(gk->mme_ue_s1ap_id != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
+
 			if(v->imsi[0] != 0) {
 				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
@@ -497,6 +507,11 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->mme_code		= v->mme_code;
 			gk->m_tmsi			= v->m_tmsi;
 			gk->mme_ue_s1ap_id	= v->mme_ue_s1ap_id;
+			if(gk->m_tmsi != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_MTMSI;
+			if(gk->mme_ue_s1ap_id != 0xFFFFFFFF)
+				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
+
 			if(v->imsi[0] != 0) {
 				strncpy(&gk->imsi[0], &v->imsi[0], 18);
 				gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_IMSI;
@@ -507,11 +522,6 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 			gk->ul_flags |= GEO_CDR_KEY_INFO_BYPASS;
 			return -1;
 	}
-
-	if(gk->m_tmsi != 0xFFFFFFFF)
-		gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_MTMSI;
-	if(gk->mme_ue_s1ap_id != 0xFFFFFFFF)
-		gk->ul_flags |= GEO_CDR_KEY_INFO_APPEAR_S1APID;
 
 	/* no mtmsi and s1ap */
 #if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
@@ -527,14 +537,6 @@ int geo_get_key_info(char *cdr_pkt, struct geo_key_info_t *gk, int cdr_index)
 	return 0;
 }
 
-
-struct geo_log_file_t {
-	const char *fp_path;
-	const char	*fp_comment;
-	oryx_file_t *fp;
-	char	md5[16];	/** file change. */
-};
-
 struct geo_cdr_table_t {
 	struct geo_log_file_t lf;
 	uint8_t			cdr_index;
@@ -543,5 +545,9 @@ struct geo_cdr_table_t {
 	size_t			length;
 }*geo_cdr_tables[cdr_num];
 
+
+extern struct geo_cdr_table_t cdr_s1_mme;
+extern struct geo_cdr_table_t cdr_s1_emm;
+extern struct geo_cdr_table_t cdr_s1ap_handover;
 
 #endif

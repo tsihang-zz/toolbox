@@ -413,14 +413,16 @@ oryx_log(uint32_t level, uint32_t logtype, const char *format, ...)
 	return ret;
 }
 
+#if 0
 /*
  * Called by environment-specific initialization functions.
  */
-void
+static void
 oryx_log_set_default(FILE *default_log)
 {
 	default_log_stream = default_log;
 }
+#endif
 
 /**
  * \brief Output function that logs a character string out to a file descriptor
@@ -716,7 +718,8 @@ void oryx_logging_out(const int log_level, const char *file,
 #define ORYX_BACKTRACE_SIZE 256
 					 
 /* dump the stack of the calling core */
-void oryx_dump_stack(void)
+static void
+oryx_dump_stack(void)
 {
 #ifdef HAVE_BACKTRACE
 	void *func[BACKTRACE_SIZE];
@@ -740,7 +743,8 @@ void oryx_dump_stack(void)
 }
 
 /* not implemented in this environment */
-void oryx_dump_registers(void)
+static void
+oryx_dump_registers(void)
 {
 	return;
 }

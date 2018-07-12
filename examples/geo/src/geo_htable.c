@@ -5,7 +5,7 @@
 #include "geo_cdr_mpool.h"
 #include "geo_cdr_queue.h"
 
-void ht_geo_cdr_free (const ht_value_t v)
+void ht_geo_cdr_free (const ht_value_t __oryx_unused_param__ v)
 {
 	/** Never free here! */
 }

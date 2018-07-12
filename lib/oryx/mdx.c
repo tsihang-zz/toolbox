@@ -256,13 +256,13 @@ void oryx_md5_result(uint8_t *digest, oryx_md5_ctxt *ctxt)
 }
 
 /* From RFC 2104 */
-void oryx_hmac_md5(text, text_len, key, key_len, digest)
-unsigned char*  text;			/* pointer to data stream */
-int             text_len;		/* length of data stream */
-unsigned char*  key;			/* pointer to authentication key */
-int             key_len;		/* length of authentication key */
-uint8_t *       digest;			/* caller digest to be filled in */
-
+void oryx_hmac_md5(
+			unsigned char*  text,			/* pointer to data stream */
+			int             text_len,		/* length of data stream */
+			unsigned char*  key,			/* pointer to authentication key */
+			int             key_len,		/* length of authentication key */
+			uint8_t *       digest			/* caller digest to be filled in */
+)
 {
     MD5_CTX context;
     unsigned char k_ipad[65];    /* inner padding -

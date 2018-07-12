@@ -125,10 +125,8 @@ void MEM_UninitMemory(void *mem_handle)
 	int i;
 	memory_handle_t *handle = (memory_handle_t *)mem_handle;
 
-	for (i = 0; i < handle->num_blocks; i++) 
-	{
+	for (i = 0; i < (int)handle->num_blocks; i++) 
 		free(handle->mem_block[i]);
-	}
 	
 	handle->num_blocks	= 0;
 	handle->current_block = 0;

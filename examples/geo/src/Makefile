@@ -42,7 +42,9 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = geo
 
 # all source are stored in SRCS-y
-SRCS-y := geo_main.c geo_capture.c geo_htable.c geo_cdr_persistence.c
+SRCS-y := geo_main.c geo_capture.c \
+       	geo_htable.c geo_cdr_table.c \
+	geo_cdr_persistence.c
 DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)

@@ -144,7 +144,12 @@ extern void oryx_htable_print(struct oryx_htable_t *ht);
 extern int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
 extern int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
 extern void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen);
-extern int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
-	void (*handler)(ht_value_t, uint32_t, void *, int), void *opaque, int opaque_size);
+
+extern int oryx_htable_foreach_elem(
+									struct oryx_htable_t *ht,
+									void (*handler)(ht_value_t, uint32_t, void *, int),
+									void *opaque,
+									int opaque_size
+);
 
 #endif

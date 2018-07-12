@@ -12,6 +12,8 @@
 #define RLOCK_UNLOCK(r)\
 	do_mutex_unlock(&(r)->m)
 
+#define	ring_element_next(ring,rw)	(((rw) + 1) % (ring)->max_elements)
+
 struct oryx_ring_data_t {
 	uint32_t	pad0: 16;
 	uint32_t	s: 16;
@@ -21,7 +23,7 @@ struct oryx_ring_data_t {
 #define RING_CRITICAL			(1 << 0)
 struct oryx_ring_t {
 	const char			*ring_name;
-	int					nb_data;
+	int					max_elements;
 	volatile uint32_t			wp;
 	volatile uint32_t			rp;
 	struct oryx_ring_data_t		*data;
@@ -47,15 +49,15 @@ int oryx_ring_get(struct oryx_ring_t *ring, void **data, uint16_t *data_size)
 	RLOCK_LOCK(ring);
 	rp = ring->rp;
 	if(rp == ring->wp) {
-		goto finish;
+		RLOCK_UNLOCK(ring);
+		return -1;
 	}
 
 	(*data)			= ring->data[rp].v;
 	(*data_size)	= ring->data[rp].s;
-	ring->rp		= (ring->rp + 1) % ring->nb_data;
+	ring->rp		= ring_element_next(ring, ring->rp);
 	ring->ul_rp_times ++;
 
-finish:
 	RLOCK_UNLOCK(ring);
 	return 0;
 }
@@ -71,23 +73,24 @@ int oryx_ring_put(struct oryx_ring_t *ring, void *data, uint16_t data_size)
 
 	RLOCK_LOCK(ring);
 	wp = ring->wp;
-	if(((wp + 1) % ring->nb_data) == ring->rp) {
-		goto finish;
+	
+	if(ring_element_next(ring, wp) == ring->rp) {
+		RLOCK_UNLOCK(ring); 
+		return -1;
 	}
 
 	ring->data[wp].v	= data;
 	ring->data[wp].s	= data_size;
-	ring->wp			= (ring->wp + 1) % ring->nb_data;
+	ring->wp			= ring_element_next(ring, ring->wp);
 	ring->ul_wp_times ++;
 
 
-finish:
 	RLOCK_UNLOCK(ring);	
 	return 0;
 }
 
 
-extern int oryx_ring_create(const char *ring_name, int nb_data, uint32_t flags, struct oryx_ring_t **ring);
+extern int oryx_ring_create(const char *ring_name, int max_elements, uint32_t flags, struct oryx_ring_t **ring);
 extern void oryx_ring_dump(struct oryx_ring_t *ring);
 
 #endif

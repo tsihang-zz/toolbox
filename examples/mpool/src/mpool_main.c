@@ -90,7 +90,10 @@ void flow_deinit(struct qctx_t *q, void *v)
 	q = q;
 }
 
-int main(int argc, char ** argv)
+int main (
+	int		__oryx_unused_param__	argc,
+	char	__oryx_unused_param__	** argv
+)
 {
 	void *flow_pool, *flow_pool1;
 

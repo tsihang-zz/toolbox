@@ -247,7 +247,7 @@ void oryx_l4_port_generate (char *port_src, char *port_dst)
 	pdst = next_rand_ (&rand) % 65535;
 	
 	itoa (psrc, aa, 10);
-	itoa (psrc, bb, 10);
+	itoa (pdst, bb, 10);
 
 	strcpy (port_src, aa);
 	strcpy (port_dst, bb);
@@ -393,7 +393,7 @@ int kvpair(char *str, char **k, char **v)
 }
 
 __oryx_always_extern__
-char *draw_color(color_t color)
+const char *draw_color(color_t color)
 {
 	return colors[color % COLORS];
 }

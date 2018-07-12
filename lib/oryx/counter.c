@@ -61,10 +61,8 @@ static counter_id RegisterQualifiedCounter(const char *name,
     c->hook = hook;
 
     /* we now add the counter to the list */
-    if (prev == NULL)
-        *h = c;
-    else
-        prev->next = c;
+    if (prev == NULL) *h = c;
+	else prev->next = c;
 
 	ctx->h_size ++;
 	

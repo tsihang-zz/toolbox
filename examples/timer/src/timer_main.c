@@ -1,11 +1,11 @@
 #include "oryx.h"
 
 
-int main(int argc, char ** argv)
+int main (
+	int		__oryx_unused_param__	argc,
+	char	__oryx_unused_param__	** argv
+)
 {
-	uint32_t val_start, val_end;
-	int ret;
-
 	oryx_initialize();
 	
 	struct oryx_timer_t *tmr0, *tmr1, *tmr2;

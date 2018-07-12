@@ -55,13 +55,13 @@ static void htable_handler(ht_value_t __oryx_unused_param__ v,
 	(*actives) ++;
 }
 
-int main(int argc, char ** argv)
+int main (
+	int 	__oryx_unused_param__	argc,
+	char	__oryx_unused_param__	** argv
+)
 {
 	int i;
 
-	argc = argc;
-	argv = argv;
-	
 	oryx_initialize();
 
 	htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 

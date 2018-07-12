@@ -25,10 +25,10 @@ enum {
 
 struct oryx_sqlctx_t {
 
-	char	*host;
-	char	*user;
-	char	*passwd;
-	char	*db;
+	const char	*host;
+	const char	*user;
+	const char	*passwd;
+	const char	*db;
 	
 	int flags;
 

@@ -32,7 +32,7 @@ void oryx_l4_port_generate (char *port_src, char *port_dst);
 void oryx_ipaddr_generate (char *ipv4);
 
 int isalldigit(const char *str);
-char *draw_color(color_t color);
+const char *draw_color(color_t color);
 int kvpair(char *str, char **k, char **v);
 int is_numerical (char* s);
 int do_system(const char *cmd);

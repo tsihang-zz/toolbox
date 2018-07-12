@@ -1,8 +1,6 @@
 #ifndef GEO_H
 #define GEO_H
 
-#include "geo_cdr_table.h"
-
 #define GEO
 
 #if defined(GEO)
@@ -65,16 +63,34 @@ struct geo_key_info_t {
 	char		imsi[18];
 	uint8_t		mme_code;
 	uint32_t	ul_flags;
-};
 
 #define GEO_CDR_KEY_INFO_INIT_VAL {\
-			.mme_code			= -1,\
-			.cdr_index			= -1,\
-			.m_tmsi				= -1,\
-			.mme_ue_s1ap_id		= -1,\
-			.imsi		= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},\
-			.ul_flags	= 0,\
-		}
+				.mme_code			= -1,\
+				.cdr_index			= -1,\
+				.m_tmsi 			= -1,\
+				.mme_ue_s1ap_id 	= -1,\
+				.imsi		= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},\
+				.ul_flags	= 0,\
+			}
+};
+
+
+struct geo_log_file_t {
+	const char *fp_path;
+	const char	*fp_comment;
+	oryx_file_t *fp;
+	char	md5[16];	/** file change. */
+
+#define GEO_LOG_FILE_INIT_VAL {\
+				.fp_path		= -1,\
+				.fp_comment 	= -1,\
+				.fp 			= NULL,\
+				.md5			= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},\
+			}
+};
+
+
+
 
 static __oryx_always_inline__
 void geo_key_info_dump(struct geo_key_info_t *gk, FILE *fp)

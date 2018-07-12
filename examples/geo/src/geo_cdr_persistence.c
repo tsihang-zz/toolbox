@@ -1,6 +1,6 @@
 #include "oryx.h"
-#include "geo_htable.h"
 #include "geo_cdr_table.h"
+#include "geo_htable.h"
 #include "geo_cdr_persistence.h"
 
 struct geo_log_file_t cdr_stats_out_fp = {

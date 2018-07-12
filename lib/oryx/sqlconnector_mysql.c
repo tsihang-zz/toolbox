@@ -97,12 +97,9 @@ static int mysql_run (struct oryx_sqlctx_t *sql_ctx, const char *sql_str)
 	res = mysql_query (sql_ctx->sqldata, sql_str);
 	if (!res) {
 
-		if (sql_ctx->sql_cmd_type == SQLCMD_CREATAB) 
-			oryx_logi ("\"%s\"  success, affected rows=%lu", 
-				sql_str, (unsigned long)mysql_affected_rows(sql_ctx->sqldata));
-		
-		if (sql_ctx->sql_cmd_type == SQLCMD_INSERT)
-			oryx_logi ("\"%s\"  success, affected rows=%lu", 
+		if (sql_ctx->sql_cmd_type == SQLCMD_CREATAB ||
+			sql_ctx->sql_cmd_type == SQLCMD_INSERT) 
+			oryx_logn ("\"%s\"  success, affected rows=%lu", 
 				sql_str, (unsigned long)mysql_affected_rows(sql_ctx->sqldata));
 		
 		if (sql_ctx->sql_cmd_type == SQLCMD_QUERY) {
@@ -112,7 +109,7 @@ static int mysql_run (struct oryx_sqlctx_t *sql_ctx, const char *sql_str)
 					"\"%s\" error %d: %s\n", sql_str, mysql_errno(sql_ctx->sqldata), mysql_error(sql_ctx->sqldata));
 				return -1;
 			} else {
-				//mysql_dump_result(sql_ctx);
+				;
 			}
 		}
 	} else {

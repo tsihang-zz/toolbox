@@ -3,9 +3,9 @@
 static __oryx_always_inline__
 void * ring_rp (void *r)
 {
-	void *data;
-	int ret = 0;
-	uint16_t data_size = 0;
+	void		*data;
+	int			ret = 0;
+	uint16_t	data_size = 0;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
@@ -13,7 +13,6 @@ void * ring_rp (void *r)
 		if(ret != 0)
 			continue;
 		if(data) {
-			//printf ("[%p] rp-> %u\n", data, *(uint32_t *)data);
 			free(data);
 		}
 	}
@@ -25,20 +24,18 @@ void * ring_rp (void *r)
 static __oryx_always_inline__
 void * ring_wp (void *r)
 {
-	uint32_t times = 0;
-	int sleeps = 0;
-	void *data;
-	int ret = 0;
-	uint16_t data_size = 0;
+	uint32_t	times = 0;
+	int			sleeps = 0;
+	void		*data;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		data = malloc(sizeof(times));
-		if(!data) continue;
+		if(NULL == (data = malloc(sizeof(times))))
+			continue;
+
 		*(uint32_t *)data = times ++;
-		data_size = sizeof(times);
-		ret = oryx_ring_put(ring, data, data_size);
-		if(ret != 0) {
+
+		if(oryx_ring_put(ring, data, sizeof(times)) != 0) {
 			free(data);
 			continue;
 		}
@@ -82,7 +79,10 @@ static struct oryx_task_t wp_task =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-int main(int argc, char ** argv)
+int main (
+	int		__oryx_unused_param__	argc,
+	char	__oryx_unused_param__	** argv
+)
 {
 	int r = 0;
 	struct oryx_ring_t *ring;
@@ -90,7 +90,7 @@ int main(int argc, char ** argv)
 	oryx_initialize();
 	
 	r = oryx_ring_create("test_ring", 1024, 0, &ring);
-	if(r != 0) return;
+	if(r != 0) return 0;
 
 	oryx_ring_dump(ring);
 
@@ -106,5 +106,7 @@ int main(int argc, char ** argv)
 	oryx_task_launch();
 
 	FOREVER;
+
+	return 0;
 }
 

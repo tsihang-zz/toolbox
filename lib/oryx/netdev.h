@@ -69,7 +69,9 @@ int netdev_exist(const char *iface);
 int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool);
 int netdev_is_up(const char *iface);
 int netdev_open(struct netdev_t *netdev);
+int netdev_down(const char *iface);
 void *netdev_cap(void *argv);
+
 
 #endif
 

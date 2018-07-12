@@ -35,7 +35,7 @@ struct oryx_timer_t {
 #define TMR_INVALID  -1
     int				module;
     oryx_tmr_id		tmr_id;			/** unique id */
-    char			*sc_alias;		/** make sure that allocate desc member with malloc like function. */
+    const char		*sc_alias;		/** make sure that allocate desc member with malloc like function. */
     int64_t			interval_ms;	/** in secs, default is 3 seconds. */
     int64_t			curr_ticks;
 
@@ -57,8 +57,14 @@ extern oryx_status_t oryx_tmr_initialize (void);
 extern void oryx_tmr_start (struct oryx_timer_t *tmr);
 extern void oryx_tmr_stop (struct oryx_timer_t *tmr);
 extern struct oryx_timer_t *oryx_tmr_create (int module,
-                const char *desc, uint32_t ul_setting_flags,
-                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv, uint32_t msec);
+                const char *sc_alias, uint32_t ul_setting_flags,
+                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
+                uint32_t n_mseconds);
+extern struct oryx_timer_t *oryx_tmr_create_loop (int module,
+				const char *sc_alias,
+				void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
+				uint32_t n_mseconds);
+
 extern void oryx_tmr_destroy (struct oryx_timer_t *tmr);
 extern void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
                 char __oryx_unused_param__**argv);

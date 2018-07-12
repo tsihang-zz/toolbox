@@ -19,13 +19,13 @@ typedef struct oryx_tmr_mgr_t {
 } oryx_tmr_mgr_t;
 
 struct oryx_tmr_mgr_t tmrmgr = {
-	.ol_sigtmr_lock = INIT_MUTEX_VAL,
-	.sigtmr_cur_ticks = ATOMIC_INIT(0),
+	.ol_sigtmr_lock		= INIT_MUTEX_VAL,
+	.sigtmr_cur_ticks	= ATOMIC_INIT(0),
 
-	.ol_tmr_lock = INIT_MUTEX_VAL,
-	.tmr_cur_ticks = ATOMIC_INIT(0),
+	.ol_tmr_lock		= INIT_MUTEX_VAL,
+	.tmr_cur_ticks		= ATOMIC_INIT(0),
 
-	.ul_precision_msec = TMR_DEFAULT_PRECISION,
+	.ul_precision_msec	= TMR_DEFAULT_PRECISION,
 };
 
 void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
@@ -54,7 +54,6 @@ static __oryx_always_inline__
 void tmr_free(struct oryx_timer_t *t)
 {
     if(t->ul_setting_flags & TMR_CAN_BE_RECYCLABLE){
-        kfree(t->sc_alias);
         kfree(t);
     }
 }
@@ -214,59 +213,44 @@ static struct oryx_task_t advanced_tmr_task =
 
 void oryx_tmr_start (struct oryx_timer_t *tmr)
 {
-	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
+	os_mutex_t *lock = &tm->ol_sigtmr_lock;
 	
 	/** lookup alias. */
-	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED) {
+	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
-	}
-	else {
-		lock = &tm->ol_sigtmr_lock;
-	}
 
     oryx_thread_mutex_lock(lock);
 	tmr_enable(tmr);
     oryx_thread_mutex_unlock(lock);
-
 }
 
 void oryx_tmr_stop (struct oryx_timer_t *tmr)
 {
-	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
+	os_mutex_t *lock = &tm->ol_sigtmr_lock;
 	
 	/** lookup alias. */
-	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED) {
+	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
-	}
-	else {
-		lock = &tm->ol_sigtmr_lock;
-	}
 
     oryx_thread_mutex_lock(lock);
 	tmr_disable(tmr);
     oryx_thread_mutex_unlock(lock);
-
 }
 
 void oryx_tmr_destroy (struct oryx_timer_t *tmr)
 {
-	os_mutex_t *lock;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
+	os_mutex_t *lock = &tm->ol_sigtmr_lock;
 	
 	/** lookup alias. */
-	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED) {
+	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
-	}
-	else {
-		lock = &tm->ol_sigtmr_lock;
-	}
 
     oryx_thread_mutex_lock(lock);
 	tmr_delete(tmr);
     oryx_thread_mutex_unlock(lock);
-
 }
 
 oryx_status_t oryx_tmr_initialize(void) 
@@ -291,7 +275,8 @@ oryx_status_t oryx_tmr_initialize(void)
 */
 struct oryx_timer_t *oryx_tmr_create (int module,
                 const char *sc_alias, uint32_t ul_setting_flags,
-                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv, uint32_t msec)
+                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
+                uint32_t n_mseconds)
 {
     struct oryx_timer_t *_this = NULL, *p;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
@@ -317,7 +302,8 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 	/** lookup advanced timer list. */
 	oryx_thread_mutex_lock(lock);
     list_for_each_entry_safe (_this, p, h, list){
-        if(likely(!strcmp(sc_alias, _this->sc_alias))){
+        if(likely(!strcmp(sc_alias, _this->sc_alias)) &&
+			(module == _this->module)){
             printf ( 
                 "The same timer (%s, %d)\n", _this->sc_alias, _this->tmr_id);
 			oryx_thread_mutex_unlock(lock);
@@ -339,7 +325,7 @@ struct oryx_timer_t *oryx_tmr_create (int module,
     _this->module		= module;
     _this->sc_alias		= sc_alias;
     _this->curr_ticks	= 0;
-    _this->interval_ms	= msec;
+    _this->interval_ms	= n_mseconds;
     _this->routine		= handler ? handler : oryx_tmr_default_handler;
     _this->tmr_id		= tmr_id_alloc(_this->module, _this->sc_alias, strlen(_this->sc_alias));
     _this->ul_setting_flags = (ul_setting_flags | TMR_CAN_BE_RECYCLABLE);
@@ -349,5 +335,15 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 
 finish:    
     return _this;
+}
+
+struct oryx_timer_t *oryx_tmr_create_loop (int module,
+				const char *sc_alias,
+				void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
+				uint32_t n_mseconds)
+{
+	uint32_t ul_setting_flags = (TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED);
+	return oryx_tmr_create(module, sc_alias,
+					ul_setting_flags, handler, argc, argv, n_mseconds);
 }
 

@@ -1,5 +1,5 @@
-#ifndef QUEUE_H
-#define QUEUE_H
+#ifndef FQUEUE_H
+#define FQUEUE_H
 
 #define FQLOCK_INIT(q)\
 	do_mutex_init(&(q)->m)
@@ -18,12 +18,6 @@ struct qctx_t {
     void		*bot;
 	const char	*name;
     uint32_t	len;
-
-	int (*insert)(struct qctx_t *q, void *f);
-	int (*remove)(struct qctx_t *q, void *f);
-	int (*verify)(struct qctx_t *q, void *v);
-	void (*init)(struct qctx_t *q, void *v);
-	void (*deinit)(struct qctx_t *q, void *v);
 
 #ifdef DBG_PERF
     uint32_t dbg_maxlen;
