@@ -528,9 +528,9 @@ struct inet_addr {
 enum {LOOKUP_ID, LOOKUP_ALIAS};
 
 struct prefix_t {
-	u8 cmd;
-	void *v;
-	u8 s;	/** sizeof(v) */
+	uint8_t		cmd;
+	const void	*v;
+	uint8_t		s;	/** sizeof(v) */
 };
 
 
@@ -593,8 +593,7 @@ do {							\
 #include "oryx_mpm.h"
 #include "oryx_netdev.h"
 #include "oryx_counters.h"
-#include "conf.h"
-#include "conf-yaml-loader.h"
+#include "oryx_socket.h"
 
 extern oryx_status_t oryx_initialize(void);
 

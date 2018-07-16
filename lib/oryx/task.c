@@ -1,6 +1,19 @@
 
 #include "oryx.h"
-#include "task.h"
+
+struct oryx_task_mgr_t{	
+	os_mutex_t			lock;			/** lock. */
+	struct list_head	head;			/** all tasks are hold by head. */
+	uint32_t			ul_count;		/** tasks statistics. */
+	uint32_t ul_setting_flags;			/** task manager settings. */
+};
+
+static struct oryx_task_mgr_t taskmgr = {
+	.ul_setting_flags	=	0,
+	.ul_count			=	0,
+	.lock				=	INIT_MUTEX_VAL,
+};
+
 
 /** For thread sync */
 static sem_t oryx_task_sync_sem;
@@ -22,29 +35,7 @@ static void os_sync(void)
     sem_wait(&oryx_task_sync_sem);
 }
 
-struct oryx_task_mgr_t{
-
-	/** lock. */
-	oryx_thread_mutex_t  lock;
-
-	/** all tasks are hold by head. */
-	struct list_head	head;
-
-	/** tasks statistics. */
-	uint32_t ul_count;
-
-	/** task manager settings. */
-	uint32_t ul_setting_flags;
-};
-
-static struct oryx_task_mgr_t taskmgr = {
-	.ul_setting_flags = 0,
-	.ul_count = 0,
-	.lock = INIT_MUTEX_VAL,
-};
-
-static __oryx_always_inline__
-void task_deregistry (struct oryx_task_t *task)
+static void task_deregistry (struct oryx_task_t *task)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
@@ -57,8 +48,7 @@ void task_deregistry (struct oryx_task_t *task)
 		kfree(task);
 }
 
-static __oryx_always_inline__
-void task_registry (struct oryx_task_t *task)
+static void task_registry (struct oryx_task_t *task)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
@@ -68,8 +58,7 @@ void task_registry (struct oryx_task_t *task)
 	oryx_thread_mutex_unlock(&tm->lock);
 }
 
-static __oryx_always_inline__
-struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
+static struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
 {
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -85,8 +74,7 @@ struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
 	return NULL;
 }
 
-static __oryx_always_inline__
-struct oryx_task_t  *oryx_task_query_alias (char *sc_alias)
+static struct oryx_task_t  *oryx_task_query_alias (char *sc_alias)
 {
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -117,59 +105,51 @@ static struct oryx_task_t  *oryx_task_query (struct prefix_t *lp)
 }
 
 void oryx_task_registry (struct oryx_task_t *task)
-{
-	struct oryx_task_t *t;
-	
-	if (unlikely(!task)) {
-		return;
-	}
+{	
+	BUG_ON(task == NULL);
 
 	struct prefix_t p = {
-		.cmd = LOOKUP_ALIAS,
-		.v = task->sc_alias,
-		.s = strlen (task->sc_alias),
+		.cmd	=	LOOKUP_ALIAS,
+		.v		=	task->sc_alias,
+		.s		=	strlen (task->sc_alias),
 	};
 
-	t = oryx_task_query (&p);
-	if (unlikely (!t)) {
+	if (unlikely(!oryx_task_query (&p)))
 		task_registry (task);
-	}
-
-	return;
 }
 
 void oryx_task_deregistry_id (oryx_os_thread_t pid)
 {
-	struct oryx_task_t *t;
-	
 	struct prefix_t p = {
-		.cmd = LOOKUP_ID,
-		.v = &pid,
-		.s = __oryx_unused_val__,
+		.cmd	=	LOOKUP_ID,
+		.v		=	&pid,
+		.s		=	__oryx_unused_val__,
 	};
-		
-	t = oryx_task_query (&p);
-	if (likely (t)) {
+
+	struct oryx_task_t *t = oryx_task_query (&p);
+
+	if (likely(t)) {
 		task_deregistry (t);
 	}
 }
 
 
 /** Thread description should not be same with registered one. */
-struct oryx_task_t *oryx_task_spawn (char __oryx_unused_param__*alias, 
-		uint32_t __oryx_unused_param__ ul_prio, void __oryx_unused_param__*attr,  void * (*handler)(void *), void *arg)
+struct oryx_task_t *oryx_task_spawn (
+		const char		__oryx_unused_param__*alias, 
+		const uint32_t	__oryx_unused_param__ ul_prio,
+		void		__oryx_unused_param__*attr,
+		void *		(*handler)(void *),
+		void		*argv)
 {
-	if(unlikely(!alias)){
-		return NULL;
-	}
-
-	struct prefix_t p = {
-		.cmd = LOOKUP_ALIAS,
-		.v = alias,
-		.s = strlen (alias),
-	};
+	BUG_ON(alias == NULL);
 
 	struct oryx_task_t *t;
+	struct prefix_t p = {
+		.cmd	=	LOOKUP_ALIAS,
+		.v		=	alias,
+		.s		=	strlen (alias),
+	};
 
 	t =  oryx_task_query (&p);
 	if (likely (t)) {
@@ -183,11 +163,11 @@ struct oryx_task_t *oryx_task_spawn (char __oryx_unused_param__*alias,
 		return NULL;
 	}
 	
-	t->ul_prio = ul_prio;
-	t->fn_handler = handler;
-	t->argv = arg;
+	t->ul_prio		=	ul_prio;
+	t->fn_handler	=	handler;
+	t->argv			=	argv;
+	t->sc_alias		=	alias;
 	INIT_LIST_HEAD(&t->list);
-	memcpy(t->sc_alias, alias, strlen(alias));
 	
 	os_unsync();
 	if (!pthread_create(&t->pid, NULL, t->fn_handler, t->argv) &&
@@ -211,17 +191,15 @@ void oryx_task_launch(void)
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
 	list_for_each_entry_safe(t, p, &tm->head, list) {
-		
-		/** task has been startup, so skip it. */
-		if (t->pid > 0 && (t->ul_flags & TASK_RUNNING))
+		if (task_is_running(t))
 			continue;
 		
 		os_unsync();
 
-		if (!pthread_create (&t->pid, DEFAULT_ATTR_VAL, t->fn_handler, t->argv) &&
+		if (!pthread_create (&t->pid, NULL, t->fn_handler, t->argv) &&
 	    		 (!pthread_detach (t->pid))) {
-			t->ul_flags |= TASK_RUNNING;
-			t->ull_startup_time = time (NULL);
+			t->ul_flags			|= TASK_RUNNING;
+			t->ull_startup_time	= time (NULL);
 		}
 
 		os_sync();

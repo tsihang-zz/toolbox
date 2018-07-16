@@ -1,5 +1,7 @@
 #include "oryx.h"
 
+struct oryx_client_t client;
+
 static __oryx_always_inline__
 void * ring_rp (void *r)
 {

@@ -209,7 +209,82 @@ void geo_update_stats(struct geo_key_info_t *gk,
 
 
 static __oryx_always_inline__
-void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
+int do_refill(struct   geo_htable_key_t *hk , struct geo_cdr_entry_t *gce, int cdr_index,
+		GEODecodeThreadVars *dtv, GEOThreadVars *tv)
+{
+	uint8_t 	mme_code = -1;
+	uint32_t	hkv = -1;
+	char		*imsi;
+
+	switch(cdr_index)
+	{
+		case cdr_s1_emm_signal:
+			{
+				full_record_s1_emm_signal_t *v = (full_record_s1_emm_signal_t *)gce->data;
+				mme_code	= v->mme_code;
+#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
+				hkv 		= v->m_tmsi;
+#else
+				hkv 		= v->mme_ue_s1ap_id;
+#endif
+				imsi		= (char *)&v->imsi[0];
+				break;
+			}
+		case cdr_s1ap_handover_signal:
+			{
+				full_record_s1ap_handover_signal_t *v = (full_record_s1ap_handover_signal_t *)gce->data;
+				mme_code	= v->mme_code;
+#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
+				hkv 		= v->m_tmsi;
+#else
+				hkv 		= v->mme_ue_s1apid;
+#endif
+				imsi		= (char *)&v->imsi[0];
+
+				break;
+			}
+		case cdr_s1_mme_signal:
+			{
+				full_record_s1_mme_signal_t * v = (full_record_s1_mme_signal_t *)gce->data;
+				mme_code	= v->mme_code;
+#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
+				hkv 		= v->m_tmsi;
+#else
+				hkv 		= v->mme_ue_s1ap_id;
+#endif
+				imsi		= (char *)&v->imsi[0];
+
+				break;
+			}
+		default:
+			return -1;
+	}
+
+	if((mme_code != hk->mme_code) || (hkv != hk->v)) {
+		fprintf(cdr_record_error_fp.fp, "mme_code %d =? %d,  hkv %d =? %d\n", mme_code, hk->mme_code, hkv, hk->v);
+		return -1;
+	}
+
+	if (imsi[0] == 0) {
+		/*ReFill */
+		//dump_imsi("Before", imsi);
+		strncpy(imsi, (char *)&hk->imsi[0], 18);
+		//dump_imsi("After", imsi);
+		geo_stat.total_actually_refill_pkts ++;
+		dtv->counter_refilled_deta ++;
+
+		struct geo_key_info_t *gk = &gce->gki;
+		log_refill_result(hk, cdr_index, cdr_record_refill_result_fp.fp);
+	}
+
+	geo_stat.total_refill_pkts ++;
+	dtv->counter_total_refill ++;
+	
+	return 0;
+}
+
+
+static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 		const struct pcap_pkthdr *pcaphdr,
 		const u_char *packet)
 {
@@ -333,7 +408,7 @@ void *geo_libpcap_running_fn(void *argv)
 	return NULL;
 }
 
-void *geo_refill_prepare_fn (void *argv)
+static void *geo_refill_prepare_fn (void *argv)
 {
 	GEODecodeThreadVars *dtv;
 	GEOThreadVars *tv;
@@ -364,83 +439,7 @@ void *geo_refill_prepare_fn (void *argv)
 	return NULL;
 }
 
-
-static __oryx_always_inline__
-int do_refill(struct   geo_htable_key_t *hk , struct geo_cdr_entry_t *gce, int cdr_index,
-		GEODecodeThreadVars *dtv, GEOThreadVars *tv)
-{
-	uint8_t		mme_code = -1;
-	uint32_t	hkv = -1;
-	char		*imsi;
-
-	switch(cdr_index)
-	{
-		case cdr_s1_emm_signal:
-			{
-				full_record_s1_emm_signal_t *v = (full_record_s1_emm_signal_t *)gce->data;
-				mme_code	= v->mme_code;
-#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
-				hkv			= v->m_tmsi;
-#else
-				hkv			= v->mme_ue_s1ap_id;
-#endif
-				imsi		= (char *)&v->imsi[0];
-				break;
-			}
-		case cdr_s1ap_handover_signal:
-			{
-				full_record_s1ap_handover_signal_t *v = (full_record_s1ap_handover_signal_t *)gce->data;
-				mme_code	= v->mme_code;
-#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
-				hkv			= v->m_tmsi;
-#else
-				hkv			= v->mme_ue_s1apid;
-#endif
-				imsi		= (char *)&v->imsi[0];
-
-				break;
-			}
-		case cdr_s1_mme_signal:
-			{
-				full_record_s1_mme_signal_t * v = (full_record_s1_mme_signal_t *)gce->data;
-				mme_code	= v->mme_code;
-#if (GEO_CDR_HASH_MODE == GEO_CDR_HASH_MODE_M_TMSI)
-				hkv			= v->m_tmsi;
-#else
-				hkv			= v->mme_ue_s1ap_id;
-#endif
-				imsi		= (char *)&v->imsi[0];
-
-				break;
-			}
-		default:
-			return -1;
-	}
-
-	if((mme_code != hk->mme_code) || (hkv != hk->v)) {
-		fprintf(cdr_record_error_fp.fp, "mme_code %d =? %d,  hkv %d =? %d\n", mme_code, hk->mme_code, hkv, hk->v);
-		return -1;
-	}
-
-	if (imsi[0] == 0) {
-		/*ReFill */
-		//dump_imsi("Before", imsi);
-		strncpy(imsi, (char *)&hk->imsi[0], 18);
-		//dump_imsi("After", imsi);
-		geo_stat.total_actually_refill_pkts ++;
-		dtv->counter_refilled_deta ++;
-
-		struct geo_key_info_t *gk = &gce->gki;
-		log_refill_result(hk, cdr_index, cdr_record_refill_result_fp.fp);
-	}
-
-	geo_stat.total_refill_pkts ++;
-	dtv->counter_total_refill ++;
-	
-	return 0;
-}
-
-void *geo_refill_fn (void *argv)
+static void *geo_refill_fn (void *argv)
 {
 	GEODecodeThreadVars *dtv;
 	GEOThreadVars *tv;
@@ -527,9 +526,10 @@ static struct oryx_task_t geo_refill_task =
 	.ul_flags = 0,	/** Can not be recyclable. */
 };
 
-static __oryx_always_inline__ 
-void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-                char **argv)
+static void geo_pcap_perf_tmr_handler (
+		struct oryx_timer_t __oryx_unused_param__	*tmr,
+		int		__oryx_unused_param__ argc,
+		char	__oryx_unused_param__ **argv)
 {
 	int i;
 	uint64_t rx_pkts;
@@ -599,26 +599,29 @@ void geo_pcap_perf_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param
 	}
 }
 
-static void geo_cdr_age(ht_value_t __oryx_unused_param__ v,
-								uint32_t __oryx_unused_param__ s,
-								void *opaque,
-								int __oryx_unused_param__ opaque_size) {
+static void geo_cdr_age(
+		ht_value_t	__oryx_unused_param__ v,
+		uint32_t	__oryx_unused_param__ s,
+		void		__oryx_unused_param__ *opaque,
+		int			__oryx_unused_param__ opaque_size) {
 	struct geo_htable_key_t *hk = (struct geo_htable_key_t *)v;
 	//if(hk->mme_code == 255)
 	//printf("hk->mme_code %u, hk->v %u\n", hk->mme_code, hk->v);
 }
 
-static __oryx_always_inline__ 
-void geo_refill_queue_age_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-				char **argv) {
+static void geo_refill_queue_age_tmr_handler(
+		struct oryx_timer_t __oryx_unused_param__	*tmr,
+		int		__oryx_unused_param__ argc,
+		char	__oryx_unused_param__ **argv) {
 	int refcount = oryx_htable_foreach_elem(geo_cdr_hash_table,
 				geo_cdr_age, NULL, -1);
 	//oryx_htable_print(geo_cdr_hash_table);
 }
 
-static __oryx_always_inline__ 
-void geo_cdr_load_db_tmr_handler(struct oryx_timer_t *tmr,
-		int __oryx_unused_param__ argc,  char **argv) {
+static void geo_cdr_load_db_tmr_handler(
+		struct oryx_timer_t __oryx_unused_param__	*tmr,
+		int		__oryx_unused_param__ argc,
+		char	__oryx_unused_param__ **argv) {
 	int			i;
 	int			fd = -1;
 	int			nread;
@@ -657,7 +660,7 @@ void geo_cdr_load_db_tmr_handler(struct oryx_timer_t *tmr,
 	}
 }
 
-void cdr_table_register(struct geo_cdr_table_t *gct)
+static void cdr_table_register(struct geo_cdr_table_t *gct)
 {
 	if(gct->cdr_index > cdr_num)
 		return;
@@ -726,7 +729,7 @@ void geo_start_pcap(void) {
 
 }
 
-void geo_end_pcap() {
+void geo_end_pcap(void) {
 	printf("Closing netdev %s...", geo_netdev.devname);
 	printf(" Done\n");
 	printf("Bye...\n");

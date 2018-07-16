@@ -39,40 +39,11 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(error This application can only operate in a linuxapp environment, \
+$(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
+else
+
+DIRS-y += oryx src
 endif
 
-# library name
-LIB = liboryx.a
-
-LIBABIVER := 1
-
-# all source are stored in SRC-Y
-SRCS-y :=\
-   sqlconnector.c sqlconnector_mysql.c counter.c debug.c format.c fop.c mpm-hs.c rbtree.c ipc.c actq.c \
-   memcache.c oryx.c error.c atomic.c netdev_pcap.c ring.c mpool.c queue.c parser.c task.c htable.c memory.c \
-   socket.c socket6.c mdx.c netdev.c netdev_pfring.c mpm-ac.c mpm.c lru.c list.c tmr.c vec.c conf.c \
-   conf-yaml-loader.c
-
-
-#CFLAGS += $(WERROR_FLAGS)
-CFLAGS_ORYX := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS_ORYX += -Wmissing-declarations -Wpointer-arith
-CFLAGS_ORYX += -Wcast-align -Wnested-externs
-CFLAGS_ORYX += -Wformat-nonliteral -Wformat-security
-CFLAGS_ORYX += -Wundef -Wwrite-strings
-#CFLAGS_ORYX += -Wold-style-definition -Wcast-qual
-
-CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_ORYX)
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
-
-
-ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
-ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)
-LDLIBS += -lrte_pmd_ixgbe
-endif
-endif
-
-include $(RTE_SDK)/mk/rte.extlib.mk
+include $(RTE_SDK)/mk/rte.extsubdir.mk

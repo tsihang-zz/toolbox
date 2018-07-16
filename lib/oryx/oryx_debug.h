@@ -451,4 +451,11 @@ extern uint32_t oryx_log_global_log_level;
 void
 oryx_panic(int exit_code, const char *format, ...);
 
+static __oryx_always_inline__
+const char * oryx_safe_strerror(int errnum)
+{
+  const char *s = strerror(errnum);
+  return (s != NULL) ? s : "Unknown error";
+}
+
 #endif
