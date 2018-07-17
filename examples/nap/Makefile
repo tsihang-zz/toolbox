@@ -43,10 +43,12 @@ $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
 
-DIRS-y += oryx src
+DIRS-y += oryx quagga src
 endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
 
 clean:
 	@rm -fr src/$(RTE_TARGET)
+	@rm -fr oryx/$(RTE_TARGET)
+	@rm -fr quagga/$(RTE_TARGET)

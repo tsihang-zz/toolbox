@@ -31,7 +31,6 @@
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifeq ($(CONFIG_RTE_LIBRTE_CMDLINE),y)
 
 #
 # library name
@@ -109,4 +108,3 @@ LDLIBS += -lquagga
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-endif

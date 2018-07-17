@@ -1,4 +1,5 @@
 #include "oryx.h"
+#include "sqlconnector_inc.h"
 
 /*
  * sudo apt-get install mysql-server 

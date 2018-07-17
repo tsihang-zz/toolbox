@@ -62,6 +62,7 @@ LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
+
 LDFLAGS += -L/usr/local/lib
 LDFLAGS += -lrdkafka
 

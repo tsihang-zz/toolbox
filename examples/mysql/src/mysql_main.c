@@ -1,5 +1,8 @@
 #include "oryx.h"
 
+
+#include "sqlconnector.h"
+
 int main (
 	int		__oryx_unused_param__	argc,
 	char	__oryx_unused_param__	** argv

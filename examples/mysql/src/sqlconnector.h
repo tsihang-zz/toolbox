@@ -2,8 +2,6 @@
 #define __ORYX_SQLCONNECTOR_H__
 
 #include "sqlconnector_inc.h"
-#include "sqlconnector_mysql.h"
-
 
 extern int sqlee_init (struct oryx_sqlctx_t *sql_ctx);
 extern void sqlee_config (struct oryx_sqlctx_t * sql_ctx,

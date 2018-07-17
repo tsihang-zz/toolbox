@@ -21,7 +21,7 @@ struct kafka_producer_param_t kpp = {
  * the application's thread.
  */
 static void dr_msg_cb (rd_kafka_t *rk,
-                       const rd_kafka_message_t *rkmessage, void *opaque) {
+                       const rd_kafka_message_t *rkmessage, void __oryx_unused_param__ *opaque) {
         struct kafka_producer_param_t *k = &kpp;
 		if (rkmessage->err)
 			k->errors ++;
@@ -118,7 +118,7 @@ void *kafka_producer (void *argv) {
                 rd_kafka_poll(rk, 0/*non-blocking*/);
 
 				if ((kpp.packets % 10000) == 0) {
-	                fprintf(stderr, "%% Delivered messages (%zd bytes, %zd packets) "
+	                fprintf(stdout, "%% Delivered messages (%zd bytes, %zd packets) "
 	                    "for topic %s\n",
 	                    kpp.bytes, kpp.packets, rd_kafka_topic_name(rkt));
 				}

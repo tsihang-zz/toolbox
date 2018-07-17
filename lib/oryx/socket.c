@@ -139,3 +139,83 @@ int oryx_sock_connect (int fd, const union oryx_sockunion *peersu, unsigned shor
 	return -1;
 }
 
+/* Make socket from sockunion union. */
+int
+oryx_sockunion_stream_socket (union oryx_sockunion *su)
+{
+  int sock;
+
+  if (su->sa.sa_family == 0)
+    su->sa.sa_family = AF_INET6;
+
+  sock = socket (su->sa.sa_family, SOCK_STREAM, 0);
+
+  if (sock < 0)
+    oryx_loge(-1, "can't make socket sockunion_stream_socket");
+
+  return sock;
+}
+
+int
+oryx_sockopt_reuseaddr (int sock)
+{
+  int ret;
+  int on = 1;
+
+  ret = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, 
+		    (void *) &on, sizeof (on));
+  if (ret < 0)
+    {
+      oryx_loge(-1, "can't set sockopt SO_REUSEADDR to socket %d", sock);
+      return -1;
+    }
+  return 0;
+}
+
+
+/* Bind socket to specified address. */
+int
+oryx_sockunion_bind (int sock, union oryx_sockunion *su, unsigned short port, 
+		union sockunion *su_addr)
+{
+  int size = 0;
+  int ret;
+
+  if (su->sa.sa_family == AF_INET)
+    {
+      size = sizeof (struct sockaddr_in);
+      su->sin.sin_port = htons (port);
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+      su->sin.sin_len = size;
+#endif /* HAVE_STRUCT_SOCKADDR_IN_SIN_LEN */
+      if (su_addr == NULL)
+	sockunion2ip (su) = htonl (INADDR_ANY);
+    }
+#ifdef HAVE_IPV6
+  else if (su->sa.sa_family == AF_INET6)
+    {
+      size = sizeof (struct sockaddr_in6);
+      su->sin6.sin6_port = htons (port);
+#ifdef SIN6_LEN
+      su->sin6.sin6_len = size;
+#endif /* SIN6_LEN */
+      if (su_addr == NULL)
+	{
+#ifdef LINUX_IPV6
+	  memset (&su->sin6.sin6_addr, 0, sizeof (struct in6_addr));
+#else
+	  su->sin6.sin6_addr = in6addr_any;
+#endif /* LINUX_IPV6 */
+	}
+    }
+#endif /* HAVE_IPV6 */
+  
+
+  ret = bind (sock, (struct sockaddr *)su, size);
+  if (ret < 0)
+    oryx_loge(-1, "can't bind socket : %s", oryx_safe_strerror (errno));
+
+  return ret;
+}
+
+

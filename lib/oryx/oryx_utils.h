@@ -15,7 +15,6 @@
 #include "queue.h"
 #include "mpool.h"
 #include "ethtool.h"
-#include "sqlconnector.h"
 #include "mdx.h"
 #include "conf.h"
 #include "conf-yaml-loader.h"

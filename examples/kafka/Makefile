@@ -47,3 +47,7 @@ DIRS-y += oryx src
 endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
+
+clean:
+	@rm -fr src/$(RTE_TARGET)
+	@rm -fr oryx/$(RTE_TARGET)

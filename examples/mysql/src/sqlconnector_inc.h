@@ -48,10 +48,7 @@ struct oryx_sqlengine_t {
 	int (*stdsql_traversal_result) (struct oryx_sqlctx_t *sql_ctx, void (*handler)(void *container, int argc, void **argv), void *inparam);
 };
 
-struct oryx_sqlengine_t sql_engine[SQLTYPE_TABLE_SIZE];
-
-
-
+extern struct oryx_sqlengine_t sql_engine[];
 
 #endif
 

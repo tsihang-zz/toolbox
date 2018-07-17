@@ -1,5 +1,8 @@
 
 #include "oryx.h"
+#include "sqlconnector_inc.h"
+
+struct oryx_sqlengine_t sql_engine[SQLTYPE_TABLE_SIZE];
 
 const char *sqltest_str = "\
 		--\

@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = mysql
 
 # all source are stored in SRCS-y
-SRCS-y := $(APP)_main.c
+SRCS-y := $(APP)_main.c sqlconnector.c sqlconnector_mysql.c
 DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)

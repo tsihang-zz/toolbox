@@ -16,26 +16,26 @@ struct kafka_param_t kafka_p_param = {
 
 static struct oryx_task_t kafka_c =
 {
-	.module = THIS,
-	.sc_alias = "Kafka Consumer Task",
-	.fn_handler = kafka_consumer,
-	.ul_lcore = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 1,
-	.argv = &kafka_c_param,
-	.ul_flags = 0,	/** Can not be recyclable. */
+	.module		= THIS,
+	.sc_alias	= "Kafka Consumer Task",
+	.fn_handler	= kafka_consumer,
+	.ul_lcore	= INVALID_CORE,
+	.ul_prio	= KERNEL_SCHED,
+	.argc		= 1,
+	.argv		= &kafka_c_param,
+	.ul_flags	= 0,	/** Can not be recyclable. */
 };
 
 static struct oryx_task_t kafka_p =
 {
-	.module = THIS,
-	.sc_alias = "Kafka Producer Task",
-	.fn_handler = kafka_producer,
-	.ul_lcore = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 1,
-	.argv = &kafka_p_param,
-	.ul_flags = 0,	/** Can not be recyclable. */
+	.module		= THIS,
+	.sc_alias	= "Kafka Producer Task",
+	.fn_handler	= kafka_producer,
+	.ul_lcore	= INVALID_CORE,
+	.ul_prio	= KERNEL_SCHED,
+	.argc		= 1,
+	.argv		= &kafka_p_param,
+	.ul_flags	= 0,	/** Can not be recyclable. */
 };
 
 int main(int argc, char ** argv)

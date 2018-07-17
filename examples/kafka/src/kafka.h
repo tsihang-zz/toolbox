@@ -68,9 +68,10 @@ static void logger (const rd_kafka_t *rk, int level,
 * See rdkafka.h for more information.
 */
 static void dr_cb (rd_kafka_t *rk,
-			  void *payload, size_t len,
+			  void	__oryx_unused_param__ *payload,
+			  size_t len,
 			  int error_code,
-			  void *opaque, void *msg_opaque) {
+			  void __oryx_unused_param__ *opaque, void *msg_opaque) {
 	struct kafka_producer_param_t *k = (struct kafka_producer_param_t *)msg_opaque;
 	if (error_code) {
 		k->errors ++;
@@ -96,7 +97,6 @@ int kafka_init_env(rd_kafka_type_t type,
 		rd_kafka_conf_t *conf;	/* Temporary configuration object */
 		rd_kafka_topic_conf_t *topic_conf;
 		char errstr[512];		/* librdkafka API error reporting buffer */
-		const char *debug = "XX";
 		
 		BUG_ON(rk_out == NULL);
 		BUG_ON(conf_out == NULL);
