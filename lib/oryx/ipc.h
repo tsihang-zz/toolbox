@@ -1,18 +1,7 @@
 #ifndef __IPC_H__
 #define __IPC_H__
 
-#ifdef HAVE_APR
-#define INIT_MUTEX_VAL	{NULL, PTHREAD_MUTEX_INITIALIZER}
-#define INIT_COND_VAL	{NULL, PTHREAD_COND_INITIALIZER}
-#define oryx_thread_mutex_t	apr_pthread_mutex_t
-#define oryx_thread_cond_t	apr_pthread_cond_t
 
-#define thread_region_lock(lock)	apr_thread_mutex_lock(lock)
-#define thread_region_unlock(lock)	apr_thread_mutex_unlock(lock)
-#define thread_region_trylock(lock) apr_thread_mutex_trylock(lock)
-#define thread_destroy_lock(lock)	apr_thread_mutex_destroy(lock)
-
-#else
 #define INIT_MUTEX_VAL	PTHREAD_MUTEX_INITIALIZER
 #define INIT_COND_VAL	PTHREAD_COND_INITIALIZER
 #define oryx_thread_mutex_t	pthread_mutex_t
@@ -25,7 +14,7 @@
 
 #define thread_cond_signal(s) pthread_cond_signal(s)
 #define thread_cond_wait(s,m) pthread_cond_wait(s,m)
-#endif
+
 
 #define INIT_MUTEX(name)\
     oryx_thread_mutex_t name = INIT_MUTEX_VAL;

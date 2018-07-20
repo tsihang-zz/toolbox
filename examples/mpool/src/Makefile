@@ -43,21 +43,19 @@ APP = mpool
 
 # all source are stored in SRCS-y
 SRCS-y := mpool_main.c
-DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK
+		  -DHAVE_ADVANCED_TMR\
 			  
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/../oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lyaml -lpcap
+		   -lpcre -lyaml
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

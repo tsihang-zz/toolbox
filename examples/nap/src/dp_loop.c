@@ -617,9 +617,6 @@ int main_loop (void *ptr_data)
 
 	struct lcore_conf	*qconf;
 	struct iface_t		*rx_cpu_iface = NULL;
-	struct ether_hdr	*ethh;
-	struct ipv4_hdr		*ipv4h;
-	struct ipv6_hdr		*ipv6h;
 	struct rte_mbuf		*pkts_burst[DPDK_MAX_RX_BURST], *m;
 	
 	uint8_t *pkt;

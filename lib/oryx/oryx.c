@@ -7,11 +7,6 @@ oryx_status_t oryx_initialize(void)
 	
 	gettimeofday(&start,NULL);
 
-#if defined(HAVE_APR)
-	apr_initialize();
-	oryx_format(&fb, "%s", "apr_initialize, ");
-#endif
-
 	oryx_pcre_initialize();
 	oryx_format(&fb, "%s", "oryx_pcre_initialize, ");
 

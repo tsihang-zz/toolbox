@@ -3,7 +3,7 @@
 
 struct geo_cdr_table_t cdr_s1_mme = {
 	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1mme.txt",
+		.fp_path	=	"/home/tsihang/vbx_share/log/cdr_s1mme.txt",
 		.fp_comment =	"valid cdr record out logging.",
 		.fp 		=	NULL,
 	},
@@ -15,7 +15,7 @@ struct geo_cdr_table_t cdr_s1_mme = {
 
 struct geo_cdr_table_t cdr_s1_emm = {
 	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1emm.txt",
+		.fp_path	=	"/home/tsihang/vbx_share/log/cdr_s1emm.txt",
 		.fp_comment =	"valid cdr record out logging.",
 		.fp 		=	NULL,
 	},
@@ -27,7 +27,7 @@ struct geo_cdr_table_t cdr_s1_emm = {
 
 struct geo_cdr_table_t cdr_s1ap_handover = {
 	.lf = {
-		.fp_path	=	"/home/tsihang/data/cdr_s1ap_handover.txt",
+		.fp_path	=	"/home/tsihang/vbx_share/log/cdr_s1ap_handover.txt",
 		.fp_comment =	"valid cdr record out logging.",
 		.fp 		=	NULL,
 	},

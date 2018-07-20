@@ -18,7 +18,7 @@ struct kafka_producer_param_t {
 	uint64_t packets;
 	uint64_t errors;
 };
-struct kafka_producer_param_t kpp;
+extern struct kafka_producer_param_t kpp;
 
 static __oryx_always_inline__
 void kafka_conf_dump(rd_kafka_conf_t *conf, rd_kafka_topic_conf_t *topic_conf)
@@ -50,44 +50,8 @@ void kafka_conf_dump(rd_kafka_conf_t *conf, rd_kafka_topic_conf_t *topic_conf)
 
 }
 
-/**
- * Kafka logger callback (optional)
- */
-static void logger (const rd_kafka_t *rk, int level,
-		    const char *fac, const char *buf) {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	fprintf(stderr, "%u.%03u RDKAFKA-%i-%s: %s: %s\n",
-		(int)tv.tv_sec, (int)(tv.tv_usec / 1000),
-		level, fac, rk ? rd_kafka_name(rk) : NULL, buf);
-}
-
-/**
-* Message delivery report callback.
-* Called once for each message.
-* See rdkafka.h for more information.
-*/
-static void dr_cb (rd_kafka_t *rk,
-			  void	__oryx_unused_param__ *payload,
-			  size_t len,
-			  int error_code,
-			  void __oryx_unused_param__ *opaque, void *msg_opaque) {
-	struct kafka_producer_param_t *k = (struct kafka_producer_param_t *)msg_opaque;
-	if (error_code) {
-		k->errors ++;
-	   fprintf(stderr, "%% Message delivery failed: %s\n",
-		   rd_kafka_err2str(error_code));
-	}
-	else {
-		k->bytes += len;
-		k->packets ++;
-	}
-	/* The rkmessage is destroyed automatically by librdkafka */
-}
-
-
-static __oryx_always_inline__
-int kafka_init_env(rd_kafka_type_t type,
+#if 0
+static int kafka_init_env(rd_kafka_type_t type,
 			struct kafka_param_t *kp,
 			rd_kafka_t **rk_out, rd_kafka_conf_t **conf_out,
 			rd_kafka_topic_t **rkt_out)
@@ -102,8 +66,8 @@ int kafka_init_env(rd_kafka_type_t type,
 		BUG_ON(conf_out == NULL);
 
 		/*
-         * Create Kafka client configuration place-holder
-         */
+		 * Create Kafka client configuration place-holder
+		 */
 		conf = rd_kafka_conf_new();
 		if (!conf) {
 				fprintf(stderr,
@@ -191,9 +155,6 @@ int kafka_init_env(rd_kafka_type_t type,
 		
 		return 0;
 }
-
-void *kafka_consumer (void *argv);
-void *kafka_producer (void *argv);
-
+#endif
 
 #endif

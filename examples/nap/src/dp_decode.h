@@ -598,8 +598,8 @@ void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
 {
 	if (p->flags & PKT_IS_INVALID) {
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid);
-		int i = 0;
 #if defined(DECODE_EVENT)
+	int i = 0;
 	for (i = 0; i < p->events.cnt; i++) {
 			if (EVENT_IS_DECODER_PACKET_ERROR(p->events.events[i])) {
 				oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_invalid_events[p->events.events[i]]);

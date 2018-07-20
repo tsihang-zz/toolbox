@@ -31,17 +31,17 @@
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifeq ($(HAVE_QUAGGA),)
 DIRS-y += quagga
 DEPDIRS-y = quagga
-endif
 
-#ifeq ($(HAVE_SURICATA),)
 #DIRS-y += suricata
 #DEPDIRS-y += suricata
-#endif
 
 DIRS-y += oryx
 DEPDIRS-y = oryx
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
+
+clean:
+	@rm -fr quagga/$(RTE_TARGET)
+	@rm -fr oryx/$(RTE_TARGET)

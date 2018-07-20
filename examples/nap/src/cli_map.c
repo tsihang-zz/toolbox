@@ -362,7 +362,7 @@ DEFUN(show_map,
 	
 	vty_out (vty, "%16s%s", "-------------------------------------------", VTY_NEWLINE);
 
-	if (argc == 0){
+	if (argc == 0) {
 		foreach_map_func1_param1 (argv[0],
 				map_entry_output, vty)
 	}
@@ -650,17 +650,16 @@ void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused_param__*tmr,
 void vlib_map_init(vlib_main_t *vm)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
-	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 
 	mm->vm			=	vm;
 	mm->entry_vec	=	vec_init (MAX_MAPS);
 	mm->htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 									ht_map_hval, ht_map_cmp, ht_map_free, 0);	
 	if (mm->htable == NULL || 
-		mm->entry_vec == NULL) {
-		printf ("vlib map main init error!\n");
-		exit(0);
-	}
+		mm->entry_vec == NULL)
+		oryx_panic(-1, 
+			"vlib map main init error!");
+
 
 	install_element (CONFIG_NODE, &show_map_cmd);
 	install_element (CONFIG_NODE, &new_map_cmd);
@@ -672,7 +671,7 @@ void vlib_map_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &map_add_rm_port_cmd);
 
 	mm->online_port_update_tmr = oryx_tmr_create(1, "map online port update tmr", 
-										ul_activity_tmr_setting_flags,
+										(TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
 										map_online_iface_update_tmr, 0, NULL, 3000);
 
 	if(likely(mm->online_port_update_tmr))

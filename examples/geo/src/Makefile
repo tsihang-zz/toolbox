@@ -44,7 +44,7 @@ APP = geo
 # all source are stored in SRCS-y
 SRCS-y := geo_main.c geo_capture.c \
        	geo_htable.c geo_cdr_table.c \
-	geo_cdr_persistence.c
+	geo_cdr_persistence.c sqlconnector.c sqlconnector_mysql.c
 DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)

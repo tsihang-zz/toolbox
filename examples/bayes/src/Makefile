@@ -39,23 +39,22 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = ring
+APP = naive_bayes
 
 # all source are stored in SRCS-y
-SRCS-y := ring_main.c
+SRCS-y := main.c classify.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_BACKTRACE\
-		  -DHAVE_ADVANCED_TMR
+		  -DHAVE_BACKTRACE
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/../oryx
+	  -I$(SRCDIR)/../oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lpcre -lyaml
+		   -lpcre -lyaml -lpcap
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

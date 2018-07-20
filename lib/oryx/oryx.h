@@ -3,24 +3,6 @@
 #define __ORYX_H__
 
 #include <sched.h>
-
-#ifdef HAVE_APR
-#include "apr.h"
-#include "apr_arch_thread_mutex.h"
-#include "apr_arch_thread_cond.h"
-#include "apr_arch_file_io.h"
-#include "apr_arch_networkio.h"
-
-#include "apr_thread_mutex.h"
-#include "apr_thread_cond.h"
-#include "apr_file_io.h"
-#include "apr_network_io.h"
-#include "apr_signal.h"
-#include "apr_file_io.h"
-#include "apr_dbd.h"
-#include "apr_md5.h"
-#endif
-
 #include <assert.h>
 #include <arpa/inet.h>
 #include <ctype.h>

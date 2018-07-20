@@ -283,6 +283,103 @@ int do_refill(struct   geo_htable_key_t *hk , struct geo_cdr_entry_t *gce, int c
 	return 0;
 }
 
+static __oryx_always_inline__
+void dump_pkt(uint8_t *pkt, int len)
+{
+	int i = 0;
+	
+	for (i = 0; i < len; i ++){
+		if (!(i % 16))
+			printf ("\n");
+		printf("%02x ", pkt[i]);
+	}
+	printf ("\n");
+}
+
+typedef union MarvellDSAHdr_ {
+	struct {
+		uint32_t cmd		: 2;	/* [31:30]
+									 * 0: TO_CPU_TAG
+									 * 1: FROM_CPU_TAG
+									 * 2: TO_SNIFFER_TAG
+									 * 3: FORWARD_TAG */
+		uint32_t T			: 1;	/* [29]
+									 * 0: frame recieved(or to egress) untag
+									 * 1: frame recieved(or to egress) tagged */	 
+		uint32_t dev 		: 5;	/* [28:24] */
+		uint32_t port		: 5;	/* [23:19] */
+		uint32_t R2			: 1;	/* [18]
+									 * R: 0 or 1.
+									 * W: must be 0. */
+		uint32_t R1			: 1;	/* [17] */			
+		uint32_t C			: 1;	/* [16] Frame's CFI */
+		
+		uint32_t prio		: 3;	/* [15:13] */
+		uint32_t R0			: 1;	/* [12] code=[R2:R1:R0] while cmd=TO_CPU_TAG */
+		uint32_t vlan		: 12;	/* [11:00] */
+		uint8_t	 eh[];				/* extend headr, 4 bytes. */
+	};
+	uint32_t dsa;
+}__attribute__((__packed__)) MarvellDSAHdr;
+
+struct MarvellDSAMap {
+	u8 p;
+	const char *comment;
+};
+
+#define DSA_CMD(dsa)	  		(((dsa) >> 30) & 0x003)
+#define DSA_TAG(dsa)  			(((dsa) >> 29) & 0x001)
+#define DSA_DEV(dsa)			(((dsa) >> 24) & 0x01f)
+#define DSA_PORT(dsa)			(((dsa) >> 19) & 0x01f)
+#define DSA_R2(dsa)				(((dsa) >> 18) & 0x001)
+#define DSA_R1(dsa)				(((dsa) >> 17) & 0x001)
+#define DSA_CFI(dsa)			(((dsa) >> 16) & 0x001)
+#define DSA_PRI(dsa) 			(((dsa) >> 13) & 0x007)
+#define DSA_R0(dsa)		   		(((dsa) >> 12) & 0x001)
+#define DSA_VLAN(dsa)  			(((dsa) >> 00) & 0xfff)
+#define DSA_EXTEND(dsa)			DSA_R0(dsa)
+
+
+typedef struct MarvellDSAEthernetHdr_ {
+    uint8_t eth_dst[6];
+    uint8_t eth_src[6];
+    MarvellDSAHdr dsah;
+    uint16_t eth_type;
+} __attribute__((__packed__)) MarvellDSAEthernetHdr;
+
+
+/** a map for dsa.port_src -> phyical port. */
+static struct MarvellDSAMap dsa_to_phy_map_list[] = {
+	{-1, "unused"},
+	{ 5, "et1500 ge5"},
+	{ 6, "et1500 ge6"},
+	{ 7, "et1500 ge7"},
+	{ 8, "et1500 ge8"},
+	{ 1, "et1500 ge1"},
+	{ 2, "et1500 ge2"},
+	{ 3, "et1500 ge3"},
+	{ 4, "et1500 ge4"}
+};
+
+#define DSA_TO_PANEL_GE_ID(dsa)\
+	dsa_to_phy_map_list[DSA_PORT(dsa)].p
+
+static __oryx_always_inline__
+void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
+{
+	printf ("=================== %s ===================\n", comment);
+	printf ("%12s%8x\n", "dsa:",    cpu_dsa);
+	printf ("%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
+	printf ("%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
+	printf ("%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
+	printf ("%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
+	printf ("%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
+	printf ("%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
+	printf ("%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
+	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
+	printf ("%12s%4d\n", rx_tx == 0 ? "fm_ge" : "to_ge",
+									DSA_TO_PANEL_GE_ID(cpu_dsa));
+}
 
 static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 		const struct pcap_pkthdr *pcaphdr,
@@ -298,6 +395,12 @@ static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	struct geo_cdr_entry_t *gce;
 	GEODecodeThreadVars *dtv;
 	GEOThreadVars *tv;
+
+	dump_pkt(packet, pcaphdr->len);
+
+	MarvellDSAEthernetHdr *dsaeth = packet;
+	uint32_t dsa = ntoh32(dsaeth->dsah.dsa);
+	PrintDSA("rx", dsa, 0 /* rx */);
 
 	geo_decode(pcaphdr, (char *)packet, &is_udp, &pl_off, &pl);
 	if (!is_udp)
@@ -362,7 +465,7 @@ static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 
 static struct netdev_t geo_netdev = {
 	.handler = NULL,
-	.devname = "ens33",
+	.devname = "lo",
 	.dispatch = geo_pkt_handler,
 	.private = NULL,
 };
@@ -626,7 +729,6 @@ static void geo_cdr_load_db_tmr_handler(
 	int			fd = -1;
 	int			nread;
 	char		data_buf[1024];
-	char		sql[256];
 	MD5_CTX		ctx;
 	unsigned char			md5[16];
 	struct geo_cdr_table_t	*gct;
@@ -636,27 +738,19 @@ static void geo_cdr_load_db_tmr_handler(
 		if((fd = open(gct->lf.fp_path, O_RDONLY)) == -1) continue;
 
 		MD5Init(&ctx);
-		while(nread = read(fd, data_buf, sizeof(data_buf)), nread > 0)
+		while (nread = read(fd, data_buf, sizeof(data_buf)), nread > 0)
 			MD5Update(&ctx, data_buf, nread);
 
 		close(fd);
 		MD5Final(md5, &ctx);
 		
-		if(!memcmp(&gct->lf.md5[0], &md5[0], 16)) {
+		if (!memcmp(&gct->lf.md5[0], &md5[0], 16))
 			continue;
-		}
 		
 		/** hold the md5. */
 		memcpy(&gct->lf.md5[0], &md5[0], 16);
-
-		sprintf(sql, "DELETE from %s",
-				geo_cdr_tables[i]->cdr_name);
-		sqlctx->sql_cmd_type = SQLCMD_DELETE;
-		sqlee_run (sqlctx, sql);
-
-		sprintf(sql, "LOAD DATA LOCAL INFILE '%s' into table %s", gct->lf.fp_path, geo_cdr_tables[i]->cdr_name);
-		sqlctx->sql_cmd_type = SQLCMD_LOAD_INFILE;
-		sqlee_run (sqlctx, sql);
+		geo_db_delete_table(geo_cdr_tables[i]->cdr_name);
+		geo_db_load_table(gct->lf.fp_path, geo_cdr_tables[i]->cdr_name);
 	}
 }
 
@@ -667,6 +761,7 @@ static void cdr_table_register(struct geo_cdr_table_t *gct)
 	
 	if (oryx_path_exsit (gct->lf.fp_path))
 		oryx_path_remove(gct->lf.fp_path);
+	
 	gct->lf.fp = fopen(gct->lf.fp_path, "wa+");
 	BUG_ON(gct->lf.fp == NULL);
 	

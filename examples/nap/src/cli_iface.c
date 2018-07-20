@@ -5,7 +5,6 @@
 
 #include "common_private.h"
 #include "map_private.h"
-#include "util_iface.h"
 #include "cli_iface.h"
 
 #include "dpdk.h"
@@ -482,223 +481,7 @@ static int iface_poll_up(struct iface_t *this)
 		return rte_eth_dev_set_link_up(this->ul_id);
 }
 
-static struct iface_t iface_list[] = {
-
-	{
-		.sc_alias_fixed =	"enp5s0f1",
-		.type			=	ETH_XE,
-		.ul_flags		=	NETDEV_MARVELL_DSA,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up		=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed		=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx		=	NULL
-	},
-	
-	{
-		.sc_alias_fixed	=	"enp5s0f2",
-		.type			=	ETH_XE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-
-	},
-
-	{
-		.sc_alias_fixed =	"enp5s0f3",
-		.type			=	ETH_XE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-
-	},
-	
-	{
-		.sc_alias_fixed	=	"lan5",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-
-	},
-
-	{
-		.sc_alias_fixed =	"lan6",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-
-	},
-
-	{
-		.sc_alias_fixed =	"lan7",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-
-	},
-
-	{
-		.sc_alias_fixed =	"lan8",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-	},
-	
-	{
-		.sc_alias_fixed =	"lan1",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-	},
-	
-	{
-		.sc_alias_fixed =	"lan2",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-	},
-	
-	{
-		.sc_alias_fixed =	"lan3",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-	},
-	
-	{
-		.sc_alias_fixed =	"lan4",
-		.type			=	ETH_GE,
-		.ul_flags		=	NETDEV_PANEL,
-		.if_poll_state	=	iface_poll_linkstate,
-		.if_poll_up 	=	iface_poll_up,
-		.ul_id			=	-1,
-		.sc_alias		=	" ",
-		.eth_addr		=	{0,0,0,0,0,0},
-		.link_speed 	=	0,
-		.link_duplex	=	0,
-		.link_autoneg	=	0,
-		.link_pad0		=	LINK_PAD0,
-		.mtu			=	0,
-		.ul_up_down_times	=	0,
-		.perf_private_ctx	=	NULL,
-		.if_counter_ctx 	=	NULL
-	}
-
-};
+#include "iface_enum.h"
 
 static void register_ports(void)
 {
@@ -732,10 +515,10 @@ static void register_ports(void)
 			new->if_poll_up			= this->if_poll_up;
 			new->ul_id				= n_ports_now + i;
 			new->ul_flags			= this->ul_flags;
-			if (!iface_add(pm, new))
-				oryx_logn("registering interface %s ... success", iface_alias(new));
-			else
+			if (!iface_add(pm, new)) {
 				oryx_loge(-1, "registering interface %s ... error", iface_alias(new));
+				exit(0);
+			}
 		}
 	}
 }
@@ -772,7 +555,6 @@ void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused_param__*t
 void vlib_iface_init(vlib_main_t *vm)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;
-	uint32_t ul_activity_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
 	
 	pm->link_detect_tmr_interval = 3;
 	pm->vm			= vm;
@@ -780,10 +562,9 @@ void vlib_iface_init(vlib_main_t *vm)
 	pm->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_iface_hval, ht_iface_cmp, ht_iface_free, 0);
 
-	if (pm->htable == NULL || pm->entry_vec == NULL) {
-		printf ("vlib iface main init error!\n");
-		exit(0);
-	}
+	if (pm->htable == NULL || pm->entry_vec == NULL)
+		oryx_panic(-1, 
+			"vlib iface main init error!");
 	    
 	install_element (CONFIG_NODE, &show_interface_cmd);
 	install_element (CONFIG_NODE, &show_interfacce_stats_cmd);
@@ -792,11 +573,12 @@ void vlib_iface_init(vlib_main_t *vm)
 	install_element (CONFIG_NODE, &interface_mtu_cmd);
 	install_element (CONFIG_NODE, &interface_looback_cmd);
 
+	register_ports();
+
 	pm->link_detect_tmr = oryx_tmr_create(1, "iface activity monitoring tmr", 
-							ul_activity_tmr_setting_flags,
+							(TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
 							iface_activity_prob_tmr_handler,
 							0, NULL, pm->link_detect_tmr_interval);
-	register_ports();
 
 	if(likely(pm->link_detect_tmr))
 		oryx_tmr_start(pm->link_detect_tmr);

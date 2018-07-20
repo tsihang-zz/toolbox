@@ -194,6 +194,101 @@ static void sig_usr1 (int sig) {
 	rd_kafka_dump(stdout, rk);
 }
 
+/**
+ * Kafka logger callback (optional)
+ */
+static void logger (const rd_kafka_t *rk, int level,
+		    const char *fac, const char *buf) {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	fprintf(stderr, "%u.%03u RDKAFKA-%i-%s: %s: %s\n",
+		(int)tv.tv_sec, (int)(tv.tv_usec / 1000),
+		level, fac, rk ? rd_kafka_name(rk) : NULL, buf);
+}
+			
+static int kafka_init_consumer(
+			struct kafka_param_t *kp,
+			rd_kafka_t **rk_out, rd_kafka_conf_t **conf_out,
+			rd_kafka_topic_t **rkt_out)
+{
+		rd_kafka_t *rk; 	   /* Producer instance handle */
+		rd_kafka_topic_t *rkt;	/* Topic object */
+		rd_kafka_conf_t *conf;	/* Temporary configuration object */
+		rd_kafka_topic_conf_t *topic_conf;
+		char errstr[512];		/* librdkafka API error reporting buffer */
+		
+		BUG_ON(rk_out == NULL);
+		BUG_ON(conf_out == NULL);
+
+		/*
+		 * Create Kafka client configuration place-holder
+		 */
+		conf = rd_kafka_conf_new();
+		if (!conf) {
+				fprintf(stderr,
+						"%% Failed to create new kafka conf: %s\n",
+								rd_kafka_err2str(rd_kafka_last_error()));
+				return -1;	
+		}
+
+		/* Topic configuration */
+		topic_conf = rd_kafka_topic_conf_new();
+		if (!topic_conf) {
+				fprintf(stderr,
+						"%% Failed to create new topic conf: %s\n",
+								rd_kafka_err2str(rd_kafka_last_error()));
+			  rd_kafka_conf_destroy(conf);
+				return -1;	
+		} 
+
+		char tmp[16];
+		/* Set logger */
+		rd_kafka_conf_set_log_cb(conf, logger);
+		/* Quick termination */
+		snprintf(tmp, sizeof(tmp), "%i", SIGIO);
+		
+		if (rd_kafka_conf_set(conf, "internal.termination.signal", tmp, 
+								errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+			fprintf(stderr, "%s\n", errstr);
+			rd_kafka_topic_conf_destroy(topic_conf);
+			rd_kafka_conf_destroy(conf);
+			return -1;
+		}
+
+		rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+		if (!rk) {
+				fprintf(stderr,
+						"%% Failed to create new %s: %s\n", 
+								"consumer", errstr);
+				rd_kafka_topic_conf_destroy(topic_conf);
+				rd_kafka_conf_destroy(conf);
+				return -1;
+		}
+
+		rd_kafka_set_log_level(rk, LOG_DEBUG);
+		
+		/* Create topic object that will be reused for each message
+		 * produced.
+		 *
+		 * Both the producer instance (rd_kafka_t) and topic objects (topic_t)
+		 * are long-lived objects that should be reused as much as possible.
+		 */
+		rkt = rd_kafka_topic_new(rk, kp->topic, topic_conf);
+		if (!rkt) {
+			  fprintf(stderr, "%% Failed to create topic object: %s\n",
+					  rd_kafka_err2str(rd_kafka_last_error()));
+			  rd_kafka_destroy(rk);
+			  rd_kafka_topic_conf_destroy(topic_conf);
+			  rd_kafka_conf_destroy(conf);
+			  return -1;
+		}
+
+		(*rk_out)	= rk;
+		(*rkt_out)	= rkt;
+		(*conf_out) = conf;
+		
+		return 0;
+}
 void *kafka_consumer (void *argv) {
 
         rd_kafka_t *rk;         /* Producer instance handle */
@@ -203,7 +298,7 @@ void *kafka_consumer (void *argv) {
 		rd_kafka_resp_err_t err;
 		struct kafka_param_t *kp = (struct kafka_param_t *)argv;
 		
-		if (kafka_init_env(RD_KAFKA_CONSUMER, kp, &rk, &conf, &rkt))
+		if (kafka_init_consumer(kp, &rk, &conf, &rkt))
 			return NULL;
 
 		/* Add brokers */

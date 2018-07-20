@@ -3,6 +3,8 @@
 #include "geo_htable.h"
 #include "geo_cdr_persistence.h"
 
+#include "sqlconnector.h"
+
 struct geo_log_file_t cdr_stats_out_fp = {
 	.fp_path	=	"/tmp/cdr_stats_out.txt",
 	.fp_comment	=	"cdr stats out logging.",
@@ -28,28 +30,30 @@ struct sql_load_data_t s1ap_buf;
 struct oryx_sqlctx_t *sqlctx;
 
 
-static __oryx_always_inline__
-void geo_db_clear(void)
+void geo_db_delete_table(const char *cdr_table_name)
 {
 	char sql[1024] = {0};
 
 	sprintf(sql, "DELETE from %s",
-		geo_cdr_tables[cdr_s1_mme_signal]->cdr_name);
+		cdr_table_name);
 	sqlctx->sql_cmd_type = SQLCMD_DELETE;
 	sqlee_run (sqlctx, sql);
+}
 
-	memset(sql, 0, 1024);
-	sprintf(sql, "DELETE from %s",
-		geo_cdr_tables[cdr_s1_emm_signal]->cdr_name);
-	sqlctx->sql_cmd_type = SQLCMD_DELETE;
+void geo_db_load_table(const char *filepath, const char *cdr_table_name)
+{
+	char sql[1024] = {0};
+
+	sprintf(sql, "LOAD DATA LOCAL INFILE '%s' into table %s", filepath, cdr_table_name);
+	sqlctx->sql_cmd_type = SQLCMD_LOAD_INFILE;
 	sqlee_run (sqlctx, sql);
+}
 
-	memset(sql, 0, 1024);
-	sprintf(sql, "DELETE from %s",
-		geo_cdr_tables[cdr_s1ap_handover_signal]->cdr_name);
-	sqlctx->sql_cmd_type = SQLCMD_DELETE;
-	sqlee_run (sqlctx, sql);
-
+void geo_db_clear(void)
+{
+	geo_db_delete_table(geo_cdr_tables[cdr_s1_mme_signal]->cdr_name);
+	geo_db_delete_table(geo_cdr_tables[cdr_s1_emm_signal]->cdr_name);
+	geo_db_delete_table(geo_cdr_tables[cdr_s1ap_handover_signal]->cdr_name);
 }
 
 void log_refill_result(struct geo_htable_key_t *hk, int cdr_index, oryx_file_t *fp)

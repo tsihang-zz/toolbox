@@ -27,7 +27,7 @@ dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 
 void
 dp_pkt_handler(u_char *argv,
-		const struct pcap_pkthdr *pcaphdr,
+		void *pcaphdr,
 		u_char *packet)
 {
 	int lcore = 0; //rte_lcore_id();
@@ -35,11 +35,12 @@ dp_pkt_handler(u_char *argv,
 	DecodeThreadVars *dtv = &g_dtv[lcore];
 	PacketQueue *pq = &g_pq[lcore];
 	Packet *p = PacketGetFromAlloc();
+	const struct pcap_pkthdr *pkthdr = (struct pcap_pkthdr *)pcaphdr;
 	struct netdev_t *netdev = (struct netdev_t *)argv;
 
-	SET_PKT_LEN(p, pcaphdr->len);
+	SET_PKT_LEN(p, pkthdr->len);
 	DecodeEthernet0(tv, dtv, p, 
-				packet, pcaphdr->len, pq);
+				packet, pkthdr->len, pq);
 
 	DecodeUpdateCounters(tv, dtv, p); 
 

@@ -17,7 +17,8 @@ extern struct oryx_sqlctx_t *sqlctx;;
 
 extern void geo_cdr_persistence_init(void);
 extern void log_refill_result(struct geo_htable_key_t *hk, int cdr_index, oryx_file_t *fp);
-
+extern void geo_db_delete_table(const char *cdr_table_name);
+extern void geo_db_load_table(const char *filepath, const char *cdr_table_name);
 
 #endif
 

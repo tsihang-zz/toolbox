@@ -126,7 +126,7 @@ int netdev_down(const char *iface) {
 
 static void
 netdev_dispatcher(u_char *argument,
-		const struct pcap_pkthdr *pkthdr, const u_char *packet)
+		void *pkthdr, const u_char *packet)
 {
 	argument = argument;
 	pkthdr = pkthdr;

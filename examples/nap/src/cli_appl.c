@@ -466,10 +466,10 @@ void vlib_appl_init(vlib_main_t *vm)
 	am->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_appl_hval, ht_appl_cmp, ht_appl_free, 0);
 	
-	if (am->htable == NULL || am->entry_vec == NULL) {
-		printf ("vlib application main init error!\n");
-		exit(0);
-	}
+	if (am->htable == NULL || am->entry_vec == NULL)
+		oryx_panic(-1, 
+			"vlib appl main init error!");
+
 	
 	install_element (CONFIG_NODE, &show_application_cmd);
 	install_element (CONFIG_NODE, &new_application_cmd);
