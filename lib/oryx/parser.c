@@ -1,12 +1,15 @@
 
 #include "oryx.h"
 
+#if defined(HAVE_PCRE)
 #define PARSE_REGEX "^\\s*(\\d+(?:.\\d+)?)\\s*([a-zA-Z]{2})?\\s*$"
 static pcre *parse_regex = NULL;
 static pcre_extra *parse_regex_study = NULL;
+#endif
 
 void oryx_pcre_initialize(void)
 {
+#if defined(HAVE_PCRE)
     const char *eb = NULL;
     int eo;
     int opts = 0;
@@ -24,18 +27,21 @@ void oryx_pcre_initialize(void)
 			"pcre study failed: %s", eb);
         exit(EXIT_FAILURE);
     }
+#endif
 }
 
 void oryx_pcre_deinitialize(void)
 {
+#if defined(HAVE_PCRE)
     if (parse_regex != NULL)
         pcre_free(parse_regex);
     if (parse_regex_study != NULL)
         pcre_free_study(parse_regex_study);
+#endif
 }
 
+#if defined(HAVE_PCRE)
 /* size string parsing API */
-
 static int ParseSizeString(const char *size, double *res)
 {
 #define MAX_SUBSTRINGS 30
@@ -195,4 +201,4 @@ int oryx_str2_u64(const char *size, uint64_t *res)
 
     return 0;
 }
-
+#endif

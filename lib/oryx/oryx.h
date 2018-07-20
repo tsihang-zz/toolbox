@@ -75,7 +75,10 @@
 #include <pcap/bpf.h>
 #endif
 
+#if defined(HAVE_PCRE)
 #include <pcre.h>
+#endif
+
 /** 
  * Define a common assume_aligned using an appropriate compiler built-in, if
  * it's available. Note that we need to handle C or C++ compilation. */

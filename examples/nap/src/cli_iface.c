@@ -193,7 +193,7 @@ void iface_entry_config (struct iface_t *iface,
 	switch (var->cmd)
 	{
 		case INTERFACE_SET_ALIAS:
-			if (strlen ((char *)var->v) > sizeof (iface_alias(iface))) {
+			if (strlen ((const char *)var->v) > sizeof (iface_alias(iface))) {
 				VTY_ERROR_PORT("invalid alias", iface_alias(iface));
 				break;
 			}
@@ -211,7 +211,7 @@ void iface_entry_config (struct iface_t *iface,
 
 		case INTERFACE_SET_LOOPBACK:
 			ul_flags |= NETDEV_LOOPBACK;
-			if (!strncmp ((char *)var->v, "d", 1))
+			if (!strncmp ((const char *)var->v, "d", 1))
 				ul_flags &= ~NETDEV_LOOPBACK;
 			iface->ul_flags = ul_flags;
 			break;
