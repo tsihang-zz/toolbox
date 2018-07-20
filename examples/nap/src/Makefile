@@ -39,7 +39,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = et1500
+APP = napd
 
 # all source are stored in SRCS-y
 SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp_start_pcap.c dp_start_dpdk.c dp_loop.c dp_decode.c dp_storage.c \

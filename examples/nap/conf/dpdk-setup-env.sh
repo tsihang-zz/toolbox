@@ -1,39 +1,78 @@
 #!/bin/bash
 
-# reset all configurations
+# Edit the nic list for dpdk binding later.
+# target_nic_list="09:00.0 09:00.1"
+target_nic_list="09:00.1"
 
-dpdk-devbind.py -b thunder-nicvf 05:00.1
-sleep 3
+# uio driver the NICs used.
+uio_driver="vfio-pci"
 
-ifconfig enp5s0f1 up
-sleep 3
+# Where the hugepage mounted.
+huge_dir="/mnt/huge"
 
-ifconfig lan1 up
-ifconfig lan2 up
-ifconfig lan3 up
-ifconfig lan4 up
-ifconfig lan5 up
-ifconfig lan6 up
-ifconfig lan7 up
-ifconfig lan8 up
+total_eth_num=`lspci | grep Eth | wc -l`
 
-mkdir -p /mnt/huge
-mount -t hugetlbfs nodev /mnt/huge
+# Target ethernet NIC number. 
+# number of elements hold by the $target_nic_list.
+target_eth_num=`lspci | grep Eth | wc -l`
 
-HUGE_PAGE=`cat /proc/meminfo | grep HugePages_Total | awk -F: '{print int($2)}'`
-if [ $HUGE_PAGE -eq 0 ]
-then
-	sysctl vm.nr_hugepages=1024
+logfile=/tmp/dpdk_config_file.log
+
+dpdk_bind_bin=dpdk-devbind.py
+
+# check if system memory is enough for applications.
+system_mem=`free -m | grep Mem | awk '{print $2}'`
+
+log2()
+{
+	echo `date`:  $1 >> $logfile
+}
+
+huge_mount=`mount | grep $huge_dir`
+if [ "$huge_mount" == "" ]; then
+	mkdir -p $huge_dir
+	mount -t hugetlbfs nodev $huge_dir
+	log2 "hugetlbfs mount to $huge_dir success"
 else
-	echo "huge page already config"
+	log2 "hugetlbfs has already been mounted to $huge_dir" 
 fi
 
-TARGET=arm64-thunderx-linuxapp-gcc
+HUGE_PAGE=`cat /proc/meminfo | grep HugePages_Total | awk -F: '{print int($2)}'`
+hugepages_num=1024
+if [ $HUGE_PAGE -eq 0 ]
+then
+	sysctl vm.nr_hugepages=$hugepages_num
+	log2 "hugepages (num=$hugepages_num) config success"
+else
+	log2 "hugepages (num=$hugepages_num) already done"
+fi
 
-ifconfig enp5s0f1 down
-dpdk-devbind.py -b vfio-pci  05:00.1
-dpdk-devbind.py -b vfio-pci  05:00.2
-dpdk-devbind.py -b vfio-pci  05:00.3
+#disable ASLR
+echo 0 > /proc/sys/kernel/randomize_va_space
 
-export RTE_SDK=`pwd`
-export RTE_TARGET=$TARGET
+#check NIC count
+for nic in $target_nic_list;do
+	target_eth_num=`expr $target_eth_num + 1`;
+done
+
+# right count
+target_eth_num=`expr $target_eth_num - 1`;
+if [ $target_eth_num -gt $total_eth_num ]
+then
+	log2 "no enough ethernet NICs"
+	echo "$target_eth_num $total_eth_num no enough ethernet NICs"
+	exit
+fi
+
+portmask=`echo "obase=16;ibase=10;2^$target_eth_num-1" |bc`
+
+#bind NIC
+for nic in $target_nic_list;do
+	echo "Trying to bind NIC $nic"
+	$dpdk_bind_bin -b $uio_driver $nic
+done
+
+# Startnapd
+dpdk_lcore_conf="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)"
+nohup napd -c 0xf -n 4 -- -p $pormask  --config=$dpdk_lcore_conf >> $logfile &
+
