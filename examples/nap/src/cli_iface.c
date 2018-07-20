@@ -515,7 +515,7 @@ static void register_ports(void)
 			new->if_poll_up			= this->if_poll_up;
 			new->ul_id				= n_ports_now + i;
 			new->ul_flags			= this->ul_flags;
-			if (!iface_add(pm, new)) {
+			if (iface_add(pm, new)) {
 				oryx_loge(-1, "registering interface %s ... error", iface_alias(new));
 				exit(0);
 			}
