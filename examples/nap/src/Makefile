@@ -64,7 +64,7 @@ CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/../quagga
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lyaml -lpcap
+		   -lpcre -lyaml -lpcap
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

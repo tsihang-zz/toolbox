@@ -58,7 +58,6 @@
 #include <linux/sockios.h>
 #include <net/if.h>
 #include <sys/time.h>
-#include <stdalign.h>
 #include <math.h>
 
 #if defined(HAVE_BACKTRACE)
