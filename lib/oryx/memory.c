@@ -64,10 +64,10 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 	uint32_t	aligned_size;
 	memory_handle_t *handle = (memory_handle_t *)mem_handle;
 
-	pthread_mutex_lock(&handle->mem_mutex);
+	do_mutex_lock(&handle->mem_mutex);
 	
 	// make sure size of memory is aligned
-	aligned_size = (((u_int)(size) + ALIGN_BYTES) &~ ALIGN_BYTES);
+	aligned_size = (((uint32_t)(size) + ALIGN_BYTES) &~ ALIGN_BYTES);
 
 	if ((handle->allocted+aligned_size) > MEM_BLOCK_SIZE) 
 	{
@@ -80,18 +80,19 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 			handle->mem_block   = (void **)realloc(handle->mem_block, handle->max_blocks * sizeof(void *));
 			if (!handle->mem_block) 
 			{
-				oryx_loge(-1, "realloc error!\n");
-				pthread_mutex_unlock(&handle->mem_mutex);
+				oryx_loge(-1, "realloc[%s]",
+					oryx_safe_strerror(errno));
+				do_mutex_unlock(&handle->mem_mutex);
 				return NULL;
 			}
 		} 
 
 		// allocate new memblock
 		p = malloc(MEM_BLOCK_SIZE);
-		if (!p) 
-		{
-			oryx_loge(-1, "mem alloc error!\n");
-			pthread_mutex_unlock(&handle->mem_mutex);
+		if (!p) {
+			oryx_loge(-1, "malloc[%s]",
+				oryx_safe_strerror(errno));
+			do_mutex_unlock(&handle->mem_mutex);
 			return NULL;
 		}
 		handle->mem_block[handle->current_block] = p;
@@ -104,7 +105,7 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 	p = (char *)handle->mem_block[handle->current_block] + handle->allocted;
 	handle->allocted += aligned_size;
 
-	pthread_mutex_unlock(&handle->mem_mutex);
+	do_mutex_unlock(&handle->mem_mutex);
 	return p;
 }
 
@@ -112,9 +113,8 @@ int MEM_GetMemSize(void *mem_handle ,uint64_t* size)
 {
 	memory_handle_t *handle = (memory_handle_t *)mem_handle;
 	if(handle == NULL || size ==  NULL)
-	{
 		return -1;
-	}
+
 	*size = (uint64_t)handle->current_block * MEM_BLOCK_SIZE + handle->allocted;
 	
 	return 0;
@@ -139,5 +139,42 @@ void MEM_UninitMemory(void *mem_handle)
 	pthread_mutex_destroy(&handle->mem_mutex);
 
 	free(mem_handle);
+}
+
+void * MEM_GetShareMem(key_t key , int size)
+{	
+	void	*mem;
+	int		shm_id;
+
+	/* There is a shared memory with the KEY. */
+	shm_id = shmget(key, size, 0640); 	
+	if (shm_id != -1) {
+		mem = (void*)shmat(shm_id, NULL, 0);
+		if (mem != (void *)-1)
+			return mem;
+	}
+
+	/* Create shared memory with the given KEY. */
+	shm_id = shmget(key, size, (0640|IPC_CREAT|IPC_EXCL)); 
+	if (shm_id == -1){
+		oryx_loge(-1, "shmget[%s]",
+			oryx_safe_strerror(errno));
+		return NULL;
+	} else {
+		mem =(void *)shmat(shm_id, NULL, 0);
+		if (mem != (void *)-1)
+			memset(mem , 0 , size);
+	}
+	return mem;
+}
+
+int MEM_UnlinkShareMem(void *mem)
+{
+	if(shmdt(mem) == -1){
+		oryx_loge(-1, "shmdt[%s]",
+			oryx_safe_strerror(errno));
+		return -1;
+	}
+	return 0;
 }
 

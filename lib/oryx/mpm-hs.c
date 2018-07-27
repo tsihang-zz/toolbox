@@ -39,8 +39,6 @@ static os_mutex_t g_scratch_proto_mutex = INIT_MUTEX_VAL;
 static struct oryx_htable_t  *g_db_table = NULL;
 static os_mutex_t g_db_table_mutex = INIT_MUTEX_VAL;
 
-#define do_mutex_lock(lock)	do_mutex_lock(lock)
-#define do_mutex_unlock(lock)	do_mutex_unlock(lock)
 #define oryx_htable_create 		oryx_htable_init
 
 

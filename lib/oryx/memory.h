@@ -63,4 +63,9 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size);
 int MEM_GetMemSize(void *mem_handle ,uint64_t* size);
 void MEM_UninitMemory(void *mem_handle);
 
+void * MEM_GetShareMem(key_t key , int size);
+int MEM_UnlinkShareMem(void *mem);
+
+
+
 #endif

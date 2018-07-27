@@ -36,6 +36,7 @@
 #include <sys/syscall.h>
 #include <sys/mount.h>
 #include <sys/queue.h>
+#include <sys/shm.h>
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
