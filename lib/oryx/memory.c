@@ -143,12 +143,13 @@ void MEM_UninitMemory(void *mem_handle)
 
 void * MEM_GetShareMem(key_t key , int size)
 {	
-	void	*mem;
+	void	*mem = NULL;
 	int		shm_id;
 
 	/* There is a shared memory with the KEY. */
 	shm_id = shmget(key, size, 0640); 	
 	if (shm_id != -1) {
+		/* map this share memory to current address space of current progress. */
 		mem = (void*)shmat(shm_id, NULL, 0);
 		if (mem != (void *)-1)
 			return mem;

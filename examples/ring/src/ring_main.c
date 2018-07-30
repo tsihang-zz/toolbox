@@ -1,8 +1,10 @@
 #include "oryx.h"
 
-#define DATA_SIZE	(sizeof(uint32_t))
-#define shm_elem 1024
-char *shmemory[shm_elem];
+#define RING_ELEMENTS	1024
+
+#define shmdata_size 1024
+
+struct oryx_ring_t *my_ring;
 
 static __oryx_always_inline__
 void * ring_rp (void *r)
@@ -15,8 +17,7 @@ void * ring_rp (void *r)
 		if (oryx_ring_get(ring, &data, &data_size) != 0)
 			continue;
 		if (data) {
-			if (!(ring->ul_flags & RING_SHARED))
-				free(data);
+			free(data);
 		}
 	}
 	
@@ -27,36 +28,29 @@ void * ring_rp (void *r)
 static __oryx_always_inline__
 void * ring_wp (void *r)
 {
-	int			i = 0;
 	uint32_t	times = 0;
 	int			sleeps = 0;
 	void		*data;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		if (!(ring->ul_flags & RING_SHARED)) {
-			if(NULL == (data = malloc(DATA_SIZE)))
-				continue;
-		}
-		else {
-			data = shmemory[(i ++) % shm_elem];
-		}
+		if (NULL == (data = malloc(shmdata_size)))
+			continue;
 
-		*(uint32_t *)data = times ++;
-
-		if (oryx_ring_put(ring, data, DATA_SIZE) != 0) {
-			if (!(ring->ul_flags & RING_SHARED))
-				free(data);
+		oryx_pattern_generate(data, shmdata_size);
+		if (oryx_ring_put(ring, data, shmdata_size) != 0) {
+			free(data);
 			continue;
 		}
-		
+
+		times ++;
 		usleep(1000);
 
 		/** dump ring desc every 3 sec */
 		if (sleeps ++ == 3000) {
 			sleeps = 0;
 			oryx_ring_dump(ring);
-			printf("times %u\n", times);
+			printf("Write times %u\n", times);
 		}
 	}
 	
@@ -89,58 +83,32 @@ static struct oryx_task_t wp_task =
 	.ul_flags	= 0,	/** Can not be recyclable. */
 };
 
-static void share_mem_init(void)
-{
-	int r;
-	const uint16_t	key	= 12345;
-
-	for (r = 0; r < shm_elem; r ++) {
-		void *m = MEM_GetShareMem(ring_key_data(key, r), DATA_SIZE);
-		if (likely(m)) {
-			printf("%x: %p\n", ring_key_data(key, r), m);
-			shmemory[r] = m;
-			
-		}else {
-			exit(0);
-			shmemory[r] = NULL;
-		}
-	}
-}
-
 int main (
 	int		__oryx_unused_param__	argc,
 	char	__oryx_unused_param__	** argv
 )
 {
-	int				r = 0;
-#if 1
 	uint32_t	flags = 0;
-#else
-	uint32_t	flags = RING_SHARED;
-#endif
-	struct oryx_ring_t *ring;
-
-	oryx_initialize();
 	
-	r = oryx_ring_create("test_ring", 1024, flags, &ring);
-	if (r != 0) return 0;
+	oryx_initialize();
 
-	if (flags & RING_SHARED)
-		share_mem_init();
+	if (oryx_ring_create("test_ring", RING_ELEMENTS, flags, &my_ring) != 0) return 0;
 
-	oryx_ring_dump(ring);
+	oryx_ring_dump(my_ring);
 
 	wp_task.argc = 1;
-	wp_task.argv = ring;
+	wp_task.argv = my_ring;
 	oryx_task_registry(&wp_task);
 
 	rp_task.argc = 1;
-	rp_task.argv = ring;
+	rp_task.argv = my_ring;
 	oryx_task_registry(&rp_task);
 
 	oryx_task_launch();
 
-	FOREVER;
+	FOREVER {
+		sleep(1);
+	};
 
 	return 0;
 }

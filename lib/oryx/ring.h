@@ -2,23 +2,21 @@
 #define RING_H
 
 #define RLOCK_INIT(r)\
-	if(!((r)->ul_flags & RING_SHARED))\
 		do_mutex_init(&(r)->m)
 
 #define RLOCK_DESTROY(r)\
-	if(!((r)->ul_flags & RING_SHARED))\
 		do_mutex_destroy(&(r)->m)
 
 #define RLOCK_TRYLOCK(r)\
 		do_mutex_trylock(&(r)->m)
 
 #define RLOCK_LOCK(r)\
-	if(!((r)->ul_flags & RING_SHARED))\
 		do_mutex_lock(&(r)->m)
 
 #define RLOCK_UNLOCK(r)\
-	if(!((r)->ul_flags & RING_SHARED))\
 		do_mutex_unlock(&(r)->m)
+
+#define DEFAULT_RING_ELEMENTS	(1 << 1024)
 
 #define	ring_element_next(ring,rw)	(((rw) + 1) % (ring)->max_elements)
 
@@ -31,7 +29,8 @@ struct oryx_ring_data_t {
 	void	*v;
 };
 
-/* */
+/** ul_flags in oryx_ring_t */
+
 #define	RING_SHARED				(1 << 0)	/* A shared ring is a ring that
 											 * used to communication among progresses.
 											 */

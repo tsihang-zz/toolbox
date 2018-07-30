@@ -22,27 +22,13 @@ int oryx_ring_create(const char *ring_name,
 	BUG_ON(ring_name == NULL);
 	BUG_ON(ring == NULL);
 
-	int					i;
 	struct oryx_ring_t	*r;
-	key_t				key	= ring_key(ring_name, strlen(ring_name));
+	key_t				key = ring_key(ring_name, strlen(ring_name));
 
 	if (nb_max_elements == 0)
 		nb_max_elements = DEAFULT_RING_ELEMENTS;
 
-	if (flags & RING_SHARED) {
-		r = MEM_GetShareMem(key, sizeof(struct oryx_ring_t));
-		if (unlikely(!r))
-			return -1;
-		memset(r, 0, sizeof(struct oryx_ring_t));
-
-		r->data = MEM_GetShareMem(ring_key_data(key, 1), sizeof(struct oryx_ring_data_t) * nb_max_elements);
-		if (unlikely(!r->data)) {
-			return -1;
-		}
-		memset(r->data, 0, sizeof(struct oryx_ring_data_t) * nb_max_elements);
-
-	} else {
-	
+	{
 		r = malloc(sizeof(struct oryx_ring_t));
 		if (unlikely(!r))
 			return -1;
