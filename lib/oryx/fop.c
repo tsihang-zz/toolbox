@@ -142,32 +142,6 @@ int oryx_file_read_write (oryx_file_t *fp,
 	return (s > 0) ? s : 0;
 }
 
-__oryx_always_extern__
-void oryx_system_preview(void)
-{
-	struct passwd *pw;
-	struct utsname uts;
-
-	if (uname(&uts) < 0){
-		fprintf(stderr, "Unable to get the host information.\n");
-		return ;
-	}
-
-	printf("\r\nSystem Preview\n");
-	printf("%30s:%60s\n", "Login User", getlogin());	
-	printf("%30s:%60s\n", "Runtime User", (pw = getpwuid(getuid())) ? 
-		pw ->pw_name : "Unknown");
-	printf("%30s:%60s\n", "Host", uts.nodename);
-	printf("%30s:%60s\n", "Arch", uts.machine);
-	printf("%30s:%60d\n", "Bits/LONG", __BITS_PER_LONG);
-	printf("%30s:%60s\n", "Platform", uts.sysname);
-	printf("%30s:%60s\n", "Kernel", uts.release);
-	printf("%30s:%60s\n", "OS", uts.version);
-
-	printf("\r\n\n");
- 
-}
-
 /** A random Pattern generator.*/
 __oryx_always_extern__
 int oryx_pattern_generate (char *pattern, size_t l)

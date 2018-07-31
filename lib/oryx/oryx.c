@@ -1,5 +1,30 @@
 #include "oryx.h"
 
+static void oryx_system(void)
+{
+	struct passwd *pw;
+	struct utsname uts;
+
+	if (uname(&uts) < 0) {
+		fprintf(stderr, "Unable to get the host information.\n");
+		return ;
+	}
+
+	fprintf(stdout, "\r\nSystem Preview\n");
+	fprintf(stdout, "%30s:%60s\n", "Login User", getlogin());	
+	fprintf(stdout, "%30s:%60s\n", "Runtime User", (((pw = getpwuid(getuid())) != NULL) ? pw ->pw_name : "Unknown"));
+	fprintf(stdout, "%30s:%60s\n", "Host", uts.nodename);
+	fprintf(stdout, "%30s:%60s\n", "Arch", uts.machine);
+	fprintf(stdout, "%30s:%60d\n", "Bits/LONG", __BITS_PER_LONG);
+	fprintf(stdout, "%30s:%60s\n", "Platform", uts.sysname);
+	fprintf(stdout, "%30s:%60s\n", "Kernel", uts.release);
+	fprintf(stdout, "%30s:%60s\n", "OS", uts.version);
+	fprintf(stdout, "%30s:%60d\n", "CPU", (int)sysconf(_SC_NPROCESSORS_ONLN));
+
+	fprintf(stdout, "\r\n\n");
+ 
+}
+
 oryx_status_t oryx_initialize(void) 
 {
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
@@ -40,7 +65,7 @@ oryx_status_t oryx_initialize(void)
 		tm_elapsed_us(&start, &end));
 
 	printf ("%s", fb.fmt_data);
-	oryx_system_preview ();
+	oryx_system();
 
 	oryx_format_free(&fb);
 

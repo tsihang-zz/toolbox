@@ -1,4 +1,3 @@
-
 #include "oryx.h"
 
 struct oryx_task_mgr_t{	
@@ -189,6 +188,8 @@ void oryx_task_launch(void)
 {
 	struct oryx_task_t *t = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
+	cpu_set_t cpu_info;
+	int lcore_index = 0;
 
 	list_for_each_entry_safe(t, p, &tm->head, list) {
 		if (task_is_running(t))
@@ -198,6 +199,27 @@ void oryx_task_launch(void)
 
 		if (!pthread_create (&t->pid, NULL, t->fn_handler, t->argv) &&
 	    		 (!pthread_detach (t->pid))) {
+	    		 
+	    	/* bind thread to cpu logic core */
+	    	if (t->ul_lcore_mask != INVALID_CORE) {
+				CPU_ZERO(&cpu_info);
+
+				for (lcore_index = 0; lcore_index < 64; lcore_index ++) {
+					if (t->ul_lcore_mask & (1 << lcore_index)) {
+						if (lcore_index >= ((int)sysconf(_SC_NPROCESSORS_ONLN))) {
+							fprintf(stdout, "Maximum %d lcores supported!\n", (int)sysconf(_SC_NPROCESSORS_ONLN));
+						} else {
+							fprintf(stdout, "Setaffinity lcore %d\n", lcore_index);
+							CPU_SET(lcore_index, &cpu_info);
+						}
+					}
+				}
+
+				if (0 != pthread_setaffinity_np(t->pid, sizeof(cpu_set_t), &cpu_info)) {
+					fprintf(stderr, "pthread_setaffinity_np: %s\n", oryx_safe_strerror(errno));
+				}
+			}
+
 			t->ul_flags			|= TASK_RUNNING;
 			t->ull_startup_time	= time (NULL);
 		}
@@ -209,13 +231,13 @@ void oryx_task_launch(void)
 	
 	printf("\r\nTask(s) %d Preview\n", tm->ul_count);
 
-	printf ("\t%32s%16s%16s%20s\n", "Alias", "taskID", "coreID", "Stime");
+	printf ("%10s%32s%16s%16s%20s\n", " ", "Alias", "TaskID", "CoreID", "StartTime");
 	list_for_each_entry_safe(t, p, &tm->head, list) {
 		
 			char tmstr[100];
 			tm_format (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
-			fprintf(stdout, "\t\"%32s\"%16lX%16u%20s\n", t->sc_alias, t->pid, t->ul_lcore, tmstr);
+			fprintf(stdout, "%10s%32s%16lX%16ld%20s\n", " ", t->sc_alias, t->pid, t->ul_lcore_mask, tmstr);
 	}
 
 	printf("\r\n\r\n");

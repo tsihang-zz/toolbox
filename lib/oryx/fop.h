@@ -26,7 +26,6 @@ int oryx_file_close (oryx_file_t *fp);
 int oryx_file_read_write (oryx_file_t *fp, 
 			struct oryx_file_rw_context_t *frw_ctx);
 
-void oryx_system_preview(void);
 int oryx_pattern_generate (char *pattern, size_t l);
 void oryx_l4_port_generate (char *port_src, char *port_dst);
 void oryx_ipaddr_generate (char *ipv4);
