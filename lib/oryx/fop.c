@@ -228,6 +228,67 @@ void oryx_l4_port_generate (char *port_src, char *port_dst)
 	
 }
 
+char * oryx_fmt_speed (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
+{
+	uint64_t _1KB = 1LL << 10;
+	uint64_t _1MB = 1LL << 20;
+	uint64_t _1GB = 1LL << 30;
+	uint64_t _1TB = 1LL << 40;
+	
+	char *str		= fmt_buffer;
+	double f		= fmt_val;
+
+	BUG_ON (fmt_buffer == NULL);
+
+	if (no_scale) {
+		snprintf(str, 64, "%llu ", (long long unsigned)fmt_val);
+		return str;
+	}
+
+	if (fmt_val >= _1TB) {
+		if (fixed_width) 
+			snprintf(str, 31, "%5.2f T", f /(double) _1TB );
+		else 
+			snprintf(str, 31, "%.2f T", f / (double) _1TB );
+	} else if (fmt_val >= _1GB) {
+		if (fixed_width) 
+			snprintf(str, 31, "%5.2f G", f / (double) _1GB );
+		else 
+			snprintf(str, 31, "%.2f G", f / (double) _1GB );
+	} else if (fmt_val >= _1MB) {
+		if (fixed_width) 
+			snprintf(str, 31, "%5.2f M", f / (double) _1MB );
+		else 
+			snprintf(str, 31, "%.2f M", f / (double) _1MB );
+	} else if (fmt_val >= _1KB) {
+		if (fixed_width) 
+			snprintf(str, 31, "%5.2f K", f / (double) _1KB );
+		else 
+			snprintf(str, 31, "%.2f K", f / (double) _1KB );
+	} else {
+		if (fixed_width) 
+			snprintf(str, 31, "%4.0f ", f );
+		else 
+			snprintf(str, 31, "%.0f ", f );
+	} 
+
+	return str;
+}
+
+void oryx_register_sighandler(int signal, void (*handler)(int))
+{
+	sigset_t block_mask;
+	struct sigaction saction;
+
+	sigfillset(&block_mask);
+
+	saction.sa_handler = handler;
+	saction.sa_mask = block_mask;
+	saction.sa_flags = SA_RESTART;
+
+	sigaction(signal, &saction, NULL);
+}
+
 __oryx_always_extern__
 int isalldigit(const char *str)
 {

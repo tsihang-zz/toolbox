@@ -1,16 +1,18 @@
 #include "oryx.h"
 
-struct oryx_task_mgr_t{	
-	os_mutex_t			lock;			/** lock. */
-	struct list_head	head;			/** all tasks are hold by head. */
-	uint32_t			ul_count;		/** tasks statistics. */
-	uint32_t ul_setting_flags;			/** task manager settings. */
+struct oryx_task_mgr_t {	
+	os_mutex_t			lock;				/** lock. */
+	struct list_head	head;				/** all tasks are hold by head. */
+	uint32_t			ul_count;			/** tasks statistics. */
+	uint32_t			ul_setting_flags;	/** task manager settings. */
+	int					nr_cpus;			/** total cpus. */
 };
 
 static struct oryx_task_mgr_t taskmgr = {
 	.ul_setting_flags	=	0,
 	.ul_count			=	0,
 	.lock				=	INIT_MUTEX_VAL,
+	.nr_cpus			=	0,
 };
 
 
@@ -201,17 +203,11 @@ void oryx_task_launch(void)
 	    		 (!pthread_detach (t->pid))) {
 	    		 
 	    	/* bind thread to cpu logic core */
-	    	if (t->ul_lcore_mask != INVALID_CORE) {
+	    	if (t->lcore_mask != INVALID_CORE) {
 				CPU_ZERO(&cpu_info);
-
-				for (lcore_index = 0; lcore_index < 64; lcore_index ++) {
-					if (t->ul_lcore_mask & (1 << lcore_index)) {
-						if (lcore_index >= ((int)sysconf(_SC_NPROCESSORS_ONLN))) {
-							fprintf(stdout, "Maximum %d lcores supported!\n", (int)sysconf(_SC_NPROCESSORS_ONLN));
-						} else {
-							fprintf(stdout, "Setaffinity lcore %d\n", lcore_index);
-							CPU_SET(lcore_index, &cpu_info);
-						}
+				for (lcore_index = 0; lcore_index < tm->nr_cpus; lcore_index ++) {
+					if (t->lcore_mask & (1 << lcore_index)) {
+						CPU_SET(lcore_index, &cpu_info);
 					}
 				}
 
@@ -222,25 +218,30 @@ void oryx_task_launch(void)
 
 			t->ul_flags			|= TASK_RUNNING;
 			t->ull_startup_time	= time (NULL);
+#if 0
+			/* Check the actual affinity mask assigned to the thread */
+			if (pthread_getaffinity_np(t->pid, sizeof(cpu_set_t), &cpu_info) == 0) {
+				int j;
+				for (j = 0; j < CPU_SETSIZE; j++)
+					if (CPU_ISSET(j, &cpu_info))
+						fprintf (stdout, "	CPU %d\n", j);
+			}
+#endif
 		}
-
 		os_sync();
 	}
 	
 	sleep(1);
 	
-	printf("\r\nTask(s) %d Preview\n", tm->ul_count);
-
-	printf ("%10s%32s%16s%16s%20s\n", " ", "Alias", "TaskID", "CoreID", "StartTime");
+	fprintf (stdout, "\r\nTask(s) %d Preview\n", tm->ul_count);
+	fprintf (stdout, "%10s%32s%16s%20s%20s\n", " ", "Alias", "TaskID", "CoreMask", "StartTime");
 	list_for_each_entry_safe(t, p, &tm->head, list) {
-		
-			char tmstr[100];
-			tm_format (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
-
-			fprintf(stdout, "%10s%32s%16lX%16ld%20s\n", " ", t->sc_alias, t->pid, t->ul_lcore_mask, tmstr);
+		char tmstr[100];
+		tm_format (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+		fprintf (stdout, "%10s%32s%16lX%20lX%20s\n", " ", t->sc_alias, t->pid, t->lcore_mask, tmstr);
 	}
 
-	printf("\r\n\r\n");
+	fprintf (stdout, "\r\n\r\n");
 
 	return;
 }
@@ -250,6 +251,7 @@ void oryx_task_initialize (void)
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
 	INIT_LIST_HEAD(&tm->head);
+	tm->nr_cpus	=	(int)sysconf(_SC_NPROCESSORS_ONLN);
 	os_sync_init();
 }
 

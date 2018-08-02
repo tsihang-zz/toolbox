@@ -96,9 +96,9 @@ int udp_pattern_new (struct pattern_t **pattern)
 
 static void udp_pattern_free (struct pattern_t **pattern)
 {
-	printf("		freeing pattern [\"%16s\", id=%d] ...  ", (*pattern)->sc_val, (*pattern)->ul_id);
+	fprintf (stdout, "		freeing pattern [\"%16s\", id=%d] ...  ", (*pattern)->sc_val, (*pattern)->ul_id);
 	kfree(*pattern);
-	printf ("done\n");
+	fprintf (stdout, "done\n");
 }
 
 struct pattern_t *udp_entry_pattern_lookup (struct udp_t *udp, char *pattern, size_t pl)
@@ -263,7 +263,7 @@ int udp_entry_add (struct udp_t *udp)
 	
 	int r = 0;
 
-	printf ("[\"%16s\"] installing  ...  ", udp_alias(udp));
+	fprintf (stdout, "[\"%16s\"] installing  ...  ", udp_alias(udp));
 	/** Add udp->sc_alias to hash table for controlplane fast lookup */
 	r = oryx_htable_add(vp->htable, udp_alias(udp), strlen((const char *)udp_alias(udp)));
 
@@ -271,9 +271,9 @@ int udp_entry_add (struct udp_t *udp)
 	if (r == 0 /** success */) {
 		/** Add udp to a oryx_vector table for dataplane fast lookup. */
 		udp->ul_id = vec_set (vp->entry_vec, udp);
-		printf ("done(%d)\n", udp_slot(udp));
+		fprintf (stdout, "done(%d)\n", udp_slot(udp));
 	} else {
-		printf ("not done(%d)\n", udp_slot(udp));
+		fprintf (stdout, "not done(%d)\n", udp_slot(udp));
 	}
 
 	return r;
@@ -288,14 +288,14 @@ int udp_entry_remove (struct udp_t *udp)
 
 	do_mutex_lock (&udp_lock);
 	
-	printf ("[\"%16s\"] uninstalling  ...  ", udp_alias(udp));
+	fprintf (stdout, "[\"%16s\"] uninstalling  ...  ", udp_alias(udp));
 	r = oryx_htable_del(vp->htable, udp->sc_alias, strlen((const char *)udp->sc_alias));
 	if (r == 0 ) {
 		/** Delete udp from oryx_vector */
 		vec_unset (vp->entry_vec, udp->ul_id);
-		printf ("done(%d)\n", udp_slot(udp));
+		fprintf (stdout, "done(%d)\n", udp_slot(udp));
 	} else {
-		printf ("not done(%d)\n", udp_slot(udp));
+		fprintf (stdout, "not done(%d)\n", udp_slot(udp));
 	}
 
 	do_mutex_unlock (&udp_lock);
@@ -312,7 +312,7 @@ int udp_entry_destroy (struct udp_t *udp)
 	int i;
 
 	if (vec_active (udp->patterns)) {
-		printf ("Trying to free patterns on and before destroy [\"%16s\"]   ...  \n", udp_alias(udp));
+		fprintf (stdout, "Trying to free patterns on and before destroy [\"%16s\"]   ...  \n", udp_alias(udp));
 		vec_foreach_element (udp->patterns, i, pt) {
 			if (pt) udp_pattern_free (&pt);
 		}
@@ -323,11 +323,11 @@ int udp_entry_destroy (struct udp_t *udp)
 	vec_free (udp->qua[QUA_DROP]);
 	vec_free (udp->qua[QUA_PASS]);
 
-	printf ("[\"%16s\"] destroying  ...  ", udp_alias(udp));
+	fprintf (stdout, "[\"%16s\"] destroying  ...  ", udp_alias(udp));
 #if 0
 	kfree (udp);
 #endif
-	printf ("done\n");
+	fprintf (stdout, "done\n");
 
 	return 0;  
 }
@@ -974,7 +974,7 @@ void udp_init(vlib_main_t *vm)
 	  vp->entry_vec = vec_init (MAX_UDPS);
 	  
 	  if (vp->htable == NULL || vp->entry_vec == NULL) {
-		  printf ("vlib udp main init error!\n");
+		  fprintf (stdout, "vlib udp main init error!\n");
 		  exit(0);
 	  }
 

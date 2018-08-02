@@ -343,7 +343,7 @@ static void SCHSSetAllocators(void)
 {
     hs_error_t err = hs_set_allocator(SCHSMalloc, SCHSFree);
     if (err != HS_SUCCESS) {
-        printf("Failed to set Hyperscan allocator.");
+        fprintf (stdout, "Failed to set Hyperscan allocator.");
         exit(EXIT_FAILURE);
     }
 }
@@ -517,7 +517,7 @@ static int SCHSAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
     }
 
     if (patlen == 0) {
-        printf("pattern length 0\n");
+        fprintf (stdout, "pattern length 0\n");
         return 0;
     }
 
@@ -526,7 +526,7 @@ static int SCHSAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
         SCHSInitHashLookup(ctx, pat, patlen, offset, depth, flags, pid);
     if (p == NULL) {
 #ifdef MPM_DEBUG
-        printf ("Allocing new pattern\n");
+        fprintf (stdout, "Allocing new pattern\n");
 #endif
 
         /* p will never be NULL */
@@ -641,7 +641,7 @@ static SCHSCompileData *SCHSAllocCompileData(unsigned int pattern_cnt)
     return cd;
 
 error:
-    printf("SCHSCompileData alloc failed\n");
+    fprintf (stdout, "SCHSCompileData alloc failed\n");
     if (cd) {
         free(cd->ids);
         free(cd->flags);
@@ -813,7 +813,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
     SCHSCtx *ctx = (SCHSCtx *)mpm_ctx->ctx;
 
     if (mpm_ctx->pattern_cnt == 0 || ctx->init_hash == NULL) {
-        printf("no patterns supplied to this mpm_ctx\n");
+        fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
         return 0;
     }
 
@@ -867,7 +867,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
     PatternDatabase *pd_cached = oryx_htable_lookup(g_db_table, pd, 1);
 
     if (pd_cached != NULL) {
-        printf("Reusing cached database %p with %" PRIu32
+        fprintf (stdout, "Reusing cached database %p with %" PRIu32
                    " patterns (ref_cnt=%" PRIu32 ")\n",
                    pd_cached->hs_db, pd_cached->pattern_cnt,
                    pd_cached->ref_cnt);
@@ -919,9 +919,9 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
                                &compile_err);
 
     if (err != HS_SUCCESS) {
-        printf( "failed to compile hyperscan database\n");
+        fprintf (stdout,  "failed to compile hyperscan database\n");
         if (compile_err) {
-            printf( "compile error: %s\n", compile_err->message);
+            fprintf (stdout,  "compile error: %s\n", compile_err->message);
         }
         hs_free_compile_error(compile_err);
         do_mutex_unlock(&g_db_table_mutex);
@@ -934,14 +934,14 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
     err = hs_alloc_scratch(pd->hs_db, &g_scratch_proto);
     do_mutex_unlock(&g_scratch_proto_mutex);
     if (err != HS_SUCCESS) {
-        printf( "%s***Failed to allocate scratch%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
+        fprintf (stdout,  "%s***Failed to allocate scratch%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
         do_mutex_unlock(&g_db_table_mutex);
         goto error;
     }
 
     err = hs_database_size(pd->hs_db, &ctx->hs_db_size);
     if (err != HS_SUCCESS) {
-        printf( "%s***Failed to query database size%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
+        fprintf (stdout,  "%s***Failed to query database size%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
         do_mutex_unlock(&g_db_table_mutex);
         goto error;
     }
@@ -949,7 +949,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
     mpm_ctx->memory_cnt++;
     mpm_ctx->memory_size += ctx->hs_db_size;
 
-    printf("Built %" PRIu32 " patterns into a database of size %" PRIuMAX
+    fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIuMAX
                " bytes\n", mpm_ctx->pattern_cnt, (uintmax_t)ctx->hs_db_size);
 
     /* Cache this database globally for later. */
@@ -999,7 +999,7 @@ void SCHSInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_
         /* There is no scratch prototype: this means that we have not compiled
          * any Hyperscan databases. */
         do_mutex_unlock(&g_scratch_proto_mutex);
-        printf("%s***No scratch space prototype%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
+        fprintf (stdout, "%s***No scratch space prototype%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
         return;
     }
 
@@ -1009,13 +1009,13 @@ void SCHSInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_
     do_mutex_unlock(&g_scratch_proto_mutex);
 
     if (err != HS_SUCCESS) {
-        printf( "Unable to clone scratch prototype\n");
+        fprintf (stdout,  "Unable to clone scratch prototype\n");
         exit(EXIT_FAILURE);
     }
 
     err = hs_scratch_size(ctx->scratch, &ctx->scratch_size);
     if (err != HS_SUCCESS) {
-        printf( "Unable to query scratch size\n");
+        fprintf (stdout,  "Unable to query scratch size\n");
         exit(EXIT_FAILURE);
     }
 
@@ -1130,7 +1130,7 @@ static int SCHSMatchEvent(unsigned int id, unsigned long long __oryx_unused_para
     const PatternDatabase *pd = cctx->ctx->pattern_db;
     const SCHSPattern *pat = pd->parray[id];
 #if 0
-    printf("Hyperscan Match %" PRIu32 ": id=%" PRIu32 " @ %" PRIuMAX
+    fprintf (stdout, "Hyperscan Match %" PRIu32 ": id=%" PRIu32 " @ %" PRIuMAX
                " (pat id=%" PRIu32 ")\n",
                cctx->match_count, (uint32_t)id, (uintmax_t)to, pat->id);
 #endif
@@ -1181,7 +1181,7 @@ uint32_t SCHSSearch(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
         /* An error value (other than HS_SCAN_TERMINATED) from hs_scan()
          * indicates that it was passed an invalid database or scratch region,
          * which is not something we can recover from at scan time. */
-        printf( "Hyperscan returned error %d\n", err);
+        fprintf (stdout,  "Hyperscan returned error %d\n", err);
         exit(EXIT_FAILURE);
     } else {
         ret = cctx.match_count;
@@ -1248,30 +1248,30 @@ void SCHSPrintInfo(MpmCtx *mpm_ctx)
 {
     SCHSCtx *ctx = (SCHSCtx *)mpm_ctx->ctx;
 
-    printf("MPM HS Information:\n");
-    printf("Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
-    printf("Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
-    printf(" Sizeof:\n");
-    printf("  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
-    printf("  SCHSCtx:       %" PRIuMAX "\n", (uintmax_t)sizeof(SCHSCtx));
-    printf("  SCHSPattern    %" PRIuMAX "\n", (uintmax_t)sizeof(SCHSPattern));
-    printf("Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
-    printf("Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
-    printf("Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
-    printf("\n");
+    fprintf (stdout, "MPM HS Information:\n");
+    fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
+    fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
+    fprintf (stdout, " Sizeof:\n");
+    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
+    fprintf (stdout, "  SCHSCtx:       %" PRIuMAX "\n", (uintmax_t)sizeof(SCHSCtx));
+    fprintf (stdout, "  SCHSPattern    %" PRIuMAX "\n", (uintmax_t)sizeof(SCHSPattern));
+    fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
+    fprintf (stdout, "Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
+    fprintf (stdout, "Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
+    fprintf (stdout, "\n");
 
     if (ctx) {
         PatternDatabase *pd = ctx->pattern_db;
         char *db_info = NULL;
         if (hs_database_info(pd->hs_db, &db_info) == HS_SUCCESS) {
-            printf("HS Database Info: %s\n", db_info);
+            fprintf (stdout, "HS Database Info: %s\n", db_info);
             free(db_info);
         }
-        printf("HS Database Size: %" PRIuMAX " bytes\n",
+        fprintf (stdout, "HS Database Size: %" PRIuMAX " bytes\n",
                (uintmax_t)ctx->hs_db_size);
     }
 
-    printf("\n");
+    fprintf (stdout, "\n");
 }
 
 /************************** Mpm Registration ***************************/
@@ -1306,7 +1306,7 @@ void MpmHSGlobalCleanup(void)
 {
     do_mutex_lock(&g_scratch_proto_mutex);
     if (g_scratch_proto) {
-        printf("Cleaning up Hyperscan global scratch\n");
+        fprintf (stdout, "Cleaning up Hyperscan global scratch\n");
         hs_free_scratch(g_scratch_proto);
         g_scratch_proto = NULL;
     }
@@ -1314,7 +1314,7 @@ void MpmHSGlobalCleanup(void)
 
     do_mutex_lock(&g_db_table_mutex);
     if (g_db_table != NULL) {
-        printf("Clearing Hyperscan database cache\n");
+        fprintf (stdout, "Clearing Hyperscan database cache\n");
         oryx_htable_destroy(g_db_table);
         g_db_table = NULL;
     }

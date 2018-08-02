@@ -555,7 +555,7 @@ typedef enum {
 do {							\
   if (ASSERT_ENABLE && ! (expr))			\
     {							\
-      printf (		\
+      fprintf (stdout, 		\
 		   "%s:%lu (%s) assertion `%s' fails\n",	\
 		   __FILE__,				\
 		   (uword) __LINE__,			\
@@ -572,7 +572,6 @@ do {							\
 #include "oryx_memory.h"
 #include "oryx_utils.h"
 #include "oryx_htable.h"
-#include "oryx_actq.h"
 #include "oryx_task.h"
 #include "oryx_tmr.h"
 #include "oryx_mpm.h"

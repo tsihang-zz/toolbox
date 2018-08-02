@@ -547,10 +547,10 @@ void dump_pkt(uint8_t *pkt, int len)
 	
 	for (i = 0; i < len; i ++){
 		if (!(i % 16))
-			printf ("\n");
-		printf("%02x ", pkt[i]);
+			fprintf (stdout, "\n");
+		fprintf (stdout, "%02x ", pkt[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 }
 
 #if 0

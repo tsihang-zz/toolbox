@@ -290,7 +290,7 @@ void MpmAddSids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
         }
     }
 #ifdef MPM_DEBUG
-    printf("Adding %u sids\n", sids_size);
+    fprintf (stdout, "Adding %u sids\n", sids_size);
 #endif
 
     // Add SIDs for this pattern to the end of the array

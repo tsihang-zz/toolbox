@@ -568,7 +568,7 @@ int rfc_set_phase0_dim_cell(vlib_rfc_main_t *rm, pnode_t *node, uint32_t com)
             {
                 if (p_eqs->n_ces == EQS_SIZE)
                 {
-                    printf("ERROR : com %d number of rfc node ces is full!\r\n", com);
+                    fprintf (stdout, "ERROR : com %d number of rfc node ces is full!\r\n", com);
                     return -1;
                 }
                 eqid = add_list_eqs_ces(p_eqs, bmp);
@@ -598,7 +598,7 @@ int rfc_set_phase0_dim_cell(vlib_rfc_main_t *rm, pnode_t *node, uint32_t com)
 			{
 			    if (p_eqs->n_ces == EQS_SIZE)
 			    {
-			        printf("ERROR : com %d number of rfc node ces is full!\r\n", com);
+			        fprintf (stdout, "ERROR : com %d number of rfc node ces is full!\r\n", com);
 			        return -1;
 			    }
 
@@ -716,7 +716,7 @@ int rfc_set_phase1_dim_cell(pnoder_t *noder, uint8_t com, uint8_t ip_ver)
     noder->ncells = n_ces1 * n_ces2 * n_ces3 * n_ces4;
     if (noder->ncells > P1_CELL_ENTRY_SIZE)
     {
-	printf("ERROR:phase 1 cells number %d is biger then %d\r\n", noder->ncells, P1_CELL_ENTRY_SIZE);
+	fprintf (stdout, "ERROR:phase 1 cells number %d is biger then %d\r\n", noder->ncells, P1_CELL_ENTRY_SIZE);
 	return -1;
     }
     
@@ -756,7 +756,7 @@ int rfc_set_phase1_dim_cell(pnoder_t *noder, uint8_t com, uint8_t ip_ver)
 
 cell_full_error:
 
-    printf("ERROR : rfc phase1 node ces number is full!\r\n");
+    fprintf (stdout, "ERROR : rfc phase1 node ces number is full!\r\n");
     return -1;
 }
 
@@ -786,7 +786,7 @@ int rfc_set_phase2_cell(pnoder_t *noder)
     
     noder->ncells = n_ces1 * n_ces2;
     if (noder->ncells > P2_CELL_ENTRY_SIZE) {
-        printf("ERROR:phase 2 cells number %d is biger then %d\r\n", noder->ncells, P2_CELL_ENTRY_SIZE);
+        fprintf (stdout, "ERROR:phase 2 cells number %d is biger then %d\r\n", noder->ncells, P2_CELL_ENTRY_SIZE);
 		return -1;
     }
 

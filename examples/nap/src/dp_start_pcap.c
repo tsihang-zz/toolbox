@@ -120,7 +120,7 @@ void *dp_libpcap_running_fn(void *argv)
 				case -2:
 				case -3:
 				default:
-					printf("pcap_dispatch=%ld\n", rank_acc);
+					fprintf (stdout, "pcap_dispatch=%ld\n", rank_acc);
 					break;
 			}
 		}
@@ -155,7 +155,7 @@ void dp_start_pcap(vlib_main_t *vm) {
 	uint32_t nb_lcores = MAX_LCORES;
 
 	vm->nb_lcores = MAX_LCORES;
-	printf ("Master Lcore @ %d/%d\n", 0,
+	fprintf (stdout, "Master Lcore @ %d/%d\n", 0,
 		vm->nb_lcores);
 	
 	uint32_t ul_perf_tmr_setting_flags = TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED;
@@ -166,8 +166,8 @@ void dp_start_pcap(vlib_main_t *vm) {
 }
 
 void dp_end_pcap(vlib_main_t *vm) {
-	printf("Closing netdev %s...", netdev.devname);
-	printf(" Done\n");
-	printf("Bye...\n");
+	fprintf (stdout, "Closing netdev %s...", netdev.devname);
+	fprintf (stdout, " Done\n");
+	fprintf (stdout, "Bye...\n");
 }
 

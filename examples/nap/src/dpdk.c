@@ -70,7 +70,7 @@ dpdk_eal_args_2string(vlib_main_t *vm, char *format_buffer) {
 	int l = 0;
 	
 	for (i = 0; i < vm->argc; i ++) {
-		printf("argc[%d] : %s\n", i, vm->argv[i]);
+		fprintf (stdout, "argc[%d] : %s\n", i, vm->argv[i]);
 		if(!strcmp(vm->argv[i], "--")) {
 			l += sprintf (format_buffer + l, " %s ", vm->argv[i]);
 		}

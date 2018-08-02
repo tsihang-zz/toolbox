@@ -16,16 +16,14 @@ void oryx_pcre_initialize(void)
 
     parse_regex = pcre_compile(PARSE_REGEX, opts, &eb, &eo, NULL);
     if (parse_regex == NULL) {
-        oryx_loge(0,
+		oryx_panic(0,
 			"Compile of \"%s\" failed at offset "
                    "%" PRId32 ": %s", PARSE_REGEX, eo, eb);
-        exit(EXIT_FAILURE);
     }
     parse_regex_study = pcre_study(parse_regex, 0, &eb);
     if (eb != NULL) {
-        oryx_loge(0,
+		oryx_panic(0,
 			"pcre study failed: %s", eb);
-        exit(EXIT_FAILURE);
     }
 #endif
 }

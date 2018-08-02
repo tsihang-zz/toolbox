@@ -111,7 +111,7 @@ int main (
 	
 	/** test normal alloc and free with same pool. */
 	i = 3;
-	printf ("test normal .... ");
+	fprintf (stdout, "test normal .... ");
 	do {
 		void *elem;
 		gettimeofday(&start, NULL);
@@ -132,7 +132,7 @@ int main (
 
 		sleep (1);
 	}while (i --);
-	printf ("done !\n");
+	fprintf (stdout, "done !\n");
 
 	mpool_uninit(flow_pool);
 	mpool_uninit(flow_pool1);

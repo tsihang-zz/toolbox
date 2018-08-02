@@ -147,38 +147,38 @@ void dump_cdr_s1_mme(char *cdr)
 	int i;
 	full_record_s1_mme_signal_t *v = (full_record_s1_mme_signal_t *)cdr;
 
-	fprintf(stdout, "====== %s\n", "S1_MME");
+	fprintf (stdout, "====== %s\n", "S1_MME");
 
-	fprintf(stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
-	fprintf(stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1ap_id);
-	fprintf(stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
+	fprintf (stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
+	fprintf (stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1ap_id);
+	fprintf (stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
 
 	
-	fprintf(stdout, "%32s", "imsi: ");
+	fprintf (stdout, "%32s", "imsi: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imsi[i]);
+		fprintf (stdout, "%02x-", v->imsi[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "imei: ");
+	fprintf (stdout, "%32s", "imei: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imei[i]);
+		fprintf (stdout, "%02x-", v->imei[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "APN: ");
+	fprintf (stdout, "%32s", "APN: ");
 	for (i = 0; i < 32; i ++) {
-		fprintf(stdout, "%02x-", v->apn[i]);
+		fprintf (stdout, "%02x-", v->apn[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "calling: ");
+	fprintf (stdout, "%32s", "calling: ");
 	for (i = 0; i < 24; i ++) {
-		fprintf(stdout, "%02x-", v->calling[i]);
+		fprintf (stdout, "%02x-", v->calling[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	printf ("\n\n");
+	fprintf (stdout, "\n\n");
 }
 
 static __oryx_always_inline__
@@ -187,38 +187,38 @@ void dump_cdr_s1_emm(char *cdr)
 	int i;
 	full_record_s1_emm_signal_t *v = (full_record_s1_emm_signal_t *)cdr;
 
-	fprintf(stdout, "====== %s\n", "S1_EMM");
+	fprintf (stdout, "====== %s\n", "S1_EMM");
 
-	fprintf(stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
-	fprintf(stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1ap_id);
-	fprintf(stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
+	fprintf (stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
+	fprintf (stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1ap_id);
+	fprintf (stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
 
 
-	fprintf(stdout, "%32s", "imsi: ");
+	fprintf (stdout, "%32s", "imsi: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imsi[i]);
+		fprintf (stdout, "%02x-", v->imsi[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "imei: ");
+	fprintf (stdout, "%32s", "imei: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imei[i]);
+		fprintf (stdout, "%02x-", v->imei[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "APN: ");
+	fprintf (stdout, "%32s", "APN: ");
 	for (i = 0; i < 32; i ++) {
-		fprintf(stdout, "%02x-", v->apn[i]);
+		fprintf (stdout, "%02x-", v->apn[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "calling: ");
+	fprintf (stdout, "%32s", "calling: ");
 	for (i = 0; i < 24; i ++) {
-		fprintf(stdout, "%02x-", v->calling[i]);
+		fprintf (stdout, "%02x-", v->calling[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	printf ("\n\n");
+	fprintf (stdout, "\n\n");
 }
 
 static __oryx_always_inline__
@@ -227,38 +227,38 @@ void dump_cdr_s1ap_handover(char *cdr)
 	int i;
 	full_record_s1ap_handover_signal_t *v = (full_record_s1ap_handover_signal_t *)cdr;
 
-	fprintf(stdout, "====== %s\n", "S1AP_HANDOVER");
+	fprintf (stdout, "====== %s\n", "S1AP_HANDOVER");
 
-	fprintf(stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
-	fprintf(stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1apid);
-	fprintf(stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
+	fprintf (stdout, "%32s%8lu\n", "SDR_ID: ", v->sdr_id);
+	fprintf (stdout, "%32s%8x\n", "mme_ue_s1ap_id: ", v->mme_ue_s1apid);
+	fprintf (stdout, "%32s%8x\n", "m_tmsi: ", v->m_tmsi);
 
 
-	fprintf(stdout, "%32s", "imsi: ");
+	fprintf (stdout, "%32s", "imsi: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imsi[i]);
+		fprintf (stdout, "%02x-", v->imsi[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "imei: ");
+	fprintf (stdout, "%32s", "imei: ");
 	for (i = 0; i < 18; i ++) {
-		fprintf(stdout, "%02x-", v->imei[i]);
+		fprintf (stdout, "%02x-", v->imei[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "APN: ");
+	fprintf (stdout, "%32s", "APN: ");
 	for (i = 0; i < 32; i ++) {
-		fprintf(stdout, "%02x-", v->apn[i]);
+		fprintf (stdout, "%02x-", v->apn[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	fprintf(stdout, "%32s", "calling: ");
+	fprintf (stdout, "%32s", "calling: ");
 	for (i = 0; i < 24; i ++) {
-		fprintf(stdout, "%02x-", v->calling[i]);
+		fprintf (stdout, "%02x-", v->calling[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 
-	printf ("\n\n");
+	fprintf (stdout, "\n\n");
 }
 
 

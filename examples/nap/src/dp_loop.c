@@ -634,7 +634,7 @@ int main_loop (void *ptr_data)
 	}
 
 	while (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
-		printf("lcore %d wait for dataplane ...\n", tv->lcore);
+		fprintf (stdout, "lcore %d wait for dataplane ...\n", tv->lcore);
 		sleep(1);
 	}
 
@@ -643,7 +643,7 @@ int main_loop (void *ptr_data)
 	for (i = 0; i < qconf->n_rx_queue; i++) {
 		rx_port_id = qconf->rx_queue_list[i].port_id;
 		rx_queue_id = qconf->rx_queue_list[i].queue_id;
-		printf(" -- lcoreid=%u portid=%hhu rxqueueid=%hhu --\n",
+		fprintf (stdout, " -- lcoreid=%u portid=%hhu rxqueueid=%hhu --\n",
 			tv->lcore, rx_port_id, rx_queue_id);
 		fflush(stdout);
 	}

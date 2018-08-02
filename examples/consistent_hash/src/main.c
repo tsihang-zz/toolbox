@@ -16,7 +16,7 @@
 	__e = clock();
 
 #define TIME_CALC()\
-	;//printf ("Time occured %f s, %lu, %lu\n", (double) ((__e  - __s)/(double)CLOCKS_PER_SEC), __s, __e);
+	;//fprintf (stdout, "Time occured %f s, %lu, %lu\n", (double) ((__e  - __s)/(double)CLOCKS_PER_SEC), __s, __e);
 
 /** Input times. */
 #define MAX_INJECT_DATA	10000000
@@ -59,7 +59,7 @@ void check_miss_while_add ()
 	new = _n_new ();
 	if (likely (new)) {
 		node_install (ch, new);
-		printf ("\n\n\n\nTrying to add a node ... \"%s\", done, total_vns=%d\n", 
+		fprintf (stdout, "\n\n\n\nTrying to add a node ... \"%s\", done, total_vns=%d\n", 
 			new->ipaddr, total_vns(ch));
 	}
 
@@ -79,7 +79,7 @@ void check_miss_while_add ()
 		if (likely(n)) {
 			ch->total_hit_times ++;
 			N_HITS_INC(n);
-			//printf ("[%16s] is in node: [%16s]\n", key, n->idesc);
+			//fprintf (stdout, "[%16s] is in node: [%16s]\n", key, n->idesc);
 		}
 		
 		vn_backup = _vn_find_ring (chnew, (void *)(uint32_t *)&hv);
@@ -101,7 +101,7 @@ void check_miss_while_add ()
 	if (changes >= THRESHOLD_L2(MAX_INJECT_DATA))
 		colur = draw_color(COLOR_RED);
 	
-	printf ("\nAdding ...%18s (%s)\n Changes (%-8u%s%-4.2f%s%s)\n\n", 
+	fprintf (stdout, "\nAdding ...%18s (%s)\n Changes (%-8u%s%-4.2f%s%s)\n\n", 
 		new->ipaddr, new->idesc, 
 		changes, colur, (float)changes/MAX_INJECT_DATA * 100, "%", draw_color(COLOR_FIN));
 
@@ -127,7 +127,7 @@ void check_miss_while_rm ()
 	
 	n = node_remove (ch, removed_node->ipaddr);
 
-	printf ("\n\n\n\nTrying to remove a node ... \"%s\", done, total_vns=%d\n", 
+	fprintf (stdout, "\n\n\n\nTrying to remove a node ... \"%s\", done, total_vns=%d\n", 
 		n->idesc, total_vns(ch));
 
 	free (n);
@@ -148,7 +148,7 @@ void check_miss_while_rm ()
 		if (likely(n)) {
 			ch->total_hit_times ++;
 			N_HITS_INC(n);
-			//printf ("[%16s] is in node: [%16s]\n", key, n->idesc);
+			//fprintf (stdout, "[%16s] is in node: [%16s]\n", key, n->idesc);
 		}
 		
 		vn_backup = _vn_find_ring (chnew, (void *)(uint32_t *)&hv);
@@ -170,7 +170,7 @@ void check_miss_while_rm ()
 	if (changes >= THRESHOLD_L2(MAX_INJECT_DATA))
 		colur = draw_color(COLOR_RED);
 	
-	printf ("\nRemoving ...%18s (%s)\n Changes (%-8u%s%-4.2f%s%s)\n\n", 
+	fprintf (stdout, "\nRemoving ...%18s (%s)\n Changes (%-8u%s%-4.2f%s%s)\n\n", 
 		removed_node->ipaddr, removed_node->idesc, 
 		changes, colur, (float)changes/MAX_INJECT_DATA * 100, "%", draw_color(COLOR_FIN));
 
@@ -191,7 +191,7 @@ void lookup_handler ()
 	chcopy (&ch_add, ch);
 	chcopy (&ch_del, ch);
 	
-	printf ("\n\n\nTrying to inject %d object to %d nodes ... (please wait for a while)\n", 
+	fprintf (stdout, "\n\n\nTrying to inject %d object to %d nodes ... (please wait for a while)\n", 
 		MAX_INJECT_DATA, MAX_BACKEND_MACHINES);
 	
 	FOREVER {
@@ -212,7 +212,7 @@ void lookup_handler ()
 			if (likely(n)) {
 				ch->total_hit_times ++;
 				N_HITS_INC(n);
-				//printf ("[%16s] is in node: [%16s]\n", key, n->idesc);
+				//fprintf (stdout, "[%16s] is in node: [%16s]\n", key, n->idesc);
 			}
 		};
 

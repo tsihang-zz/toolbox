@@ -56,12 +56,12 @@ int oryx_ring_create(const char *ring_name,
 
 void oryx_ring_dump(struct oryx_ring_t *ring)
 {
-	printf ("%16s%32s\n", "ring_name: ",	ring->ring_name);
-	printf ("%16s%32d\n", "nb_data: ",		ring->max_elements);
-	printf ("%16s%32d\n", "rp_times: ",		ring->ul_rp_times);
-	printf ("%16s%32d\n", "wp_times: ",		ring->ul_wp_times);
-	printf ("%16s%32d\n", "rp: ",			ring->rp);
-	printf ("%16s%32d\n", "wp: ",			ring->wp);
+	fprintf (stdout, "%16s%32s\n", "ring_name: ",	ring->ring_name);
+	fprintf (stdout, "%16s%32d\n", "nb_data: ",		ring->max_elements);
+	fprintf (stdout, "%16s%32d\n", "rp_times: ",		ring->ul_rp_times);
+	fprintf (stdout, "%16s%32d\n", "wp_times: ",		ring->ul_wp_times);
+	fprintf (stdout, "%16s%32d\n", "rp: ",			ring->rp);
+	fprintf (stdout, "%16s%32d\n", "wp: ",			ring->wp);
 }
 
 

@@ -167,7 +167,7 @@ notify_dp(vlib_main_t *vm, int signum)
 {
 	vm = vm;
 	if (signum == SIGINT || signum == SIGTERM) {
-		printf("\n\nSignal %d received, preparing to exit...\n",
+		fprintf (stdout, "\n\nSignal %d received, preparing to exit...\n",
 				signum);
 		force_quit = true;
 	}

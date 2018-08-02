@@ -72,7 +72,7 @@ int ACReallocState(SCACCtx *ctx, uint32_t cnt)
     if (ptmp == NULL) {
         kfree(ctx->goto_table);
         ctx->goto_table = NULL;
-        printf ("Error allocating memory (%u, %u, %lu)\n", cnt, ctx->single_state_size, size);
+        fprintf (stdout, "Error allocating memory (%u, %u, %lu)\n", cnt, ctx->single_state_size, size);
 	
         exit(EXIT_FAILURE);
     }
@@ -82,7 +82,7 @@ int ACReallocState(SCACCtx *ctx, uint32_t cnt)
     int oldsize = ctx->state_count * sizeof(SCACOutputTable);
     size = cnt * sizeof(SCACOutputTable);
 #ifdef MPM_DEBUG
-    printf("oldsize %d size %d cnt %u ctx->state_count %u\n",
+    fprintf (stdout, "oldsize %d size %d cnt %u ctx->state_count %u\n",
             oldsize, size, cnt, ctx->state_count);
 #endif
     ptmp = krealloc(ctx->output_table, size, MPF_NOFLGS, __oryx_unused_val__);
@@ -90,7 +90,7 @@ ASSERT (ptmp);
     if (ptmp == NULL) {
         kfree(ctx->output_table);
         ctx->output_table = NULL;
-	printf ("Error allocating memory (%lu)\n", size);
+	fprintf (stdout, "Error allocating memory (%lu)\n", size);
         exit(EXIT_FAILURE);
     }
     ctx->output_table = ptmp;
@@ -100,7 +100,7 @@ ASSERT (ptmp);
     /* \todo using it temporarily now during dev, since I have restricted
      *       state var in SCACCtx->state_table to uint16_t. */
     //if (ctx->state_count > 65536) {
-    //    printf("state count exceeded\n");
+    //    fprintf (stdout, "state count exceeded\n");
     //    exit(EXIT_FAILURE);
     //}
 
@@ -121,12 +121,12 @@ static void ACShrinkState(SCACCtx *ctx)
     int newsize = ctx->state_count * sizeof(SCACOutputTable);
 
 #ifdef MPM_DEBUG
-    printf("oldsize %d newsize %d ctx->allocated_state_count %u "
+    fprintf (stdout, "oldsize %d newsize %d ctx->allocated_state_count %u "
                "ctx->state_count %u: shrink by %d bytes\n", oldsize,
                newsize, ctx->allocated_state_count, ctx->state_count,
                oldsize - newsize);
 #else
-    printf("newsize %d ctx->allocated_state_count %u "
+    fprintf (stdout, "newsize %d ctx->allocated_state_count %u "
                "ctx->state_count %u\n",
                newsize, ctx->allocated_state_count, ctx->state_count);
 #endif
@@ -136,7 +136,7 @@ ASSERT (ptmp);
     if (ptmp == NULL) {
         kfree(ctx->output_table);
         ctx->output_table = NULL;
-	printf ("Error allocating memory (%d)\n", newsize);
+	fprintf (stdout, "Error allocating memory (%d)\n", newsize);
         exit(EXIT_FAILURE);
     }
     ctx->output_table = ptmp;
@@ -160,7 +160,7 @@ int SCACInitNewState(MpmCtx *mpm_ctx)
 #if 0
     if (ctx->allocated_state_count > 260) {
         SCACOutputTable *output_state = &ctx->output_table[260];
-        printf("output_state %p %p %u", output_state, output_state->pids, output_state->no_of_entries);
+        fprintf (stdout, "output_state %p %p %u", output_state, output_state->pids, output_state->no_of_entries);
     }
 #endif
     int ascii_code = 0;
@@ -199,7 +199,7 @@ ASSERT (ptmp);
     if (ptmp == NULL) {
         kfree(output_state->pids);
         output_state->pids = NULL;
-	printf ("Error allocating memory (%lu)\n", output_state->no_of_entries * sizeof(uint32_t));
+	fprintf (stdout, "Error allocating memory (%lu)\n", output_state->no_of_entries * sizeof(uint32_t));
         exit(EXIT_FAILURE);
     }
     output_state->pids = ptmp;
@@ -330,7 +330,7 @@ void SCACEnqueue(StateQueue *q, int32_t state)
         q->top = 0;
 
     if (q->top == q->bot) {
-        printf ("Just ran out of space in the queue.  "
+        fprintf (stdout, "Just ran out of space in the queue.  "
                       "Fatal Error.  Exiting.  Please file a bug report on this");
         exit(EXIT_FAILURE);
     }
@@ -345,7 +345,7 @@ int32_t SCACDequeue(StateQueue *q)
         q->bot = 0;
 
     if (q->bot == q->top) {
-        printf ("StateQueue behaving weirdly.  "
+        fprintf (stdout, "StateQueue behaving weirdly.  "
                       "Fatal Error.  Exiting.  Please file a bug report on this");
         exit(EXIT_FAILURE);
     }
@@ -378,7 +378,7 @@ int32_t SCACDequeue(StateQueue *q)
 
 #define SCACDequeue(q) ( (((q)->bot == STATE_QUEUE_CONTAINER_SIZE)? ((q)->bot = 0): 0), \
                          (((q)->bot == (q)->top) ?                      \
-                          (printf("StateQueue behaving "                \
+                          (fprintf (stdout, "StateQueue behaving "                \
                                          "weirdly.  Fatal Error.  Exiting.  Please " \
                                          "file a bug report on this"), \
                            exit(EXIT_FAILURE)) : 0), \
@@ -421,7 +421,7 @@ void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
             if (ptmp == NULL) {
                 kfree(output_dst_state->pids);
                 output_dst_state->pids = NULL;
-                printf ("Error allocating memory");
+                fprintf (stdout, "Error allocating memory");
                 exit(EXIT_FAILURE);
             }
             output_dst_state->pids = ptmp;
@@ -456,7 +456,7 @@ void SCACCreateFailureTable(MpmCtx *mpm_ctx)
     ctx->failure_table = kmalloc(ctx->state_count * sizeof(int32_t), MPF_CLR, __oryx_unused_val__);
 ASSERT (ctx->failure_table);
     if (ctx->failure_table == NULL) {
-        printf ("Error allocating memory");
+        fprintf (stdout, "Error allocating memory");
         exit(EXIT_FAILURE);
     }
 	
@@ -510,7 +510,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
                                         sizeof(SC_AC_STATE_TYPE_U16) * 256, MPF_CLR, __oryx_unused_val__);
 		ASSERT (ctx->state_table_u16);
         if (ctx->state_table_u16 == NULL) {
-            printf ("Error allocating memory");
+            fprintf (stdout, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
 
@@ -552,7 +552,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
                                         sizeof(SC_AC_STATE_TYPE_U32) * 256, MPF_CLR, __oryx_unused_val__);
 	ASSERT (ctx->state_table_u32);
         if (ctx->state_table_u32 == NULL) {
-            printf ("Error allocating memory");
+            fprintf (stdout, "Error allocating memory");
             exit(EXIT_FAILURE);
         }
 
@@ -648,12 +648,12 @@ static void SCACPrintDeltaTable(MpmCtx *mpm_ctx)
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
     int i = 0, j = 0;
 
-    printf("##############Delta Table##############\n");
+    fprintf (stdout, "##############Delta Table##############\n");
     for (i = 0; i < ctx->state_count; i++) {
-        printf("%d: \n", i);
+        fprintf (stdout, "%d: \n", i);
         for (j = 0; j < 256; j++) {
             if (SCACGetDelta(i, j, mpm_ctx) != 0) {
-                printf("  %c -> %d\n", j, SCACGetDelta(i, j, mpm_ctx));
+                fprintf (stdout, "  %c -> %d\n", j, SCACGetDelta(i, j, mpm_ctx));
             }
         }
     }
@@ -714,7 +714,7 @@ int ACPreparePatterns(MpmCtx *mpm_ctx)
     SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
 
     if (mpm_ctx->pattern_cnt == 0 || mpm_ctx->init_hash == NULL) {
-        printf("no patterns supplied to this mpm_ctx\n");
+        fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
         return 0;
     }
 
@@ -750,7 +750,7 @@ int ACPreparePatterns(MpmCtx *mpm_ctx)
     ctx->pid_pat_list = kmalloc((mpm_ctx->max_pat_id + 1)* sizeof(SCACPatternList), MPF_CLR, __oryx_unused_val__);
 ASSERT (ctx->pid_pat_list);
     if (ctx->pid_pat_list == NULL) {
-        printf( "Error allocating memory\n");
+        fprintf (stdout,  "Error allocating memory\n");
         exit(EXIT_FAILURE);
     }
 
@@ -759,7 +759,7 @@ ASSERT (ctx->pid_pat_list);
             ctx->pid_pat_list[ctx->parray[i]->id].cs = kmalloc(ctx->parray[i]->len, MPF_CLR, __oryx_unused_val__);
 	    ASSERT (ctx->pid_pat_list[ctx->parray[i]->id].cs);
             if (ctx->pid_pat_list[ctx->parray[i]->id].cs == NULL) {
-                printf( "Error allocating memory\n");
+                fprintf (stdout,  "Error allocating memory\n");
                 exit(EXIT_FAILURE);
             }
             memcpy(ctx->pid_pat_list[ctx->parray[i]->id].cs,
@@ -783,7 +783,7 @@ ASSERT (ctx->pid_pat_list);
         int r = SCCudaMemAlloc(&ctx->state_table_u32_cuda,
                                ctx->state_count * sizeof(unsigned int) * 256);
         if (r < 0) {
-            printf( "SCCudaMemAlloc failure.\n");
+            fprintf (stdout,  "SCCudaMemAlloc failure.\n");
             exit(EXIT_FAILURE);
         }
 
@@ -791,13 +791,13 @@ ASSERT (ctx->pid_pat_list);
                              ctx->state_table_u32,
                              ctx->state_count * sizeof(unsigned int) * 256);
         if (r < 0) {
-            printf( "SCCudaMemcpyHtoD failure.\n");
+            fprintf (stdout,  "SCCudaMemcpyHtoD failure.\n");
             exit(EXIT_FAILURE);
         }
     }
 #endif
 
-    printf("Built %" PRIu32 " patterns into a database of size %" PRIu32
+    fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIu32
                " bytes\n", mpm_ctx->pattern_cnt, mpm_ctx->memory_size);
 
     /* free all the stored patterns.  Should save us a good 100-200 mbs */
@@ -815,7 +815,7 @@ ASSERT (ctx->pid_pat_list);
 
 
 #if 0
-    printf("ctx->pattern_id_bitarray_size =%u, mpm_ctx->max_pat_id =%u\n", 
+    fprintf (stdout, "ctx->pattern_id_bitarray_size =%u, mpm_ctx->max_pat_id =%u\n", 
 		ctx->pattern_id_bitarray_size,
 		mpm_ctx->max_pat_id);
 #endif
@@ -1172,9 +1172,9 @@ void ACPrintSearchStats(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
 
 #ifdef SC_AC_COUNTERS
     SCACThreadCtx *ctx = (SCACThreadCtx *)mpm_thread_ctx->ctx;
-    printf("AC Thread Search stats (ctx %p)\n", ctx);
-    printf("Total calls: %" PRIu32 "\n", ctx->total_calls);
-    printf("Total matches: %" PRIu64 "\n", ctx->total_matches);
+    fprintf (stdout, "AC Thread Search stats (ctx %p)\n", ctx);
+    fprintf (stdout, "Total calls: %" PRIu32 "\n", ctx->total_calls);
+    fprintf (stdout, "Total matches: %" PRIu64 "\n", ctx->total_matches);
 #endif /* SC_AC_COUNTERS */
 
     return;
@@ -1184,19 +1184,19 @@ void ACPrintInfo(MpmCtx __oryx_unused_param__ *mpm_ctx)
 {
     SCACCtx __oryx_unused_param__ *ctx = (SCACCtx *)mpm_ctx->ctx;
 #if 1
-    printf("MPM AC Information:\n");
-    printf("Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
-    printf("Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
-    printf(" Sizeof:\n");
-    printf("  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
-    printf("  SCACCtx:         %" PRIuMAX "\n", (uintmax_t)sizeof(SCACCtx));
-    printf("  MpmPattern      %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
-    printf("  MpmPattern     %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
-    printf("Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
-    printf("Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
-    printf("Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
-    printf("Total states in the state table:    %" PRIu32 "\n", ctx->state_count);
-    printf("\n");
+    fprintf (stdout, "MPM AC Information:\n");
+    fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
+    fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
+    fprintf (stdout, " Sizeof:\n");
+    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
+    fprintf (stdout, "  SCACCtx:         %" PRIuMAX "\n", (uintmax_t)sizeof(SCACCtx));
+    fprintf (stdout, "  MpmPattern      %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
+    fprintf (stdout, "  MpmPattern     %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
+    fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
+    fprintf (stdout, "Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
+    fprintf (stdout, "Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
+    fprintf (stdout, "Total states in the state table:    %" PRIu32 "\n", ctx->state_count);
+    fprintf (stdout, "\n");
 #endif
 
     return;
@@ -1263,8 +1263,8 @@ void DetermineCudaStateTableSize(DetectEngineCtx *de_ctx)
     if (ac_16_tables > 0 && ac_32_tables > 0)
         SCACConstructBoth16and32StateTables();
 
-    printf("Total mpm ac 16 bit state tables - %d\n", ac_16_tables);
-    printf("Total mpm ac 32 bit state tables - %d\n", ac_32_tables);
+    fprintf (stdout, "Total mpm ac 16 bit state tables - %d\n", ac_16_tables);
+    fprintf (stdout, "Total mpm ac 32 bit state tables - %d\n", ac_32_tables);
 
 }
 
@@ -1320,7 +1320,7 @@ static void *SCACCudaDispatcher(void *arg)
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     uint32_t sleep_interval_ms = conf->batching_timeout;
 
-    printf("AC Cuda Mpm Dispatcher using a timeout of "
+    fprintf (stdout, "AC Cuda Mpm Dispatcher using a timeout of "
               "\"%"PRIu32"\" micro-seconds", sleep_interval_ms);
 
     CudaBufferData *cb_data =
@@ -1330,28 +1330,28 @@ static void *SCACCudaDispatcher(void *arg)
     CUcontext cuda_context =
         CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        printf( "context is NULL.");
+        fprintf (stdout,  "context is NULL.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        printf( "context push failed.");
+        fprintf (stdout,  "context push failed.");
         exit(EXIT_FAILURE);
     }
     CUmodule cuda_module = 0;
     if (CudaHandlerGetCudaModule(&cuda_module, "util-mpm-ac-cuda-kernel") < 0) {
-        printf( "Error retrieving cuda module.");
+        fprintf (stdout,  "Error retrieving cuda module.");
         exit(EXIT_FAILURE);
     }
     CUfunction kernel = 0;
 #if __WORDSIZE==64
     if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCACCudaSearch64") == -1) {
-        printf( "Error retrieving kernel");
+        fprintf (stdout,  "Error retrieving kernel");
         exit(EXIT_FAILURE);
     }
 #else
     if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCACCudaSearch32") == -1) {
-        printf( "Error retrieving kernel");
+        fprintf (stdout,  "Error retrieving kernel");
         exit(EXIT_FAILURE);
     }
 #endif
@@ -1366,32 +1366,32 @@ static void *SCACCudaDispatcher(void *arg)
     uint32_t *cuda_results_buffer_h = NULL;
     r = SCCudaMemAlloc(&cuda_g_u8_lowercasetable_d, sizeof(g_u8_lowercasetable));
     if (r < 0) {
-        printf( "SCCudaMemAlloc failure.");
+        fprintf (stdout,  "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemcpyHtoD(cuda_g_u8_lowercasetable_d, g_u8_lowercasetable, sizeof(g_u8_lowercasetable));
     if (r < 0) {
-        printf( "SCCudaMemcpyHtoD failure.");
+        fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_packets_buffer_d, conf->gpu_transfer_size);
     if (r < 0) {
-        printf( "SCCudaMemAlloc failure.");
+        fprintf (stdout,  "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_offset_buffer_d, conf->gpu_transfer_size * 4);
     if (r < 0) {
-        printf( "SCCudaMemAlloc failure.");
+        fprintf (stdout,  "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_results_buffer_d, conf->gpu_transfer_size * 8);
     if (r < 0) {
-        printf( "SCCudaMemAlloc failure.");
+        fprintf (stdout,  "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAllocHost((void **)&cuda_results_buffer_h, conf->gpu_transfer_size * 8);
     if (r < 0) {
-        printf( "SCCudaMemAlloc failure.");
+        fprintf (stdout,  "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
 
@@ -1410,7 +1410,7 @@ static void *SCACCudaDispatcher(void *arg)
         if (cb_culled_info.no_of_items == 0)
             continue;
 #if 0
-        printf("1 - cb_culled_info.no_of_items-%"PRIu32" "
+        fprintf (stdout, "1 - cb_culled_info.no_of_items-%"PRIu32" "
                   "cb_culled_info.buffer_len - %"PRIu32" "
                   "cb_culled_info.average size - %f "
                   "cb_culled_info.d_buffer_start_offset - %"PRIu32" "
@@ -1433,12 +1433,12 @@ static void *SCACCudaDispatcher(void *arg)
 #endif
         r = SCCudaMemcpyHtoDAsync(cuda_packets_buffer_d, (cb_data->d_buffer + cb_culled_info.d_buffer_start_offset), cb_culled_info.d_buffer_len, 0);
         if (r < 0) {
-            printf( "SCCudaMemcpyHtoD failure.");
+            fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
             exit(EXIT_FAILURE);
         }
         r = SCCudaMemcpyHtoDAsync(cuda_offset_buffer_d, (cb_data->o_buffer + cb_culled_info.op_buffer_start_offset), sizeof(uint32_t) * cb_culled_info.no_of_items, 0);
         if (r < 0) {
-            printf( "SCCudaMemcpyHtoD failure.");
+            fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
             exit(EXIT_FAILURE);
         }
         void *args[] = { &cuda_packets_buffer_d,
@@ -1453,12 +1453,12 @@ static void *SCACCudaDispatcher(void *arg)
                                0, 0,
                                args, NULL);
         if (r < 0) {
-            printf( "SCCudaLaunchKernel failure.");
+            fprintf (stdout,  "SCCudaLaunchKernel failure.");
             exit(EXIT_FAILURE);
         }
         r = SCCudaMemcpyDtoHAsync(cuda_results_buffer_h, cuda_results_buffer_d, sizeof(uint32_t) * (cb_culled_info.d_buffer_len * 2), 0);
         if (r < 0) {
-            printf( "SCCudaMemcpyDtoH failure.");
+            fprintf (stdout,  "SCCudaMemcpyDtoH failure.");
             exit(EXIT_FAILURE);
         }
 
@@ -1467,7 +1467,7 @@ static void *SCACCudaDispatcher(void *arg)
         /**************** 1 SYNCHRO ****************/
         r = SCCudaCtxSynchronize();
         if (r < 0) {
-            printf( "SCCudaCtxSynchronize failure.");
+            fprintf (stdout,  "SCCudaCtxSynchronize failure.");
             exit(EXIT_FAILURE);
         }
 
@@ -1506,27 +1506,27 @@ static void *SCACCudaDispatcher(void *arg)
 
     r = SCCudaModuleUnload(cuda_module);
     if (r < 0) {
-        printf( "Error unloading cuda module.");
+        fprintf (stdout,  "Error unloading cuda module.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_packets_buffer_d);
     if (r < 0) {
-        printf( "Error freeing cuda device memory.");
+        fprintf (stdout,  "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_offset_buffer_d);
     if (r < 0) {
-        printf( "Error freeing cuda device memory.");
+        fprintf (stdout,  "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_results_buffer_d);
     if (r < 0) {
-        printf( "Error freeing cuda device memory.");
+        fprintf (stdout,  "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFreeHost(cuda_results_buffer_h);
     if (r < 0) {
-        printf( "Error freeing cuda host memory.");
+        fprintf (stdout,  "Error freeing cuda host memory.");
         exit(EXIT_FAILURE);
     }
 
@@ -1641,18 +1641,18 @@ int MpmCudaBufferSetup(void)
     int r = 0;
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     if (conf == NULL) {
-        printf( "Error obtaining cuda mpm profile.");
+        fprintf (stdout,  "Error obtaining cuda mpm profile.");
         return -1;
     }
 
     CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        printf( "Error retrieving cuda context.");
+        fprintf (stdout,  "Error retrieving cuda context.");
         return -1;
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        printf( "Error pushing cuda context.");
+        fprintf (stdout,  "Error pushing cuda context.");
         return -1;
     }
 
@@ -1662,30 +1662,30 @@ int MpmCudaBufferSetup(void)
 
     r = SCCudaMemAllocHost((void *)&d_buffer, conf->cb_buffer_size);
     if (r < 0) {
-        printf( "Cuda alloc host failure.");
+        fprintf (stdout,  "Cuda alloc host failure.");
         return -1;
     }
-    printf("Allocated a cuda d_buffer - %"PRIu32" bytes", conf->cb_buffer_size);
+    fprintf (stdout, "Allocated a cuda d_buffer - %"PRIu32" bytes", conf->cb_buffer_size);
     r = SCCudaMemAllocHost((void *)&o_buffer, sizeof(uint32_t) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (r < 0) {
-        printf( "Cuda alloc host failue.");
+        fprintf (stdout,  "Cuda alloc host failue.");
         return -1;
     }
     r = SCCudaMemAllocHost((void *)&p_buffer, sizeof(void *) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (r < 0) {
-        printf( "Cuda alloc host failure.");
+        fprintf (stdout,  "Cuda alloc host failure.");
         return -1;
     }
 
     r = SCCudaCtxPopCurrent(NULL);
     if (r < 0) {
-        printf( "cuda context pop failure.");
+        fprintf (stdout,  "cuda context pop failure.");
         return -1;
     }
 
     CudaBufferData *cb = CudaBufferRegisterNew(d_buffer, conf->cb_buffer_size, o_buffer, p_buffer, UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (cb == NULL) {
-        printf( "Error registering new cb instance.");
+        fprintf (stdout,  "Error registering new cb instance.");
         return -1;
     }
     CudaHandlerModuleStoreData(MPM_AC_CUDA_MODULE_NAME, MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME, cb);
@@ -1698,7 +1698,7 @@ int MpmCudaBufferDeSetup(void)
     int r = 0;
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     if (conf == NULL) {
-        printf( "Error obtaining cuda mpm profile.");
+        fprintf (stdout,  "Error obtaining cuda mpm profile.");
         return -1;
     }
 
@@ -1707,34 +1707,34 @@ int MpmCudaBufferDeSetup(void)
 
     CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        printf( "Error retrieving cuda context.");
+        fprintf (stdout,  "Error retrieving cuda context.");
         return -1;
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        printf( "Error pushing cuda context.");
+        fprintf (stdout,  "Error pushing cuda context.");
         return -1;
     }
 
     r = SCCudaMemFreeHost(cb_data->d_buffer);
     if (r < 0) {
-        printf( "Error freeing cuda host memory.");
+        fprintf (stdout,  "Error freeing cuda host memory.");
         return -1;
     }
     r = SCCudaMemFreeHost(cb_data->o_buffer);
     if (r < 0) {
-        printf( "Error freeing cuda host memory.");
+        fprintf (stdout,  "Error freeing cuda host memory.");
         return -1;
     }
     r = SCCudaMemFreeHost(cb_data->p_buffer);
     if (r < 0) {
-        printf( "Error freeing cuda host memory.");
+        fprintf (stdout,  "Error freeing cuda host memory.");
         return -1;
     }
 
     r = SCCudaCtxPopCurrent(NULL);
     if (r < 0) {
-        printf( "cuda context pop failure.");
+        fprintf (stdout,  "cuda context pop failure.");
         return -1;
     }
 

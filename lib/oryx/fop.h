@@ -3,6 +3,11 @@
 
 extern uint32_t __os_rand;
 
+#define fmt_speed(__us, __refcnt, __f)\
+	(uint64_t)((__us) ? (__refcnt) * 1000000 * (__f)/(__us) : 0)
+
+#define fmt_bps(us, refcnt) fmt_speed(us, refcnt, 8)
+#define fmt_pps(us, refcnt) fmt_speed(us, refcnt, 1)
 
 enum {
 	RW_MODE_WRITE,
@@ -25,6 +30,10 @@ int oryx_mkdir(const char *path, oryx_dir_t **dir);
 int oryx_file_close (oryx_file_t *fp);
 int oryx_file_read_write (oryx_file_t *fp, 
 			struct oryx_file_rw_context_t *frw_ctx);
+
+char * oryx_fmt_speed (uint64_t , char *, int  , int );
+
+void oryx_register_sighandler(int signal, void (*handler)(int));
 
 int oryx_pattern_generate (char *pattern, size_t l);
 void oryx_l4_port_generate (char *port_src, char *port_dst);

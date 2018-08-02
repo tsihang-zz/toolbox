@@ -6,7 +6,10 @@ oryx_vector
 vec_init (unsigned int size)
 {
   oryx_vector v = kmalloc (sizeof (struct _oryx_vector), MPF_CLR, __oryx_unused_val__);
-
+  if (unlikely(!v))
+  	oryx_panic (-1,
+  		"kmalloc: %s", oryx_safe_strerror(errno));
+  
   /* allocate at least one slot */
   if (size == 0)
     size = 1;
@@ -14,6 +17,10 @@ vec_init (unsigned int size)
   v->alloced = size;
   v->active = 0;
   v->index = kmalloc (sizeof (void *) * size, MPF_CLR, __oryx_unused_val__);
+  if (unlikely(!v->index))
+	  oryx_panic(-1,
+		  "kmalloc: %s", oryx_safe_strerror(errno));
+
   return v;
 }
 
@@ -41,12 +48,19 @@ vec_copy (oryx_vector v)
 {
   unsigned int size;
   oryx_vector new = kmalloc (sizeof (struct _oryx_vector), MPF_CLR, __oryx_unused_val__);
+  if (unlikely(!new))
+	  oryx_panic(-1,
+		  "kmalloc: %s", oryx_safe_strerror(errno));
 
   new->active = v->active;
   new->alloced = v->alloced;
 
   size = sizeof (void *) * (v->alloced);
   new->index = kmalloc (size, MPF_CLR, __oryx_unused_val__);
+  if (unlikely(!new->index))
+	  oryx_panic(-1,
+		  "kmalloc: %s", oryx_safe_strerror(errno));
+
   memcpy (new->index, v->index, size);
 
   return new;
@@ -153,6 +167,10 @@ vec_ensure (oryx_vector v, unsigned int num)
 
   v->index = krealloc (v->index, sizeof (void *) * (v->alloced * 2),
   					MPF_NOFLGS, __oryx_unused_val__);
+  if (unlikely(!v->index))
+	  oryx_panic(-1,
+		  "krealloc: %s", oryx_safe_strerror(errno));
+
   memset (&v->index[v->alloced], 0, sizeof (void *) * v->alloced);
   v->alloced *= 2;
   

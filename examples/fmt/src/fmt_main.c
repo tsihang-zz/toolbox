@@ -29,9 +29,9 @@ flush:
 				kfree(dotfile_buff[i]);
 			}
 		}
-		printf ("%s\n", format_buf);
+		fprintf (stdout, "%s\n", format_buf);
 
-		fprintf((oryx_file_t *)fp, "   %s\n", format_buf);
+		fprintf ((oryx_file_t *)fp, "   %s\n", format_buf);
 		dotfiles = 0;
 	}
 }
@@ -53,7 +53,7 @@ format_dota_file(char*f, char *sep, void *fp)
         } while (*s != '.');
 			
 		*d = '\0';
-		fprintf((oryx_file_t *)fp, "    %s", fs);
+		fprintf ((oryx_file_t *)fp, "    %s", fs);
 	}
 }
 
@@ -86,20 +86,20 @@ int main(int argc, char ** argv)
 	oryx_initialize();
 	
 #if defined(BUILD_DEBUG)
-	printf("RUN in debug mode\n");
+	fprintf (stdout, "RUN in debug mode\n");
 #else
-	printf("RUN in release mode\n");
+	fprintf (stdout, "RUN in release mode\n");
 #endif
 
 	ret = format_range("1:100", UINT16_MAX, 0, ':', &val_start, &val_end);
-	printf ("ret = %d, start %d end %d\n",
+	fprintf (stdout, "ret = %d, start %d end %d\n",
 		ret, val_start, val_end);
 
 	ret = format_range("1:20", 2048, 0, ':', &val_start, &val_end);
-	printf ("ret = %d, start %d end %d\n",
+	fprintf (stdout, "ret = %d, start %d end %d\n",
 			ret, val_start, val_end);
 
-	printf("%.2f\n", ratio_of(1,2));
+	fprintf (stdout, "%.2f\n", ratio_of(1,2));
 		
 
 	return 0;

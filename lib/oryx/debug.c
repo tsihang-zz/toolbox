@@ -228,7 +228,9 @@ oryx_log_register(const char *name)
 		sizeof(struct oryx_log_dynamic_type) *
 		(oryx_logs.dynamic_types_len + 1));
 	if (new_dynamic_types == NULL)
-		return -ENOMEM;
+		oryx_panic(-1,
+			"realloc: %s", oryx_safe_strerror(errno));
+
 	oryx_logs.dynamic_types = new_dynamic_types;
 
 	ret = __oryx_log_register(name, oryx_logs.dynamic_types_len);
@@ -277,7 +279,7 @@ static const struct logtype logtype_strings[] = {
 };
 
 void
-oryx_log_init(void)
+oryx_log_initialize(void)
 {
 	uint32_t i;
 
@@ -290,7 +292,8 @@ oryx_log_init(void)
 	oryx_logs.dynamic_types = calloc(ORYX_LOGTYPE_FIRST_EXT_ID,
 		sizeof(struct oryx_log_dynamic_type));
 	if (oryx_logs.dynamic_types == NULL)
-		return;
+		oryx_panic(-1,
+			"calloc: %s", oryx_safe_strerror(errno));
 
 	/* register legacy log types */
 	for (i = 0; i < ORYX_DIM(logtype_strings); i++)
@@ -439,7 +442,7 @@ void oryx_log2_stream(FILE *fd, char *msg)
     }
 
     if (fprintf(fd, "%s\n", msg) < 0)
-        printf("Error writing to stream using fprintf\n");
+        fprintf (stdout, "Error writing to stream using fprintf\n");
 
     fflush(fd);
 
@@ -772,5 +775,12 @@ oryx_panic(int exit_code, const char *format, ...)
 	oryx_dump_stack();
 	oryx_dump_registers();
 	abort();
+}
+
+const char *
+oryx_safe_strerror(int en)
+{
+  const char *s = strerror(en);
+  return (s != NULL) ? s : "Unknown error";
 }
 

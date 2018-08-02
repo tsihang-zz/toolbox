@@ -1,15 +1,25 @@
 #include "oryx.h"
 
+static quit;
+
+static void tmr_sigint(int sig)
+{
+	fprintf (stdout, "signal %d ...\n", sig);
+	quit = 1;
+}
 
 int main (
 	int		__oryx_unused_param__	argc,
 	char	__oryx_unused_param__	** argv
 )
 {
-	oryx_initialize();
-	
 	struct oryx_timer_t *tmr0, *tmr1, *tmr2;
 	uint32_t ul_tmr_setting_flags0, ul_tmr_setting_flags1, ul_tmr_setting_flags2;
+
+	oryx_initialize();
+
+	oryx_register_sighandler(SIGINT, tmr_sigint);
+	oryx_register_sighandler(SIGTERM, tmr_sigint);
 
 	ul_tmr_setting_flags0 = TMR_OPTIONS_PERIODIC;
 	tmr0 = oryx_tmr_create (1, "test_timer0", ul_tmr_setting_flags0,
@@ -31,7 +41,13 @@ int main (
 
 	oryx_task_launch();
 	
-	FOREVER;
+	FOREVER {
+		if (quit)
+			break;
+	}
+
+	oryx_tmr_destroy(tmr0);
+	oryx_tmr_destroy(tmr1);
 	
 	return 0;
 }

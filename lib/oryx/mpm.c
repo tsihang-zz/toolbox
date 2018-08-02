@@ -254,7 +254,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->data_buffer_size_max_limit = UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MAX_LIMIT_DEFAULT;
     } else if (ParseSizeStringU16(value, &conf->data_buffer_size_max_limit) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "data-buffer-size-max-limit - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -267,7 +267,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->cb_buffer_size = UTIL_MPM_CUDA_CUDA_BUFFER_DBUFFER_SIZE_DEFAULT;
     } else if (ParseSizeStringU32(value, &conf->cb_buffer_size) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "cb-buffer-size - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -280,7 +280,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->gpu_transfer_size = UTIL_MPM_CUDA_GPU_TRANSFER_SIZE;
     } else if (ParseSizeStringU32(value, &conf->gpu_transfer_size) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "gpu-transfer-size - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -293,7 +293,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->batching_timeout = UTIL_MPM_CUDA_BATCHING_TIMEOUT_DEFAULT;
     } else if ((conf->batching_timeout = atoi(value)) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "batching-timeout - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -306,7 +306,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->device_id = UTIL_MPM_CUDA_DEVICE_ID_DEFAULT;
     } else if ((conf->device_id = atoi(value)) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "device-id - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -319,7 +319,7 @@ static void *MpmCudaConfParse(ConfNode *node)
         /* default */
         conf->cuda_streams = UTIL_MPM_CUDA_CUDA_STREAMS_DEFAULT;
     } else if ((conf->cuda_streams = atoi(value)) < 0) {
-        printf ("Invalid entry for %s."
+        fprintf (stdout, "Invalid entry for %s."
                    "cuda-streams - \"%s\"\n", node->name, value);
         exit(EXIT_FAILURE);
     }
@@ -336,13 +336,13 @@ void MpmCudaEnvironmentSetup()
 
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     if (conf == NULL) {
-        printf ("Error obtaining cuda mpm "
+        fprintf (stdout, "Error obtaining cuda mpm "
                        "profile.\n");
         exit(EXIT_FAILURE);
     }
 
     if (MpmCudaBufferSetup() < 0) {
-        printf ("Error setting up env for ac "
+        fprintf (stdout, "Error setting up env for ac "
                    "cuda\n");
         exit(EXIT_FAILURE);
     }
@@ -409,7 +409,7 @@ MpmAddSidsResize(PrefilterRuleStore *pmq, uint32_t new_size)
                                          new_size * sizeof(sig_id), MPF_NOFLGS, __oryx_unused_val__);
         if (unlikely(new_array == NULL)) {
 
-            printf ("Failed to realloc PatternMatchQueue"
+            fprintf (stdout, "Failed to realloc PatternMatchQueue"
                        " rule ID array. Some signature ID matches lost\n");
             return 0;
         }
@@ -682,13 +682,13 @@ int MpmAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                             sig_id sid, uint8_t flags)
 {
 #ifdef MPM_DEBUG
-    printf("Adding pattern for ctx %p, patlen %u and pid %u\n",
+    fprintf (stdout, "Adding pattern for ctx %p, patlen %u and pid %u\n",
                mpm_ctx, patlen, pid);
 #endif
 
     if (patlen == 0) {
 #ifdef MPM_DEBUG
-        printf ("pattern length 0\n");
+        fprintf (stdout, "pattern length 0\n");
 #endif
         return 0;
     }
@@ -700,7 +700,7 @@ int MpmAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
     MpmPattern *p = MpmInitHashLookup(mpm_ctx, pat, patlen, flags, pid);
     if (p == NULL) {
 #ifdef MPM_DEBUG
-        printf ("Allocing new pattern\n");
+        fprintf (stdout, "Allocing new pattern\n");
 #endif
         /* p will never be NULL */
         p = MpmAllocPattern(mpm_ctx);
@@ -780,7 +780,7 @@ int MpmAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                 break;
             }
         }
-	printf ("************** find ? ... %d ->%s\n", found, pat);
+	fprintf (stdout, "************** find ? ... %d ->%s\n", found, pat);
         if (!found) {
             sig_id *sids = krealloc(p->sids, (sizeof(sig_id) * (p->sids_size + 1)), MPF_NOFLGS, __oryx_unused_val__);
             BUG_ON(sids == NULL);
@@ -819,7 +819,7 @@ void MpmRegisterTests(void)
             mpm_table[i].RegisterUnittests();
         } else {
             if (coverage_unittests)
-                printf ("mpm module %s has no "
+                fprintf (stdout, "mpm module %s has no "
                         "unittest registration function.", mpm_table[i].name);
         }
     }
@@ -840,7 +840,7 @@ void MpmTableSetup(void)
     /* Enable runtime check for SSSE3. Do not use Hyperscan MPM matcher if
      * check is not successful. */
         if (hs_valid_platform() != HS_SUCCESS) {
-            printf("SSSE3 Support not detected, disabling Hyperscan for "
+            fprintf (stdout, "SSSE3 Support not detected, disabling Hyperscan for "
                       "MPM\n");
             /* Fall back to best Aho-Corasick variant. */
             mpm_default_matcher = MPM_AC;
@@ -869,7 +869,7 @@ void MpmTableSetup(void)
 	for (i = MPM_NOTSET; i < (int)MPM_TABLE_SIZE; i ++) {
 		MpmTableElmt *t = &mpm_table[i];
 		if (t->name)
-			printf ("MPM--> %s\n", t->name);
+			fprintf (stdout, "MPM--> %s\n", t->name);
 	}
 
 //SCACRegisterTests ();

@@ -182,7 +182,7 @@ typedef enum {
         int sv = rv; \
         if (sv)\
         {   \
-            printf ("%% Error rv=%d %s", sv,"\n");\
+            fprintf (stdout, "%% Error rv=%d %s", sv,"\n");\
             return sv; \
         }\
     }
@@ -192,7 +192,7 @@ typedef enum {
         int sv = rv; \
         if (sv)\
         {   \
-            printf ("%% Error rv=%d %s", sv,"\n");\
+            fprintf (stdout, "%% Error rv=%d %s", sv,"\n");\
             continue; \
         }\
     }
@@ -202,7 +202,7 @@ typedef enum {
         int sv = rv; \
         if (sv)\
         {   \
-            printf ("%% Error rv=%d %s", sv,"\n");\
+            fprintf (stdout, "%% Error rv=%d %s", sv,"\n");\
             break; \
         }\
     }

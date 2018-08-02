@@ -34,7 +34,7 @@ static void lc_free_by_index(struct lru_cache *lc, unsigned i)
 		/** p -= lc->element_off; */
 		void *obj = (void *)((size_t)p - lc->element_off);
 		oryx_kc_free(lc->lc_cache, obj);
-		/** printf ("(size_t)p %lu, p-off %lu\n", (size_t)obj, ((size_t)p - lc->element_off)); */
+		/** fprintf (stdout, "(size_t)p %lu, p-off %lu\n", (size_t)obj, ((size_t)p - lc->element_off)); */
 	}
 }
 
@@ -223,7 +223,7 @@ struct lru_cache *lc_create(const char *name, struct oryx_kmcache_t *cache,
 		/** a point to object's lc_element structure. */
 		/** e = p + e_off; */
 		e = (void *)((size_t)p + e_off);
-		printf ("tracked_object=%p, lc_element=%p\n", p, e);
+		fprintf (stdout, "tracked_object=%p, lc_element=%p\n", p, e);
 		e->lc_index = i;
 		e->lc_number = LC_FREE;
 		e->lc_new_number = LC_FREE;
@@ -240,7 +240,7 @@ struct lru_cache *lc_create(const char *name, struct oryx_kmcache_t *cache,
 	}
 	
 	/** error if approached here. */
-	printf ("%s, error, i=%d, e_count=%d\n", __func__, i, e_count);
+	fprintf (stdout, "%s, error, i=%d, e_count=%d\n", __func__, i, e_count);
 
 	/* else: could not allocate all elements, give up */
 	for (i--; i; i--) {

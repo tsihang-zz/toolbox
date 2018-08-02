@@ -4,7 +4,7 @@
 #include "debug.h"
 
 void
-oryx_log_init(void);
+oryx_log_initialize(void);
 
 /**
  * Change the stream that will be used by the logging system.
@@ -450,12 +450,9 @@ extern uint32_t oryx_log_global_log_level;
 #endif
 void
 oryx_panic(int exit_code, const char *format, ...);
+const char *
+oryx_safe_strerror(int en);
 
-static __oryx_always_inline__
-const char * oryx_safe_strerror(int errnum)
-{
-  const char *s = strerror(errnum);
-  return (s != NULL) ? s : "Unknown error";
-}
+
 
 #endif

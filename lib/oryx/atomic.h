@@ -270,11 +270,7 @@ unsigned long __ffs(unsigned long word)
 	return num;
 }
 
-#if defined(HAVE_APR_H)
-oryx_status_t oryx_atomic_initialize(oryx_pool_t __oryx_unused_param__ *p);
-#else
-oryx_status_t oryx_atomic_initialize(void __oryx_unused_param__ *p);
-#endif
+oryx_status_t oryx_atomic_initialize(void);
 
 /**
  *  \brief wrapper for OS/compiler specific atomic compare and swap (CAS)

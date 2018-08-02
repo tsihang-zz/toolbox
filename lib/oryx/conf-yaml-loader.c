@@ -241,7 +241,7 @@ ConfYamlParse(yaml_parser_t *parser, ConfNode *parent, int inseq)
             }
             else {
                 if (state == CONF_INCLUDE) {
-                    printf("Including configuration file %s.\n", value);
+                    fprintf (stdout, "Including configuration file %s.\n", value);
                     if (ConfYamlHandleInclude(parent, value) != 0) {
                         goto fail;
                     }
@@ -264,7 +264,7 @@ ConfYamlParse(yaml_parser_t *parser, ConfNode *parent, int inseq)
                     ConfNode *existing = ConfNodeLookupChild(parent, value);
                     if (existing != NULL) {
                         if (!existing->final) {
-                            printf("Configuration node '%s' redefined.\n",
+                            fprintf (stdout, "Configuration node '%s' redefined.\n",
                                 existing->name);
                             ConfNodePrune(existing);
                         }
@@ -279,12 +279,12 @@ ConfYamlParse(yaml_parser_t *parser, ConfNode *parent, int inseq)
                                     (strcmp(parent->name, "port-groups") == 0)))) {
                                 Mangle(node->name);
                                 if (mangle_errors < MANGLE_ERRORS_MAX) {
-                                    printf(
+                                    fprintf (stdout, 
                                             "%s is deprecated. Please use %s on line %"PRIuMAX".\n",
                                             value, node->name, (uintmax_t)parser->mark.line+1);
                                     mangle_errors++;
                                     if (mangle_errors >= MANGLE_ERRORS_MAX)
-                                        printf("not showing more "
+                                        fprintf (stdout, "not showing more "
                                                 "parameter name warnings.\n");
                                 }
                             }
@@ -295,7 +295,7 @@ ConfYamlParse(yaml_parser_t *parser, ConfNode *parent, int inseq)
                 }
                 else {
                     if ((tag != NULL) && (strcmp(tag, "!include") == 0)) {
-                        printf("Including configuration file %s at "
+                        fprintf (stdout, "Including configuration file %s at "
                             "parent node %s.", value, node->name);
                         if (ConfYamlHandleInclude(node, value) != 0)
                             goto fail;

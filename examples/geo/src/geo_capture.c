@@ -85,21 +85,21 @@ int geo_decode(const struct pcap_pkthdr *hdr, char *raw_pkt , int *is_udp_pkt , 
     /* check version */
     if(version != 4)
 	{
-		fprintf(stdout,"Unknown version %d\n",version);
+		fprintf (stdout,"Unknown version %d\n",version);
 		return -1;
     }
 
     /* check header length */
     if(hlen < 5 ) 
 	{
-		fprintf(stdout, "bad-hlen %d \n",hlen);
+		fprintf (stdout, "bad-hlen %d \n",hlen);
 		return -1;
     }
 
     /* see if we have as much packet as we should */
     if(length < len) 
 	{
-        fprintf(stdout,"\ntruncated IP - %d bytes missing(max caplen %d) \n",len - length , length);
+        fprintf (stdout,"\ntruncated IP - %d bytes missing(max caplen %d) \n",len - length , length);
 		return -1;
 	}
 	
@@ -290,10 +290,10 @@ void dump_pkt(uint8_t *pkt, int len)
 	
 	for (i = 0; i < len; i ++){
 		if (!(i % 16))
-			printf ("\n");
-		printf("%02x ", pkt[i]);
+			fprintf (stdout, "\n");
+		fprintf (stdout, "%02x ", pkt[i]);
 	}
-	printf ("\n");
+	fprintf (stdout, "\n");
 }
 
 typedef union MarvellDSAHdr_ {
@@ -367,17 +367,17 @@ static struct MarvellDSAMap dsa_to_phy_map_list[] = {
 static __oryx_always_inline__
 void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
 {
-	printf ("=================== %s ===================\n", comment);
-	printf ("%12s%8x\n", "dsa:",    cpu_dsa);
-	printf ("%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
-	printf ("%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
-	printf ("%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
-	printf ("%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
-	printf ("%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
-	printf ("%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
-	printf ("%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
-	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
-	printf ("%12s%4d\n", rx_tx == 0 ? "fm_ge" : "to_ge",
+	fprintf (stdout, "=================== %s ===================\n", comment);
+	fprintf (stdout, "%12s%8x\n", "dsa:",    cpu_dsa);
+	fprintf (stdout, "%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", rx_tx == 0 ? "fm_ge" : "to_ge",
 									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 
@@ -501,7 +501,7 @@ void *geo_libpcap_running_fn(void *argv)
 				case -2:
 				case -3:
 				default:
-					printf("pcap_dispatch=%ld\n", rank_acc);
+					fprintf (stdout, "pcap_dispatch=%ld\n", rank_acc);
 					break;
 			}
 		}
@@ -709,7 +709,7 @@ static void geo_cdr_age(
 		int			__oryx_unused_param__ opaque_size) {
 	struct geo_htable_key_t *hk = (struct geo_htable_key_t *)v;
 	//if(hk->mme_code == 255)
-	//printf("hk->mme_code %u, hk->v %u\n", hk->mme_code, hk->v);
+	//fprintf (stdout, "hk->mme_code %u, hk->v %u\n", hk->mme_code, hk->v);
 }
 
 static void geo_refill_queue_age_tmr_handler(
@@ -787,7 +787,7 @@ void geo_start_pcap(void) {
 							ht_geo_cdr_hval, ht_geo_cdr_cmp, ht_geo_cdr_free, 0);
 
 	if (geo_cdr_hash_table == NULL) {
-		printf ("vlib iface main init error!\n");
+		fprintf (stdout, "vlib iface main init error!\n");
 		exit(0);
 	}
 	
@@ -802,7 +802,7 @@ void geo_start_pcap(void) {
 	cdr_table_register(&cdr_s1_emm);
 	cdr_table_register(&cdr_s1_mme);
 
-	printf("[%d]sizeof(emm) %zdB [%d]sizeof(mme) %zdB [%d]sizeof(handover) %zdB\n",
+	fprintf (stdout, "[%d]sizeof(emm) %zdB [%d]sizeof(mme) %zdB [%d]sizeof(handover) %zdB\n",
 		cdr_s1_emm.cdr_index, cdr_s1_emm.length,
 		cdr_s1_mme.cdr_index, cdr_s1_mme.length,
 		cdr_s1ap_handover.cdr_index, cdr_s1ap_handover.length);
@@ -825,8 +825,8 @@ void geo_start_pcap(void) {
 }
 
 void geo_end_pcap(void) {
-	printf("Closing netdev %s...", geo_netdev.devname);
-	printf(" Done\n");
-	printf("Bye...\n");
+	fprintf (stdout, "Closing netdev %s...", geo_netdev.devname);
+	fprintf (stdout, " Done\n");
+	fprintf (stdout, "Bye...\n");
 }
 

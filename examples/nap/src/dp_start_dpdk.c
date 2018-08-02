@@ -37,12 +37,12 @@ void dp_end_dpdk(vlib_main_t *vm)
 	for (portid = 0; portid < dm->n_ports; portid++) {
 		if ((dm->conf->portmask & (1 << portid)) == 0)
 			continue;
-		printf("Closing port %d...", portid);
+		fprintf (stdout, "Closing port %d...", portid);
 		rte_eth_dev_stop(portid);
 		rte_eth_dev_close(portid);
-		printf(" Done\n");
+		fprintf (stdout, " Done\n");
 	}
-	printf("Bye...\n");
+	fprintf (stdout, "Bye...\n");
 }
 
 static const char *enp5s0fx[] = {
@@ -93,7 +93,7 @@ void dp_init_dpdk(vlib_main_t *vm)
 
 void dp_start_dpdk(vlib_main_t *vm) {
 
-	printf ("Master Lcore @ %d/%d\n", rte_get_master_lcore(),
+	fprintf (stdout, "Master Lcore @ %d/%d\n", rte_get_master_lcore(),
 		vm->nb_lcores);
 
 	/* launch per-lcore init on every lcore */

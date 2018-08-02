@@ -119,7 +119,7 @@ static __oryx_always_inline__ void CudaBufferPacket(CudaThreadVars *ctv, Packet 
                                                 p->payload_len + sizeof(uint64_t) + sizeof(CUdeviceptr),
                                                 (void *)p);
     if (slice == NULL) {
-        printf( "Error retrieving slice.  Please report "
+        fprintf (stdout,  "Error retrieving slice.  Please report "
                    "this to dev.");
         p->cuda_pkt_vars.cuda_mpm_enabled = 0;
         return;
@@ -132,7 +132,7 @@ static __oryx_always_inline__ void CudaBufferPacket(CudaThreadVars *ctv, Packet 
                                                 p->payload_len + sizeof(uint32_t) + sizeof(CUdeviceptr),
                                                 (void *)p);
     if (slice == NULL) {
-        printf( "Error retrieving slice.  Please report "
+        fprintf (stdout,  "Error retrieving slice.  Please report "
                    "this to dev.");
         p->cuda_pkt_vars.cuda_mpm_enabled = 0;
         return;
@@ -144,7 +144,7 @@ static __oryx_always_inline__ void CudaBufferPacket(CudaThreadVars *ctv, Packet 
     p->cuda_pkt_vars.cuda_mpm_enabled = 1;
     SC_ATOMIC_SET(slice->done, 1);
 
-    printf("cuda ac buffering packet %p, payload_len - %"PRIu16" and deviceptr - %"PRIu64"\n",
+    fprintf (stdout, "cuda ac buffering packet %p, payload_len - %"PRIu16" and deviceptr - %"PRIu64"\n",
                p, p->payload_len, (unsigned long)((SCACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda);
 
     return;

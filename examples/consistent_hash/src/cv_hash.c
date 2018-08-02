@@ -45,7 +45,7 @@ void _vn_dump (struct vnode_t *vn, int __attribute__((__unused__)) flags)
 
 	struct node_t * n = vn->physical_node;
 		
-	printf ("-- \"%s(%d)\"@%s(%d vnodes)\n", vn->videsc, vn->index, n->ipaddr, n->replicas);
+	fprintf (stdout, "-- \"%s(%d)\"@%s(%d vnodes)\n", vn->videsc, vn->index, n->ipaddr, n->replicas);
 }
 
 /** Virtual node travel handler which used to travek all virtual node
@@ -127,7 +127,7 @@ struct vnode_t *_vn_default (struct chash_root *ch)
 	
 	VN_DEFAULT(ch, dvn);
 
-	printf ("***    default VN(%s, %u) used !!!\n", dvn->videsc, VN_KEY_I(dvn));
+	fprintf (stdout, "***    default VN(%s, %u) used !!!\n", dvn->videsc, VN_KEY_I(dvn));
 	return dvn;
 }
 
@@ -254,7 +254,7 @@ int _n_add (struct chash_root *ch, struct node_t *n)
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node){
 		if (!strcmp(n->ipaddr, n1->ipaddr)){
-			printf ("A same machine %15s(\"%s\":%p)\n\n", 
+			fprintf (stdout, "A same machine %15s(\"%s\":%p)\n\n", 
 						n1->idesc, n1->ipaddr, n1);
 			do_mutex_unlock (&ch->nhlock);
 			return -1;
@@ -288,7 +288,7 @@ struct chash_root *chash_init ()
 
 	ch = (struct chash_root *) malloc (sizeof (struct chash_root));
 	if (unlikely(!ch)) {
-		printf ("Can not alloc memory. \n");
+		fprintf (stdout, "Can not alloc memory. \n");
 		return NULL;
 	}
 
@@ -411,7 +411,7 @@ void node_install (struct chash_root *ch, struct node_t *n)
 	char v_idesc [32] = {0};
 
 	if (_n_add (ch, n)) {
-		printf ("%15s(%15s) has installed \n", n->idesc, n->ipaddr);
+		fprintf (stdout, "%15s(%15s) has installed \n", n->idesc, n->ipaddr);
 		return;
 	}
 	
@@ -425,14 +425,14 @@ void node_install (struct chash_root *ch, struct node_t *n)
 		
 		vn = _vn_find (ch, (void *)(uint32_t *)&hv);
 		if (likely (vn)) {
-			printf ("%s_%u(%s) has added \n", v_idesc, VN_KEY_I(vn), n->ipaddr);
+			fprintf (stdout, "%s_%u(%s) has added \n", v_idesc, VN_KEY_I(vn), n->ipaddr);
 			return;
 		}
 		
 		/* Allocate a VN and inited VN with $hv and node */
 		vn = _vn_alloc (n, hv, i, v_idesc);
 		if (unlikely (!vn)) {
-			printf ("Can not alloc memory for %s\n", v_idesc);
+			fprintf (stdout, "Can not alloc memory for %s\n", v_idesc);
 			return;
 		}
 
@@ -475,7 +475,7 @@ struct node_t *node_lookup (struct chash_root *ch, char *key)
 	if (likely(vn))
 		n = vn->physical_node;
 	else
-		printf ("Can not find vn with a (%s, %u)\n", key, hv);
+		fprintf (stdout, "Can not find vn with a (%s, %u)\n", key, hv);
 	
 	ch->total_hit_times ++;
 	N_HITS_INC(n);
@@ -488,13 +488,13 @@ void node_summary (struct chash_root *ch)
 {
 	struct node_t *n1 = NULL, *p;
 
-	printf ("\n\n\nTotal %15d(%-5d vns) machines\n", ch->total_ns, total_vns(ch));
+	fprintf (stdout, "\n\n\nTotal %15d(%-5d vns) machines\n", ch->total_ns, total_vns(ch));
 
-	printf ("%15s%16s%4s%15s%15s\n", "MACHINE", "IPADDR", "VNS", "HIT", "RATIO");
+	fprintf (stdout, "%15s%16s%4s%15s%15s\n", "MACHINE", "IPADDR", "VNS", "HIT", "RATIO");
 	do_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node){
-		printf ("%15s%16s%4d%15d%15.2f%s\n", 
+		fprintf (stdout, "%15s%16s%4d%15d%15.2f%s\n", 
 					n1->idesc, n1->ipaddr, n1->valid_vns, N_HITS(n1), (float)N_HITS(n1)/ch->total_hit_times * 100, "%");
 	}
 
@@ -504,7 +504,7 @@ void node_summary (struct chash_root *ch)
 /** Dump all physical node.*/
 void node_dump (struct chash_root *ch)
 {
-	printf ("\n\n===========Virtual Nodes (%d)============\n", total_vns(ch));
+	fprintf (stdout, "\n\n===========Virtual Nodes (%d)============\n", total_vns(ch));
 	_vn_travel (ch, _vn_dump, NODE_FLG_CLASSFY_TRAVEL);
 }
 

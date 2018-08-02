@@ -6,7 +6,7 @@ typedef uint32_t counter_id;
 #if defined(COUNTER_USE_ATOMIC)
 typedef atomic64_t cu64;
 #else
-typedef u64 cu64;
+typedef uint64_t cu64;
 #endif
 
 
@@ -23,59 +23,29 @@ enum {
     STATS_TYPE_Q_MAX = 5,
 };
 
-
-
 struct counter_t {
-
-	/** alias for this counter. */
-	const char *sc_name;
-
-	/** counter type */
-    int type;
-
-    /* local id for this counter in this thread */
-    counter_id id;
-
-    /* global id, used in output */
-    counter_id gid;
+	const char		*sc_name;		/* alias for this counter. */
+    int				type;			/* counter type */
+    counter_id		id;				/* local id for this counter in this thread */
+    counter_id		gid;			/* global id, used in output */
 
     /* counter value(s). thread-safety. */
     cu64 value;     /**< sum of updates/increments, or 'set' value */
     cu64 updates;   /**< number of updates (for avg) */
 
-    /* when using type STATS_TYPE_Q_FUNC this function is called once
-     * to get the counter value, regardless of how many threads there are. */
-	u64 (*hook)(void);
-
-    /* the next perfcounter instance. */
-	struct counter_t *next;
+	uint64_t		(*hook)(void);	/* when using type STATS_TYPE_Q_FUNC this function is called once.
+								 	 * to get the counter value, regardless of how many threads there are. */
+	struct counter_t *next;			/* the next perfcounter instance. */
 
 };
 
 struct CounterCtx {
-
-	int h_size;
-	
-    /* pointer to the head of a list of counters assigned under this context */	
-	struct counter_t *hhead;
-
-    /* holds the total no of counters already assigned for this perf context */
-    atomic_t curr_id;
-
-	/** lock for head. */
-	os_mutex_t m;
-
-	/* size of head array in elements */
-    uint32_t size;
-
-	/** array range, worked with get_array_range. */
-	struct counter_t *head;
-};
-
-
-struct StatsGlobalCtx {
-	struct oryx_htable_t *counter_id_hash;
-	os_mutex_t lock;
+	int					h_size;
+    atomic_t			curr_id;	/* holds the total no of counters already assigned for this perf context */
+	os_mutex_t			m;			/* lock for head. */	
+    uint32_t			size;		/* size of head array in elements */
+	struct counter_t	*head;		/* array range, worked with get_array_range. */
+	struct counter_t	*hhead;		/* pointer to the head of a list of counters assigned under this context */	
 };
 
 

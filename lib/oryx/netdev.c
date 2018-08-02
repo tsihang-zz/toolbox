@@ -131,7 +131,7 @@ netdev_dispatcher(u_char *argument,
 	argument = argument;
 	pkthdr = pkthdr;
 	packet = packet;
-	printf ("defualt dispatch\n");
+	fprintf (stdout, "defualt dispatch\n");
 }
 
 int netdev_open(struct netdev_t *netdev)
@@ -169,7 +169,7 @@ void *netdev_cap(void *argv)
 				case -2:
 				case -3:
 				default:
-					printf("pcap_dispatch=%ld\n", rank_acc);
+					fprintf (stdout, "pcap_dispatch=%ld\n", rank_acc);
 					break;
 			}
 		}

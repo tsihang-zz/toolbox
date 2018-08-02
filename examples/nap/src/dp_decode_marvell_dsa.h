@@ -16,17 +16,17 @@ extern struct MarvellDSAMap phy_to_dsa_map_list[];
 static __oryx_always_inline__
 void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
 {
-	printf ("=================== %s ===================\n", comment);
-	printf ("%12s%8x\n", "dsa:",    cpu_dsa);
-	printf ("%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
-	printf ("%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
-	printf ("%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
-	printf ("%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
-	printf ("%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
-	printf ("%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
-	printf ("%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
-	printf ("%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
-	printf ("%12s%4d\n", rx_tx == QUA_RX ? "fm_ge" : "to_ge",
+	fprintf (stdout, "=================== %s ===================\n", comment);
+	fprintf (stdout, "%12s%8x\n", "dsa:",    cpu_dsa);
+	fprintf (stdout, "%12s%4d\n", "cmd:",	DSA_CMD(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "dev:",	DSA_DEV(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "port:",	DSA_PORT(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "pri:",	DSA_PRI(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "extend:",	DSA_EXTEND(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "R1:",		DSA_R1(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "R2:",		DSA_R2(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", "vlan:",	DSA_VLAN(cpu_dsa));
+	fprintf (stdout, "%12s%4d\n", rx_tx == QUA_RX ? "fm_ge" : "to_ge",
 									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 

@@ -48,9 +48,9 @@ ht__cmp (const ht_value_t v1,
 }
 
 static void htable_handler(ht_value_t __oryx_unused_param__ v,
-								uint32_t __oryx_unused_param__ s,
-								void *opaque,
-								int __oryx_unused_param__ opaque_size) {
+				uint32_t __oryx_unused_param__ s,
+				void *opaque,
+				int __oryx_unused_param__ opaque_size) {
 	int *actives = (int *)opaque;
 	(*actives) ++;
 }
@@ -64,8 +64,8 @@ int main (
 
 	oryx_initialize();
 
-	htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-									ht__hval, ht__cmp, ht__free, 0);
+	htable	= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+				ht__hval, ht__cmp, ht__free, 0);
 
 	for (i = 0; i < 10000; i ++) {
 		struct hash_key_t *key = malloc(sizeof (struct hash_key_t));
@@ -78,7 +78,7 @@ int main (
 				htable_handler, &active_elements, sizeof(active_elements));
 	
 	oryx_htable_print(htable);
-	printf("%d =? %d\n", refcount, active_elements);
+	fprintf (stdout, "%d =? %d\n", refcount, active_elements);
 	
 	oryx_htable_destroy(htable);
 

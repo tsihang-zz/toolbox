@@ -200,13 +200,13 @@ print_one_ipv4_rule(struct acl4_rule *rule, int extra)
 
 	uint32_t_to_char(rule->field[SRC_FIELD_IPV4].value.u32,
 			&a, &b, &c, &d);
-	printf("%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
+	fprintf (stdout, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
 			rule->field[SRC_FIELD_IPV4].mask_range.u32);
 	uint32_t_to_char(rule->field[DST_FIELD_IPV4].value.u32,
 			&a, &b, &c, &d);
-	printf("%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
+	fprintf (stdout, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
 			rule->field[DST_FIELD_IPV4].mask_range.u32);
-	printf("%hu:%hu %hu:%hu 0x%hhx/0x%hhx ",
+	fprintf (stdout, "%hu:%hu %hu:%hu 0x%hhx/0x%hhx ",
 		rule->field[SRCP_FIELD_IPV4].value.u16,
 		rule->field[SRCP_FIELD_IPV4].mask_range.u16,
 		rule->field[DSTP_FIELD_IPV4].value.u16,
@@ -214,7 +214,7 @@ print_one_ipv4_rule(struct acl4_rule *rule, int extra)
 		rule->field[PROTO_FIELD_IPV4].value.u8,
 		rule->field[PROTO_FIELD_IPV4].mask_range.u8);
 	if (extra)
-		printf("0x%x-0x%x-0x%x ",
+		fprintf (stdout, "0x%x-0x%x-0x%x ",
 			rule->data.category_mask,
 			rule->data.priority,
 			rule->data.userdata);
@@ -226,9 +226,9 @@ dump_ipv4_rules(struct acl4_rule *rule, int num, int extra)
 	int i;
 
 	for (i = 0; i < num; i++, rule++) {
-		printf("\t%d:", i + 1);
+		fprintf (stdout, "\t%d:", i + 1);
 		print_one_ipv4_rule(rule, extra);
-		printf("\n");
+		fprintf (stdout, "\n");
 	}
 }
 

@@ -50,6 +50,8 @@ typedef pthread_mutex_t	os_mutex_t;
 	pthread_mutex_destroy(lock)
 
 typedef pthread_cond_t	os_cond_t;
+#define do_cond_init(cond)\
+	pthread_cond_init(cond, NULL)
 #define do_cond_signal(cond)\
 	oryx_thread_cond_signal(cond)
 #define do_cond_destroy(cond)\

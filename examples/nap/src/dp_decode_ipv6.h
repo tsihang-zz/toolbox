@@ -311,7 +311,7 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
 
                     if (*ptr == IPv6OPT_PADN) /* PadN */
                     {
-                        //printf("PadN option\n");
+                        //fprintf (stdout, "PadN option\n");
                         padn_cnt++;
 
                         /* a zero padN len would be weird */
@@ -330,7 +330,7 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
 
                         memcpy(&ra->ip6ra_value, (ptr + 2), sizeof(ra->ip6ra_value));
                         ra->ip6ra_value = ntohs(ra->ip6ra_value);
-                        //printf("RA option: type %" PRIu32 " len %" PRIu32 " value %" PRIu32 "\n",
+                        //fprintf (stdout, "RA option: type %" PRIu32 " len %" PRIu32 " value %" PRIu32 "\n",
                         //    ra->ip6ra_type, ra->ip6ra_len, ra->ip6ra_value);
                         other_cnt++;
                     }
@@ -346,7 +346,7 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
 
                         memcpy(&jumbo->ip6j_payload_len, (ptr+2), sizeof(jumbo->ip6j_payload_len));
                         jumbo->ip6j_payload_len = ntohl(jumbo->ip6j_payload_len);
-                        //printf("Jumbo option: type %" PRIu32 " len %" PRIu32 " payload len %" PRIu32 "\n",
+                        //fprintf (stdout, "Jumbo option: type %" PRIu32 " len %" PRIu32 " payload len %" PRIu32 "\n",
                         //    jumbo->ip6j_type, jumbo->ip6j_len, jumbo->ip6j_payload_len);
                     }
                     else if (*ptr == IPv6OPT_HAO) /* HAO */
@@ -360,12 +360,12 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
                         }
 
                         memcpy(&hao->ip6hao_hoa, (ptr+2), sizeof(hao->ip6hao_hoa));
-                        //printf("HAO option: type %" PRIu32 " len %" PRIu32 " ",
+                        //fprintf (stdout, "HAO option: type %" PRIu32 " len %" PRIu32 " ",
                         //    hao->ip6hao_type, hao->ip6hao_len);
                         //char addr_buf[46];
                         //PrintInet(AF_INET6, (char *)&(hao->ip6hao_hoa),
                         //    addr_buf,sizeof(addr_buf));
-                        //printf("home addr %s\n", addr_buf);
+                        //fprintf (stdout, "home addr %s\n", addr_buf);
                         other_cnt++;
                     } else {
                         if (nh == IPPROTO_HOPOPTS)

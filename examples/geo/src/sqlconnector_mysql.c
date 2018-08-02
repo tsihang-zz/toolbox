@@ -18,8 +18,8 @@ void mysql_dump_result (struct oryx_sqlctx_t *sql_ctx)
 	num_fields = mysql_num_fields (sql_ctx->sqlresult);
 	while (0 != (row = mysql_fetch_row (sql_ctx->sqlresult))) {
 	    for (i=0; i<num_fields; i++)
-			printf ("%s\t",row[i]);
-	    printf ("\n");
+			fprintf (stdout, "%s\t",row[i]);
+	    fprintf (stdout, "\n");
 	}
 	
 	//mysql_free_result (sql_ctx->sqlresult);

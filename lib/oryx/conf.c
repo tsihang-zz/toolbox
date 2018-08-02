@@ -67,7 +67,7 @@ static ConfNode *ConfGetNodeOrCreate(const char *name, int final)
     char *next;
 
     if (strlcpy(node_name, name, sizeof(node_name)) >= sizeof(node_name)) {
-        printf(
+        fprintf (stdout, 
             "Configuration name too long: %s", name);
         return NULL;
     }
@@ -80,7 +80,7 @@ static ConfNode *ConfGetNodeOrCreate(const char *name, int final)
         if ((node = ConfNodeLookupChild(parent, key)) == NULL) {
             node = ConfNodeNew();
             if (unlikely(node == NULL)) {
-                printf(
+                fprintf (stdout, 
                     "Failed to allocate memory for configuration.");
                 goto end;
             }
@@ -88,7 +88,7 @@ static ConfNode *ConfGetNodeOrCreate(const char *name, int final)
             if (unlikely(node->name == NULL)) {
                 ConfNodeFree(node);
                 node = NULL;
-                printf(
+                fprintf (stdout, 
                     "Failed to allocate memory for configuration.");
                 goto end;
             }
@@ -110,17 +110,17 @@ end:
 void ConfInit(void)
 {
     if (root != NULL) {
-        printf("already initialized\n");
+        fprintf (stdout, "already initialized\n");
         return;
     }
     root = ConfNodeNew();
     if (root == NULL) {
-        printf(
+        fprintf (stdout, 
             "ERROR: Failed to allocate memory for root configuration node, "
             "aborting.\n");
         exit(EXIT_FAILURE);
     }
-    printf("configuration module initialized\n");
+    fprintf (stdout, "configuration module initialized\n");
 }
 
 /**
@@ -178,7 +178,7 @@ ConfNode *ConfGetNode(const char *name)
     char *next;
 
     if (strlcpy(node_name, name, sizeof(node_name)) >= sizeof(node_name)) {
-        printf(
+        fprintf (stdout, 
             "Configuration name too long: %s", name);
         return NULL;
     }
@@ -329,7 +329,7 @@ int ConfGet(const char *name, const char **vptr)
 {
     ConfNode *node = ConfGetNode(name);
     if (node == NULL) {
-        printf("failed to lookup configuration parameter '%s'", name);
+        fprintf (stdout, "failed to lookup configuration parameter '%s'", name);
         return 0;
     }
     else {
@@ -359,7 +359,7 @@ int ConfGetValue(const char *name, const char **vptr)
     ConfNode *node;
 
     if (name == NULL) {
-        printf(
+        fprintf (stdout, 
 			"parameter 'name' is NULL");
         return -2;
     }
@@ -367,13 +367,13 @@ int ConfGetValue(const char *name, const char **vptr)
     node = ConfGetNode(name);
 
     if (node == NULL) {
-        printf("failed to lookup configuration parameter '%s'", name);
+        fprintf (stdout, "failed to lookup configuration parameter '%s'", name);
         return 0;
     }
     else {
 
         if (node->val == NULL) {
-            printf("value for configuration parameter '%s' is NULL", name);
+            fprintf (stdout, "value for configuration parameter '%s' is NULL", name);
             return -1;
         }
 
@@ -388,7 +388,7 @@ int ConfGetChildValue(const ConfNode *base, const char *name, const char **vptr)
     ConfNode *node = ConfNodeLookupChild(base, name);
 
     if (node == NULL) {
-        printf("failed to lookup configuration parameter '%s'", name);
+        fprintf (stdout, "failed to lookup configuration parameter '%s'", name);
         return 0;
     }
     else {
@@ -429,7 +429,7 @@ int ConfGetInt(const char *name, intmax_t *val)
         return 0;
 
     if (strval == NULL) {
-        printf(
+        fprintf (stdout, 
 			"malformed integer value "
                 "for %s: NULL", name);
         return 0;
@@ -438,13 +438,13 @@ int ConfGetInt(const char *name, intmax_t *val)
     errno = 0;
     tmpint = strtoimax(strval, &endptr, 0);
     if (strval[0] == '\0' || *endptr != '\0') {
-        printf(
+        fprintf (stdout, 
 			"malformed integer value "
                 "for %s: '%s'", name, strval);
         return 0;
     }
     if (errno == ERANGE && (tmpint == INTMAX_MAX || tmpint == INTMAX_MIN)) {
-        printf(
+        fprintf (stdout, 
 			"integer value for %s out "
                 "of range: '%s'", name, strval);
         return 0;
@@ -465,13 +465,13 @@ int ConfGetChildValueInt(const ConfNode *base, const char *name, intmax_t *val)
     errno = 0;
     tmpint = strtoimax(strval, &endptr, 0);
     if (strval[0] == '\0' || *endptr != '\0') {
-        printf(
+        fprintf (stdout, 
 			"malformed integer value "
                 "for %s with base %s: '%s'", name, base->name, strval);
         return 0;
     }
     if (errno == ERANGE && (tmpint == INTMAX_MAX || tmpint == INTMAX_MIN)) {
-        printf(
+        fprintf (stdout, 
 			"integer value for %s with "
                 " base %s out of range: '%s'", name, base->name, strval);
         return 0;
@@ -716,7 +716,7 @@ void ConfDeInit(void)
         root = NULL;
     }
 
-    printf("configuration module de-initialized");
+    fprintf (stdout, "configuration module de-initialized");
 }
 
 static char *ConfPrintNameArray(char **name_arr, int level)
@@ -751,11 +751,11 @@ void ConfNodeDump(const ConfNode *node, const char *prefix)
             continue;
         }
         if (prefix == NULL) {
-            printf("%s = %s\n", ConfPrintNameArray(name, level),
+            fprintf (stdout, "%s = %s\n", ConfPrintNameArray(name, level),
                 child->val);
         }
         else {
-            printf("%s.%s = %s\n", prefix,
+            fprintf (stdout, "%s.%s = %s\n", prefix,
                 ConfPrintNameArray(name, level), child->val);
         }
         ConfNodeDump(child, prefix);
@@ -878,7 +878,7 @@ char *ConfLoadCompleteIncludePath(const char *file)
     /* Path not specified */
     if (path_is_relative(file)) {
         if (ConfGet("include-path", &defaultpath) == 1) {
-            printf("Default path: %s", defaultpath);
+            fprintf (stdout, "Default path: %s", defaultpath);
             size_t path_len = sizeof(char) * (strlen(defaultpath) +
                           strlen(file) + 2);
             path = malloc(path_len);

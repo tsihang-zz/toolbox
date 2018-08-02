@@ -21,20 +21,23 @@ void oryx_format(struct oryx_fmt_buff_t *fb, const char *fmt, ...)
 
 	if (!fb->fmt_data) {
 		fb->fmt_data = malloc (DEFAULT_FMT_MSG_SIZE);
-		if(fb->fmt_data) {
-			fb->fmt_doffs = 0;
-			fb->fmt_buff_size = DEFAULT_FMT_MSG_SIZE;
-			memset (fb->fmt_data, 0, fb->fmt_buff_size);
-		}
+		if(unlikely (!fb->fmt_data))
+			oryx_panic(-1,
+				"malloc: %s", oryx_safe_strerror(errno));
+		fb->fmt_doffs = 0;
+		fb->fmt_buff_size = DEFAULT_FMT_MSG_SIZE;
+		memset (fb->fmt_data, 0, fb->fmt_buff_size);
 	}
 
 	/** fmt buffer expand when needed. */
 	if ((float)fb->fmt_doffs > (fb->fmt_buff_size * 0.8)) {
 		fb->fmt_data = realloc(fb->fmt_data, fb->fmt_doffs + DEFAULT_FMT_MSG_SIZE);
-		if(fb->fmt_data) {
-			/* new size. */
-			fb->fmt_buff_size = fb->fmt_doffs + DEFAULT_FMT_MSG_SIZE;
-		}
+		if(unlikely (!fb->fmt_data))
+			oryx_panic(-1, 
+				"realloc: %s", oryx_safe_strerror(errno));
+			
+		/* new size. */
+		fb->fmt_buff_size = fb->fmt_doffs + DEFAULT_FMT_MSG_SIZE;
 	}
 	
 	va_start(ap, fmt);

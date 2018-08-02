@@ -2,11 +2,11 @@
 #define MPOOL_H
 
 struct element_fn_t {
-	int (*insert)(struct qctx_t *q, void *v);
-	int (*remove)(struct qctx_t *q, void *v);
-	int (*verify)(struct qctx_t *q, void *v);
-	void (*init)(struct qctx_t *q, void *v);
-	void (*deinit)(struct qctx_t *q, void *v);
+	int (*insert)(struct oryx_lq_ctx_t *q, void *v);
+	int (*remove)(struct oryx_lq_ctx_t *q, void *v);
+	int (*verify)(struct oryx_lq_ctx_t *q, void *v);
+	void (*init)(struct oryx_lq_ctx_t *q, void *v);
+	void (*deinit)(struct oryx_lq_ctx_t *q, void *v);
 };
 
 extern void mpool_init(void ** mp, const char *mp_name,

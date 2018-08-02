@@ -15,12 +15,11 @@ oryx_status_t func_unlock (os_mutex_t *lock)
 	return 0;
 }
 
-
 static __oryx_always_inline__
 void func_free (const ht_value_t v)
 {
 #ifdef ORYX_HASH_DEBUG
-	printf ("free %s, %p\n", (char *)v, v);
+	fprintf (stdout, "free %s, %p\n", (char *)v, v);
 #endif
 	kfree (v);
 }
@@ -64,16 +63,16 @@ void oryx_htable_print(struct oryx_htable_t *ht)
 {
 	BUG_ON(ht == NULL);
 
-	printf("\n----------- Hash Table Summary ------------\n");
-	printf("Buckets:				%" PRIu32 "\n", ht->array_size);
-	printf("Active:					%" PRIu32 "\n", ht->active_count);
-	printf("Hashfn:					%pF\n", ht->hash_fn);
-	printf("Freefn:					%pF\n", ht->free_fn);
-	printf("Compfn:					%pF\n", ht->cmp_fn);
-	printf("Feature:				\n");
-	printf("					%s\n", ht->ul_flags & HTABLE_SYNCHRONIZED ? "Synchronized" : "Non-Synchronized");
+	fprintf (stdout, "\n----------- Hash Table Summary ------------\n");
+	fprintf (stdout, "Buckets:				%" PRIu32 "\n", ht->array_size);
+	fprintf (stdout, "Active:					%" PRIu32 "\n", ht->active_count);
+	fprintf (stdout, "Hashfn:					%pF\n", ht->hash_fn);
+	fprintf (stdout, "Freefn:					%pF\n", ht->free_fn);
+	fprintf (stdout, "Compfn:					%pF\n", ht->cmp_fn);
+	fprintf (stdout, "Feature:				\n");
+	fprintf (stdout, "					%s\n", ht->ul_flags & HTABLE_SYNCHRONIZED ? "Synchronized" : "Non-Synchronized");
 	
-	printf("-----------------------------------------\n");
+	fprintf (stdout, "-----------------------------------------\n");
 }
 
 struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets, 
@@ -110,7 +109,8 @@ struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets,
 	ht->array = kmalloc(ht->array_size * sizeof(struct oryx_hbucket_t *),
 					MPF_CLR, __oryx_unused_val__);
 	if (unlikely(!ht->array))
-	    goto error;
+		oryx_panic(-1,
+			"kmalloc: %s", oryx_safe_strerror(errno));
 
 	/* kmalloc.MPF_CLR means that the memory block pointed by its return 
 	 * has been CLEARED. 
@@ -119,15 +119,6 @@ struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets,
 		oryx_htable_print (ht);
 
 	return ht;
-
-error:
-    if (ht != NULL) {
-        if (ht->array != NULL)
-            kfree(ht->array);
-
-        kfree(ht);
-    }
-    return NULL;
 }
 
 void oryx_htable_destroy(struct oryx_htable_t *ht)
@@ -163,16 +154,14 @@ void oryx_htable_destroy(struct oryx_htable_t *ht)
 
 int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 {
-	BUG_ON(ht == NULL);
-	
-    if (ht == NULL || data == NULL)
-        return -1;
+	BUG_ON ((ht == NULL) || (data == NULL));
 
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
     struct oryx_hbucket_t *hb = kmalloc(sizeof(struct oryx_hbucket_t), MPF_CLR, -1);
     if (unlikely(!hb))
-        goto error;
+		oryx_panic(-1,
+			"kmalloc: %s", oryx_safe_strerror(errno));
 	
 	/** kmalloc.MPF_CLR means that the memory block pointed by its return 
 	 *  has been CLEARED. */
@@ -193,17 +182,15 @@ int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 	ht->ht_unlock_fn(ht->os_lock);
 
 #ifdef ORYX_HASH_DEBUG
-	printf ("add %s, %p\n", (char *)hb->data, hb->data);
+	fprintf (stdout, "add %s, %p\n", (char *)hb->data, hb->data);
 #endif
 
     return 0;
-error:
-    return -1;
 }
 
 int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 {
-	BUG_ON(ht == NULL);
+	BUG_ON ((ht == NULL) || (data == NULL));
 	
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
@@ -255,7 +242,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 
 void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32_t datalen)
 {
-	BUG_ON(ht == NULL);
+	BUG_ON ((ht == NULL) || (data == NULL));
 
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
@@ -268,7 +255,7 @@ void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32
 
     struct oryx_hbucket_t *hb = ht->array[hash];
     do {
-		/** printf ("%s. %s\n", (char *)data, (char *)hashbucket->data); */
+		/** fprintf (stdout, "%s. %s\n", (char *)data, (char *)hashbucket->data); */
         if (ht->cmp_fn(hb->data, hb->ul_d_size, data, datalen) == 0) {
 			ht->ht_unlock_fn(ht->os_lock);
             return hb->data;
@@ -291,6 +278,7 @@ int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
 	int i;
 	struct oryx_hbucket_t *hb;
 
+	/* skip if no handler for saving performence. */
 	if(handler == NULL)
 		return 0;
 	

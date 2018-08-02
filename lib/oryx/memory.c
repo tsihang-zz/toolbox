@@ -40,9 +40,10 @@ int MEM_InitMemory(void **mem_handle)
 	memory_handle_t *handle = (memory_handle_t *)malloc(sizeof(memory_handle_t));
 	
 	handle->mem_block = (void **)calloc(MAX_MEM_BLOCKS, sizeof(void *));
-	if (!handle->mem_block) 
-		return -1;
-
+	if (unlikely(!handle->mem_block))
+		oryx_panic(-1,
+			"calloc: %s", oryx_safe_strerror(errno));
+	
 	handle->block_size	  = MEM_BLOCK_SIZE;
 
 	handle->mem_block[0]  = malloc(MEM_BLOCK_SIZE);
@@ -78,23 +79,17 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 			// we run out in memblock array - re-allocate memblock array
 			handle->max_blocks += MAX_MEM_BLOCKS;
 			handle->mem_block   = (void **)realloc(handle->mem_block, handle->max_blocks * sizeof(void *));
-			if (!handle->mem_block) 
-			{
-				oryx_loge(-1, "realloc[%s]",
-					oryx_safe_strerror(errno));
-				do_mutex_unlock(&handle->mem_mutex);
-				return NULL;
-			}
+			if (unlikely(!handle->mem_block))
+				oryx_panic(-1,
+					"realloc: %s", oryx_safe_strerror(errno));
 		} 
 
 		// allocate new memblock
 		p = malloc(MEM_BLOCK_SIZE);
-		if (!p) {
-			oryx_loge(-1, "malloc[%s]",
-				oryx_safe_strerror(errno));
-			do_mutex_unlock(&handle->mem_mutex);
-			return NULL;
-		}
+		if (unlikely (!p))
+			oryx_panic(-1,
+				"malloc: %s", oryx_safe_strerror(errno));
+
 		handle->mem_block[handle->current_block] = p;
 		// reset counter for new memblock
 		handle->allocted = 0;
@@ -157,10 +152,9 @@ void * MEM_GetShareMem(key_t key , int size)
 
 	/* Create shared memory with the given KEY. */
 	shm_id = shmget(key, size, (0640|IPC_CREAT|IPC_EXCL)); 
-	if (shm_id == -1){
-		oryx_loge(-1, "shmget[%s]",
-			oryx_safe_strerror(errno));
-		return NULL;
+	if (shm_id == -1) {
+		oryx_panic(-1,
+			"shmget: %s", oryx_safe_strerror(errno));
 	} else {
 		mem =(void *)shmat(shm_id, NULL, 0);
 		if (mem != (void *)-1)
@@ -171,9 +165,9 @@ void * MEM_GetShareMem(key_t key , int size)
 
 int MEM_UnlinkShareMem(void *mem)
 {
-	if(shmdt(mem) == -1){
-		oryx_loge(-1, "shmdt[%s]",
-			oryx_safe_strerror(errno));
+	if (shmdt(mem) == -1) {
+		oryx_loge(-1,
+			"shmdt: %s", oryx_safe_strerror(errno));
 		return -1;
 	}
 	return 0;

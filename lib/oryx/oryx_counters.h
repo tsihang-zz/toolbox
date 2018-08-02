@@ -8,7 +8,7 @@
 #define COUNTER_RANGE_START(ctx)	1
 #define COUNTER_RANGE_END(ctx)	(atomic_read(&(ctx)->curr_id))
 void
-oryx_counter_init(void);
+oryx_counter_initialize(void);
 
 counter_id
 oryx_register_counter(const char *name,
@@ -24,7 +24,7 @@ oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
 * \brief Get the value of the local copy of the counter that hold this id.
 */
 static __oryx_always_inline__
-u64 oryx_counter_get(struct CounterCtx *ctx, counter_id id)
+uint64_t oryx_counter_get(struct CounterCtx *ctx, counter_id id)
 {
   BUG_ON ((id < 1) || (id > ctx->size));
 

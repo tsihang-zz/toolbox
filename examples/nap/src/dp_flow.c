@@ -476,7 +476,7 @@ void FlowInit(Flow *f, const Packet *p)
 #if defined(BUILD_DEBUG)
     /* XXX handle default */
     else {
-        printf("FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
+        fprintf (stdout, "FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
     }
 #endif
 
@@ -498,7 +498,7 @@ void FlowInit(Flow *f, const Packet *p)
     } /* XXX handle default */
 #if defined(BUILD_DEBUG)
     else {
-        printf("FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
+        fprintf (stdout, "FIXME: %s:%s:%" PRId32 "\n", __FILE__, __FUNCTION__, __LINE__);
     }
 #endif
     COPY_TIMESTAMP(&p->ts, &f->startts);

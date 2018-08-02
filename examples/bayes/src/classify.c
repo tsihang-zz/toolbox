@@ -29,7 +29,7 @@ int nb_split_word (struct nb_classfier_t *nbc, char *text)
 		}
 
 #ifdef NB_DEBUG
-		if (substring) printf ("%s\n", nbc->voc_vector[nbc->voc_count]);
+		if (substring) fprintf (stdout, "%s\n", nbc->voc_vector[nbc->voc_count]);
 #endif
 
 		substring = (NULL, split);
@@ -194,7 +194,7 @@ int nb_load_sample(char *file)
 	struct nb_entry_t *nb_entry;
 	
 #ifdef NB_DEBUG
-	printf ("Openning %s, %d, %d, %d, %d\n", 
+	fprintf (stdout, "Openning %s, %d, %d, %d, %d\n", 
 			file,
 			(int)(sizeof (outlook)/sizeof (struct indent_t) - 1),
 			(int)(sizeof (temperature)/sizeof (struct indent_t) - 1),
@@ -204,7 +204,7 @@ int nb_load_sample(char *file)
 	fp = fopen (file, "r");
 
 	if (unlikely(!fp))  {
-		printf ("No such file\n");
+		fprintf (stdout, "No such file\n");
 		return 0;
 	}
 
@@ -253,7 +253,7 @@ int nb_load_sample(char *file)
 				}
 			}
 #ifdef NB_DEBUG
-			printf ("%s(%d)  %s(%d)  %s(%d)  %s(%d) %s(%d) \n", 
+			fprintf (stdout, "%s(%d)  %s(%d)  %s(%d)  %s(%d) %s(%d) \n", 
 					col_outlook, nb_entry->outlook,
 					col_temperature, nb_entry->temperature,
 					col_humidity, nb_entry->humidity,
@@ -271,7 +271,7 @@ int nb_load_sample(char *file)
 #ifdef NB_DEBUG
 	for (i = 0; i < nbptr->nb_count; i ++) {
 		struct nb_entry_t *nb_entry = &nbptr->entries[i];
-		printf ("%d ->    %d  %d  %d  %d \n", 
+		fprintf (stdout, "%d ->    %d  %d  %d  %d \n", 
 					(i + 1),
 					nb_entry->outlook,
 					nb_entry->temperature,
@@ -279,15 +279,15 @@ int nb_load_sample(char *file)
 					nb_entry->wind);
 	}
 #endif
-	printf ("yes =%d, no =%d, total =%d\n", 
+	fprintf (stdout, "yes =%d, no =%d, total =%d\n", 
 			nbptr->nb_cat[NB_NO], 
 			nbptr->nb_cat[NB_YES],
 			nbptr->nb_count);
 
 	nbptr->nb_prior_proba[NB_NO] = (float)((float)nbptr->nb_cat[NB_NO]/(float)nbptr->nb_count);
 	nbptr->nb_prior_proba[NB_YES] = (float)((float)nbptr->nb_cat[NB_YES]/(float)nbptr->nb_count);
-	printf ("%15s%6.6f\n", "nb_prior_proba[N] =   ", nbptr->nb_prior_proba[NB_NO]);
-	printf ("%15s%6.6f\n", "nb_prior_proba[Y] =   ", nbptr->nb_prior_proba[NB_YES]);
+	fprintf (stdout, "%15s%6.6f\n", "nb_prior_proba[N] =   ", nbptr->nb_prior_proba[NB_NO]);
+	fprintf (stdout, "%15s%6.6f\n", "nb_prior_proba[Y] =   ", nbptr->nb_prior_proba[NB_YES]);
 	
 	return 0;
 }
@@ -329,7 +329,7 @@ float nb_post_proba()
 			case 1:	/** Sunny */
 			case 2:	/** Overcast */
 			case 3:	/** Rain */
-				//printf ("%d\n", nb_entry->outlook);
+				//fprintf (stdout, "%d\n", nb_entry->outlook);
 				_outlook[INDEX_OF(nb_entry->outlook)][nb_entry->yn] ++;
 				break;
 			default:
@@ -379,16 +379,16 @@ float nb_post_proba()
 	}
 #ifdef NB_DEBUG
 	for (i = 0; i < (int)(sizeof (outlook)/sizeof (struct indent_t) - 1); i ++) 
-		printf ("%s, %d(yes), %d(no)\n",  outlook[i].section, _outlook[i][NB_YES], _outlook[i][NB_NO]);
+		fprintf (stdout, "%s, %d(yes), %d(no)\n",  outlook[i].section, _outlook[i][NB_YES], _outlook[i][NB_NO]);
 	
 	for (i = 0; i < (int)(sizeof (temperature)/sizeof (struct indent_t) - 1); i ++) 
-		printf ("%s, %d(yes), %d(no)\n",  temperature[i].section, _temperature[i][NB_YES], _temperature[i][NB_NO]);
+		fprintf (stdout, "%s, %d(yes), %d(no)\n",  temperature[i].section, _temperature[i][NB_YES], _temperature[i][NB_NO]);
 	
 	for (i = 0; i < (int)(sizeof (humidity)/sizeof (struct indent_t) - 1); i ++) 
-		printf ("%s, %d(yes), %d(no)\n",  humidity[i].section, _humidity[i][NB_YES], _humidity[i][NB_NO]);
+		fprintf (stdout, "%s, %d(yes), %d(no)\n",  humidity[i].section, _humidity[i][NB_YES], _humidity[i][NB_NO]);
 	
 	for (i = 0; i < (int)(sizeof (wind)/sizeof (struct indent_t) - 1); i ++) 
-		printf ("%s, %d(yes), %d(no)\n",  wind[i].section, _wind[i][NB_YES], _wind[i][NB_NO]);
+		fprintf (stdout, "%s, %d(yes), %d(no)\n",  wind[i].section, _wind[i][NB_YES], _wind[i][NB_NO]);
 #endif	
 	
 #ifdef NB_DEBUG
@@ -396,7 +396,7 @@ float nb_post_proba()
 		struct indent_t *t;
 		t = (struct indent_t *)&outlook[i];
 		
-		printf ("%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
+		fprintf (stdout, "%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
 			t->section,
 			(float)((float)_outlook[i][NB_YES] /(float)(nbptr->nb_cat[NB_YES])),
 			_outlook[i][NB_YES], nbptr->nb_cat[NB_YES],
@@ -409,7 +409,7 @@ float nb_post_proba()
 		struct indent_t *t;
 		t = (struct indent_t *)&temperature[i];
 		
-		printf ("%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
+		fprintf (stdout, "%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
 			t->section,
 			(float)((float)_temperature[i][NB_YES] /(float)(nbptr->nb_cat[NB_YES])),
 			_temperature[i][NB_YES], nbptr->nb_cat[NB_YES],
@@ -422,7 +422,7 @@ float nb_post_proba()
 		struct indent_t *t;
 		t = (struct indent_t *)&humidity[i];
 		
-		printf ("%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
+		fprintf (stdout, "%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
 			t->section,
 			(float)((float)_humidity[i][NB_YES] /(float)(nbptr->nb_cat[NB_YES])),
 			_humidity[i][NB_YES], nbptr->nb_cat[NB_YES],
@@ -435,7 +435,7 @@ float nb_post_proba()
 		struct indent_t *t;
 		t = (struct indent_t *)&wind[i];
 		
-		printf ("%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
+		fprintf (stdout, "%s, %.3f(%d/%d, yes), %.3f(%d/%d, no)\n", 
 			t->section,
 			(float)((float)_wind[i][NB_YES] /(float)(nbptr->nb_cat[NB_YES])),
 			_wind[i][NB_YES], nbptr->nb_cat[NB_YES],
@@ -513,12 +513,12 @@ void nb_test ()
 	  */
 	summary_yn[index] = (outlook_yn[index] * temperature_yn[index] * humidity_yn[index] * wind_yn[index]) * nbptr->nb_prior_proba[index];
 
-	printf ("%16s%6.6f\n", "nb_post_proba[N] =   ", summary_yn[NB_NO]);
-	printf ("%16s%6.6f\n", "nb_post_proba[Y] =   ", summary_yn[NB_YES]);
+	fprintf (stdout, "%16s%6.6f\n", "nb_post_proba[N] =   ", summary_yn[NB_NO]);
+	fprintf (stdout, "%16s%6.6f\n", "nb_post_proba[Y] =   ", summary_yn[NB_YES]);
 	if (summary_yn[NB_YES] > summary_yn[NB_NO])
-		printf ("You should goto tennis\n");
+		fprintf (stdout, "You should goto tennis\n");
 	else
-		printf ("You should not goto tennis\n");
+		fprintf (stdout, "You should not goto tennis\n");
 
 	
 	

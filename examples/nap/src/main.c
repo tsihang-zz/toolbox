@@ -35,7 +35,7 @@ static __oryx_always_inline__
 void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
                 char __oryx_unused_param__**argv)
 {
-    printf ("default %s-timer routine has occured on [%s, %u, %d]\n",
+    fprintf (stdout, "default %s-timer routine has occured on [%s, %u, %d]\n",
 		tmr->ul_setting_flags & TMR_OPTIONS_ADVANCED ? "advanced" : "sig",
 		tmr->sc_alias, tmr->tmr_id, tmr->ul_cyclical_times);
 }
@@ -52,7 +52,7 @@ void * run_cli (void __oryx_unused_param__*pv_par)
 		vty_port = alternative_port;
 	}
 	
-	printf ("Command Line Interface Initialization done (%d)!\n", vty_port);
+	fprintf (stdout, "Command Line Interface Initialization done (%d)!\n", vty_port);
 	
 	/* Create VTY socket */
 	vty_serv_sock(vty_addr, vty_port, ZEBRA_VTYSH_PATH);
@@ -109,7 +109,7 @@ int main (
 	oryx_initialize();
 
 	if (ConfYamlLoadFile(CONFIG_PATH_YAML) == -1) {
-		printf ("ConfYamlLoadFile error\n");
+		fprintf (stdout, "ConfYamlLoadFile error\n");
 		return 0;
 	}
 

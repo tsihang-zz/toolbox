@@ -31,23 +31,26 @@ struct oryx_tmr_mgr_t tmrmgr = {
 void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
                 char __oryx_unused_param__**argv)
 {
-    printf ("default %s-timer routine has occured on [%s, %u, %d]\n",
+    fprintf (stdout, "default %s-timer routine has occured on [%s, %u, %d]\n",
 		tmr->ul_setting_flags & TMR_OPTIONS_ADVANCED ? "advanced" : "sig",
 		tmr->sc_alias, tmr->tmr_id, tmr->ul_cyclical_times);
 }
 
 static void *tmr_alloc(void)
 {
-    struct oryx_timer_t *t;
+    struct oryx_timer_t *new;
 
-    t = kmalloc(sizeof(struct oryx_timer_t), MPF_CLR, -1);
-    if(likely(t)){
-        t->tmr_id = TMR_INVALID;
-        t->routine = oryx_tmr_default_handler;
-        t->interval_ms = 3 * 1000;
-        t->ul_setting_flags = TMR_CAN_BE_RECYCLABLE;
-    }
-    return t;
+    new = kmalloc(sizeof(struct oryx_timer_t), MPF_CLR, -1);
+	if (unlikely(!new))
+		oryx_panic(-1,
+			"kmalloc: %s", oryx_safe_strerror(errno));
+	
+    new->tmr_id			= TMR_INVALID;
+   	new->routine		= oryx_tmr_default_handler;
+    new->interval_ms	= (3 * 1000);
+    new->ul_setting_flags = TMR_CAN_BE_RECYCLABLE;
+			
+    return new;
 }
 
 static __oryx_always_inline__ 
@@ -63,16 +66,9 @@ oryx_tmr_id tmr_id_alloc(int __oryx_unused_param__ module,
                 const char *sc_alias, 
                 size_t s)
 {
-    HASH_INDEX hval = -1;
-
-    if (unlikely(!sc_alias) || 
-        likely(s < 1))
-        goto finish;
-    
-    hval = hash_data((void *)sc_alias, s);
-    
-finish:
-    return hval;
+	BUG_ON (sc_alias == NULL);
+	BUG_ON (s < 1);
+    return hash_data((void *)sc_alias, s);
 }
 
 static __oryx_always_inline__
@@ -111,7 +107,7 @@ void sigtmr_handler(void)
                     _this->routine (_this, _this->argc, _this->argv);
 					++ _this->ul_cyclical_times;
                     if (unlikely(!(_this->ul_setting_flags & TMR_OPTIONS_PERIODIC))) {
-						printf ("sigtmr[%s, %u] stopped after running %u times\n", _this->sc_alias, _this->tmr_id, _this->ul_cyclical_times);
+						fprintf (stdout, "sigtmr[%s, %u] stopped after running %u times\n", _this->sc_alias, _this->tmr_id, _this->ul_cyclical_times);
                         _this->ul_setting_flags &= ~TMR_OPTIONS_ENABLE;
 					}
                     else {
@@ -187,7 +183,7 @@ void * tmr_daemon (void __oryx_unused_param__*pv_par )
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
-    printf ("  T M R   S T A R T E D ...\n\n\n\n");    
+    fprintf (stdout, "  T M R   S T A R T E D ...\n\n\n\n");    
 
     FOREVER {
 		/** sleep 1 sec. */
@@ -201,14 +197,14 @@ void * tmr_daemon (void __oryx_unused_param__*pv_par )
 
 static struct oryx_task_t advanced_tmr_task =
 {
-	.module = THIS,
-	.sc_alias = "Advanced Timer Task",
-	.fn_handler = tmr_daemon,
-	.ul_lcore_mask = INVALID_CORE,
-	.ul_prio = KERNEL_SCHED,
-	.argc = 0,
-	.argv = NULL,
-	.ul_flags = 0,	/** Can not be recyclable. */
+	.module			= THIS,
+	.sc_alias		= "Advanced Timer Task",
+	.fn_handler		= tmr_daemon,
+	.lcore_mask		= INVALID_CORE,
+	.ul_prio		= KERNEL_SCHED,
+	.argc			= 0,
+	.argv			= NULL,
+	.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
 void oryx_tmr_start (struct oryx_timer_t *tmr)
@@ -282,12 +278,8 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
     struct list_head *h;
 	os_mutex_t *lock;
-	
-    if (unlikely(!sc_alias)){
-            printf ( 
-            "Timer description is null, task will not be created\n");
-        goto finish;
-    }
+
+	BUG_ON (sc_alias == NULL);
 
 	/** lookup alias. */
 	if (ul_setting_flags & TMR_OPTIONS_ADVANCED) {
@@ -304,7 +296,7 @@ struct oryx_timer_t *oryx_tmr_create (int module,
     list_for_each_entry_safe (_this, p, h, list){
         if(likely(!strcmp(sc_alias, _this->sc_alias)) &&
 			(module == _this->module)){
-            printf ( 
+            fprintf (stdout,  
                 "The same timer (%s, %d)\n", _this->sc_alias, _this->tmr_id);
 			oryx_thread_mutex_unlock(lock);
             goto finish;
@@ -313,13 +305,6 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 	
 				
     _this = (struct oryx_timer_t *)tmr_alloc();
-    if (unlikely(!_this)){
-            printf ( 
-            "Alloc a timer\n");
-		oryx_thread_mutex_unlock(lock);
-        goto finish;
-    }
-
 	_this->argc			= argc;
     _this->argv			= argv;
     _this->module		= module;

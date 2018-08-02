@@ -14,7 +14,7 @@ void *kmalloc(int s,
 {
     void *p;
 
-    if(likely((p = malloc(s)) != NULL)){
+    if (likely((p = malloc(s)) != NULL)){
         if(flags & MPF_CLR)
             memset(p, 0, s);
         atomic64_inc(&mem_access_times);
@@ -37,7 +37,7 @@ void *krealloc(void *sp,  int s,
 {
     void *p;
  
-    if(likely((p = realloc(sp, s)) != NULL)) {
+    if (likely((p = realloc(sp, s)) != NULL)) {
         if(flags & MPF_CLR)
             memset(p, 0, s);
         atomic64_inc(&mem_access_times);

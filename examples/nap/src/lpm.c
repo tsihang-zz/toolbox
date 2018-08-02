@@ -51,7 +51,7 @@ void classify_setup_lpm(const int socketid)
 				i, socketid);
 		}
 
-		printf("LPM: Adding route 0x%08x / %d (%d)\n",
+		fprintf (stdout, "LPM: Adding route 0x%08x / %d (%d)\n",
 			(unsigned)ipv4_l3fwd_lpm_route_array[i].ip,
 			ipv4_l3fwd_lpm_route_array[i].depth,
 			ipv4_l3fwd_lpm_route_array[i].if_out);
@@ -89,7 +89,7 @@ void classify_setup_lpm(const int socketid)
 				i, socketid);
 		}
 
-		printf("LPM: Adding route %s / %d (%d)\n",
+		fprintf (stdout, "LPM: Adding route %s / %d (%d)\n",
 			"IPv6",
 			ipv6_l3fwd_lpm_route_array[i].depth,
 			ipv6_l3fwd_lpm_route_array[i].if_out);

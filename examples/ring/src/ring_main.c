@@ -50,7 +50,7 @@ void * ring_wp (void *r)
 		if (sleeps ++ == 3000) {
 			sleeps = 0;
 			oryx_ring_dump(ring);
-			printf("Write times %u\n", times);
+			fprintf (stdout, "Write times %u\n", times);
 		}
 	}
 	
@@ -63,7 +63,7 @@ static struct oryx_task_t rp_task =
 	.module		= THIS,
 	.sc_alias	= "RP Task",
 	.fn_handler	= ring_rp,
-	.ul_lcore	= INVALID_CORE,
+	.lcore_mask	= INVALID_CORE,
 	.ul_prio	= KERNEL_SCHED,
 	.argc		= 0,
 	.argv		= NULL,
@@ -76,7 +76,7 @@ static struct oryx_task_t wp_task =
 	.module		= THIS,
 	.sc_alias	= "WP Task",
 	.fn_handler	= ring_wp,
-	.ul_lcore	= INVALID_CORE,
+	.lcore_mask	= INVALID_CORE,
 	.ul_prio	= KERNEL_SCHED,
 	.argc		= 0,
 	.argv		= NULL,
