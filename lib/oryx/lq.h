@@ -36,8 +36,8 @@ struct oryx_lq_ctx_t {
     os_mutex_t	m;
 
 #if defined(LQ_ENABLE_PASSIVE)
-	void (*fn_wakeup) (struct oryx_lq_ctx_t *);
-	void (*fn_hangup) (struct oryx_lq_ctx_t *);
+	void (*fn_wakeup) (void *);
+	void (*fn_hangup) (void *);
 	os_mutex_t	cond_lock;
 	os_cond_t	cond;
 #endif
@@ -53,16 +53,6 @@ struct lq_prefix_t {
     void *lprev;
 };
 
-ORYX_DECLARE(
-	int oryx_lq_new(const char *fq_name, uint32_t fq_cfg, struct oryx_lq_ctx_t ** lq)
-);
-ORYX_DECLARE(
-	void oryx_lq_destroy(struct oryx_lq_ctx_t * fq)
-);
-ORYX_DECLARE(
-	void oryx_lq_dump(struct oryx_lq_ctx_t *fq)
-);
-
 /**
  *  \brief add an instance to a queue
  *
@@ -70,8 +60,9 @@ ORYX_DECLARE(
  *  \param f instance
  */
 static __oryx_always_inline__
-void oryx_lq_enqueue (struct oryx_lq_ctx_t * q, void * f)
+void oryx_lq_enqueue (void *lq, void * f)
 {
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 #if defined(BUILD_DEBUG)
     BUG_ON(q == NULL || f == NULL);
 #endif
@@ -110,8 +101,9 @@ void oryx_lq_enqueue (struct oryx_lq_ctx_t * q, void * f)
  *  \retval f flow or NULL if empty list.
  */
 static __oryx_always_inline__
-void * oryx_lq_dequeue (struct oryx_lq_ctx_t *q)
+void * oryx_lq_dequeue (void *lq)
 {
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 #if defined(BUILD_DEBUG)
 	BUG_ON(q == NULL);
 #endif
@@ -151,8 +143,9 @@ void * oryx_lq_dequeue (struct oryx_lq_ctx_t *q)
 }
 
 static __oryx_always_inline__
-int oryx_lq_length (struct oryx_lq_ctx_t *q)
+int oryx_lq_length (void *lq)
 {
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	return q->len;
 }
 

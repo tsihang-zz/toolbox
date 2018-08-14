@@ -264,7 +264,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	if(!(map->ul_flags & MAP_VALID))
 		return;
 
-	tm_format (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	/** let us try to find the map which name is 'alias'. */
 	vty_out (vty, "%20s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
@@ -552,26 +552,10 @@ DEFUN(test_map,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
-	int				ret;
+	int				i;
 	char			alias[32] = {0};
-	uint32_t		val;
-	uint32_t		val_start;
-	uint32_t		val_end;
-	uint32_t		val_mask;
-	const char		*range = "150:180";
-	const char		*mask = "150/255";
 	struct map_t	*map = NULL;
 	vlib_map_main_t	*mm = &vlib_map_main;
-	
-	ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
-	vty_out (vty, "%s ret = %d, start %d end %d%s", range,
-	  ret, val_start, val_end, VTY_NEWLINE);
-
-	ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
-	vty_out (vty, "%s ret = %d, %d/%d%s", mask,
-	  ret, val, val_mask, VTY_NEWLINE);
-
-	int i = 0;
 
 	for (i = 0; i < MAX_MAPS; i ++) {
 		memset(alias, 0, 31);

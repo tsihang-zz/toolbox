@@ -52,7 +52,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_ADVANCED_TMR\
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/../oryx
+		  -I$(SRCDIR)/../../../lib/oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lpcre -lyaml

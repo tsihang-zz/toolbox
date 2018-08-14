@@ -35,7 +35,7 @@ struct geo_htable_key_t *alloc_hk(void)
 	struct geo_htable_key_t *h = malloc(sizeof(struct geo_htable_key_t));
 	BUG_ON(h == NULL);
 	memset(h, 0, sizeof(struct geo_htable_key_t));
-	fq_new("inner_cdr_queue", (struct qctx_t **)&h->inner_cdr_queue);
+	fq_new("inner_cdr_queue", (struct oryx_lq_ctx_t **)&h->inner_cdr_queue);
 	return h;
 }
 

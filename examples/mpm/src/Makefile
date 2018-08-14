@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = mpm
 
 # all source are stored in SRCS-y
-SRCS-y := mpm_main.c
+SRCS-y := main.c mpm.c mpm_ac.c mpm_hs.c
 DEPDIRS-y += ../../lib/oryx
 
 CFLAGS += $(WERROR_FLAGS)
@@ -50,11 +50,12 @@ CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK
+		  -DHAVE_ADVANCED_TMR\
+		  -DHAVE_HYPERSCAN
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/../oryx
+		  -I$(SRCDIR)/../oryx\
+		  -I/usr/include/hs/
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lyaml -lpcap -lhs

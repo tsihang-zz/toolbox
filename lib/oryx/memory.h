@@ -58,14 +58,23 @@ void kfree(void *p)
     p = NULL;
 }
 
-int MEM_InitMemory(void **mem_handle);
-void *MEM_GetMemory(void *mem_handle, uint32_t size);
-int MEM_GetMemSize(void *mem_handle ,uint64_t* size);
-void MEM_UninitMemory(void *mem_handle);
-
-void * MEM_GetShareMem(key_t key , int size);
-int MEM_UnlinkShareMem(void *mem);
-
-
+ORYX_DECLARE(
+	int MEM_InitMemory(void **mem_handle)
+);
+ORYX_DECLARE(
+	void *MEM_GetMemory(void *mem_handle, uint32_t size)
+);
+ORYX_DECLARE(
+	int MEM_GetMemSize(void *mem_handle ,uint64_t* size)
+);
+ORYX_DECLARE(
+	void MEM_UninitMemory(void *mem_handle)
+);
+ORYX_DECLARE(
+	void * MEM_GetShareMem(key_t key , int size)
+);
+ORYX_DECLARE(
+	int MEM_UnlinkShareMem(void *mem)
+);
 
 #endif

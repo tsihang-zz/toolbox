@@ -1,6 +1,5 @@
 #include "oryx.h"
-
-#include "mpm-hs.h"
+#include "mpm_hs.h"
 
 #ifdef HAVE_HYPERSCAN
 
@@ -40,26 +39,6 @@ static struct oryx_htable_t  *g_db_table = NULL;
 static os_mutex_t g_db_table_mutex = INIT_MUTEX_VAL;
 
 #define oryx_htable_create 		oryx_htable_init
-
-
-/**
- * \internal
- * \brief Does a memcpy of the input string to lowercase.
- *
- * \param d   Pointer to the target area for memcpy.
- * \param s   Pointer to the src string for memcpy.
- * \param len len of the string sent in s.
- */
-__oryx_always_extern__
-void memcpy_tolower (u8 *d, u8 *s, u16 len)
-{
-    uint16_t i;
-	
-    for (i = 0; i < len; i++)
-        d[i] = u8_tolower(s[i]);
-
-    return;
-}
 
 
 /*

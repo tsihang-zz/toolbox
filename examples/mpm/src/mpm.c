@@ -1,6 +1,6 @@
 #include "oryx.h"
-#include "mpm-ac.h"
-#include "mpm-hs.h"
+#include "mpm_ac.h"
+#include "mpm_hs.h"
 
 //#define MPM_DEBUG
 
@@ -797,36 +797,6 @@ error:
     return -1;
 }
 
-
-/************************************Unittests*********************************/
-
-#ifdef UNITTESTS
-#endif /* UNITTESTS */
-
-void MpmRegisterTests(void)
-{
-#ifdef UNITTESTS
-    uint16_t i;
-
-    for (i = 0; i < MPM_TABLE_SIZE; i++) {
-        if (i == MPM_NOTSET)
-            continue;
-
-        g_ut_modules++;
-
-        if (mpm_table[i].RegisterUnittests != NULL) {
-            g_ut_covered++;
-            mpm_table[i].RegisterUnittests();
-        } else {
-            if (coverage_unittests)
-                fprintf (stdout, "mpm module %s has no "
-                        "unittest registration function.", mpm_table[i].name);
-        }
-    }
-
-#endif
-}
-
 int mpm_default_matcher = MPM_HS;
 
 void MpmTableSetup(void)
@@ -852,17 +822,6 @@ void MpmTableSetup(void)
     #endif /* HAVE_HS_VALID_PLATFORM */
 #endif /* HAVE_HYPERSCAN */
 
-#if 0
-    MpmACBSRegister();
-    MpmACTileRegister();
-#ifdef HAVE_HYPERSCAN
-    MpmHSRegister();
-#endif /* HAVE_HYPERSCAN */
-#ifdef __SC_CUDA_SUPPORT__
-    MpmACCudaRegister();
-#endif /* __SC_CUDA_SUPPORT__ */
-#endif
-
 	mpm_default_matcher = MPM_AC;
 
 	int i;
@@ -872,7 +831,5 @@ void MpmTableSetup(void)
 			fprintf (stdout, "MPM--> %s\n", t->name);
 	}
 
-//SCACRegisterTests ();
-//SCHSRegisterTests ();
 }
 

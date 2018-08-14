@@ -1,20 +1,41 @@
 #include "oryx.h"
 
 #define COLOR_TYPES {\
-    [COLOR_FIN] = (const char *)"\e[0m",\
-    [COLOR_BLACK] = (const char *)"\e[0;30m",\
-    [COLOR_RED] = "\e[0;31m",\
-    [COLOR_GREEN] = "\e[0;32m",\
-    [COLOR_YELLOW] = "\e[0;33m",\
-    [COLOR_BLUE] = "\e[0;34m",\
-    [COLOR_PURPLE] = "\e[0;35m",\
-    [COLOR_CYAN] = "\e[0;36m",\
-    [COLOR_WHITE] = "\e[0;37m",\
-    [COLORS] = "skip-draw-color"\
+    [COLOR_FIN]		= "\e[0m",\
+    [COLOR_BLACK]	= "\e[0;30m",\
+    [COLOR_RED]		= "\e[0;31m",\
+    [COLOR_GREEN]	= "\e[0;32m",\
+    [COLOR_YELLOW]	= "\e[0;33m",\
+    [COLOR_BLUE]	= "\e[0;34m",\
+    [COLOR_PURPLE]	= "\e[0;35m",\
+    [COLOR_CYAN]	= "\e[0;36m",\
+    [COLOR_WHITE]	= "\e[0;37m",\
+    [COLORS]		= "skip-draw-color"\
 }
 
 uint32_t __os_rand;
 static const char* colors[] = COLOR_TYPES;
+
+static const char *___builtin_itoa (int value, char * str, int base)
+{	
+	BUG_ON (str == NULL);
+	
+	switch (base) {
+		case 8:
+			sprintf(str,"%o", value);
+			break;
+		case 10:
+			sprintf(str,"%d", value);
+			break;
+		case 16:
+			sprintf(str,"%x", value);
+			break;
+		default:
+			break;
+	}
+
+	return str;
+}
 
 __oryx_always_extern__
 int oryx_path_exsit (const char *path)
@@ -176,8 +197,6 @@ int oryx_pattern_generate (char *pattern, size_t l)
 __oryx_always_extern__
 void oryx_ipaddr_generate (char *ipv4)
 {
-#define itoa(a,s,t)\
-	sprintf (s, "%d", a);
 	uint32_t rand = __os_rand;
 	int a = 0, b = 0, c = 0, d = 0;
 	char aa[4], bb[4], cc[4], dd[4];
@@ -190,11 +209,11 @@ void oryx_ipaddr_generate (char *ipv4)
 	d = next_rand_ (&rand) % 256;
 	mask = next_rand_ (&rand) % 32;
 	
-	itoa (a, aa, 10);
-	itoa (b, bb, 10);
-	itoa (c, cc, 10);
-	itoa (d, dd, 10);
-	itoa (mask, maskp, 10);
+	___builtin_itoa (a, aa, 10);
+	___builtin_itoa (b, bb, 10);
+	___builtin_itoa (c, cc, 10);
+	___builtin_itoa (d, dd, 10);
+	___builtin_itoa (mask, maskp, 10);
 
 	strcpy (ipv4, aa);
 	strcat (ipv4, ".");
@@ -211,8 +230,6 @@ void oryx_ipaddr_generate (char *ipv4)
 __oryx_always_extern__
 void oryx_l4_port_generate (char *port_src, char *port_dst)
 {
-#define itoa(a,s,t)\
-	sprintf (s, "%d", a);
 	uint32_t rand = __os_rand;
 	uint16_t psrc, pdst;
 	char aa[5], bb[5];
@@ -220,12 +237,11 @@ void oryx_l4_port_generate (char *port_src, char *port_dst)
 	psrc = next_rand_ (&rand) % 65535;
 	pdst = next_rand_ (&rand) % 65535;
 	
-	itoa (psrc, aa, 10);
-	itoa (pdst, bb, 10);
+	___builtin_itoa (psrc, aa, 10);
+	___builtin_itoa (pdst, bb, 10);
 
 	strcpy (port_src, aa);
 	strcpy (port_dst, bb);
-	
 }
 
 char * oryx_fmt_speed (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
@@ -305,20 +321,20 @@ int isalldigit(const char *str)
 }
 
 __oryx_always_extern__
-u64 tm_elapsed_us (struct  timeval *start, struct  timeval *end)
+uint64_t tm_elapsed_us (struct  timeval *start, struct  timeval *end)
 {
 	return (1000000 * (end->tv_sec - start->tv_sec) + end->tv_usec - start->tv_usec);
 }
 
 __oryx_always_extern__
-int tm_format(uint64_t ts, const char *tm_form, char *date, size_t len)
+void fmt_time (uint64_t ts, const char *fmt, char *date, size_t len)
 {
-    struct tm *tm = NULL;
+	BUG_ON (date == NULL);
+	BUG_ON (fmt == NULL);
 
-    assert(date);
-    /** Convert ts to localtime with local time-zone */
-    tm = localtime((time_t *)&ts);
-    return (int)strftime(date, len - 1, tm_form, tm);
+	/** Convert ts to localtime with local time-zone */
+    const struct tm *tm = localtime((time_t *)&ts);
+    strftime(date, len - 1, fmt, tm);
 }
 
 __oryx_always_extern__

@@ -237,6 +237,7 @@ void PmqCleanup(PrefilterRuleStore *);
 void PmqFree(PrefilterRuleStore *);
 
 void MpmTableSetup(void);
+
 void MpmRegisterTests(void);
 
 void MpmInitCtx(MpmCtx *mpm_ctx, uint16_t matcher);

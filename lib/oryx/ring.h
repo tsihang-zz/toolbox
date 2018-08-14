@@ -107,8 +107,5 @@ int oryx_ring_put(struct oryx_ring_t *ring, void *data, uint16_t data_size)
 }
 
 
-extern int oryx_ring_create(const char *ring_name, int max_elements, uint32_t flags, struct oryx_ring_t **ring);
-extern void oryx_ring_dump(struct oryx_ring_t *ring);
-
 #endif
 

@@ -12,8 +12,8 @@ struct geo_stat_t geo_stat;
 GEODecodeThreadVars gdtv[cdr_num];
 GEOThreadVars		gtv[cdr_num];
 void *cdr_pool;
-struct qctx_t		*cdr_refill_queue;
-struct qctx_t		*cdr_raw_data_queue;
+struct oryx_lq_ctx_t		*cdr_refill_queue;
+struct oryx_lq_ctx_t		*cdr_raw_data_queue;
 
 static __oryx_always_inline__
 void geo_register_perf_counters(GEODecodeThreadVars *dtv, GEOThreadVars *tv, int cdr_index)
@@ -459,7 +459,7 @@ static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	gce->data_size = pl;
 	geo_key_info_init(&gce->gki, &gk);	
 
-	fq_equeue(cdr_raw_data_queue, gce);
+	oryx_lq_enqueue(cdr_raw_data_queue, gce);
 #endif
 }
 
@@ -520,7 +520,7 @@ static void *geo_refill_prepare_fn (void *argv)
 	struct geo_key_info_t *gk;
 	
 	FOREVER {
-		if (!(gce = fq_dequeue(cdr_raw_data_queue)))
+		if (!(gce = oryx_lq_dequeue(cdr_raw_data_queue)))
 			continue;
 
 		gk = &gce->gki;
@@ -531,7 +531,7 @@ static void *geo_refill_prepare_fn (void *argv)
 		tv		= &gtv[gk->cdr_index];
 
 		geo_refill_prepare(gct, gce, gk, dtv, tv);	
-		fq_equeue(cdr_refill_queue, gce);
+		oryx_lq_enqueue(cdr_refill_queue, gce);
 #else
 		geo_key_info_dump(gk, geo_cdr_tables[gk->cdr_index]->lf.fp);
 #endif
@@ -552,7 +552,7 @@ static void *geo_refill_fn (void *argv)
 	struct geo_key_info_t *gk;
 	
 	FOREVER {
-		if(!(gce = fq_dequeue(cdr_refill_queue)))
+		if(!(gce = oryx_lq_dequeue(cdr_refill_queue)))
 			continue;
 
 		gk	= &gce->gki;
@@ -566,12 +566,12 @@ static void *geo_refill_fn (void *argv)
 #if defined(GEO_CDR_HAVE_REFILL_CACHE)
 		struct geo_cdr_entry_t *gce0;
 		if(h->ul_flags & GEO_CDR_HASH_KEY_APPEAR_IMSI) {
-			if(fq_length((struct qctx_t *)h->inner_cdr_queue) == 0) {
+			if(oryx_lq_length((struct oryx_lq_ctx_t *)h->inner_cdr_queue) == 0) {
 				do_refill(h, gce, gk->cdr_index, dtv, tv);
 				mpool_free(cdr_pool, gce);
 			} else {
-				while(fq_length((struct qctx_t *)h->inner_cdr_queue) != 0) {
-					gce0 = fq_dequeue((struct qctx_t *)h->inner_cdr_queue);
+				while(oryx_lq_length((struct oryx_lq_ctx_t *)h->inner_cdr_queue) != 0) {
+					gce0 = oryx_lq_dequeue((struct oryx_lq_ctx_t *)h->inner_cdr_queue);
 					do_refill(h, gce0, gk->cdr_index, dtv, tv);
 					mpool_free(cdr_pool, gce0);
 				}
@@ -580,7 +580,7 @@ static void *geo_refill_fn (void *argv)
 			/* equeue this CDR entry to local queue which hold by HASH entry.
 			 * THIS queue is created at stage of refill_prepare,
 			 * when a new hash entry is created. */
-			fq_equeue((struct qctx_t *)h->inner_cdr_queue, gce);
+			oryx_lq_enqueue((struct oryx_lq_ctx_t *)h->inner_cdr_queue, gce);
 		}
 #else
 		if(h->ul_flags & GEO_CDR_HASH_KEY_APPEAR_IMSI)
@@ -775,8 +775,8 @@ void geo_start_pcap(void) {
 	GEOThreadVars *tv;
 
 
-	fq_new("CDR Refill QUEUE", &cdr_refill_queue);
-	fq_new("CDR Packet QUEUE", &cdr_raw_data_queue);
+	oryx_lq_new("CDR Refill QUEUE", 0, &cdr_refill_queue);
+	oryx_lq_new("CDR Packet QUEUE", 0, &cdr_raw_data_queue);
 
 	/** Create CDR memory pool. */
 	mpool_init(&cdr_pool, "mempool for cdr",

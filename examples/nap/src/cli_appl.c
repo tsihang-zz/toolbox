@@ -93,7 +93,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	struct prefix_ipv4 ip4;
 	
 	char tmstr[100];
-	tm_format (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	if(appl->ip_src_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");

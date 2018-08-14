@@ -3,43 +3,28 @@
 #define CACHE_LINE_ROUNDUP(size,cache_line_size) \
 	(cache_line_size * ((size + cache_line_size - 1) / cache_line_size))
 
-struct mem_handle_t {
+struct oryx_mp_handle_t {
 	oryx_vector v;
 };
 
-struct mem_pool_t {
-	void			*mem_handle;			/* mem handle, unused now. */
-	struct oryx_lq_ctx_t	*free_q;				/* freed queue for fast alloc. */
+struct oryx_mpool_t {
+	void			*mem;					/* mem handle. */
+	void			*free_q;				/* freed queue for fast alloc. */
 	uint32_t		nb_elements;			/* elements count. */
 	uint32_t		nb_bytes_per_element;	/* cache lined. */
 	uint32_t		steps;					/* grow steps for mempool after no vlaid memory. */
 	uint32_t		cache_line_size;		/* cache line size for every element. */
-	struct element_fn_t *efn;
 };
 
-static void InitMemory(void **mem_handle) 
-{
-	struct mem_handle_t *mh;
-
-	if((mh = malloc(sizeof(struct mem_handle_t)))  == NULL)
-		oryx_panic(-1,
-			"malloc: %s", oryx_safe_strerror(errno));
-
-	mh->v = vec_init(1);
-	BUG_ON(mh->v == NULL);
-
-	(*mem_handle) = mh;
-}
-
-static void UnInitMemory(void *mem_handle) 
+static void os_free(void *mem) 
 {
 	int each;
-	struct mem_handle_t *mh;
+	struct oryx_mp_handle_t *mh;
 	void *v;
 	
-	BUG_ON(mem_handle == NULL);
+	BUG_ON(mem == NULL);
 	
-	mh = (struct mem_handle_t *)mem_handle;
+	mh = (struct oryx_mp_handle_t *)mem;
 	vec_foreach_element(mh->v, each, v) {
 		if (likely(v)) {
 			free(v);
@@ -48,104 +33,107 @@ static void UnInitMemory(void *mem_handle)
 
 	vec_free(mh->v);
 }
-
-static void SetMemory(void *mem_handle, void *mem)
+static void *os_alloc(void *p, uint32_t size)
 {
-	struct mem_handle_t *mh = (struct mem_handle_t *)mem_handle;
-	vec_set(mh->v, mem);
-}
-
-static void *GetMemory(void *mem_handle, uint32_t size)
-{
+	BUG_ON(p == NULL);
+	struct oryx_mpool_t *omp = (struct oryx_mpool_t *)p;
+	struct oryx_mp_handle_t *h = (struct oryx_mp_handle_t *)(omp->mem);
 	void *v = NULL;
 
+	BUG_ON(h == NULL);
+	
 	v = malloc(size);
 	if (unlikely (!v))
 		oryx_panic(-1,
 			"malloc: %s", oryx_safe_strerror(errno));
 	
 	memset (v, 0, size);
-	/** hold this memory to mem_handle. */
-	SetMemory(mem_handle, v);
+	
+	vec_set(h->v, h);
 
 	return v;
 }
 
-void mpool_init(void ** mp, const char *mp_name,
-			int nb_steps, int nb_bytes_per_element, int cache_line_size,
-			struct element_fn_t *efn)
+void mpool_init(void ** p, const char *mp_name,
+			int nb_steps, int nb_bytes_per_element, int cache_line_size)
 
 {
 	int i;
 	void *element;
-	struct mem_pool_t *handle;
+	struct oryx_mpool_t *omp;
+	struct oryx_mp_handle_t *omph;
 
 	BUG_ON(mp_name == NULL);
 	
-	if((handle = (struct mem_pool_t *)malloc(sizeof(struct mem_pool_t))) == NULL)
+	if((omp = (struct oryx_mpool_t *)malloc(sizeof(struct oryx_mpool_t))) == NULL)
 		oryx_panic(-1,
 			"malloc: %s", oryx_safe_strerror(errno));
 	
-	memset(handle, 0, sizeof(struct mem_pool_t));
+	memset(omp, 0, sizeof(struct oryx_mpool_t));
 	
-	/*init*/
-	InitMemory(&handle->mem_handle);
-	
-	/*new queue*/
-	oryx_lq_new(mp_name, 0, &handle->free_q);
+	/* init memory handler */
+	if((omph = malloc(sizeof(struct oryx_mp_handle_t)))  == NULL)
+		oryx_panic(-1,
+			"malloc: %s", oryx_safe_strerror(errno));
 
-	handle->steps					= nb_steps;
-	handle->nb_bytes_per_element	= CACHE_LINE_ROUNDUP(nb_bytes_per_element, cache_line_size);
-	handle->efn						= efn;
-	handle->cache_line_size			= cache_line_size;
-
-	BUG_ON(handle->free_q == NULL);
+	omph->v = vec_init(1);
+	BUG_ON(omph->v == NULL);
+	omp->mem = omph;
 	
-	for(i = 0 ; i < (int)handle->steps ; i ++) {
-		element = GetMemory(handle->mem_handle, handle->nb_bytes_per_element);
-		oryx_lq_enqueue(handle->free_q, element);
-		handle->nb_elements ++;
+	/* new queue*/
+	oryx_lq_new(mp_name, 0, &omp->free_q);
+
+	omp->steps					= nb_steps;
+	omp->nb_bytes_per_element	= CACHE_LINE_ROUNDUP(nb_bytes_per_element, cache_line_size);
+	omp->cache_line_size			= cache_line_size;
+
+	BUG_ON(omp->free_q == NULL);
+	
+	for(i = 0 ; i < (int)omp->steps ; i ++) {
+		element = os_alloc(omp->mem, omp->nb_bytes_per_element);
+		oryx_lq_enqueue(omp->free_q, element);
+		omp->nb_elements ++;
 	}
 
-	(*mp) = (void *)handle;
+	(*p) = (void *)omp;
 }
 
-void mpool_uninit(void * mp)
+void mpool_uninit(void * p)
 {
-	struct mem_pool_t *handle = (struct mem_pool_t *)mp;
+	struct oryx_mpool_t *omp = (struct oryx_mpool_t *)p;
 		
-	BUG_ON(handle == NULL || handle->mem_handle == NULL);
+	BUG_ON(omp == NULL || omp->mem == NULL);
 
 	/*destroy free queue */
-	oryx_lq_destroy(handle->free_q);
+	oryx_lq_destroy(omp->free_q);
 	
 	/*destroy memory */
-	UnInitMemory(handle->mem_handle);
+	os_free(omp->mem);
 
-	free(handle->mem_handle);
-	free(handle);
+	free(omp->mem);
+	free(omp);
 }
 
-void * mpool_alloc(void * mp)
+void * mpool_alloc(void * p)
 {
 	int i = 0;
 	void *element;
 	void *elem = NULL;
-	struct mem_pool_t *handle = (struct mem_pool_t *)mp;
+	struct oryx_mpool_t *omp = (struct oryx_mpool_t *)p;
 
 	do {
 		/* no enough element in FREE queue. */
-		if(handle->free_q->len == 0) {
-			for(i = 0; i < (int)handle->steps; i ++) {
-				if((element = GetMemory(handle->mem_handle , handle->nb_bytes_per_element)) == NULL)
+		if(oryx_lq_length(omp->free_q) == 0) {
+			for(i = 0; i < (int)omp->steps; i ++) {
+				if((element = os_alloc(omp->mem , omp->nb_bytes_per_element)) == NULL)
 					break;
-				oryx_lq_enqueue(handle->free_q, element);
+				oryx_lq_enqueue(omp->free_q, element);
 			}
-			handle->nb_elements += i;
+			omp->nb_elements += i;
 		}
 		
 		/** get memory from free queue. */
-		elem = oryx_lq_dequeue(handle->free_q);
+		elem = oryx_lq_dequeue(omp->free_q);
 		if(!elem) {
 			return NULL;
 		}
@@ -155,9 +143,9 @@ void * mpool_alloc(void * mp)
 	return elem;
 }
 
-void mpool_free (void * mp , void *elem)
+void mpool_free (void * p , void *elem)
 {
-	struct mem_pool_t *handle = (struct mem_pool_t *)mp;
-	oryx_lq_enqueue(handle->free_q , elem);
+	struct oryx_mpool_t *omp = (struct oryx_mpool_t *)p;
+	oryx_lq_enqueue(omp->free_q , elem);
 }
 

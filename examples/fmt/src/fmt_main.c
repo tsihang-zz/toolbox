@@ -78,7 +78,9 @@ format_files(char *path, void(*format)(char*f, char *s, void *fp), char *sep)
 }
 #endif
 
-int main(int argc, char ** argv)
+int main(
+	int __oryx_unused_param__ argc,
+       	char __oryx_unused_param__ ** argv)
 {
 	uint32_t val_start, val_end;
 	int ret;

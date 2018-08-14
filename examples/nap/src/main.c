@@ -75,7 +75,7 @@ static struct oryx_task_t cli_register =
 	.module = THIS,
 	.sc_alias = "CLI Task",
 	.fn_handler = run_cli,
-	.ul_lcore = INVALID_CORE,
+	.lcore_mask = INVALID_CORE,
 	.ul_prio = KERNEL_SCHED,
 	.argc = 0,
 	.argv = NULL,
@@ -103,8 +103,8 @@ int main (
 {
 	uint32_t id_core;
 
-	signal(SIGINT, sig_handler);
-	signal(SIGTERM, sig_handler);
+	oryx_register_sighandler(SIGINT, sig_handler);
+	oryx_register_sighandler(SIGTERM, sig_handler);
 
 	oryx_initialize();
 

@@ -22,50 +22,63 @@ struct oryx_file_rw_context_t {
 	oryx_size_t ul_rw_size;	/** Real read or write data size. */
 };
 
-
-int oryx_path_remove (const char *path);
-int oryx_path_exsit (const char *path);
-int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode);
-int oryx_mkdir(const char *path, oryx_dir_t **dir);
-int oryx_file_close (oryx_file_t *fp);
-int oryx_file_read_write (oryx_file_t *fp, 
-			struct oryx_file_rw_context_t *frw_ctx);
-
-char * oryx_fmt_speed (uint64_t , char *, int  , int );
-
-void oryx_register_sighandler(int signal, void (*handler)(int));
-
-int oryx_pattern_generate (char *pattern, size_t l);
-void oryx_l4_port_generate (char *port_src, char *port_dst);
-void oryx_ipaddr_generate (char *ipv4);
-
-int isalldigit(const char *str);
-const char *draw_color(color_t color);
-int kvpair(char *str, char **k, char **v);
-int is_numerical (char* s);
-int do_system(const char *cmd);
-u64 tm_elapsed_us (struct  timeval *start, struct  timeval *end);
-int tm_format(uint64_t ts, const char *tm_form, char *date, size_t len);
-
-void memcpy_tolower (u8 *d, u8 *s, u16 len);
-
-int path_is_absolute(const char *path);
-int path_is_relative(const char *path);
-
-int
-foreach_directory_file (char *dir_name,
+ORYX_DECLARE(
+	int oryx_path_remove (const char *path));
+ORYX_DECLARE(
+	int oryx_path_exsit (const char *path));
+ORYX_DECLARE(
+	int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode));
+ORYX_DECLARE(
+	int oryx_mkdir(const char *path, oryx_dir_t **dir));
+ORYX_DECLARE(
+	int oryx_file_close (oryx_file_t *fp));
+ORYX_DECLARE(
+	int oryx_file_read_write (oryx_file_t *fp, 
+			struct oryx_file_rw_context_t *frw_ctx));
+ORYX_DECLARE(
+	char * oryx_fmt_speed (uint64_t , char *, int , int));
+ORYX_DECLARE(
+	void oryx_register_sighandler(int signal, void (*handler)(int)));
+ORYX_DECLARE(
+	int oryx_pattern_generate (char *pattern, size_t l));
+ORYX_DECLARE(
+	void oryx_l4_port_generate (char *port_src, char *port_dst));
+ORYX_DECLARE(
+	void oryx_ipaddr_generate (char *ipv4));
+ORYX_DECLARE(
+	int isalldigit(const char *str));
+ORYX_DECLARE(
+	const char *draw_color(color_t color));
+ORYX_DECLARE(
+	int kvpair(char *str, char **k, char **v));
+ORYX_DECLARE(
+	int is_numerical (char* s));
+ORYX_DECLARE(
+	int do_system(const char *cmd));
+ORYX_DECLARE(
+	uint64_t tm_elapsed_us (struct  timeval *start, struct  timeval *end));
+ORYX_DECLARE(
+	void fmt_time(uint64_t ts, const char *fmt, char *date, size_t len));
+ORYX_DECLARE(
+	void memcpy_tolower (u8 *d, u8 *s, u16 len));
+ORYX_DECLARE(
+	int path_is_absolute(const char *path));
+ORYX_DECLARE(
+	int path_is_relative(const char *path));
+ORYX_DECLARE(
+	int foreach_directory_file (char *dir_name,
 			int (*f) (void *arg, char * path_name,
 			char * file_name), void *arg,
-			int scan_dirs);
+			int scan_dirs));
 
 #ifndef HAVE_STRLCPY
-size_t
-strlcpy(char *d, const char *s, size_t bufsize);
+ORYX_DECLARE(
+	size_t strlcpy(char *d, const char *s, size_t bufsize));
 #endif
 
 #ifndef HAVE_STRLCAT
-size_t
-strlcat(char *d, const char *s, size_t bufsize);
+ORYX_DECLARE(
+	size_t strlcat(char *d, const char *s, size_t bufsize));
 #endif
 
 #endif

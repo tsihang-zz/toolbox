@@ -115,6 +115,27 @@ and these came close:
 
 #include "htable.h"
 
+ORYX_DECLARE(
+	struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets, 
+		ht_key_t (*hash_fn)(struct oryx_htable_t *, ht_value_t, uint32_t), 
+		int (*cmp_fn)(ht_value_t, uint32_t, ht_value_t, uint32_t), 
+		void (*free_fn)(ht_value_t), uint32_t ht_cfg));
+
+ORYX_DECLARE(
+	void oryx_htable_destroy(struct oryx_htable_t *ht));
+ORYX_DECLARE(
+	void oryx_htable_print(struct oryx_htable_t *ht));
+ORYX_DECLARE(
+	int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
+ORYX_DECLARE(
+	int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
+ORYX_DECLARE(
+	void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
+ORYX_DECLARE(
+	int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
+				void (*handler)(ht_value_t, uint32_t, void *, int),
+				void *opaque, int opaque_size));
+
 
 #endif
 

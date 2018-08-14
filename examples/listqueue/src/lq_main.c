@@ -1,14 +1,14 @@
 #include "oryx.h"
 
 static int quit;
-struct oryx_lq_ctx_t *lq0;
-struct CounterCtx ctx;
-counter_id nr_eq_refcnt_id;
-counter_id nr_dq_refcnt_id;
+static struct oryx_lq_ctx_t *lq0;
+static struct CounterCtx ctx;
+static counter_id nr_eq_refcnt_id;
+static counter_id nr_dq_refcnt_id;
 
 struct lq_element_t {
 	struct lq_element_t *next, *prev;
-	int swap_size;
+	int value;
 };
 
 #define lq_element_size	(sizeof(struct lq_element_t))
@@ -44,6 +44,7 @@ static
 void * enqueue_handler (void __oryx_unused_param__ *r)
 {
 		struct lq_element_t *lqe;
+		static uint32_t sand = 1315423911;
 		
 		FOREVER {
 			if (quit)
@@ -51,7 +52,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 
 			lqe = malloc(sizeof(struct lq_element_t));
 			BUG_ON(lqe == NULL);
-			lqe->swap_size = lq_element_size;
+			lqe->value = next_rand_(&sand);
 			oryx_lq_enqueue(lq0, lqe);
 			oryx_counter_inc(&ctx, nr_eq_refcnt_id);
 		}
@@ -141,6 +142,20 @@ static void lq_runtime(void)
 
 }
 
+static void lq_env_init(void)
+{
+	memset(&ctx, 0, sizeof(struct CounterCtx));
+
+	nr_eq_refcnt_id = oryx_register_counter("enqueue times", "nr_eq_refcnt_id", &ctx);
+	BUG_ON(nr_eq_refcnt_id != 1);
+	nr_dq_refcnt_id = oryx_register_counter("dequeue times", "nr_dq_refcnt_id", &ctx);
+	BUG_ON(nr_dq_refcnt_id != 2);
+	
+	oryx_counter_get_array_range(1, 
+		atomic_read(&ctx.curr_id), &ctx);
+
+}
+
 int main (
         int     __oryx_unused_param__   argc,
         char    __oryx_unused_param__   ** argv
@@ -154,19 +169,10 @@ int main (
 	oryx_register_sighandler(SIGINT, lq_sigint);
 	oryx_register_sighandler(SIGTERM, lq_sigint);
 
-	memset(&ctx, 0, sizeof(struct CounterCtx));
+	lq_env_init();
 
-	nr_eq_refcnt_id = oryx_register_counter("enqueue times", "nr_eq_refcnt_id", &ctx);
-	BUG_ON(nr_eq_refcnt_id != 1);
-	nr_dq_refcnt_id = oryx_register_counter("dequeue times", "nr_dq_refcnt_id", &ctx);
-	BUG_ON(nr_dq_refcnt_id != 2);
-	
-	oryx_counter_get_array_range(1, 
-		atomic_read(&ctx.curr_id), &ctx);
-	
 	/* new queue */
 	oryx_lq_new("A new list queue", lq_cfg, &lq0);
-
 	oryx_lq_dump(lq0);
 	
 	oryx_task_registry(&enqueue);

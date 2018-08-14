@@ -56,8 +56,8 @@ oryx_status_t oryx_initialize(void)
 	ConfInit();
 	oryx_format(&fb, "%s", "ConfInit, ");
 
-	MpmTableSetup();
-	oryx_format(&fb, "%s", "MpmTableSetup");
+	//MpmTableSetup();
+	//oryx_format(&fb, "%s", "MpmTableSetup");
 
 	gettimeofday(&end, NULL);
 

@@ -15,13 +15,13 @@ struct flow_t {
 
 
 static __oryx_always_inline__
-int flow_verify(struct qctx_t *q, void *v)
+int flow_verify(struct oryx_lq_ctx_t *q, void *v)
 {
 	return (((struct flow_t *)v)->fp == ((uint64_t)q));
 }
 
 static __oryx_always_inline__
-int flow_insert(struct qctx_t *q, void *v)
+int flow_insert(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct flow_t *f = (struct flow_t *)v;
 
@@ -45,7 +45,7 @@ int flow_insert(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-int flow_remove(struct qctx_t *q, void *v)
+int flow_remove(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct flow_t *f = (struct flow_t *)v;
 
@@ -71,7 +71,7 @@ int flow_remove(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-void flow_init(struct qctx_t *q, void *v)
+void flow_init(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct flow_t *f = (struct flow_t *)v;
 
@@ -83,7 +83,7 @@ void flow_init(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-void flow_deinit(struct qctx_t *q, void *v)
+void flow_deinit(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct flow_t *f = (struct flow_t *)v;
 	f = f;

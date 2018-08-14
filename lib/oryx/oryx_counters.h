@@ -7,19 +7,14 @@
 
 #define COUNTER_RANGE_START(ctx)	1
 #define COUNTER_RANGE_END(ctx)	(atomic_read(&(ctx)->curr_id))
-void
-oryx_counter_initialize(void);
 
-counter_id
-oryx_register_counter(const char *name,
-							const char *comments, struct CounterCtx *ctx);
-void
-oryx_release_counter(struct CounterCtx *ctx);
+ORYX_DECLARE(void oryx_counter_initialize(void));
 
-int
-oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
-                                      struct CounterCtx *ctx);
-
+ORYX_DECLARE(counter_id oryx_register_counter(const char *name,
+							const char *comments, struct CounterCtx *ctx));
+ORYX_DECLARE(void oryx_release_counter(struct CounterCtx *ctx));
+ORYX_DECLARE(int oryx_counter_get_array_range(counter_id s_id, counter_id e_id,
+                                      struct CounterCtx *ctx));
 /**
 * \brief Get the value of the local copy of the counter that hold this id.
 */

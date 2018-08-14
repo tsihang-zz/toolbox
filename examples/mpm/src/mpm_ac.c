@@ -1,5 +1,5 @@
 #include "oryx.h"
-#include "mpm-ac.h"
+#include "mpm_ac.h"
 
 void ACinitCtx(MpmCtx *);
 void ACInitThreadCtx(MpmCtx *, MpmThreadCtx *);

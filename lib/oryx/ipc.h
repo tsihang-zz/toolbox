@@ -22,30 +22,15 @@
 #define INIT_COND(name)\
     oryx_thread_cond_t name = INIT_COND_VAL;
 
-extern oryx_status_t oryx_thread_mutex_create(oryx_thread_mutex_t **mptr);
-extern oryx_status_t oryx_thread_cond_create(oryx_thread_cond_t **cond);
-extern oryx_status_t oryx_thread_mutex_destroy(oryx_thread_mutex_t *mptr);
-static __oryx_always_inline__
-oryx_status_t oryx_thread_mutex_lock(oryx_thread_mutex_t *mptr) { return thread_region_lock(mptr); }
-static __oryx_always_inline__
-oryx_status_t oryx_thread_mutex_trylock(oryx_thread_mutex_t *mptr) { return thread_region_trylock(mptr); }
-static __oryx_always_inline__
-oryx_status_t oryx_thread_mutex_unlock(oryx_thread_mutex_t *mptr) { return thread_region_unlock(mptr); }
-
-static __oryx_always_inline__
-oryx_status_t oryx_thread_cond_signal(oryx_thread_cond_t *cptr) { return thread_cond_signal(cptr); }
-static __oryx_always_inline__
-oryx_status_t oryx_thread_cond_wait(oryx_thread_cond_t *cptr, oryx_thread_mutex_t *mptr) { return thread_cond_wait(cptr, mptr); }
-
 typedef pthread_mutex_t	os_mutex_t;
 #define do_mutex_init(lock)\
 	pthread_mutex_init(lock, PTHREAD_MUTEX_DEFAULT)
 #define do_mutex_lock(lock)\
-	oryx_thread_mutex_lock(lock)
+	thread_region_lock(lock)
 #define do_mutex_unlock(lock)\
-	oryx_thread_mutex_unlock(lock)
+	thread_region_unlock(lock)
 #define do_mutex_trylock(lock)\
-	oryx_thread_mutex_trylock(lock)
+	thread_region_trylock(lock)
 #define do_mutex_destroy(lock)\
 	pthread_mutex_destroy(lock)
 
@@ -53,11 +38,11 @@ typedef pthread_cond_t	os_cond_t;
 #define do_cond_init(cond)\
 	pthread_cond_init(cond, NULL)
 #define do_cond_signal(cond)\
-	oryx_thread_cond_signal(cond)
+	thread_cond_signal(cond)
 #define do_cond_destroy(cond)\
 	pthread_cond_destroy(cond)
 #define do_cond_wait(cond, m)\
-	pthread_cond_wait
+	thread_cond_wait(cond, m)
 
 /* rwlocks */
 typedef pthread_rwlock_t	os_rwlock_t;

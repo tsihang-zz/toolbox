@@ -68,7 +68,7 @@ oryx_tmr_id tmr_id_alloc(int __oryx_unused_param__ module,
 {
 	BUG_ON (sc_alias == NULL);
 	BUG_ON (s < 1);
-    return hash_data((void *)sc_alias, s);
+    return oryx_js_hash((void *)sc_alias, s);
 }
 
 static __oryx_always_inline__
@@ -100,7 +100,7 @@ void sigtmr_handler(void)
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
     old_ticks = atomic64_inc(&tm->sigtmr_cur_ticks);
-    oryx_thread_mutex_lock(&tm->ol_sigtmr_lock);
+    do_mutex_lock(&tm->ol_sigtmr_lock);
         list_for_each_entry_safe (_this, p, &tm->sigtmr_head, list) {
             if (likely(_this->ul_setting_flags & TMR_OPTIONS_ENABLE)) {
                 if (likely(old_ticks >= _this->curr_ticks)) {
@@ -116,7 +116,7 @@ void sigtmr_handler(void)
                 }
             }
         }
-	oryx_thread_mutex_unlock(&tm->ol_sigtmr_lock);
+	do_mutex_unlock(&tm->ol_sigtmr_lock);
         
 }
 
@@ -137,7 +137,7 @@ void tmr_handler(void)
 	/** update tick. */
 	atomic64_set(&tm->tmr_cur_ticks, now_tick_us);
 	
-	oryx_thread_mutex_lock(&tm->ol_tmr_lock);
+	do_mutex_lock(&tm->ol_tmr_lock);
         list_for_each_entry_safe (_this, p, &tm->tmr_head, list) {
             if (likely(_this->ul_setting_flags & TMR_OPTIONS_ENABLE)) {
 				/** arrival ??? */
@@ -153,7 +153,7 @@ void tmr_handler(void)
                 }
             }
         }
-	oryx_thread_mutex_unlock(&tm->ol_tmr_lock);
+	do_mutex_unlock(&tm->ol_tmr_lock);
         
 }
 
@@ -168,7 +168,7 @@ void realtimer_init(void)
 
 	static struct itimerval tmr;
     
-    signal(SIGALRM, (void *) sigtmr_handler);
+    oryx_register_sighandler(SIGALRM, (void *) sigtmr_handler);
     tmr.it_interval.tv_sec = sec;
     tmr.it_interval.tv_usec = msec * 1000;
     tmr.it_value.tv_sec = sec;
@@ -216,9 +216,9 @@ void oryx_tmr_start (struct oryx_timer_t *tmr)
 	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
 
-    oryx_thread_mutex_lock(lock);
+    do_mutex_lock(lock);
 	tmr_enable(tmr);
-    oryx_thread_mutex_unlock(lock);
+    do_mutex_unlock(lock);
 }
 
 void oryx_tmr_stop (struct oryx_timer_t *tmr)
@@ -230,9 +230,9 @@ void oryx_tmr_stop (struct oryx_timer_t *tmr)
 	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
 
-    oryx_thread_mutex_lock(lock);
+    do_mutex_lock(lock);
 	tmr_disable(tmr);
-    oryx_thread_mutex_unlock(lock);
+    do_mutex_unlock(lock);
 }
 
 void oryx_tmr_destroy (struct oryx_timer_t *tmr)
@@ -244,9 +244,9 @@ void oryx_tmr_destroy (struct oryx_timer_t *tmr)
 	if (tmr->ul_setting_flags  & TMR_OPTIONS_ADVANCED)
 		lock = &tm->ol_tmr_lock;
 
-    oryx_thread_mutex_lock(lock);
+    do_mutex_lock(lock);
 	tmr_delete(tmr);
-    oryx_thread_mutex_unlock(lock);
+    do_mutex_unlock(lock);
 }
 
 oryx_status_t oryx_tmr_initialize(void) 
@@ -292,13 +292,13 @@ struct oryx_timer_t *oryx_tmr_create (int module,
 	}
 	
 	/** lookup advanced timer list. */
-	oryx_thread_mutex_lock(lock);
+	do_mutex_lock(lock);
     list_for_each_entry_safe (_this, p, h, list){
         if(likely(!strcmp(sc_alias, _this->sc_alias)) &&
 			(module == _this->module)){
             fprintf (stdout,  
                 "The same timer (%s, %d)\n", _this->sc_alias, _this->tmr_id);
-			oryx_thread_mutex_unlock(lock);
+			do_mutex_unlock(lock);
             goto finish;
         }
     }
@@ -316,7 +316,7 @@ struct oryx_timer_t *oryx_tmr_create (int module,
     _this->ul_setting_flags = (ul_setting_flags | TMR_CAN_BE_RECYCLABLE);
 
     list_add_tail(&_this->list, h);
-	oryx_thread_mutex_unlock(lock);
+	do_mutex_unlock(lock);
 
 finish:    
     return _this;

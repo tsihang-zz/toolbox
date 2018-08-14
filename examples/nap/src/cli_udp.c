@@ -183,7 +183,7 @@ static void udp_entry_output (struct udp_t *udp, struct vty *vty)
 		return;
 	}
 	
-	tm_format (udp->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (udp->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Udp ", udp->sc_alias, udp->ul_id, tmstr, VTY_NEWLINE);
 
 	u8 qua;

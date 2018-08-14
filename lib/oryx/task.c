@@ -40,10 +40,10 @@ static void task_deregistry (struct oryx_task_t *task)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	oryx_thread_mutex_lock(&tm->lock);
+	do_mutex_lock(&tm->lock);
 	list_del(&task->list);	
 	tm->ul_count --;
-	oryx_thread_mutex_unlock(&tm->lock);
+	do_mutex_unlock(&tm->lock);
 
 	if(task->ul_flags & TASK_CAN_BE_RECYCLABLE)
 		kfree(task);
@@ -53,10 +53,10 @@ static void task_registry (struct oryx_task_t *task)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	oryx_thread_mutex_lock(&tm->lock);
+	do_mutex_lock(&tm->lock);
 	list_add_tail(&task->list, &tm->head);	
 	tm->ul_count ++;
-	oryx_thread_mutex_unlock(&tm->lock);
+	do_mutex_unlock(&tm->lock);
 }
 
 static struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
@@ -64,14 +64,14 @@ static struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	oryx_thread_mutex_lock(&tm->lock);
+	do_mutex_lock(&tm->lock);
 	list_for_each_entry_safe(task, p, &tm->head, list){
 		if (pid == task->pid){
-			oryx_thread_mutex_lock(&tm->lock);
+			do_mutex_lock(&tm->lock);
 			return task;
 		}
 	}
-	oryx_thread_mutex_unlock(&tm->lock);
+	do_mutex_unlock(&tm->lock);
 	return NULL;
 }
 
@@ -80,14 +80,14 @@ static struct oryx_task_t  *oryx_task_query_alias (char *sc_alias)
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	oryx_thread_mutex_lock(&tm->lock);
+	do_mutex_lock(&tm->lock);
 	list_for_each_entry_safe(task, p, &tm->head, list){
 		if (!strcmp(sc_alias, task->sc_alias)){
-			oryx_thread_mutex_lock(&tm->lock);
+			do_mutex_lock(&tm->lock);
 			return task;
 		}
 	}
-	oryx_thread_mutex_unlock(&tm->lock);
+	do_mutex_unlock(&tm->lock);
 	return NULL;
 }
 
@@ -237,7 +237,7 @@ void oryx_task_launch(void)
 	fprintf (stdout, "%10s%32s%16s%20s%20s\n", " ", "Alias", "TaskID", "CoreMask", "StartTime");
 	list_for_each_entry_safe(t, p, &tm->head, list) {
 		char tmstr[100];
-		tm_format (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+		fmt_time (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 		fprintf (stdout, "%10s%32s%16lX%20lX%20s\n", " ", t->sc_alias, t->pid, t->lcore_mask, tmstr);
 	}
 

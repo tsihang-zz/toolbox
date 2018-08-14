@@ -179,7 +179,7 @@ void oryx_md5_init(oryx_md5_ctxt *ctxt)
 	memset (ctxt->md5_buf, 0, sizeof(ctxt->md5_buf));
 }
 
-void oryx_md5_loop(oryx_md5_ctxt *ctxt, const void *vinput, uint len)
+void oryx_md5_loop(oryx_md5_ctxt *ctxt, const void *vinput, uint32_t len)
 {
 	uint gap, i;
 	const uint8_t *input = vinput;

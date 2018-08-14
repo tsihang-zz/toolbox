@@ -1,20 +1,14 @@
 
 #include "oryx.h"
 
-static __oryx_always_inline__
-oryx_status_t func_lock (os_mutex_t *lock)
-{
-	lock = lock;
-	return 0;
-}
+#define HTABLE_LOCK(ht)\
+	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
+		do_mutex_lock((ht)->os_lock);
 
-static __oryx_always_inline__
-oryx_status_t func_unlock (os_mutex_t *lock)
-{
-	lock = lock;
-	return 0;
-}
-
+#define HTABLE_UNLOCK(ht)\
+	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
+		do_mutex_unlock((ht)->os_lock);
+	
 static __oryx_always_inline__
 void func_free (const ht_value_t v)
 {
@@ -78,7 +72,7 @@ void oryx_htable_print(struct oryx_htable_t *ht)
 struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets, 
 	ht_key_t (*hash_fn)(struct oryx_htable_t *, void *, uint32_t), 
 	int (*cmp_fn)(void *, uint32_t, void *, uint32_t), 
-	void (*free_fn)(void *), uint32_t flags) 
+	void (*free_fn)(void *), uint32_t ht_cfg) 
 {
 	struct oryx_htable_t *ht = NULL;
 
@@ -90,19 +84,14 @@ struct oryx_htable_t* oryx_htable_init (uint32_t max_buckets,
 	/* kmalloc.MPF_CLR means that the memory block pointed by its return 
 	 * has been CLEARED.
 	 */
-	ht->ht_lock_fn		= func_lock;
-	ht->ht_unlock_fn	= func_unlock;
 	ht->hash_fn			= hash_fn ? hash_fn : func_hash;
 	ht->cmp_fn			= cmp_fn ? cmp_fn : func_cmp;
 	ht->free_fn			= free_fn ? free_fn : func_free;
-	ht->ul_flags		= flags;
+	ht->ul_flags		= ht_cfg;
 	ht->array_size		= max_buckets;
 
 	if (ht->ul_flags & HTABLE_SYNCHRONIZED) {
 		oryx_thread_mutex_create (&ht->os_lock);
-		/** Overwrite. */
-		ht->ht_lock_fn		= oryx_thread_mutex_lock;
-		ht->ht_unlock_fn	= oryx_thread_mutex_unlock;
 	}
 
 	/** setup the bitarray */
@@ -127,7 +116,7 @@ void oryx_htable_destroy(struct oryx_htable_t *ht)
 
 	BUG_ON(ht == NULL);
 
-	ht->ht_lock_fn(ht->os_lock);
+	HTABLE_LOCK(ht);
 	
     /* free the buckets */
     for (i = 0; i < ht->array_size; i++) {
@@ -145,7 +134,7 @@ void oryx_htable_destroy(struct oryx_htable_t *ht)
 	if (ht->array != NULL)
         kfree(ht->array);
 
-	ht->ht_unlock_fn(ht->os_lock);
+	HTABLE_UNLOCK(ht);
 
 	oryx_thread_mutex_destroy(ht->os_lock);
 	
@@ -169,7 +158,7 @@ int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
     hb->next		= NULL;
 	hb->ul_d_size	= datalen;
     
-	ht->ht_lock_fn(ht->os_lock);
+	HTABLE_LOCK(ht);
 	
     if (ht->array[hash] == NULL) {
         ht->array[hash] = hb;
@@ -179,7 +168,7 @@ int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
     }
     ht->active_count++;
 
-	ht->ht_unlock_fn(ht->os_lock);
+	HTABLE_UNLOCK(ht);
 
 #ifdef ORYX_HASH_DEBUG
 	fprintf (stdout, "add %s, %p\n", (char *)hb->data, hb->data);
@@ -194,10 +183,10 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 	
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
-	ht->ht_lock_fn(ht->os_lock);
+	HTABLE_LOCK(ht);
 
     if (ht->array[hash] == NULL) {
-		ht->ht_unlock_fn(ht->os_lock);
+		HTABLE_UNLOCK(ht);
 		return -1;
     }
 	
@@ -207,7 +196,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
         kfree(ht->array[hash]);
         ht->array[hash] = NULL;
 		ht->active_count --;
-		ht->ht_unlock_fn(ht->os_lock);
+		HTABLE_UNLOCK(ht);
         return 0;
     }
 
@@ -227,7 +216,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
                 ht->free_fn(hb->data);
             kfree(hb);
 	     	ht->active_count --;
-			ht->ht_unlock_fn(ht->os_lock);
+			HTABLE_UNLOCK(ht);
             return 0;
         }
 
@@ -235,7 +224,7 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
         hb = hb->next;
     } while (hb != NULL);
 
-	ht->ht_unlock_fn(ht->os_lock);
+	HTABLE_UNLOCK(ht);
 
     return -1;
 }
@@ -246,10 +235,10 @@ void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32
 
     ht_key_t hash = ht->hash_fn(ht, data, datalen);
 
-	ht->ht_lock_fn(ht->os_lock);
+	HTABLE_LOCK(ht);
 
     if (ht->array[hash] == NULL) {
-		ht->ht_unlock_fn(ht->os_lock);
+		HTABLE_UNLOCK(ht);
         return NULL;
     }
 
@@ -257,14 +246,14 @@ void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32
     do {
 		/** fprintf (stdout, "%s. %s\n", (char *)data, (char *)hashbucket->data); */
         if (ht->cmp_fn(hb->data, hb->ul_d_size, data, datalen) == 0) {
-			ht->ht_unlock_fn(ht->os_lock);
+			HTABLE_UNLOCK(ht);
             return hb->data;
         }
 
         hb = hb->next;
     } while (hb != NULL);
 
-	ht->ht_unlock_fn(ht->os_lock);
+	HTABLE_UNLOCK(ht);
 	
     return NULL;
 }
@@ -282,7 +271,7 @@ int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
 	if(handler == NULL)
 		return 0;
 	
-	ht->ht_lock_fn(ht->os_lock);
+	HTABLE_LOCK(ht);
 	
 	for (i = 0; i < htable_active_slots(ht); i ++) {
 		hb = ht->array[i];
@@ -294,7 +283,7 @@ int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
 		} while (hb != NULL);
 	}
 	
-	ht->ht_unlock_fn(ht->os_lock);
+	HTABLE_UNLOCK(ht);
 	return refcount;
 }
 

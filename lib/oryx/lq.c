@@ -1,24 +1,26 @@
 #include "oryx.h"
 
 static void
-_wakeup (struct oryx_lq_ctx_t *lq)
-{	
+_wakeup (void *lq)
+{
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "wakeup...\n");
-	do_mutex_lock (&lq->cond_lock);
-	oryx_thread_cond_signal(&lq->cond);
-	do_mutex_unlock (&lq->cond_lock);
+	do_mutex_lock (&q->cond_lock);
+	do_cond_signal(&q->cond);
+	do_mutex_unlock (&q->cond_lock);
 }
 
 static void
-_hangup (struct oryx_lq_ctx_t *lq)
+_hangup (void *lq)
 {
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "Trying hangup %d...\n", lq_blocked_len(lq));
-	if (lq_blocked_len(lq) == 0) {
+	if (lq_blocked_len(q) == 0) {
 		{
 			//fprintf (stdout, "hangup ...\n");
-			do_mutex_lock (&lq->cond_lock);
-			oryx_thread_cond_wait(&lq->cond, &lq->cond_lock);		
-			do_mutex_unlock (&lq->cond_lock);
+			do_mutex_lock (&q->cond_lock);
+			do_cond_wait(&q->cond, &q->cond_lock);		
+			do_mutex_unlock (&q->cond_lock);
 		}
 	}
 }
@@ -54,7 +56,7 @@ list_queue_init (const char *fq_name,	uint32_t fq_cfg, struct oryx_lq_ctx_t *lq)
  *  \param lq, the q
  */
 __oryx_always_extern__
-int oryx_lq_new (const char *fq_name, uint32_t fq_cfg, struct oryx_lq_ctx_t ** lq)
+int oryx_lq_new (const char *fq_name, uint32_t fq_cfg, void ** lq)
 {
     struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)malloc(sizeof(struct oryx_lq_ctx_t));
     if (q == NULL)
@@ -71,9 +73,10 @@ int oryx_lq_new (const char *fq_name, uint32_t fq_cfg, struct oryx_lq_ctx_t ** l
  *  \param q the queue to destroy
  */
  __oryx_always_extern__
-void oryx_lq_destroy (struct oryx_lq_ctx_t * lq)
+void oryx_lq_destroy (void * lq)
 {
-	FQLOCK_DESTROY(lq);
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
+	FQLOCK_DESTROY(q);
 }
 
 /**
@@ -82,10 +85,11 @@ void oryx_lq_destroy (struct oryx_lq_ctx_t * lq)
  *  \param q the queue to display
  */
 __oryx_always_extern__
-void oryx_lq_dump(struct oryx_lq_ctx_t *lq)
-{
-	fprintf (stdout, "%16s%32s\n", "qname: ",	lq->name);
-	fprintf (stdout, "%16s%32d\n", "qlen: ",	lq->len);
-	fprintf (stdout, "%16s%32d\n", "qcfg: ",	lq->ul_flags);
+void oryx_lq_dump(void *lq)
+{	
+	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
+	fprintf (stdout, "%16s%32s(%p)\n", "qname: ",	q->name, q);
+	fprintf (stdout, "%16s%32d\n", "qlen: ",	q->len);
+	fprintf (stdout, "%16s%32d\n", "qcfg: ",	q->ul_flags);
 }
 

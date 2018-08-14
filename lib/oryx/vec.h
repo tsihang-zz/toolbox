@@ -46,23 +46,6 @@ typedef struct _oryx_vector *oryx_vector;
  */
 #define vec_active(V) ((V)->active)
 
-/* Prototypes. */
-extern oryx_vector vec_init (unsigned int size);
-extern int vec_empty_slot (oryx_vector v);
-extern int vec_set (oryx_vector v, void *val);
-extern int vec_set_index (oryx_vector v, unsigned int i, void *val);
-extern void vec_unset (oryx_vector v, unsigned int i);
-extern void vec_only_wrapper_free (oryx_vector v);
-extern void vec_only_index_free (void *index);
-extern void vec_free (oryx_vector v);
-extern oryx_vector vec_copy (oryx_vector v);
-void *vec_first (oryx_vector v);
-void *vec_last (oryx_vector v);
-void
-vec_ensure (oryx_vector v, unsigned int num);
-void *
-vec_lookup_ensure (oryx_vector v, unsigned int i);
-
 #if defined(BUILD_DEBUG)
 /* Look up oryx_vector.  */
 static __oryx_always_inline__

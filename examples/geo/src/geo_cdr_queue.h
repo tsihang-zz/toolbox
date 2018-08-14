@@ -14,13 +14,13 @@ struct geo_cdr_qelem_t {
 
 
 static __oryx_always_inline__
-int cdr_qelem_verify(struct qctx_t *q, void *v)
+int cdr_qelem_verify(struct oryx_lq_ctx_t *q, void *v)
 {
 	return (((struct geo_cdr_qelem_t *)v)->fp == ((uint64_t)q));
 }
 
 static __oryx_always_inline__
-int cdr_qelem_insert(struct qctx_t *q, void *v)
+int cdr_qelem_insert(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct geo_cdr_qelem_t *f = (struct geo_cdr_qelem_t *)v;
 
@@ -44,7 +44,7 @@ int cdr_qelem_insert(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-int cdr_qelem_remove(struct qctx_t *q, void *v)
+int cdr_qelem_remove(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct geo_cdr_qelem_t *f = (struct geo_cdr_qelem_t *)v;
 
@@ -70,7 +70,7 @@ int cdr_qelem_remove(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-void cdr_qelem_init(struct qctx_t *q, void *v)
+void cdr_qelem_init(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct geo_cdr_qelem_t *f = (struct geo_cdr_qelem_t *)v;
 
@@ -81,7 +81,7 @@ void cdr_qelem_init(struct qctx_t *q, void *v)
 }
 
 static __oryx_always_inline__
-void cdr_qelem_deinit(struct qctx_t *q, void *v)
+void cdr_qelem_deinit(struct oryx_lq_ctx_t *q, void *v)
 {
 	struct geo_cdr_qelem_t *f = (struct geo_cdr_qelem_t *)v;
 	f = f;

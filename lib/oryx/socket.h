@@ -21,15 +21,15 @@ union oryx_sockunion   {
 #define sockunion_family(X)  ((X)->sa.sa_family)
 #define sockunion2ip(X)      ((X)->sin.sin_addr.s_addr)
 
-extern int oryx_sock_bind (
+ORYX_DECLARE(int oryx_sock_bind (
 		int sock,
 		union oryx_sockunion *su,
 		unsigned short port, 
-		union oryx_sockunion *su_addr);
-extern int oryx_sock_connect (
+		union oryx_sockunion *su_addr));
+ORYX_DECLARE(int oryx_sock_connect (
 				int fd,
 				const union oryx_sockunion *peersu,
-				unsigned short port);
+				unsigned short port));
 
 #define	BUF_LENGTH	1024
 

@@ -43,7 +43,9 @@ $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
 
-DIRS-y += oryx src
+oryx=../../lib/oryx
+
+DIRS-y += ../../lib/oryx src
 endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk

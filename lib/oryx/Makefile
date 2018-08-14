@@ -50,9 +50,9 @@ LIBABIVER := 1
 
 # all source are stored in SRC-Y
 SRCS-y :=\
-   cluster.c counter.c debug.c format.c fop.c mpm-hs.c rbtree.c ipc.c lq.c \
+   cluster.c counter.c debug.c format.c fop.c rbtree.c ipc.c lq.c \
    memcache.c oryx.c error.c atomic.c netdev_pcap.c ring.c mpool.c parser.c task.c htable.c memory.c \
-   socket.c socket6.c mdx.c netdev.c netdev_pfring.c mpm-ac.c mpm.c lru.c list.c tmr.c vec.c conf.c \
+   socket.c socket6.c mdx.c netdev.c netdev_pfring.c lru.c list.c tmr.c vec.c conf.c \
    conf-yaml-loader.c
 
 
@@ -68,11 +68,5 @@ CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_ORYX)
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
 
-
-ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
-ifeq ($(CONFIG_RTE_LIBRTE_IXGBE_PMD),y)
-LDLIBS += -lrte_pmd_ixgbe
-endif
-endif
 
 include $(RTE_SDK)/mk/rte.extlib.mk

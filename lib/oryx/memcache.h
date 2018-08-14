@@ -13,10 +13,18 @@ struct oryx_kmcache_t {
 	void (*ctor)(void *);
 };
 
-extern struct oryx_kmcache_t *oryx_kc_create(const char *name, size_t size, size_t offset,
-	unsigned long flags, void (*ctor)(void *));
-extern void oryx_kc_free(struct oryx_kmcache_t *cachep, void *objp);
-extern void *oryx_kc_alloc(struct oryx_kmcache_t *cachep);
-extern unsigned int oryx_kc_size (struct oryx_kmcache_t *s);
+ORYX_DECLARE(
+	struct oryx_kmcache_t *oryx_kc_create(const char *name, size_t size, size_t offset,
+							unsigned long flags, void (*ctor)(void *))
+);
+ORYX_DECLARE(
+	void oryx_kc_free(struct oryx_kmcache_t *cachep, void *objp)
+);
+ORYX_DECLARE(
+	void *oryx_kc_alloc(struct oryx_kmcache_t *cachep)
+);
+ORYX_DECLARE(
+	unsigned int oryx_kc_size (struct oryx_kmcache_t *s)
+);
 
 #endif

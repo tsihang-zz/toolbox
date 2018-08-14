@@ -2,9 +2,9 @@
 #include "cv_hash.h"
 
 /** Hash function. */
-uint32_t hash_algo (char *instr, size_t s)
+uint32_t hash_algo (const char *instr, size_t s)
 {
-	return hash_data (instr, s);
+	return oryx_js_hash (instr, s);
 }
 
 

@@ -26,17 +26,26 @@ typedef struct {
 	uint8_t	md5_buf[ORYX_MD5_BUFLEN];
 } oryx_md5_ctxt;
 
-extern void oryx_md5_init (oryx_md5_ctxt *);
-extern void oryx_md5_loop (oryx_md5_ctxt *, const void *, u_int);
-extern void oryx_md5_pad (oryx_md5_ctxt *);
-extern void oryx_md5_result (uint8_t *, oryx_md5_ctxt *);
-extern void oryx_hmac_md5(
+ORYX_DECLARE(
+	void oryx_md5_init (oryx_md5_ctxt *)
+);
+ORYX_DECLARE(
+	void oryx_md5_loop (oryx_md5_ctxt *, const void *, uint32_t)
+);
+ORYX_DECLARE(
+	void oryx_md5_pad (oryx_md5_ctxt *)
+);
+ORYX_DECLARE(
+	void oryx_md5_result (uint8_t *, oryx_md5_ctxt *)
+);
+ORYX_DECLARE(
+	void oryx_hmac_md5(
 			unsigned char*  text,			/* pointer to data stream */
 			int             text_len,		/* length of data stream */
 			unsigned char*  key,			/* pointer to authentication key */
 			int             key_len,		/* length of authentication key */
 			uint8_t *       digest			/* caller digest to be filled in */
-);
+));
 
 /* compatibility */
 #define MD5_CTX		oryx_md5_ctxt

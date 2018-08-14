@@ -1,5 +1,4 @@
 #include "oryx.h"
-#include "ring.h"
 
 #define DEAFULT_RING_ELEMENTS	4096
 
