@@ -52,3 +52,10 @@ clean:
 	@rm -fr src/$(RTE_TARGET)
 	@rm -fr oryx/$(RTE_TARGET)
 	@rm -fr quagga/$(RTE_TARGET)
+
+install:
+	@rm -fr release
+	@mkdir release
+	@cp src/$(RTE_TARGET)/napd release
+	@cp script/* release
+

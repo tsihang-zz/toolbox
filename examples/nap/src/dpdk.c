@@ -80,17 +80,13 @@ dpdk_eal_args_2string(vlib_main_t *vm, char *format_buffer) {
 	}
 }
 
-/**
- * ./build/APP -c f -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)"
- */
 void dpdk_format_eal_args (vlib_main_t *vm)
 {
 	int i;
 	dpdk_config_main_t *conf = dpdk_main.conf;
 	char argv_buf[128] = {0};
 	const char *socket_mem = "256";
-	const char *file_prefix = "et1500";
-	const char *prgname = "et1500";
+	const char *prgname = "napd";
 	
 	/** ARGS: < APPNAME >  */
 	memset(argv_buf, 0, 128);
@@ -119,10 +115,10 @@ void dpdk_format_eal_args (vlib_main_t *vm)
 	dpdk_eal_args_format(vm, argv_buf);
 
 	/** ARGS: < -q $QUEUE_PER_LOCRE > */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--config=\"%s\"",
-		"(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)");
-	dpdk_eal_args_format(vm, argv_buf);
+	//memset(argv_buf, 0, 128);
+	//sprintf (argv_buf, "--config=\"%s\"",
+	//	"(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)");
+	//dpdk_eal_args_format(vm, argv_buf);
 
 	char eal_args_format_buffer[1024] = {0};
 	dpdk_eal_args_2string(vm, eal_args_format_buffer);

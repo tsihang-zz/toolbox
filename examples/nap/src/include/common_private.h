@@ -115,7 +115,7 @@ void unlock_lcores(vlib_main_t *vm)
 }
 
 
-#define CONFIG_PATH	"conf"
+#define CONFIG_PATH	"/usr/local/etc/nap"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
 #define PORT_START_ID	(1)
 #define	SW_CPU_XAUI_PORT_ID	(0)
