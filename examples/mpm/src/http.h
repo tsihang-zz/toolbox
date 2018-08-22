@@ -9,6 +9,10 @@
 #define LF '\n'
 #endif
 
+#ifndef SP
+#define SP ' '
+#endif
+
 #define HTTP_PROTOCOL_0_9             9		/* HTTP/0.9 */
 #define HTTP_PROTOCOL_1_0             100	/* HTTP/1.0 */
 #define HTTP_PROTOCOL_1_1             101	/* HTTP/1.1 */
@@ -45,24 +49,27 @@ enum http_method_t {
     HTTP_METHOD_MKACTIVITY = 25,
     HTTP_METHOD_BASELINE_CONTROL = 26,
     HTTP_METHOD_MERGE = 27,
-    HTTP_METHOD_INVALID = 28
+    HTTP_METHOD_RESPONSE = 28,
+    HTTP_METHOD_INVALID = 29
 
 };
 
 #define	HTTP_APPEAR_CONTENT_TYPE	(1 << 0)
 #define HTTP_APPEAR_USER_AGENT		(1 << 1)
 #define HTTP_APPEAR_HOST			(1 << 2)
+#define HTTP_APPEAR_URI				(1 << 3)
 
 struct http_keyval_t {
 	char	val[1024];
 	size_t	valen;
 };
 
-struct http_hdr_t {
+struct http_ctx_t {
 
 	size_t size;
 	
 	uint8_t method;
+	
 	struct http_keyval_t uri;
 	struct http_keyval_t host;
 	struct http_keyval_t ua;
@@ -72,15 +79,37 @@ struct http_hdr_t {
 };
 
 static __oryx_always_inline__
-void __parse_content_type(struct http_hdr_t *h, const char *buf, size_t buflen, size_t off, size_t *pos)
+void __parse_uri(struct http_ctx_t *ctx, const char *buf, size_t buflen, size_t off, size_t *pos)
+{
+	
+	struct http_keyval_t *kv = &ctx->uri;
+	kv->valen = 0;
+
+	(*pos) += off;
+	
+	while ((*pos) < (buflen - off)) {
+		/* an example of get method like below.
+		 * GET /vod/115/945/4ac58e3/bc312960_4588 HTTP/1.1\r\n */
+		if(buf[(*pos)] == SP) {
+			ctx->ul_flags |= HTTP_APPEAR_URI;
+			return;
+		}
+		kv->val[kv->valen ++] =  buf[(*pos)];
+		(*pos) ++;
+	}
+
+}
+
+static __oryx_always_inline__
+void __parse_content_type(struct http_ctx_t *ctx, const char *buf, size_t buflen, size_t off, size_t *pos)
 {
 	struct http_keyval_t *kv;
 
 	/* to Content Type */
-	kv = &h->ct;
+	kv = &ctx->ct;
 	kv->valen = 0;
 
-	h->ul_flags |= HTTP_APPEAR_CONTENT_TYPE;
+	ctx->ul_flags |= HTTP_APPEAR_CONTENT_TYPE;
 
 	(*pos) += off;
 	while ((*pos) < buflen) {
@@ -93,15 +122,15 @@ void __parse_content_type(struct http_hdr_t *h, const char *buf, size_t buflen, 
 }
 
 static __oryx_always_inline__
-void __parse_user_agent(struct http_hdr_t *h, const char *buf, size_t buflen, size_t off, size_t *pos)
+void __parse_user_agent(struct http_ctx_t *ctx, const char *buf, size_t buflen, size_t off, size_t *pos)
 {
 	struct http_keyval_t *kv;
 
 	/* to User Agent */
-	kv = &h->ua;
+	kv = &ctx->ua;
 	kv->valen = 0;
 
-	h->ul_flags |= HTTP_APPEAR_USER_AGENT;
+	ctx->ul_flags |= HTTP_APPEAR_USER_AGENT;
 
 	(*pos) += off;
 	while ((*pos) < buflen) {
@@ -114,15 +143,15 @@ void __parse_user_agent(struct http_hdr_t *h, const char *buf, size_t buflen, si
 }
 
 static __oryx_always_inline__
-void __parse_host(struct http_hdr_t *h, const char *buf, size_t buflen, size_t off, size_t *pos)
+void __parse_host(struct http_ctx_t *ctx, const char *buf, size_t buflen, size_t off, size_t *pos)
 {
 	struct http_keyval_t *kv;
 
 	/* to Host */
-	kv = &h->host;
+	kv = &ctx->host;
 	kv->valen = 0;
 
-	h->ul_flags |= HTTP_APPEAR_HOST;
+	ctx->ul_flags |= HTTP_APPEAR_HOST;
 
 	(*pos) += off;
 	while ((*pos) < buflen) {
@@ -134,20 +163,95 @@ void __parse_host(struct http_hdr_t *h, const char *buf, size_t buflen, size_t o
 	}
 }
 
+#define METHOD_KEYWORD_GET		"GET "
+#define METHOD_KEYWORD_POST		"POST "
+#define METHOD_KEYWORD_RESPONSE	"HTTP"
+
 static __oryx_always_inline__
-int __is_wanted_http(const char *buf, size_t buflen, uint8_t *method)
+int __is_wanted_http(struct http_ctx_t *ctx, const char *buf, size_t buflen)
 {
-	(*method) = HTTP_METHOD_UNKNOWN;
+	ctx->method = HTTP_METHOD_UNKNOWN;
 	
 	/** only compare first n bytes with http method.
 	 *  this may be not very accurate, but it is efficient for most part of frames. */
-	if (strncmp(buf, "GET ", 4) == 0) {
-		(*method) = HTTP_METHOD_GET;
-	} else if (strncmp (buf, "POST ", 5) == 0) {
-		(*method) = HTTP_METHOD_POST;
+	if (strncmp(buf, METHOD_KEYWORD_GET, 4) == 0) {
+		ctx->method = HTTP_METHOD_GET;
+	} else if (strncmp (buf, METHOD_KEYWORD_RESPONSE, 4) == 0) {
+		/* A http response from server. */
+		ctx->method = HTTP_METHOD_RESPONSE;
+	} 
+
+	return (ctx->method != HTTP_METHOD_UNCHECKOUT);
+}
+static __oryx_always_inline__
+void __http_kv_dump(const char *prefix, struct http_keyval_t *kv)
+{
+	int valen = kv->valen;
+
+	fprintf (stdout, "%16s:", prefix);
+	while (valen) {
+		fprintf (stdout, "%c", kv->val[kv->valen - valen]);
+		 valen --;
+	}
+	fprintf (stdout, "%s", "\n");
+}
+
+static __oryx_always_inline__
+int http_parse(struct http_ctx_t *ctx, const char *buf, size_t buflen)
+{
+	size_t pos = 0;
+	size_t pos0 = 0;
+
+	if (!__is_wanted_http (ctx, buf, buflen)) {
+		return -1;
 	}
 
-	return ((*method) != HTTP_METHOD_UNKNOWN);
+	if (ctx->method == HTTP_METHOD_GET) {
+		/* only http GET method has URI. */
+		__parse_uri(ctx, buf, buflen, 4, &pos0);
+
+	} else {
+		/* back to the start */
+		while (pos ++ < buflen) {
+			if (buf[pos] == CR) {
+				pos0 = pos + 1;
+				if (buf[pos0] == LF) {
+					pos0 += 1;
+					if (strncmp ((const char *)&buf[pos0], "Content-Type: ", 14) == 0) {
+						__parse_content_type(ctx, buf, buflen, 14, &pos0);
+						break;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+static __oryx_always_inline__
+void http_dump(struct http_ctx_t *ctx, const char *buf, size_t buflen)
+{
+	struct http_keyval_t *v;
+
+	if(ctx->ul_flags & HTTP_APPEAR_CONTENT_TYPE) {
+		v = &ctx->ct;
+		__http_kv_dump("Content-Type", v);
+	}
+	if(ctx->ul_flags & HTTP_APPEAR_URI) {
+		v = &ctx->uri;
+		__http_kv_dump("URI", v);
+	}
+#if 0
+	if(ctx->ul_flags & HTTP_APPEAR_USER_AGENT) {
+		v = &ctx->ua;
+		fprintf (stdout, "User-Agent: %s (%lu)\n", &v->val[0], v->valen);
+	}
+	
+	if(ctx->ul_flags & HTTP_APPEAR_HOST) {
+		v = &ctx->host;
+		fprintf (stdout, "Host: %s (%lu)\n", &v->val[0], v->valen);
+	}
+#endif
 }
 
 #endif

@@ -156,10 +156,10 @@ typedef struct MpmCtxFactoryContainer_ {
 
 typedef struct MpmTableElmt_ {
     const char *name;
-    void (*InitCtx)(struct MpmCtx_ *);
-    void (*InitThreadCtx)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
-    void (*DestroyCtx)(struct MpmCtx_ *);
-    void (*DestroyThreadCtx)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
+    void (*ctx_init)(struct MpmCtx_ *);
+    void (*threadctx_init)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
+    void (*ctx_destroy)(struct MpmCtx_ *);
+    void (*threadctx_destroy)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
 
     /** function pointers for adding patterns to the mpm ctx.
      *
@@ -172,64 +172,18 @@ typedef struct MpmTableElmt_ {
      *  \param sid signature _internal_ id
      *  \param flags pattern flags
      */
-    int  (*AddPattern)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
-    int  (*AddPatternNocase)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
-    int  (*Prepare)(struct MpmCtx_ *);
-    uint32_t (*Search)(struct MpmCtx_ *, struct MpmThreadCtx_ *, PrefilterRuleStore *, const uint8_t *, uint16_t);
+    int  (*pat_add)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
+    int  (*pat_add_nocase)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
+    int  (*pat_prepare)(struct MpmCtx_ *);
+    uint32_t (*pat_search)(struct MpmCtx_ *, struct MpmThreadCtx_ *, PrefilterRuleStore *, const uint8_t *, uint16_t);
     void (*Cleanup)(struct MpmThreadCtx_ *);
-    void (*PrintCtx)(struct MpmCtx_ *);
-    void (*PrintThreadCtx)(struct MpmThreadCtx_ *);
-    void (*RegisterUnittests)(void);
+    void (*ctx_print)(struct MpmCtx_ *);
+    void (*threadctx_print)(struct MpmThreadCtx_ *);
     uint8_t flags;
 } MpmTableElmt;
 
 extern MpmTableElmt mpm_table[];
 extern int mpm_default_matcher;
-
-/* macros decides if cuda is enabled for the platform or not */
-#ifdef __SC_CUDA_SUPPORT__
-
-/* the min size limit of a payload(or any other data) to be buffered */
-#define UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MIN_LIMIT_DEFAULT 0
-/* the max size limit of a payload(or any other data) to be buffered */
-#define UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MAX_LIMIT_DEFAULT 1500
-/* Default value for data buffer used by cuda mpm engine for CudaBuffer reg */
-#define UTIL_MPM_CUDA_CUDA_BUFFER_DBUFFER_SIZE_DEFAULT 500 * 1024 * 1024
-/* Default value for the max data chunk that would be sent to gpu */
-#define UTIL_MPM_CUDA_GPU_TRANSFER_SIZE 50 * 1024 * 1024
-/* Default value for offset/pointer buffer to be used by cuda mpm
- * engine for CudaBuffer reg */
-#define UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT 500000
-#define UTIL_MPM_CUDA_BATCHING_TIMEOUT_DEFAULT 2000
-#define UTIL_MPM_CUDA_CUDA_STREAMS_DEFAULT 2
-#define UTIL_MPM_CUDA_DEVICE_ID_DEFAULT 0
-
-/**
- * \brief Cuda configuration for "mpm" profile.  We can further extend this
- *        to have conf for specific mpms.  For now its common for all mpms.
- */
-typedef struct MpmCudaConf_ {
-    uint16_t data_buffer_size_min_limit;
-    uint16_t data_buffer_size_max_limit;
-    uint32_t cb_buffer_size;
-    uint32_t gpu_transfer_size;
-    int batching_timeout;
-    int device_id;
-    int cuda_streams;
-} MpmCudaConf;
-
-void MpmCudaEnvironmentSetup();
-
-#endif /* __SC_CUDA_SUPPORT__ */
-
-#if 0
-struct DetectEngineCtx_;
-int32_t MpmFactoryRegisterMpmCtxProfile(struct DetectEngineCtx_ *, const char *);
-void MpmFactoryReClaimMpmCtx(const struct DetectEngineCtx_ *, MpmCtx *);
-MpmCtx *MpmFactoryGetMpmCtxForProfile(const struct DetectEngineCtx_ *, int32_t, int);
-void MpmFactoryDeRegisterAllMpmCtxProfiles(struct DetectEngineCtx_ *);
-int32_t MpmFactoryIsMpmCtxAvailable(const struct DetectEngineCtx_ *, const MpmCtx *);
-#endif
 
 int PmqSetup(PrefilterRuleStore *);
 void PmqReset(PrefilterRuleStore *);

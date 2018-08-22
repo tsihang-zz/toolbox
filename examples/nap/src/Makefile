@@ -61,6 +61,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/include\
 		  -I$(SRCDIR)/../oryx\
+		  -I$(SRCDIR)/../oryx/osih\
 		  -I$(SRCDIR)/../quagga
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\

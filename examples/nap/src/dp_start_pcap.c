@@ -26,21 +26,20 @@ extern void
 dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
 
 void
-dp_pkt_handler(u_char *argv,
-		void *pcaphdr,
-		u_char *packet)
+dp_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
+                                   		const u_char *bytes)
 {
 	int lcore = 0; //rte_lcore_id();
 	ThreadVars *tv = &g_tv[lcore];
 	DecodeThreadVars *dtv = &g_dtv[lcore];
 	PacketQueue *pq = &g_pq[lcore];
 	Packet *p = PacketGetFromAlloc();
-	const struct pcap_pkthdr *pkthdr = (struct pcap_pkthdr *)pcaphdr;
-	struct netdev_t *netdev = (struct netdev_t *)argv;
+	const struct pcap_pkthdr *pkthdr = (struct pcap_pkthdr *)h;
+	struct netdev_t *netdev = (struct netdev_t *)user;
 
 	SET_PKT_LEN(p, pkthdr->len);
 	DecodeEthernet0(tv, dtv, p, 
-				packet, pkthdr->len, pq);
+				bytes, pkthdr->len, pq);
 
 	DecodeUpdateCounters(tv, dtv, p); 
 
@@ -83,9 +82,9 @@ dp_pkt_handler(u_char *argv,
 }
 
 static struct netdev_t netdev = {
-	.handler = NULL,
-	.devname = "enp5s0f4",
-	.dispatch = dp_pkt_handler,
+	.handler		= NULL,
+	.devname		= "enp5s0f4",
+	.pcap_handler	= dp_pkt_handler,
 	.private = NULL,
 };
 
@@ -107,7 +106,7 @@ void *dp_libpcap_running_fn(void *argv)
 		
 		rank_acc = pcap_dispatch(netdev->handler,
 			1024, 
-			netdev->dispatch, 
+			netdev->pcap_handler, 
 			(u_char *)netdev);
 
 		if (rank_acc >= 0) {

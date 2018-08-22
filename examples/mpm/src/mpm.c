@@ -181,7 +181,7 @@ void MpmFactoryReClaimMpmCtx(const DetectEngineCtx *de_ctx, MpmCtx *mpm_ctx)
 
     if (!MpmFactoryIsMpmCtxAvailable(de_ctx, mpm_ctx)) {
         if (mpm_ctx->mpm_type != MPM_NOTSET)
-            mpm_table[mpm_ctx->mpm_type].DestroyCtx(mpm_ctx);
+            mpm_table[mpm_ctx->mpm_type].ctx_destroy(mpm_ctx);
         kfree(mpm_ctx);
     }
 
@@ -198,12 +198,12 @@ void MpmFactoryDeRegisterAllMpmCtxProfiles(DetectEngineCtx *de_ctx)
     for (i = 0; i < de_ctx->mpm_ctx_factory_container->no_of_items; i++) {
         if (items[i].mpm_ctx_ts != NULL) {
             if (items[i].mpm_ctx_ts->mpm_type != MPM_NOTSET)
-                mpm_table[items[i].mpm_ctx_ts->mpm_type].DestroyCtx(items[i].mpm_ctx_ts);
+                mpm_table[items[i].mpm_ctx_ts->mpm_type].ctx_destroy(items[i].mpm_ctx_ts);
             kfree(items[i].mpm_ctx_ts);
         }
         if (items[i].mpm_ctx_tc != NULL) {
             if (items[i].mpm_ctx_tc->mpm_type != MPM_NOTSET)
-                mpm_table[items[i].mpm_ctx_tc->mpm_type].DestroyCtx(items[i].mpm_ctx_tc);
+                mpm_table[items[i].mpm_ctx_tc->mpm_type].ctx_destroy(items[i].mpm_ctx_tc);
             kfree(items[i].mpm_ctx_tc);
         }
     }
@@ -214,142 +214,6 @@ void MpmFactoryDeRegisterAllMpmCtxProfiles(DetectEngineCtx *de_ctx)
 
     return;
 }
-#endif
-
-#ifdef __SC_CUDA_SUPPORT__
-
-static void MpmCudaConfFree(void *conf)
-{
-    kfree(conf);
-    return;
-}
-
-static void *MpmCudaConfParse(ConfNode *node)
-{
-    const char *value;
-
-    MpmCudaConf *conf = kmalloc(sizeof(MpmCudaConf), MPF_CLR, __oryx_unused_val__);
-    if (unlikely(conf == NULL))
-        exit(EXIT_FAILURE);
-    memset(conf, 0, sizeof(*conf));
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "data-buffer-size-min-limit");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->data_buffer_size_min_limit = UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MIN_LIMIT_DEFAULT;
-    } else if (ParseSizeStringU16(value, &conf->data_buffer_size_min_limit) < 0) {
-        oryx_loge(SC_ERR_INVALID_YAML_CONF_ENTRY, "Invalid entry for %s."
-                   "data-buffer-size-min-limit - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "data-buffer-size-max-limit");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->data_buffer_size_max_limit = UTIL_MPM_CUDA_DATA_BUFFER_SIZE_MAX_LIMIT_DEFAULT;
-    } else if (ParseSizeStringU16(value, &conf->data_buffer_size_max_limit) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "data-buffer-size-max-limit - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "cudabuffer-buffer-size");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->cb_buffer_size = UTIL_MPM_CUDA_CUDA_BUFFER_DBUFFER_SIZE_DEFAULT;
-    } else if (ParseSizeStringU32(value, &conf->cb_buffer_size) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "cb-buffer-size - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "gpu-transfer-size");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->gpu_transfer_size = UTIL_MPM_CUDA_GPU_TRANSFER_SIZE;
-    } else if (ParseSizeStringU32(value, &conf->gpu_transfer_size) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "gpu-transfer-size - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "batching-timeout");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->batching_timeout = UTIL_MPM_CUDA_BATCHING_TIMEOUT_DEFAULT;
-    } else if ((conf->batching_timeout = atoi(value)) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "batching-timeout - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "device-id");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->device_id = UTIL_MPM_CUDA_DEVICE_ID_DEFAULT;
-    } else if ((conf->device_id = atoi(value)) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "device-id - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    if (node != NULL)
-        value = ConfNodeLookupChildValue(node, "cuda-streams");
-    else
-        value = NULL;
-    if (value == NULL) {
-        /* default */
-        conf->cuda_streams = UTIL_MPM_CUDA_CUDA_STREAMS_DEFAULT;
-    } else if ((conf->cuda_streams = atoi(value)) < 0) {
-        fprintf (stdout, "Invalid entry for %s."
-                   "cuda-streams - \"%s\"\n", node->name, value);
-        exit(EXIT_FAILURE);
-    }
-
-    return conf;
-}
-
-void MpmCudaEnvironmentSetup()
-{
-    if (PatternMatchDefaultMatcher() != MPM_AC_CUDA)
-        return;
-
-    CudaHandlerAddCudaProfileFromConf("mpm", MpmCudaConfParse, MpmCudaConfFree);
-
-    MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
-    if (conf == NULL) {
-        fprintf (stdout, "Error obtaining cuda mpm "
-                       "profile.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if (MpmCudaBufferSetup() < 0) {
-        fprintf (stdout, "Error setting up env for ac "
-                   "cuda\n");
-        exit(EXIT_FAILURE);
-    }
-
-    return;
-}
-
 #endif
 
 /**
@@ -462,42 +326,42 @@ MpmTableElmt mpm_table[MPM_TABLE_SIZE];
 
 void MpmInitThreadCtx(MpmThreadCtx *mpm_thread_ctx, uint16_t matcher)
 {
-    mpm_table[matcher].InitThreadCtx(NULL, mpm_thread_ctx);
+    mpm_table[matcher].threadctx_init(NULL, mpm_thread_ctx);
 }
 
 void MpmInitCtx (MpmCtx *mpm_ctx, uint16_t matcher)
 {
     mpm_ctx->mpm_type = matcher;
-    mpm_table[matcher].InitCtx(mpm_ctx);
+    mpm_table[matcher].ctx_init(mpm_ctx);
 }
 
 void MpmDestroyThreadCtx(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
-    mpm_table[mpm_ctx->mpm_type].DestroyThreadCtx(NULL, mpm_thread_ctx);
+    mpm_table[mpm_ctx->mpm_type].threadctx_destroy(NULL, mpm_thread_ctx);
 }
 
 void MpmDestroyCtx (MpmCtx *mpm_ctx)
 {
-    mpm_table[mpm_ctx->mpm_type].DestroyCtx(mpm_ctx);
+    mpm_table[mpm_ctx->mpm_type].ctx_destroy(mpm_ctx);
 }
 
 
 uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
-	return mpm_table[mpm_ctx->mpm_type].Search(mpm_ctx, mpm_thread_ctx, pmq, buf, buflen);
+	return mpm_table[mpm_ctx->mpm_type].pat_search(mpm_ctx, mpm_thread_ctx, pmq, buf, buflen);
 }
 
 int MpmPreparePatterns(MpmCtx *mpm_ctx)
 {
-	return mpm_table[mpm_ctx->mpm_type].Prepare(mpm_ctx);
+	return mpm_table[mpm_ctx->mpm_type].pat_prepare(mpm_ctx);
 }
 
 int MpmAddPatternCS(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,
                     uint16_t offset, uint16_t depth,
                     uint32_t pid, sig_id sid, uint8_t flags)
 {
-    return mpm_table[mpm_ctx->mpm_type].AddPattern(mpm_ctx, pat, patlen,
+    return mpm_table[mpm_ctx->mpm_type].pat_add(mpm_ctx, pat, patlen,
                                                    offset, depth,
                                                    pid, sid, flags);
 }
@@ -506,7 +370,7 @@ int MpmAddPatternCI(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,
                     uint16_t offset, uint16_t depth,
                     uint32_t pid, sig_id sid, uint8_t flags)
 {
-    return mpm_table[mpm_ctx->mpm_type].AddPatternNocase(mpm_ctx, pat, patlen,
+    return mpm_table[mpm_ctx->mpm_type].pat_add_nocase(mpm_ctx, pat, patlen,
                                                          offset, depth,
                                                          pid, sid, flags);
 }
@@ -803,7 +667,7 @@ void MpmTableSetup(void)
 {
 	memset(mpm_table, 0, sizeof(mpm_table));
 
-	MpmACRegister();
+	mpm_register_ac();
 
 #ifdef HAVE_HYPERSCAN
     #ifdef HAVE_HS_VALID_PLATFORM
@@ -815,10 +679,10 @@ void MpmTableSetup(void)
             /* Fall back to best Aho-Corasick variant. */
             mpm_default_matcher = MPM_AC;
         } else {
-            MpmHSRegister();
+            mpm_register_hs();
         }
     #else
-        MpmHSRegister();
+        mpm_register_hs();
     #endif /* HAVE_HS_VALID_PLATFORM */
 #endif /* HAVE_HYPERSCAN */
 

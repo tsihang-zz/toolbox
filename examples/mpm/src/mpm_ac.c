@@ -1,19 +1,9 @@
 #include "oryx.h"
 #include "mpm_ac.h"
 
-void ACinitCtx(MpmCtx *);
-void ACInitThreadCtx(MpmCtx *, MpmThreadCtx *);
-void ACDestroyCtx(MpmCtx *);
-void ACDestroyThreadCtx(MpmCtx *, MpmThreadCtx *);
-int ACAddPatternCI(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
-                     uint32_t, sig_id, uint8_t);
-int ACAddPatternCS(MpmCtx *, uint8_t *, uint16_t, uint16_t, uint16_t,
-                     uint32_t, sig_id, uint8_t);
-int ACPreparePatterns(MpmCtx *mpm_ctx);
-uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
-                    PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen);
-void ACPrintInfo(MpmCtx *mpm_ctx);
-void ACPrintSearchStats(MpmThreadCtx *mpm_thread_ctx);
+//#define BIT_ARRAY_ALLOC_STACK
+uint8_t *bitarray_ptr;
+#define BIT_ARRAY_DEFAULT_SIZE		102400
 
 /* a placeholder to denote a failure transition in the goto table */
 #define SC_AC_FAIL (-1)
@@ -41,7 +31,7 @@ typedef struct StateQueue_ {
  *        aren't retrieving anything for AC conf now, but we will certainly
  *        need it, when we customize AC.
  */
-static void ACGetConfig (void)
+static void ac_get_config (void)
 {
     //ConfNode *ac_conf;
     //const char *hash_val = NULL;
@@ -60,7 +50,7 @@ static void ACGetConfig (void)
  * \retval The state id, of the newly created state.
  */
 static __oryx_always_inline__
-int ACReallocState(SCACCtx *ctx, uint32_t cnt)
+int ac_state_realloc(ac_ctx_t *ctx, uint32_t cnt)
 {
     void *ptmp;
     int64_t size = 0;
@@ -79,8 +69,8 @@ int ACReallocState(SCACCtx *ctx, uint32_t cnt)
     ctx->goto_table = ptmp;
 
     /* reallocate space in the output table for the new state */
-    int oldsize = ctx->state_count * sizeof(SCACOutputTable);
-    size = cnt * sizeof(SCACOutputTable);
+    int oldsize = ctx->state_count * sizeof(ac_output_table_t);
+    size = cnt * sizeof(ac_output_table_t);
 #ifdef MPM_DEBUG
     fprintf (stdout, "oldsize %d size %d cnt %u ctx->state_count %u\n",
             oldsize, size, cnt, ctx->state_count);
@@ -98,7 +88,7 @@ ASSERT (ptmp);
     memset(((uint8_t *)ctx->output_table + oldsize), 0, (size - oldsize));
 
     /* \todo using it temporarily now during dev, since I have restricted
-     *       state var in SCACCtx->state_table to uint16_t. */
+     *       state var in ac_ctx_t->state_table to uint16_t. */
     //if (ctx->state_count > 65536) {
     //    fprintf (stdout, "state count exceeded\n");
     //    exit(EXIT_FAILURE);
@@ -112,13 +102,13 @@ ASSERT (ptmp);
  *
  *  Shrinks only the output table, goto table is freed after calling this
  */
-static void ACShrinkState(SCACCtx *ctx)
+static void ac_state_shrink(ac_ctx_t *ctx)
 {
     /* reallocate space in the output table for the new state */
 #ifdef MPM_DEBUG
-    int oldsize = ctx->allocated_state_count * sizeof(SCACOutputTable);
+    int oldsize = ctx->allocated_state_count * sizeof(ac_output_table_t);
 #endif
-    int newsize = ctx->state_count * sizeof(SCACOutputTable);
+    int newsize = ctx->state_count * sizeof(ac_output_table_t);
 
 #ifdef MPM_DEBUG
     fprintf (stdout, "oldsize %d newsize %d ctx->allocated_state_count %u "
@@ -145,7 +135,7 @@ ASSERT (ptmp);
 static __oryx_always_inline__
 int SCACInitNewState(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;;
 
     /* Exponentially increase the allocated space when needed. */
     if (ctx->allocated_state_count < ctx->state_count + 1) {
@@ -154,12 +144,12 @@ int SCACInitNewState(MpmCtx *mpm_ctx)
         else
             ctx->allocated_state_count *= 2;
 
-        ACReallocState(ctx, ctx->allocated_state_count);
+        ac_state_realloc(ctx, ctx->allocated_state_count);
 
     }
 #if 0
     if (ctx->allocated_state_count > 260) {
-        SCACOutputTable *output_state = &ctx->output_table[260];
+        ac_output_table_t *output_state = &ctx->output_table[260];
         fprintf (stdout, "output_state %p %p %u", output_state, output_state->pids, output_state->no_of_entries);
     }
 #endif
@@ -183,8 +173,8 @@ int SCACInitNewState(MpmCtx *mpm_ctx)
 static void SCACSetOutputState(int32_t state, uint32_t pid, MpmCtx *mpm_ctx)
 {
     void *ptmp;
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-    SCACOutputTable *output_state = &ctx->output_table[state];
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
+    ac_output_table_t *output_state = &ctx->output_table[state];
     uint32_t i = 0;
 
     for (i = 0; i < output_state->no_of_entries; i++) {
@@ -223,7 +213,7 @@ static __oryx_always_inline__
 void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
                              MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int32_t state = 0;
     int32_t newstate = 0;
     int i = 0;
@@ -263,7 +253,7 @@ void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
 static __oryx_always_inline__
 void SCACCreateGotoTable(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t i = 0;
 
     /* add each pattern to create the goto table */
@@ -285,7 +275,7 @@ void SCACCreateGotoTable(MpmCtx *mpm_ctx)
 static __oryx_always_inline__
 void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t u = 0;
 
     int map[256];
@@ -399,12 +389,12 @@ void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
                                         MpmCtx *mpm_ctx)
 {
     void *ptmp;
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t i = 0;
     uint32_t j = 0;
 
-    SCACOutputTable *output_dst_state = &ctx->output_table[dst_state];
-    SCACOutputTable *output_src_state = &ctx->output_table[src_state];
+    ac_output_table_t *output_dst_state = &ctx->output_table[dst_state];
+    ac_output_table_t *output_src_state = &ctx->output_table[src_state];
 
     for (i = 0; i < output_src_state->no_of_entries; i++) {
         for (j = 0; j < output_dst_state->no_of_entries; j++) {
@@ -443,7 +433,7 @@ void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
 static __oryx_always_inline__
 void SCACCreateFailureTable(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
     int32_t state = 0;
     int32_t r_state = 0;
@@ -452,7 +442,7 @@ void SCACCreateFailureTable(MpmCtx *mpm_ctx)
     memset(&q, 0, sizeof(StateQueue));
 
     /* allot space for the failure table.  A failure entry in the table for
-     * every state(SCACCtx->state_count) */
+     * every state(ac_ctx_t->state_count) */
     ctx->failure_table = kmalloc(ctx->state_count * sizeof(int32_t), MPF_CLR, __oryx_unused_val__);
 ASSERT (ctx->failure_table);
     if (ctx->failure_table == NULL) {
@@ -501,7 +491,7 @@ ASSERT (ctx->failure_table);
 static __oryx_always_inline__
 void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
     int32_t r_state = 0;
 
@@ -592,7 +582,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 static __oryx_always_inline__
 void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
     uint32_t state = 0;
     uint32_t temp_state = 0;
@@ -623,7 +613,7 @@ void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
 static __oryx_always_inline__
 void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t state = 0;
     uint32_t k = 0;
 
@@ -645,7 +635,7 @@ void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
 #if 0
 static void SCACPrintDeltaTable(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int i = 0, j = 0;
 
     fprintf (stdout, "##############Delta Table##############\n");
@@ -667,9 +657,9 @@ static void SCACPrintDeltaTable(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static void SCACPrepareStateTable(MpmCtx *mpm_ctx)
+static void ac_state_table_prepare(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 
     /* create the 0th state in the goto table and output_table */
     SCACInitNewState(mpm_ctx);
@@ -689,7 +679,7 @@ static void SCACPrepareStateTable(MpmCtx *mpm_ctx)
     SCACInsertCaseSensitiveEntriesForPatterns(mpm_ctx);
 
     /* shrink the memory */
-    ACShrinkState(ctx);
+    ac_state_shrink(ctx);
 
 #if 0
     SCACPrintDeltaTable(mpm_ctx);
@@ -704,126 +694,17 @@ static void SCACPrepareStateTable(MpmCtx *mpm_ctx)
     return;
 }
 
-/**
- * \brief Process the patterns added to the mpm, and create the internal tables.
- *
- * \param mpm_ctx Pointer to the mpm context.
- */
-int ACPreparePatterns(MpmCtx *mpm_ctx)
+static void ac_threadctx_print(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
 
-    if (mpm_ctx->pattern_cnt == 0 || mpm_ctx->init_hash == NULL) {
-        fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
-        return 0;
-    }
+#ifdef SC_AC_COUNTERS
+    ac_threadctx_t *ctx = (ac_threadctx_t *)mpm_thread_ctx->ctx;
+    fprintf (stdout, "AC Thread pat_search stats (ctx %p)\n", ctx);
+    fprintf (stdout, "Total calls: %" PRIu32 "\n", ctx->total_calls);
+    fprintf (stdout, "Total matches: %" PRIu64 "\n", ctx->total_matches);
+#endif /* SC_AC_COUNTERS */
 
-    /* alloc the pattern array */
-    ctx->parray = (MpmPattern **)kmalloc(mpm_ctx->pattern_cnt *
-                                           sizeof(MpmPattern *), MPF_CLR, __oryx_unused_val__);
-    if (ctx->parray == NULL)
-        goto error;
-   
-    mpm_ctx->memory_cnt++;
-    mpm_ctx->memory_size += (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
-
-    /* populate it with the patterns in the hash */
-    uint32_t i = 0, p = 0;
-    for (i = 0; i < MPM_INIT_HASH_SIZE; i++) {
-        MpmPattern *node = mpm_ctx->init_hash[i], *nnode = NULL;
-        while(node != NULL) {
-            nnode = node->next;
-            node->next = NULL;
-            ctx->parray[p++] = node;
-            node = nnode;
-        }
-    }
-
-    /* we no longer need the hash, so free it's memory */
-    kfree(mpm_ctx->init_hash);
-    mpm_ctx->init_hash = NULL;
-
-    /* the memory consumed by a single state in our goto table */
-    ctx->single_state_size = sizeof(int32_t) * 256;
-
-    /* handle no case patterns */
-    ctx->pid_pat_list = kmalloc((mpm_ctx->max_pat_id + 1)* sizeof(SCACPatternList), MPF_CLR, __oryx_unused_val__);
-ASSERT (ctx->pid_pat_list);
-    if (ctx->pid_pat_list == NULL) {
-        fprintf (stdout,  "Error allocating memory\n");
-        exit(EXIT_FAILURE);
-    }
-
-    for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
-        if (!(ctx->parray[i]->flags & MPM_PATTERN_FLAG_NOCASE)) {
-            ctx->pid_pat_list[ctx->parray[i]->id].cs = kmalloc(ctx->parray[i]->len, MPF_CLR, __oryx_unused_val__);
-	    ASSERT (ctx->pid_pat_list[ctx->parray[i]->id].cs);
-            if (ctx->pid_pat_list[ctx->parray[i]->id].cs == NULL) {
-                fprintf (stdout,  "Error allocating memory\n");
-                exit(EXIT_FAILURE);
-            }
-            memcpy(ctx->pid_pat_list[ctx->parray[i]->id].cs,
-                   ctx->parray[i]->original_pat, ctx->parray[i]->len);
-            ctx->pid_pat_list[ctx->parray[i]->id].patlen = ctx->parray[i]->len;
-        }
-
-        /* ACPatternList now owns this memory */
-        ctx->pid_pat_list[ctx->parray[i]->id].sids_size = ctx->parray[i]->sids_size;
-        ctx->pid_pat_list[ctx->parray[i]->id].sids = ctx->parray[i]->sids;
-
-        ctx->parray[i]->sids_size = 0;
-        ctx->parray[i]->sids = NULL;
-    }
-
-    /* prepare the state table required by AC */
-    SCACPrepareStateTable(mpm_ctx);
-
-#ifdef __SC_CUDA_SUPPORT__
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        int r = SCCudaMemAlloc(&ctx->state_table_u32_cuda,
-                               ctx->state_count * sizeof(unsigned int) * 256);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaMemAlloc failure.\n");
-            exit(EXIT_FAILURE);
-        }
-
-        r = SCCudaMemcpyHtoD(ctx->state_table_u32_cuda,
-                             ctx->state_table_u32,
-                             ctx->state_count * sizeof(unsigned int) * 256);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaMemcpyHtoD failure.\n");
-            exit(EXIT_FAILURE);
-        }
-    }
-#endif
-
-    fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIu32
-               " bytes\n", mpm_ctx->pattern_cnt, mpm_ctx->memory_size);
-
-    /* free all the stored patterns.  Should save us a good 100-200 mbs */
-    for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
-        if (ctx->parray[i] != NULL) {
-            MpmFreePattern(mpm_ctx, ctx->parray[i]);
-        }
-    }
-    kfree(ctx->parray);
-    ctx->parray = NULL;
-    mpm_ctx->memory_cnt--;
-    mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
-
-    ctx->pattern_id_bitarray_size = (mpm_ctx->max_pat_id / 8) + 1;
-
-
-#if 0
-    fprintf (stdout, "ctx->pattern_id_bitarray_size =%u, mpm_ctx->max_pat_id =%u\n", 
-		ctx->pattern_id_bitarray_size,
-		mpm_ctx->max_pat_id);
-#endif
-
-    return 0;
-
-error:
-    return -1;
+    return;
 }
 
 /**
@@ -833,17 +714,59 @@ error:
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  * \param matchsize      We don't need this.
  */
-void ACInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+static void ac_threadctx_init(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
 
-    mpm_thread_ctx->ctx = kmalloc(sizeof(SCACThreadCtx), MPF_CLR, __oryx_unused_val__);
+    mpm_thread_ctx->ctx = kmalloc(sizeof(ac_threadctx_t), MPF_CLR, __oryx_unused_val__);
     if (mpm_thread_ctx->ctx == NULL) {
         exit(EXIT_FAILURE);
     }
 
     mpm_thread_ctx->memory_cnt++;
-    mpm_thread_ctx->memory_size += sizeof(SCACThreadCtx);
+    mpm_thread_ctx->memory_size += sizeof(ac_threadctx_t);
+
+    return;
+}
+
+/**
+ * \brief Destroy the mpm thread context.
+ *
+ * \param mpm_ctx        Pointer to the mpm context.
+ * \param mpm_thread_ctx Pointer to the mpm thread context.
+ */
+static void ac_threadctx_destroy(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+{
+    ac_threadctx_print(mpm_thread_ctx);
+
+    if (mpm_thread_ctx->ctx != NULL) {
+        kfree(mpm_thread_ctx->ctx);
+        mpm_thread_ctx->ctx = NULL;
+        mpm_thread_ctx->memory_cnt--;
+        mpm_thread_ctx->memory_size -= sizeof(ac_threadctx_t);
+    }
+
+    return;
+}
+
+static void ac_ctx_print(MpmCtx __oryx_unused_param__ *mpm_ctx)
+{
+    ac_ctx_t __oryx_unused_param__ *ctx = (ac_ctx_t *)mpm_ctx->ctx;
+#if 1
+    fprintf (stdout, "MPM AC Information:\n");
+    fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
+    fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
+    fprintf (stdout, " Sizeof:\n");
+    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
+    fprintf (stdout, "  ac_ctx_t:         %" PRIuMAX "\n", (uintmax_t)sizeof(ac_ctx_t));
+    fprintf (stdout, "  MpmPattern      %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
+    fprintf (stdout, "  MpmPattern     %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
+    fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
+    fprintf (stdout, "Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
+    fprintf (stdout, "Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
+    fprintf (stdout, "Total states in the state table:    %" PRIu32 "\n", ctx->state_count);
+    fprintf (stdout, "\n");
+#endif
 
     return;
 }
@@ -853,18 +776,18 @@ void ACInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_th
  *
  * \param mpm_ctx       Mpm context.
  */
-void ACinitCtx(MpmCtx *mpm_ctx)
+static void ac_ctx_init(MpmCtx *mpm_ctx)
 {
     if (mpm_ctx->ctx != NULL)
         return;
 
-    mpm_ctx->ctx = kmalloc(sizeof(SCACCtx), MPF_CLR, __oryx_unused_val__);
+    mpm_ctx->ctx = kmalloc(sizeof(ac_ctx_t), MPF_CLR, __oryx_unused_val__);
     if (mpm_ctx->ctx == NULL) {
         exit(EXIT_FAILURE);
     }
 
     mpm_ctx->memory_cnt++;
-    mpm_ctx->memory_size += sizeof(SCACCtx);
+    mpm_ctx->memory_size += sizeof(ac_ctx_t);
 
     /* initialize the hash we use to speed up pattern insertions */
     mpm_ctx->init_hash = kmalloc(sizeof(MpmPattern *) * MPM_INIT_HASH_SIZE, MPF_CLR, __oryx_unused_val__);
@@ -874,29 +797,9 @@ void ACinitCtx(MpmCtx *mpm_ctx)
 
     /* get conf values for AC from our yaml file.  We have no conf values for
      * now.  We will certainly need this, as we develop the algo */
-    ACGetConfig();
+    ac_get_config();
 
     SCReturn;
-}
-
-/**
- * \brief Destroy the mpm thread context.
- *
- * \param mpm_ctx        Pointer to the mpm context.
- * \param mpm_thread_ctx Pointer to the mpm thread context.
- */
-void ACDestroyThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
-{
-    ACPrintSearchStats(mpm_thread_ctx);
-
-    if (mpm_thread_ctx->ctx != NULL) {
-        kfree(mpm_thread_ctx->ctx);
-        mpm_thread_ctx->ctx = NULL;
-        mpm_thread_ctx->memory_cnt--;
-        mpm_thread_ctx->memory_size -= sizeof(SCACThreadCtx);
-    }
-
-    return;
 }
 
 /**
@@ -904,9 +807,9 @@ void ACDestroyThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-void ACDestroyCtx(MpmCtx *mpm_ctx)
+static void ac_ctx_destroy(MpmCtx *mpm_ctx)
 {
-    SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     if (ctx == NULL)
         return;
 	
@@ -971,7 +874,7 @@ void ACDestroyCtx(MpmCtx *mpm_ctx)
 
     kfree(mpm_ctx->ctx);
     mpm_ctx->memory_cnt--;
-    mpm_ctx->memory_size -= sizeof(SCACCtx);
+    mpm_ctx->memory_size -= sizeof(ac_ctx_t);
 
     return;
 }
@@ -988,21 +891,17 @@ void ACDestroyCtx(MpmCtx *mpm_ctx)
  *
  * \retval matches Match count.
  */
-
-//#define BIT_ARRAY_ALLOC_STACK
-uint8_t *bitarray_ptr;
-#define BIT_ARRAY_DEFAULT_SIZE		102400
-uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
+static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
-    const SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
+    const ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int i = 0;
     int matches = 0;
 
     /* \todo tried loop unrolling with register var, with no perf increase.  Need
      * to dig deeper */
     /* \todo Change it for stateful MPM.  Supply the state using mpm_thread_ctx */
-    SCACPatternList *pid_pat_list = ctx->pid_pat_list;
+    ac_pattern_list_t *pid_pat_list = ctx->pid_pat_list;
 
 
 #ifdef BIT_ARRAY_ALLOC_STACK
@@ -1135,7 +1034,7 @@ uint32_t ACSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_threa
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-int ACAddPatternCI(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int ac_pat_add_ci(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
@@ -1160,611 +1059,135 @@ int ACAddPatternCI(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-int ACAddPatternCS(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int ac_pat_add_cs(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
     return MpmAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
-void ACPrintSearchStats(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
+/**
+* \brief Process the patterns added to the mpm, and create the internal tables.
+*
+* \param mpm_ctx Pointer to the mpm context.
+*/
+static int ac_pat_prepare(MpmCtx *mpm_ctx)
 {
+	ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 
-#ifdef SC_AC_COUNTERS
-    SCACThreadCtx *ctx = (SCACThreadCtx *)mpm_thread_ctx->ctx;
-    fprintf (stdout, "AC Thread Search stats (ctx %p)\n", ctx);
-    fprintf (stdout, "Total calls: %" PRIu32 "\n", ctx->total_calls);
-    fprintf (stdout, "Total matches: %" PRIu64 "\n", ctx->total_matches);
-#endif /* SC_AC_COUNTERS */
+	if (mpm_ctx->pattern_cnt == 0 || mpm_ctx->init_hash == NULL) {
+	 fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
+	 return 0;
+	}
 
-    return;
-}
+	/* alloc the pattern array */
+	ctx->parray = (MpmPattern **)kmalloc(mpm_ctx->pattern_cnt *
+										sizeof(MpmPattern *), MPF_CLR, __oryx_unused_val__);
+	if (ctx->parray == NULL)
+	 goto error;
 
-void ACPrintInfo(MpmCtx __oryx_unused_param__ *mpm_ctx)
-{
-    SCACCtx __oryx_unused_param__ *ctx = (SCACCtx *)mpm_ctx->ctx;
-#if 1
-    fprintf (stdout, "MPM AC Information:\n");
-    fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
-    fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
-    fprintf (stdout, " Sizeof:\n");
-    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
-    fprintf (stdout, "  SCACCtx:         %" PRIuMAX "\n", (uintmax_t)sizeof(SCACCtx));
-    fprintf (stdout, "  MpmPattern      %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
-    fprintf (stdout, "  MpmPattern     %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
-    fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
-    fprintf (stdout, "Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
-    fprintf (stdout, "Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
-    fprintf (stdout, "Total states in the state table:    %" PRIu32 "\n", ctx->state_count);
-    fprintf (stdout, "\n");
-#endif
+	mpm_ctx->memory_cnt++;
+	mpm_ctx->memory_size += (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
 
-    return;
-}
+	/* populate it with the patterns in the hash */
+	uint32_t i = 0, p = 0;
+	for (i = 0; i < MPM_INIT_HASH_SIZE; i++) {
+	 MpmPattern *node = mpm_ctx->init_hash[i], *nnode = NULL;
+	 while(node != NULL) {
+		 nnode = node->next;
+		 node->next = NULL;
+		 ctx->parray[p++] = node;
+		 node = nnode;
+	 }
+	}
 
-/****************************Cuda side of things****************************/
+	/* we no longer need the hash, so free it's memory */
+	kfree(mpm_ctx->init_hash);
+	mpm_ctx->init_hash = NULL;
 
-#ifdef __SC_CUDA_SUPPORT__
+	/* the memory consumed by a single state in our goto table */
+	ctx->single_state_size = sizeof(int32_t) * 256;
 
-/* \todo Technically it's generic to all mpms, but since we use ac only, the
- *       code internally directly references ac and hence it has found its
- *       home in this file, instead of util-mpm.c
- */
-void DetermineCudaStateTableSize(DetectEngineCtx *de_ctx)
-{
-    MpmCtx *mpm_ctx = NULL;
+	/* handle no case patterns */
+	ctx->pid_pat_list = kmalloc((mpm_ctx->max_pat_id + 1)* sizeof(ac_pattern_list_t), MPF_CLR, __oryx_unused_val__);
+	ASSERT (ctx->pid_pat_list);
+	if (ctx->pid_pat_list == NULL) {
+	 fprintf (stdout,  "Error allocating memory\n");
+	 exit(EXIT_FAILURE);
+	}
 
-    int ac_16_tables = 0;
-    int ac_32_tables = 0;
+	for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
+	 if (!(ctx->parray[i]->flags & MPM_PATTERN_FLAG_NOCASE)) {
+		 ctx->pid_pat_list[ctx->parray[i]->id].cs = kmalloc(ctx->parray[i]->len, MPF_CLR, __oryx_unused_val__);
+	 ASSERT (ctx->pid_pat_list[ctx->parray[i]->id].cs);
+		 if (ctx->pid_pat_list[ctx->parray[i]->id].cs == NULL) {
+			 fprintf (stdout,  "Error allocating memory\n");
+			 exit(EXIT_FAILURE);
+		 }
+		 memcpy(ctx->pid_pat_list[ctx->parray[i]->id].cs,
+				ctx->parray[i]->original_pat, ctx->parray[i]->len);
+		 ctx->pid_pat_list[ctx->parray[i]->id].patlen = ctx->parray[i]->len;
+	 }
 
-    mpm_ctx = MpmFactoryGetMpmCtxForProfile(de_ctx, de_ctx->sgh_mpm_context_proto_tcp_packet, 0);
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-        if (ctx->state_count < 32767)
-            ac_16_tables++;
-        else
-            ac_32_tables++;
-    }
-    mpm_ctx = MpmFactoryGetMpmCtxForProfile(de_ctx, de_ctx->sgh_mpm_context_proto_tcp_packet, 1);
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-        if (ctx->state_count < 32767)
-            ac_16_tables++;
-        else
-            ac_32_tables++;
-    }
+	 /* ACPatternList now owns this memory */
+	 ctx->pid_pat_list[ctx->parray[i]->id].sids_size = ctx->parray[i]->sids_size;
+	 ctx->pid_pat_list[ctx->parray[i]->id].sids = ctx->parray[i]->sids;
 
-    mpm_ctx = MpmFactoryGetMpmCtxForProfile(de_ctx, de_ctx->sgh_mpm_context_proto_udp_packet, 0);
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-        if (ctx->state_count < 32767)
-            ac_16_tables++;
-        else
-            ac_32_tables++;
-    }
-    mpm_ctx = MpmFactoryGetMpmCtxForProfile(de_ctx, de_ctx->sgh_mpm_context_proto_udp_packet, 1);
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-        if (ctx->state_count < 32767)
-            ac_16_tables++;
-        else
-            ac_32_tables++;
-    }
+	 ctx->parray[i]->sids_size = 0;
+	 ctx->parray[i]->sids = NULL;
+	}
 
-    mpm_ctx = MpmFactoryGetMpmCtxForProfile(de_ctx, de_ctx->sgh_mpm_context_proto_other_packet, 0);
-    if (mpm_ctx->mpm_type == MPM_AC_CUDA) {
-        SCACCtx *ctx = (SCACCtx *)mpm_ctx->ctx;
-        if (ctx->state_count < 32767)
-            ac_16_tables++;
-        else
-            ac_32_tables++;
-    }
+	/* prepare the state table required by AC */
+	ac_state_table_prepare(mpm_ctx);
 
-    if (ac_16_tables > 0 && ac_32_tables > 0)
-        SCACConstructBoth16and32StateTables();
+	fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIu32
+			" bytes\n", mpm_ctx->pattern_cnt, mpm_ctx->memory_size);
 
-    fprintf (stdout, "Total mpm ac 16 bit state tables - %d\n", ac_16_tables);
-    fprintf (stdout, "Total mpm ac 32 bit state tables - %d\n", ac_32_tables);
+	/* free all the stored patterns.  Should save us a good 100-200 mbs */
+	for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
+	 if (ctx->parray[i] != NULL) {
+		 MpmFreePattern(mpm_ctx, ctx->parray[i]);
+	 }
+	}
+	kfree(ctx->parray);
+	ctx->parray = NULL;
+	mpm_ctx->memory_cnt--;
+	mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
 
-}
+	ctx->pattern_id_bitarray_size = (mpm_ctx->max_pat_id / 8) + 1;
 
-void CudaReleasePacket(Packet *p)
-{
-    if (p->cuda_pkt_vars.cuda_mpm_enabled == 1) {
-        p->cuda_pkt_vars.cuda_mpm_enabled = 0;
-        do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
-        p->cuda_pkt_vars.cuda_done = 0;
-        do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
-    }
 
-    return;
-}
-
-/* \todos
- * - Use texture memory - Can we fit all the arrays into a 3d texture.
- *   Texture memory definitely offers slightly better performance even
- *   on gpus that offer cache for global memory.
- * - Packetpool - modify to support > 65k max pending packets.  We are
- *   hitting packetpool limit currently even with 65k packets.
- * - Use streams.  We have tried overlapping parsing results from the
- *   previous call with invoking the next call.
- * - Offer higher priority to decode threads.
- * - Modify pcap file mode to support reading from multiple pcap files
- *   and hence we will have multiple receive threads.
- * - Split state table into many small pieces and have multiple threads
- *   run each small state table on the same payload.
- * - Used a config peference of l1 over shared memory with no noticeable
- *   perf increase.  Explore it in detail over cards/architectures.
- * - Constant memory performance sucked.  Explore it in detail.
- * - Currently all our state tables are small.  Implement 16 bit state
- *   tables on priority.
- * - Introduce profiling.
- * - Retrieve sgh before buffer packet.
- * - Buffer smsgs too.
- */
-
-void SCACConstructBoth16and32StateTables(void)
-{
-    construct_both_16_and_32_state_tables = 1;
-
-    return;
-}
-
-/* \todo Reduce offset buffer size.  Probably a 100,000 entry would be sufficient. */
-static void *SCACCudaDispatcher(void *arg)
-{
-#define BLOCK_SIZE 32
-
-    int r = 0;
-    ThreadVars *tv = (ThreadVars *)arg;
-    MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
-    uint32_t sleep_interval_ms = conf->batching_timeout;
-
-    fprintf (stdout, "AC Cuda Mpm Dispatcher using a timeout of "
-              "\"%"PRIu32"\" micro-seconds", sleep_interval_ms);
-
-    CudaBufferData *cb_data =
-        CudaHandlerModuleGetData(MPM_AC_CUDA_MODULE_NAME,
-                                 MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME);
-
-    CUcontext cuda_context =
-        CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
-    if (cuda_context == 0) {
-        fprintf (stdout,  "context is NULL.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaCtxPushCurrent(cuda_context);
-    if (r < 0) {
-        fprintf (stdout,  "context push failed.");
-        exit(EXIT_FAILURE);
-    }
-    CUmodule cuda_module = 0;
-    if (CudaHandlerGetCudaModule(&cuda_module, "util-mpm-ac-cuda-kernel") < 0) {
-        fprintf (stdout,  "Error retrieving cuda module.");
-        exit(EXIT_FAILURE);
-    }
-    CUfunction kernel = 0;
-#if __WORDSIZE==64
-    if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCACCudaSearch64") == -1) {
-        fprintf (stdout,  "Error retrieving kernel");
-        exit(EXIT_FAILURE);
-    }
-#else
-    if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCACCudaSearch32") == -1) {
-        fprintf (stdout,  "Error retrieving kernel");
-        exit(EXIT_FAILURE);
-    }
-#endif
-
-    uint8_t g_u8_lowercasetable[256];
-    for (int c = 0; c < 256; c++)
-        g_u8_lowercasetable[c] = tolower((uint8_t)c);
-    CUdeviceptr cuda_g_u8_lowercasetable_d = 0;
-    CUdeviceptr cuda_packets_buffer_d = 0;
-    CUdeviceptr cuda_offset_buffer_d = 0;
-    CUdeviceptr cuda_results_buffer_d = 0;
-    uint32_t *cuda_results_buffer_h = NULL;
-    r = SCCudaMemAlloc(&cuda_g_u8_lowercasetable_d, sizeof(g_u8_lowercasetable));
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemAlloc failure.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemcpyHtoD(cuda_g_u8_lowercasetable_d, g_u8_lowercasetable, sizeof(g_u8_lowercasetable));
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemAlloc(&cuda_packets_buffer_d, conf->gpu_transfer_size);
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemAlloc failure.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemAlloc(&cuda_offset_buffer_d, conf->gpu_transfer_size * 4);
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemAlloc failure.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemAlloc(&cuda_results_buffer_d, conf->gpu_transfer_size * 8);
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemAlloc failure.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemAllocHost((void **)&cuda_results_buffer_h, conf->gpu_transfer_size * 8);
-    if (r < 0) {
-        fprintf (stdout,  "SCCudaMemAlloc failure.");
-        exit(EXIT_FAILURE);
-    }
-
-    CudaBufferCulledInfo cb_culled_info;
-    memset(&cb_culled_info, 0, sizeof(cb_culled_info));
-
-    TmThreadsSetFlag(tv, THV_INIT_DONE);
-    while (1) {
-        if (TmThreadsCheckFlag(tv, THV_KILL))
-            break;
-
-        usleep(sleep_interval_ms);
-
-        /**************** 1 SEND ****************/
-        CudaBufferCullCompletedSlices(cb_data, &cb_culled_info, conf->gpu_transfer_size);
-        if (cb_culled_info.no_of_items == 0)
-            continue;
 #if 0
-        fprintf (stdout, "1 - cb_culled_info.no_of_items-%"PRIu32" "
-                  "cb_culled_info.buffer_len - %"PRIu32" "
-                  "cb_culled_info.average size - %f "
-                  "cb_culled_info.d_buffer_start_offset - %"PRIu32" "
-                  "cb_culled_info.op_buffer_start_offset - %"PRIu32" "
-                  "cb_data.no_of_items - %"PRIu32"  "
-                  "cb_data.d_buffer_read - %"PRIu32" "
-                  "cb_data.d_buffer_write - %"PRIu32" "
-                  "cb_data.op_buffer_read - %"PRIu32" "
-                  "cb_data.op_buffer_write - %"PRIu32"\n",
-                  cb_culled_info.no_of_items,
-                  cb_culled_info.d_buffer_len,
-                  cb_culled_info.d_buffer_len / (float)cb_culled_info.no_of_items,
-                  cb_culled_info.d_buffer_start_offset,
-                  cb_culled_info.op_buffer_start_offset,
-                  cb_data->no_of_items,
-                  cb_data->d_buffer_read,
-                  cb_data->d_buffer_write,
-                  cb_data->op_buffer_read,
-                  cb_data->op_buffer_write);
+	fprintf (stdout, "ctx->pattern_id_bitarray_size =%u, mpm_ctx->max_pat_id =%u\n", 
+	 ctx->pattern_id_bitarray_size,
+	 mpm_ctx->max_pat_id);
 #endif
-        r = SCCudaMemcpyHtoDAsync(cuda_packets_buffer_d, (cb_data->d_buffer + cb_culled_info.d_buffer_start_offset), cb_culled_info.d_buffer_len, 0);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
-            exit(EXIT_FAILURE);
-        }
-        r = SCCudaMemcpyHtoDAsync(cuda_offset_buffer_d, (cb_data->o_buffer + cb_culled_info.op_buffer_start_offset), sizeof(uint32_t) * cb_culled_info.no_of_items, 0);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaMemcpyHtoD failure.");
-            exit(EXIT_FAILURE);
-        }
-        void *args[] = { &cuda_packets_buffer_d,
-                         &cb_culled_info.d_buffer_start_offset,
-                         &cuda_offset_buffer_d,
-                         &cuda_results_buffer_d,
-                         &cb_culled_info.no_of_items,
-                         &cuda_g_u8_lowercasetable_d };
-        r = SCCudaLaunchKernel(kernel,
-                               (cb_culled_info.no_of_items / BLOCK_SIZE) + 1, 1, 1,
-                               BLOCK_SIZE, 1, 1,
-                               0, 0,
-                               args, NULL);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaLaunchKernel failure.");
-            exit(EXIT_FAILURE);
-        }
-        r = SCCudaMemcpyDtoHAsync(cuda_results_buffer_h, cuda_results_buffer_d, sizeof(uint32_t) * (cb_culled_info.d_buffer_len * 2), 0);
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaMemcpyDtoH failure.");
-            exit(EXIT_FAILURE);
-        }
 
+	return 0;
 
-
-        /**************** 1 SYNCHRO ****************/
-        r = SCCudaCtxSynchronize();
-        if (r < 0) {
-            fprintf (stdout,  "SCCudaCtxSynchronize failure.");
-            exit(EXIT_FAILURE);
-        }
-
-        /************* 1 Parse Results ************/
-        uint32_t i_op_start_offset = cb_culled_info.op_buffer_start_offset;
-        uint32_t no_of_items = cb_culled_info.no_of_items;
-        uint32_t *o_buffer = cb_data->o_buffer;
-        uint32_t d_buffer_start_offset = cb_culled_info.d_buffer_start_offset;
-        for (uint32_t i = 0; i < no_of_items; i++, i_op_start_offset++) {
-            Packet *p = (Packet *)cb_data->p_buffer[i_op_start_offset];
-
-            do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
-            if (p->cuda_pkt_vars.cuda_mpm_enabled == 0) {
-                p->cuda_pkt_vars.cuda_done = 0;
-                do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
-                continue;
-            }
-
-            p->cuda_pkt_vars.cuda_gpu_matches =
-                cuda_results_buffer_h[((o_buffer[i_op_start_offset] - d_buffer_start_offset) * 2)];
-            if (p->cuda_pkt_vars.cuda_gpu_matches != 0) {
-                memcpy(p->cuda_pkt_vars.cuda_results,
-                       cuda_results_buffer_h +
-                       ((o_buffer[i_op_start_offset] - d_buffer_start_offset) * 2),
-                       (cuda_results_buffer_h[((o_buffer[i_op_start_offset] -
-                                                d_buffer_start_offset) * 2)] * sizeof(uint32_t)) + 4);
-            }
-
-            p->cuda_pkt_vars.cuda_done = 1;
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
-            do_cond_signal(&p->cuda_pkt_vars.cuda_cond);
-        }
-        if (no_of_items != 0)
-            CudaBufferReportCulledConsumption(cb_data, &cb_culled_info);
-    } /* while (1) */
-
-    r = SCCudaModuleUnload(cuda_module);
-    if (r < 0) {
-        fprintf (stdout,  "Error unloading cuda module.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemFree(cuda_packets_buffer_d);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda device memory.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemFree(cuda_offset_buffer_d);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda device memory.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemFree(cuda_results_buffer_d);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda device memory.");
-        exit(EXIT_FAILURE);
-    }
-    r = SCCudaMemFreeHost(cuda_results_buffer_h);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda host memory.");
-        exit(EXIT_FAILURE);
-    }
-
-    TmThreadsSetFlag(tv, THV_RUNNING_DONE);
-    TmThreadWaitForFlag(tv, THV_DEINIT);
-    TmThreadsSetFlag(tv, THV_CLOSED);
-
-    return NULL;
-
-#undef BLOCK_SIZE
+	error:
+	return -1;
 }
-
-uint32_t SCACCudaPacketResultsProcessing(Packet *p, const MpmCtx *mpm_ctx,
-                                         PrefilterRuleStore *pmq)
-{
-    uint32_t u = 0;
-
-    while (!p->cuda_pkt_vars.cuda_done) {
-        do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
-        if (p->cuda_pkt_vars.cuda_done) {
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
-            break;
-        } else {
-            do_cond_wait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
-        }
-    } /* while */
-    p->cuda_pkt_vars.cuda_done = 0;
-    p->cuda_pkt_vars.cuda_mpm_enabled = 0;
-
-    uint32_t cuda_matches = p->cuda_pkt_vars.cuda_gpu_matches;
-    if (cuda_matches == 0)
-        return 0;
-
-    uint32_t matches = 0;
-    uint32_t *results = p->cuda_pkt_vars.cuda_results + 1;
-    uint8_t *buf = p->payload;
-    SCACCtx *ctx = mpm_ctx->ctx;
-    SCACOutputTable *output_table = ctx->output_table;
-    SCACPatternList *pid_pat_list = ctx->pid_pat_list;
-
-    uint8_t bitarray[ctx->pattern_id_bitarray_size];
-    memset(bitarray, 0, ctx->pattern_id_bitarray_size);
-
-    for (u = 0; u < cuda_matches; u += 2) {
-        uint32_t offset = results[u];
-        uint32_t state = results[u + 1];
-        /* we should technically be doing state & 0x00FFFFFF, but we don't
-         * since the cuda kernel does that for us */
-        uint32_t no_of_entries = output_table[state].no_of_entries;
-        /* we should technically be doing state & 0x00FFFFFF, but we don't
-         * since the cuda kernel does that for us */
-        uint32_t *pids = output_table[state].pids;
-        uint32_t k;
-        /* note that this is not a verbatim copy from ACSearch().  We
-         * don't copy the pattern id into the pattern_id_array.  That's
-         * the only change */
-        for (k = 0; k < no_of_entries; k++) {
-            if (pids[k] & AC_CASE_MASK) {
-                uint32_t lower_pid = pids[k] & 0x0000FFFF;
-                if (memcmp(pid_pat_list[lower_pid].cs,
-                             buf + offset - pid_pat_list[lower_pid].patlen + 1,
-                             pid_pat_list[lower_pid].patlen) != 0) {
-                    /* inside loop */
-                    continue;
-                }
-                if (bitarray[(lower_pid) / 8] & (1 << ((lower_pid) % 8))) {
-                    ;
-                } else {
-                    bitarray[(lower_pid) / 8] |= (1 << ((lower_pid) % 8));
-                    MpmAddSids(pmq, pid_pat_list[lower_pid].sids, pid_pat_list[lower_pid].sids_size);
-                }
-                matches++;
-            } else {
-                if (bitarray[pids[k] / 8] & (1 << (pids[k] % 8))) {
-                    ;
-                } else {
-                    bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
-                    MpmAddSids(pmq, pid_pat_list[pids[k]].sids, pid_pat_list[pids[k]].sids_size);
-                }
-                matches++;
-            }
-        }
-    }
-
-    return matches;
-}
-
-void SCACCudaStartDispatcher(void)
-{
-    /* create the threads */
-    ThreadVars *tv = TmThreadCreate("Cuda_Mpm_AC_Dispatcher",
-                                    NULL, NULL,
-                                    NULL, NULL,
-                                    "custom", SCACCudaDispatcher, 0);
-    if (tv == NULL) {
-        oryx_log_error(SC_ERR_THREAD_CREATE, "Error creating a thread for "
-                   "ac cuda dispatcher.  Killing engine.");
-        exit(EXIT_FAILURE);
-    }
-    if (TmThreadSpawn(tv) != 0) {
-        oryx_log_error(SC_ERR_THREAD_SPAWN, "Failed to spawn thread for "
-                   "ac cuda dispatcher.  Killing engine.");
-        exit(EXIT_FAILURE);
-    }
-
-    return;
-}
-
-int MpmCudaBufferSetup(void)
-{
-    int r = 0;
-    MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
-    if (conf == NULL) {
-        fprintf (stdout,  "Error obtaining cuda mpm profile.");
-        return -1;
-    }
-
-    CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
-    if (cuda_context == 0) {
-        fprintf (stdout,  "Error retrieving cuda context.");
-        return -1;
-    }
-    r = SCCudaCtxPushCurrent(cuda_context);
-    if (r < 0) {
-        fprintf (stdout,  "Error pushing cuda context.");
-        return -1;
-    }
-
-    uint8_t *d_buffer = NULL;
-    uint32_t *o_buffer = NULL;
-    void **p_buffer = NULL;
-
-    r = SCCudaMemAllocHost((void *)&d_buffer, conf->cb_buffer_size);
-    if (r < 0) {
-        fprintf (stdout,  "Cuda alloc host failure.");
-        return -1;
-    }
-    fprintf (stdout, "Allocated a cuda d_buffer - %"PRIu32" bytes", conf->cb_buffer_size);
-    r = SCCudaMemAllocHost((void *)&o_buffer, sizeof(uint32_t) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
-    if (r < 0) {
-        fprintf (stdout,  "Cuda alloc host failue.");
-        return -1;
-    }
-    r = SCCudaMemAllocHost((void *)&p_buffer, sizeof(void *) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
-    if (r < 0) {
-        fprintf (stdout,  "Cuda alloc host failure.");
-        return -1;
-    }
-
-    r = SCCudaCtxPopCurrent(NULL);
-    if (r < 0) {
-        fprintf (stdout,  "cuda context pop failure.");
-        return -1;
-    }
-
-    CudaBufferData *cb = CudaBufferRegisterNew(d_buffer, conf->cb_buffer_size, o_buffer, p_buffer, UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
-    if (cb == NULL) {
-        fprintf (stdout,  "Error registering new cb instance.");
-        return -1;
-    }
-    CudaHandlerModuleStoreData(MPM_AC_CUDA_MODULE_NAME, MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME, cb);
-
-    return 0;
-}
-
-int MpmCudaBufferDeSetup(void)
-{
-    int r = 0;
-    MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
-    if (conf == NULL) {
-        fprintf (stdout,  "Error obtaining cuda mpm profile.");
-        return -1;
-    }
-
-    CudaBufferData *cb_data = CudaHandlerModuleGetData(MPM_AC_CUDA_MODULE_NAME, MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME);
-    BUG_ON(cb_data == NULL);
-
-    CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_AC_CUDA_MODULE_NAME, conf->device_id);
-    if (cuda_context == 0) {
-        fprintf (stdout,  "Error retrieving cuda context.");
-        return -1;
-    }
-    r = SCCudaCtxPushCurrent(cuda_context);
-    if (r < 0) {
-        fprintf (stdout,  "Error pushing cuda context.");
-        return -1;
-    }
-
-    r = SCCudaMemFreeHost(cb_data->d_buffer);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda host memory.");
-        return -1;
-    }
-    r = SCCudaMemFreeHost(cb_data->o_buffer);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda host memory.");
-        return -1;
-    }
-    r = SCCudaMemFreeHost(cb_data->p_buffer);
-    if (r < 0) {
-        fprintf (stdout,  "Error freeing cuda host memory.");
-        return -1;
-    }
-
-    r = SCCudaCtxPopCurrent(NULL);
-    if (r < 0) {
-        fprintf (stdout,  "cuda context pop failure.");
-        return -1;
-    }
-
-    CudaBufferDeRegister(cb_data);
-
-    return 0;
-}
-
-#endif /* __SC_CUDA_SUPPORT */
 
 /************************** Mpm Registration ***************************/
 
 /**
  * \brief Register the aho-corasick mpm.
  */
-void MpmACRegister(void)
+void mpm_register_ac(void)
 {
     mpm_table[MPM_AC].name = "ac";
-    mpm_table[MPM_AC].InitCtx = ACinitCtx;
-    mpm_table[MPM_AC].InitThreadCtx = ACInitThreadCtx;
-    mpm_table[MPM_AC].DestroyCtx = ACDestroyCtx;
-    mpm_table[MPM_AC].DestroyThreadCtx = ACDestroyThreadCtx;
-    mpm_table[MPM_AC].AddPattern = ACAddPatternCS;
-    mpm_table[MPM_AC].AddPatternNocase = ACAddPatternCI;
-    mpm_table[MPM_AC].Prepare = ACPreparePatterns;
-    mpm_table[MPM_AC].Search = ACSearch;
+    mpm_table[MPM_AC].ctx_init = ac_ctx_init;
+    mpm_table[MPM_AC].threadctx_init = ac_threadctx_init;
+    mpm_table[MPM_AC].ctx_destroy = ac_ctx_destroy;
+    mpm_table[MPM_AC].threadctx_destroy = ac_threadctx_destroy;
+    mpm_table[MPM_AC].pat_add = ac_pat_add_cs;
+    mpm_table[MPM_AC].pat_add_nocase = ac_pat_add_ci;
+    mpm_table[MPM_AC].pat_prepare = ac_pat_prepare;
+    mpm_table[MPM_AC].pat_search = ac_search;
     mpm_table[MPM_AC].Cleanup = NULL;
-    mpm_table[MPM_AC].PrintCtx = ACPrintInfo;
-    mpm_table[MPM_AC].PrintThreadCtx = ACPrintSearchStats;
-    mpm_table[MPM_AC].RegisterUnittests = NULL;
+    mpm_table[MPM_AC].ctx_print = ac_ctx_print;
+    mpm_table[MPM_AC].threadctx_print = ac_threadctx_print;
 
     return;
 }

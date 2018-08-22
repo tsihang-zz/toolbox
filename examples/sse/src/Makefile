@@ -39,28 +39,23 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = mpm
+APP = sse
 
 # all source are stored in SRCS-y
-SRCS-y := main.c rx.c mpm.c mpm_ac.c mpm_hs.c
-DEPDIRS-y += ../../lib/oryx
+SRCS-y := sse_main.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
-		  -DHAVE_ADVANCED_TMR\
-		  -DHAVE_PCAP\
-		  -DHAVE_HYPERSCAN
+		  -DHAVE_ADVANCED_TMR
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/../oryx\
-		  -I$(SRCDIR)/../oryx/osih\
-		  -I/usr/include/hs/
+		  -I$(SRCDIR)/../oryx
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lyaml -lpcap -lhs
+		   -lpcre -lyaml -lpcap
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

@@ -19,8 +19,8 @@ struct netdev_t {
 	char		devname[16];
 	int (*netdev_capture_fn)(dev_handler_t, char *, size_t);
 	int (*netdev_close_fn)(dev_handler_t);
-	void (*dispatch)(u_char *argument,
-						void *pkthdr, const u_char *packet);
+	void (*pcap_handler)(u_char *user, const struct pcap_pkthdr *h,
+                                   const u_char *bytes);
 
 	void *private;
 	atomic64_t         rank;

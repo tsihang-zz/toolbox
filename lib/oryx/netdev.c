@@ -125,13 +125,10 @@ int netdev_down(const char *iface) {
 
 
 static void
-netdev_dispatcher(u_char *argument,
-		void *pkthdr, const u_char *packet)
+pkt_handler(u_char *user, const struct pcap_pkthdr *h,
+                                   		const u_char *bytes)
 {
-	argument = argument;
-	pkthdr = pkthdr;
-	packet = packet;
-	fprintf (stdout, "defualt dispatch\n");
+	fprintf (stdout, "defualt pkt_handler\n");
 }
 
 int netdev_open(struct netdev_t *netdev)
@@ -156,7 +153,7 @@ void *netdev_cap(void *argv)
 		
 		rank_acc = pcap_dispatch(netdev->handler,
 			1024, 
-			(netdev->dispatch != NULL) ? netdev->dispatch : netdev_dispatcher, 
+			(netdev->pcap_handler != NULL) ? netdev->pcap_handler : pkt_handler, 
 			(u_char *)netdev);
 
 		if (rank_acc >= 0) {

@@ -3,84 +3,50 @@
 #include "http.h"
 
 static int pattern_id;
+volatile bool force_quit = false;
+extern struct oryx_task_t rx_netdev_task;
 
-static __oryx_always_inline__
-void http_parse(struct http_hdr_t *hh, const char *http_buf, size_t http_buflen)
-{
-	size_t pos = 0;
-	size_t pos0 = 0;
+MpmCtx mpm_ctx;
+MpmThreadCtx mpm_thread_ctx;
+PrefilterRuleStore pmq;
 
-	if ((http_buf == NULL) ||
-		!__is_wanted_http (http_buf, http_buflen, &hh->method))
-		return;
-
-	while (pos ++ < http_buflen) {
-		if (http_buf[pos] == CR) {
-			pos0 = pos + 1;
-			if (http_buf[pos0] == LF) {
-				pos0 += 1;
-				//fprintf (stdout, "=> %s", (char *)&http_buf[pos0]);
-				if (strncmp ((const char *)&http_buf[pos0], "Content-Type: ", 14) == 0) {
-					__parse_content_type(hh, http_buf, http_buflen, 14, &pos0);
-				} else if (strncmp ((const char *)&http_buf[pos0], "User-Agent: ", 12) == 0) {
-					__parse_user_agent(hh, http_buf, http_buflen, 12, &pos0);
-				} else if (strncmp ((const char *)&http_buf[pos0], "Host: ", 6) == 0) {
-					__parse_host(hh, http_buf, http_buflen, 6, &pos0);
-				}
-			}
-		}
-	}
-}
-
-static __oryx_always_inline__
-void http_dump(struct http_hdr_t *h, const char *http_buf, size_t http_buflen)
-{
-	struct http_keyval_t *v;
-
-#if 0
-	fprintf (stdout, "%s", "HTTP RAW --\n");
-	fprintf (stdout, "%s", http_buf);
-#endif
-
-	if(h->ul_flags & HTTP_APPEAR_CONTENT_TYPE) {
-		v = &h->ct;
-		fprintf (stdout, "Content-Type: %s (%lu)\n", &v->val[0], v->valen);
-	}
-
-	if(h->ul_flags & HTTP_APPEAR_USER_AGENT) {
-		v = &h->ua;
-		fprintf (stdout, "User-Agent: %s (%lu)\n", &v->val[0], v->valen);
-	}
-	
-	if(h->ul_flags & HTTP_APPEAR_HOST) {
-		v = &h->host;
-		fprintf (stdout, "Host: %s (%lu)\n", &v->val[0], v->valen);
-	}
-
-}
+struct http_content_type_handler_t {
+	MpmCtx mpm_ctx;
+	MpmThreadCtx mpm_thread_ctx;
+	PrefilterRuleStore pmq;
+};
 
 static void mpm_install_content_type(MpmCtx *mpm_ctx)
 {
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCS(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
 			0, 0, pattern_id ++, 0, 0);
-	
+	MpmAddPatternCI(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
+			0, 0, pattern_id ++, 0, 0);	
 }
 
-static __oryx_always_inline__
 int http_match(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v)
 {
 	return MpmSearch(mpm_ctx, mpm_thread_ctx, pmq,
 				(uint8_t *)&v->val[0], v->valen);
+}
+
+static void
+sig_handler(int signum) {
+	
+	if (signum == SIGINT || signum == SIGTERM) {
+		fprintf (stdout, "\n\nSignal %d received, preparing to exit...\n", signum);
+		force_quit = true;
+	}
 }
 
 int main (
@@ -89,10 +55,7 @@ int main (
 )
 {
     int result = 0;
-    MpmCtx mpm_ctx;
-    MpmThreadCtx mpm_thread_ctx;
-    PrefilterRuleStore pmq;
-
+	
 	/* video/flv */
     uint8_t http_buf0[] =
         "GET /index.html HTTP/1.0\r\n"
@@ -153,7 +116,7 @@ int main (
 		"\r\n"
 		"This is dummy message body\r\n";
 
-	struct http_hdr_t h0, h1, h2, h3, h4, h5;
+	struct http_ctx_t h0, h1, h2, h3, h4, h5;
 
 	memset (&h0, 0, sizeof (h0));
 	http_parse (&h0, (const char *)&http_buf0[0], strlen((const char *)&http_buf0[0]));
@@ -227,6 +190,19 @@ int main (
 	else
 	  printf("1 != %" PRIu32 " \n", cnt);
 
+	oryx_register_sighandler(SIGINT, sig_handler);
+	oryx_register_sighandler(SIGTERM, sig_handler);
+	oryx_task_registry(&rx_netdev_task);
+
+
+	oryx_task_launch();
+	FOREVER {
+		/* wait for quit. */
+		if(force_quit)
+			break;
+
+		usleep(10000);
+	}
 
     MpmDestroyCtx(&mpm_ctx);
     MpmDestroyThreadCtx(&mpm_ctx, &mpm_thread_ctx);

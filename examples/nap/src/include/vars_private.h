@@ -81,9 +81,6 @@ typedef struct DecodeThreadVars_
      * flow recycle during lookups */
     void *output_flow_thread_data;
 
-#ifdef __SC_CUDA_SUPPORT__
-    CudaThreadVars cuda_vars;
-#endif
 } DecodeThreadVars;
 
 
