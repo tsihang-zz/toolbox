@@ -349,6 +349,22 @@ struct inet_addr {
 #define ntoh16(x) ntohs(x)
 #define hton32(x) htonl(x)
 #define ntoh32(x) ntohl(x)
+static __oryx_always_inline__ uint64_t ntoh64(uint64_t net)
+{   
+	uint64_t ret = 0;   
+	uint32_t high,low;
+	
+	low = net & 0xFFFFFFFF;
+	high = (net >> 32) & 0xFFFFFFFF;
+
+	low = htonl(low);   
+	high = htonl(high);   
+
+	ret = low;
+	ret <<= 32;   
+	ret |= high;   
+	return   ret;   
+}
 
 #ifndef INT_MAX
 #define INT_MAX ((int)(~0U>>1))

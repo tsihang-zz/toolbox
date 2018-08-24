@@ -3,8 +3,8 @@
 
 #include "mpm.h"
 
-#define SC_AC_STATE_TYPE_U16 uint16_t
-#define SC_AC_STATE_TYPE_U32 uint32_t
+#define AC_STATE_TYPE_U16 uint16_t
+#define AC_STATE_TYPE_U32 uint32_t
 
 
 typedef struct ac_pattern_list_t_ {
@@ -25,7 +25,7 @@ typedef struct ac_output_table_t_ {
 
 typedef struct ac_ctx_t_ {
     /* pattern arrays.  We need this only during the goto table creation phase */
-    MpmPattern **parray;
+    mpm_pattern_t **parray;
 
     /* no of states used by ac */
     uint32_t state_count;
@@ -33,9 +33,9 @@ typedef struct ac_ctx_t_ {
     uint32_t pattern_id_bitarray_size;
 
     /* the all important memory hungry state_table */
-    SC_AC_STATE_TYPE_U16 (*state_table_u16)[256];
+    AC_STATE_TYPE_U16 (*state_table_u16)[256];
     /* the all important memory hungry state_table */
-    SC_AC_STATE_TYPE_U32 (*state_table_u32)[256];
+    AC_STATE_TYPE_U32 (*state_table_u32)[256];
 
     /* goto_table, failure table and output table.  Needed to create state_table.
      * Will be freed, once we have created the state_table */

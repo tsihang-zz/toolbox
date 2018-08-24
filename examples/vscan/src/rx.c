@@ -16,12 +16,36 @@ struct pcap_pkthdr {
 };
 #endif
 
-extern MpmCtx mpm_ctx;
-extern MpmThreadCtx mpm_thread_ctx;
+struct cdr_scghdr_t {                          
+        uint16_t        len;                   
+        uint16_t        msg_type;              
+        uint16_t        seq_id;                
+        uint16_t        reserved;              
+        uint32_t        offset;                
+};                                             
+                                               
+                                               
+struct cdr_hdr_t {                             
+        struct cdr_scghdr_t     scg;           
+        uint16_t                total_len;     
+        uint16_t                table_id;      
+        uint16_t                service_detail;
+        uint16_t                policy_id;     
+        uint64_t                start_time;    
+        uint64_t                cdr_id;        
+        uint8_t                 device_id;     
+        uint8_t                 filter_flag;   
+        uint8_t                 data_type;     
+        uint8_t                 cpu_clock_mul; 
+        uint8_t                 reserved1[4];  
+};                                             
+
+extern mpm_ctx_t mpm_ctx;
+extern mpm_threadctx_t mpm_thread_ctx;
 extern PrefilterRuleStore pmq;
 
 extern volatile bool force_quit;
-int http_match(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v);
+int http_match(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v);
 
 extern oryx_file_t *fp;
 static uint32_t refcnt_all = 0, refcnt_tcp = 0, refcnt_udp = 0, refcnt_http = 0;
@@ -42,6 +66,19 @@ void dump_pkt(uint8_t *pkt, int len)
 		fprintf (stdout, "%02x ", pkt[i]);
 	}
 	fprintf (stdout, "\n");
+}
+
+static cdr_information(const char *buf, size_t buflen)
+{
+	struct cdr_hdr_t *h = (struct cdr_hdr_t *)buf;
+	fprintf(stdout, "%16s%12u\n", "scg.len:",		ntoh16(h->scg.len));
+	fprintf(stdout, "%16s%12u\n", "scg.msg_type:",	ntoh16(h->scg.msg_type));
+	fprintf(stdout, "%16s%12u\n", "scg.seq_id:",	ntoh16(h->scg.seq_id));
+	fprintf(stdout, "%16s%12u\n", "scg.offset:",	ntoh32(h->scg.offset));
+	fprintf(stdout, "%16s%12u\n", "total_len:",		ntoh16(h->total_len));
+	fprintf(stdout, "%16s%12u\n", "table_id:",		ntoh16(h->table_id));
+	fprintf(stdout, "%16s%12u\n", "start_time:",	ntoh64(h->start_time));
+	fprintf(stdout, "%16s%12u\n", "device_id:",		(h->device_id));
 }
 
 static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
@@ -126,6 +163,9 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 				return;
 		}
 
+		cdr_information(&pkt[offset], 0);
+		return;
+		
 		if((sp == 80 || dp == 80)) {
 			refcnt_http ++;
 			size_t http_len = plen;

@@ -5,8 +5,6 @@
 
 #define BUILD_HYPERSCAN
 
-#define UtRegisterTest(d,f) (f())
-
 #define MPM_INIT_HASH_SIZE 65536
 
 
@@ -19,11 +17,6 @@
 
 /** same for pattern id's */
 #define pat_id uint16_t
-
-#define SCReturnInt(i) return (i)
-#define SCEnter()	
-#define SCReturn return
-#define SCReturnPtr(x,d) return (x)
 
 enum {
     MPM_NOTSET = 0,
@@ -55,13 +48,13 @@ enum {
 /* Internal Pattern Index: 0 to pattern_cnt-1 */
 typedef uint32_t MpmPatternIndex;
 
-typedef struct MpmThreadCtx_ {
+typedef struct mpm_threadctx_t_ {
     void *ctx;
 
     uint32_t memory_cnt;
     uint32_t memory_size;
 
-} MpmThreadCtx;
+} mpm_threadctx_t;
 
 /** \brief helper structure for the pattern matcher engine. The Pattern Matcher
  *         thread has this and passes a pointer to it to the pattern matcher.
@@ -78,7 +71,7 @@ typedef struct PrefilterRuleStore_ {
 
 } PrefilterRuleStore;
 
-typedef struct MpmPattern_ {
+typedef struct mpm_pattern_t_ {
     /* length of the pattern */
     uint16_t len;
     /* flags decribing the pattern */
@@ -96,10 +89,10 @@ typedef struct MpmPattern_ {
     uint32_t sids_size;
     sig_id *sids;
 
-    struct MpmPattern_ *next;
-} MpmPattern;
+    struct mpm_pattern_t_ *next;
+} mpm_pattern_t;
 
-typedef struct MpmCtx_ {
+typedef struct mpm_ctx_t_ {
     void *ctx;
     uint16_t mpm_type;
 
@@ -121,24 +114,8 @@ typedef struct MpmCtx_ {
     uint32_t max_pat_id;
 
     /* hash used during ctx initialization */
-    MpmPattern **init_hash;
-} MpmCtx;
-
-/* if we want to retrieve an unique mpm context from the mpm context factory
- * we should supply this as the key */
-#define MPM_CTX_FACTORY_UNIQUE_CONTEXT -1
-
-typedef struct MpmCtxFactoryItem_ {
-    const char *name;
-    MpmCtx *mpm_ctx_ts;
-    MpmCtx *mpm_ctx_tc;
-    int32_t id;
-} MpmCtxFactoryItem;
-
-typedef struct MpmCtxFactoryContainer_ {
-    MpmCtxFactoryItem *items;
-    int32_t no_of_items;
-} MpmCtxFactoryContainer;
+    mpm_pattern_t **init_hash;
+} mpm_ctx_t;
 
 /** pattern is case insensitive */
 #define MPM_PATTERN_FLAG_NOCASE     0x01
@@ -154,12 +131,12 @@ typedef struct MpmCtxFactoryContainer_ {
  *  what is passed through the API */
 #define MPM_PATTERN_CTX_OWNS_ID     0x20
 
-typedef struct MpmTableElmt_ {
+typedef struct mpm_table_elem_t_ {
     const char *name;
-    void (*ctx_init)(struct MpmCtx_ *);
-    void (*threadctx_init)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
-    void (*ctx_destroy)(struct MpmCtx_ *);
-    void (*threadctx_destroy)(struct MpmCtx_ *, struct MpmThreadCtx_ *);
+    void (*ctx_init)(mpm_ctx_t *);
+    void (*threadctx_init)(mpm_ctx_t *, mpm_threadctx_t *);
+    void (*ctx_destroy)(mpm_ctx_t *);
+    void (*threadctx_destroy)(mpm_ctx_t *, mpm_threadctx_t *);
 
     /** function pointers for adding patterns to the mpm ctx.
      *
@@ -172,57 +149,85 @@ typedef struct MpmTableElmt_ {
      *  \param sid signature _internal_ id
      *  \param flags pattern flags
      */
-    int  (*pat_add)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
-    int  (*pat_add_nocase)(struct MpmCtx_ *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
-    int  (*pat_prepare)(struct MpmCtx_ *);
-    uint32_t (*pat_search)(struct MpmCtx_ *, struct MpmThreadCtx_ *, PrefilterRuleStore *, const uint8_t *, uint16_t);
-    void (*Cleanup)(struct MpmThreadCtx_ *);
-    void (*ctx_print)(struct MpmCtx_ *);
-    void (*threadctx_print)(struct MpmThreadCtx_ *);
+    int  (*pat_add)(mpm_ctx_t *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
+    int  (*pat_add_nocase)(mpm_ctx_t *, uint8_t *, uint16_t, uint16_t, uint16_t, uint32_t, sig_id, uint8_t);
+    int  (*pat_prepare)(mpm_ctx_t *);
+    uint32_t (*pat_search)(mpm_ctx_t *, mpm_threadctx_t *, PrefilterRuleStore *, const uint8_t *, uint16_t);
+    void (*Cleanup)(mpm_threadctx_t *);
+    void (*ctx_print)(mpm_ctx_t *);
+    void (*threadctx_print)(mpm_threadctx_t *);
     uint8_t flags;
-} MpmTableElmt;
+} mpm_table_elem_t;
 
-extern MpmTableElmt mpm_table[];
+extern mpm_table_elem_t mpm_table[];
 extern int mpm_default_matcher;
 
-int PmqSetup(PrefilterRuleStore *);
-void PmqReset(PrefilterRuleStore *);
-void PmqCleanup(PrefilterRuleStore *);
-void PmqFree(PrefilterRuleStore *);
+int mpm_pmq_setup(PrefilterRuleStore *);
+void mpm_pmq_reset(PrefilterRuleStore *);
+void mpm_pmq_cleanup(PrefilterRuleStore *);
+void mpm_pmq_free(PrefilterRuleStore *);
 
-void MpmTableSetup(void);
-
-void MpmRegisterTests(void);
-
-void MpmInitCtx(MpmCtx *mpm_ctx, uint16_t matcher);
-void MpmInitThreadCtx(MpmThreadCtx *mpm_thread_ctx, uint16_t);
-
-void MpmDestroyThreadCtx(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx);
-void MpmDestroyCtx (MpmCtx *mpm_ctx);
-
-
-uint32_t MpmSearch(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
+void mpm_table_setup(void);
+void mpm_ctx_init(mpm_ctx_t *mpm_ctx, uint16_t matcher);
+void mpm_ctx_destroy (mpm_ctx_t *mpm_ctx);
+void mpm_threadctx_init(mpm_threadctx_t *mpm_thread_ctx, uint16_t);
+void mpm_threadctx_destroy(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx);
+uint32_t mpm_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen);
-int MpmPreparePatterns(MpmCtx *mpm_ctx);
-int MpmAddPatternCS(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,
+int mpm_pattern_prepare(mpm_ctx_t *mpm_ctx);
+int mpm_pattern_add_cs(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                     uint16_t offset, uint16_t depth,
                     uint32_t pid, sig_id sid, uint8_t flags);
-int MpmAddPatternCI(struct MpmCtx_ *mpm_ctx, uint8_t *pat, uint16_t patlen,
+int mpm_pattern_add_ci(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                     uint16_t offset, uint16_t depth,
                     uint32_t pid, sig_id sid, uint8_t flags);
 
-void MpmFreePattern(MpmCtx *mpm_ctx, MpmPattern *p);
+void mpm_pattern_free(mpm_ctx_t *mpm_ctx, mpm_pattern_t *p);
 
-int MpmAddPattern(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+int mpm_pattern_add(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                             uint16_t offset, uint16_t depth, uint32_t pid,
                             sig_id sid, uint8_t flags);
 
-/* Resize Signature ID array. Only called from MpmAddSids(). */
-int MpmAddSidsResize(PrefilterRuleStore *pmq, uint32_t new_size);
+/** \brief Add array of Signature IDs to rule ID array.
+ *
+ *	 Checks size of the array first
+ *
+ *	\param pmq storage for match results
+ *	\param new_size number of Signature IDs needing to be stored.
+ *
+ */
+static __oryx_always_inline__
+int mpm_sids_resize(PrefilterRuleStore *pmq, uint32_t new_size)
+{
+	/* Need to make the array bigger. Double the size needed to
+	 * also handle the case that sids_size might still be
+	 * larger than the old size.
+	 */
+	new_size = new_size * 2;
+	sig_id *new_array = (sig_id*)krealloc(pmq->rule_id_array,
+											   new_size * sizeof(sig_id), MPF_NOFLGS, __oryx_unused_val__);
+	if (unlikely(new_array == NULL)) {
+		/* Try again just big enough. */
+		new_size = new_size / 2;
+		new_array = (sig_id*)krealloc(pmq->rule_id_array,
+										 new_size * sizeof(sig_id), MPF_NOFLGS, __oryx_unused_val__);
+		if (unlikely(new_array == NULL)) {
+
+			fprintf (stdout, "Failed to realloc PatternMatchQueue"
+					   " rule ID array. Some signature ID matches lost\n");
+			return 0;
+		}
+	}
+	pmq->rule_id_array = new_array;
+	pmq->rule_id_array_size = new_size;
+
+	return new_size;
+}
+
 
 /** \brief Add array of Signature IDs to rule ID array.
  *
- *   Checks size of the array first. Calls MpmAddSidsResize to increase
+ *   Checks size of the array first. Calls mpm_sids_resize to increase
  *   The size of the array, since that is the slow path.
  *
  *  \param pmq storage for match results
@@ -231,14 +236,14 @@ int MpmAddSidsResize(PrefilterRuleStore *pmq, uint32_t new_size);
  *
  */
 static __oryx_always_inline__
-void MpmAddSids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
+void mpm_hold_matched_sids(PrefilterRuleStore *pmq, sig_id *sids, uint32_t sids_size)
 {
     if (sids_size == 0)
         return;
 
     uint32_t new_size = pmq->rule_id_array_cnt + sids_size;
     if (new_size > pmq->rule_id_array_size) {
-        if (MpmAddSidsResize(pmq, new_size) == 0) {
+        if (mpm_sids_resize(pmq, new_size) == 0) {
             // Failed to allocate larger memory for all the SIDS, but
             // keep as many as we can.
             sids_size = pmq->rule_id_array_size - pmq->rule_id_array_cnt;

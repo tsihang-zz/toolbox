@@ -5,6 +5,7 @@
 
 #include <hs.h>
 
+#define enable_pat_render
 
 /* size of the hash table used to speed up pattern insertions initially */
 #define INIT_HASH_SIZE 65536
@@ -45,11 +46,11 @@ typedef struct hs_pat_database_t_ {
     uint32_t ref_cnt;
 } hs_pat_database_t;
 
-typedef struct hs_search_cb_ctx_ {
+typedef struct hs_search_cb_ctx_t_ {
     hs_ctx_t *ctx;
     void *pmq;
     uint32_t match_count;
-} hs_search_cb_ctx;
+} hs_search_cb_ctx_t;
 
 /*
 --------------------------------------------------------------------
@@ -132,7 +133,8 @@ acceptable.  Do NOT use for cryptographic purposes.
 -------------------------------------------------------------------------------
 */
 
-static uint32_t hashlittle_safe(const void *key, size_t length, uint32_t initval)
+static __oryx_always_inline__
+uint32_t hashlittle_safe(const void *key, size_t length, uint32_t initval)
 {
   uint32_t a,b,c;                                          /* internal state */
   union { const void *ptr; size_t i; } u;     /* needed for Mac Powerbook G4 */
@@ -324,16 +326,28 @@ static char *hs_pat_render(const uint8_t *pat, uint16_t pat_len)
     if (pat == NULL) {
         return NULL;
     }
-    const size_t hex_len = (pat_len * 4) + 1;
-    char *str = malloc(hex_len);
+	
+#if defined(enable_pat_render)
+    const size_t exp_len = (pat_len * 4) + 1;
+#else
+	const size_t exp_len = (pat_len + 1) + 1;
+#endif
+	
+    char *str = malloc(exp_len);
     if (str == NULL) {
         return NULL;
     }
-    memset(str, 0, hex_len);
+    memset(str, 0, exp_len);
+
     char *sp = str;
     for (uint16_t i = 0; i < pat_len; i++) {
+#if defined(enable_pat_render)
         snprintf(sp, 5, "\\x%02x", pat[i]);
         sp += 4;
+#else
+		snprintf(sp, 2, "%c", pat[i]);
+		sp += 1;
+#endif
     }
     *sp = '\0';
     return str;
@@ -437,7 +451,7 @@ static __oryx_always_inline__ hs_pattern_t *hs_pat_lookup(hs_ctx_t *ctx, uint8_t
  *
  * \retval p Pointer to the newly created pattern.
  */
-static __oryx_always_inline__ hs_pattern_t *hs_pat_alloc(MpmCtx *mpm_ctx)
+static __oryx_always_inline__ hs_pattern_t *hs_pat_alloc(mpm_ctx_t *mpm_ctx)
 {
     hs_pattern_t *p = malloc(sizeof(hs_pattern_t));
     if (unlikely(p == NULL)) {
@@ -459,7 +473,7 @@ static __oryx_always_inline__ hs_pattern_t *hs_pat_alloc(MpmCtx *mpm_ctx)
  * \param p       Pointer to the hs_pattern_t instance to be freed.
  * \param free    Free the above pointer or not.
  */
-static __oryx_always_inline__ void hs_pat_free(MpmCtx *mpm_ctx, hs_pattern_t *p)
+static __oryx_always_inline__ void hs_pat_free(mpm_ctx_t *mpm_ctx, hs_pattern_t *p)
 {
     if (p != NULL && p->original_pat != NULL) {
         free(p->original_pat);
@@ -528,7 +542,7 @@ static __oryx_always_inline__ int hs_pat_add(hs_ctx_t *ctx, hs_pattern_t *p)
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-static int hs_pat_add_ext(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int hs_pat_add_ext(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                           uint16_t offset, uint16_t depth, uint32_t pid,
                           sig_id sid, uint8_t flags)
 {
@@ -771,174 +785,7 @@ static hs_pat_database_t *hs_pat_database_alloc(uint32_t pattern_cnt)
     return pd;
 }
 
-/**
- * \brief Process the patterns added to the mpm, and create the internal tables.
- *
- * \param mpm_ctx Pointer to the mpm context.
- */
-static int hs_pat_prepare(MpmCtx *mpm_ctx)
-{
-    hs_ctx_t *ctx = (hs_ctx_t *)mpm_ctx->ctx;
-
-    if (mpm_ctx->pattern_cnt == 0 || ctx->init_hash == NULL) {
-        fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
-        return 0;
-    }
-
-    hs_error_t err;
-    hs_compile_error_t *compile_err = NULL;
-    hs_compile_data_t *cd = NULL;
-    hs_pat_database_t *pd = NULL;
-
-    cd = hs_compile_data_alloc(mpm_ctx->pattern_cnt);
-    if (cd == NULL) {
-        goto error;
-    }
-
-    pd = hs_pat_database_alloc(mpm_ctx->pattern_cnt);
-    if (pd == NULL) {
-        goto error;
-    }
-
-    /* populate the pattern array with the patterns in the hash */
-    for (uint32_t i = 0, p = 0; i < INIT_HASH_SIZE; i++) {
-        hs_pattern_t *node = ctx->init_hash[i], *nnode = NULL;
-        while (node != NULL) {
-            nnode = node->next;
-            node->next = NULL;
-            pd->parray[p++] = node;
-            node = nnode;
-        }
-    }
-
-    /* we no longer need the hash, so free its memory */
-    free(ctx->init_hash);
-    ctx->init_hash = NULL;
-
-    /* Serialise whole database compilation as a relatively easy way to ensure
-     * dedupe is safe. */
-    do_mutex_lock(&g_db_table_mutex);
-
-    /* Init global pattern database hash if necessary. */
-    if (g_db_table == NULL) {
-        g_db_table = oryx_htable_init(INIT_DB_HASH_SIZE, hs_pat_database_hash,
-                                   hs_pat_database_cmp,
-                                   hs_pat_database_destroy, 0);
-        if (g_db_table == NULL) {
-            do_mutex_unlock(&g_db_table_mutex);
-            goto error;
-        }
-    }
-
-    /* Check global hash table to see if we've seen this pattern database
-     * before, and reuse the Hyperscan database if so. */
-    hs_pat_database_t *pd_cached = oryx_htable_lookup(g_db_table, pd, 1);
-
-    if (pd_cached != NULL) {
-        fprintf (stdout, "Reusing cached database %p with %" PRIu32
-                   " patterns (ref_cnt=%" PRIu32 ")\n",
-                   pd_cached->hs_db, pd_cached->pattern_cnt,
-                   pd_cached->ref_cnt);
-        pd_cached->ref_cnt++;
-        ctx->pattern_db = pd_cached;
-        do_mutex_unlock(&g_db_table_mutex);
-        hs_pat_database_free(pd);
-        hs_compile_data_free(cd);
-        return 0;
-    }
-
-    BUG_ON(ctx->pattern_db != NULL); /* already built? */
-
-    for (uint32_t i = 0; i < pd->pattern_cnt; i++) {
-        const hs_pattern_t *p = pd->parray[i];
-
-        cd->ids[i] = i;
-        cd->flags[i] = HS_FLAG_SINGLEMATCH;
-        if (p->flags & MPM_PATTERN_FLAG_NOCASE) {
-            cd->flags[i] |= HS_FLAG_CASELESS;
-        }
-
-        cd->expressions[i] = hs_pat_render(p->original_pat, p->len);
-
-        if (p->flags & (MPM_PATTERN_FLAG_OFFSET | MPM_PATTERN_FLAG_DEPTH)) {
-            cd->ext[i] = malloc(sizeof(hs_expr_ext_t));
-            if (cd->ext[i] == NULL) {
-                do_mutex_unlock(&g_db_table_mutex);
-                goto error;
-            }
-            memset(cd->ext[i], 0, sizeof(hs_expr_ext_t));
-
-            if (p->flags & MPM_PATTERN_FLAG_OFFSET) {
-                cd->ext[i]->flags |= HS_EXT_FLAG_MIN_OFFSET;
-                cd->ext[i]->min_offset = p->offset + p->len;
-            }
-            if (p->flags & MPM_PATTERN_FLAG_DEPTH) {
-                cd->ext[i]->flags |= HS_EXT_FLAG_MAX_OFFSET;
-                cd->ext[i]->max_offset = p->offset + p->depth;
-            }
-        }
-    }
-
-    BUG_ON(mpm_ctx->pattern_cnt == 0);
-
-    err = hs_compile_ext_multi((const char *const *)cd->expressions, cd->flags,
-                               cd->ids, (const hs_expr_ext_t *const *)cd->ext,
-                               cd->pattern_cnt, HS_MODE_BLOCK, NULL, &pd->hs_db,
-                               &compile_err);
-
-    if (err != HS_SUCCESS) {
-        fprintf (stdout,  "failed to compile hyperscan database\n");
-        if (compile_err) {
-            fprintf (stdout,  "compile error: %s\n", compile_err->message);
-        }
-        hs_free_compile_error(compile_err);
-        do_mutex_unlock(&g_db_table_mutex);
-        goto error;
-    }
-
-    ctx->pattern_db = pd;
-
-    do_mutex_lock(&g_scratch_proto_mutex);
-    err = hs_alloc_scratch(pd->hs_db, &g_scratch_proto);
-    do_mutex_unlock(&g_scratch_proto_mutex);
-    if (err != HS_SUCCESS) {
-        fprintf (stdout,  "%s***Failed to allocate scratch%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
-        do_mutex_unlock(&g_db_table_mutex);
-        goto error;
-    }
-
-    err = hs_database_size(pd->hs_db, &ctx->hs_db_size);
-    if (err != HS_SUCCESS) {
-        fprintf (stdout,  "%s***Failed to query database size%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
-        do_mutex_unlock(&g_db_table_mutex);
-        goto error;
-    }
-
-    mpm_ctx->memory_cnt++;
-    mpm_ctx->memory_size += ctx->hs_db_size;
-
-    fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIuMAX
-               " bytes\n", mpm_ctx->pattern_cnt, (uintmax_t)ctx->hs_db_size);
-
-    /* Cache this database globally for later. */
-    pd->ref_cnt = 1;
-    oryx_htable_add(g_db_table, pd, 1);
-    do_mutex_unlock(&g_db_table_mutex);
-
-    hs_compile_data_free(cd);
-    return 0;
-
-error:
-    if (pd) {
-        hs_pat_database_free(pd);
-    }
-    if (cd) {
-        hs_compile_data_free(cd);
-    }
-    return -1;
-}
-
-static void hs_threadctx_print(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
+static void hs_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx)
 {
     return;
 }
@@ -949,9 +796,9 @@ static void hs_threadctx_print(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ct
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void hs_threadctx_init(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+static void hs_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
-    memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
+    memset(mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 
     hs_threadctx_t *ctx = malloc(sizeof(hs_threadctx_t));
     if (ctx == NULL) {
@@ -1002,7 +849,7 @@ static void hs_threadctx_init(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCt
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void hs_threadctx_destroy(MpmCtx __oryx_unused_param__*mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+static void hs_threadctx_destroy(mpm_ctx_t __oryx_unused_param__*mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     hs_threadctx_print(mpm_thread_ctx);
 
@@ -1022,7 +869,7 @@ static void hs_threadctx_destroy(MpmCtx __oryx_unused_param__*mpm_ctx, MpmThread
     }
 }
 
-static void hs_ctx_print(MpmCtx *mpm_ctx)
+static void hs_ctx_print(mpm_ctx_t *mpm_ctx)
 {
     hs_ctx_t *ctx = (hs_ctx_t *)mpm_ctx->ctx;
 
@@ -1030,7 +877,7 @@ static void hs_ctx_print(MpmCtx *mpm_ctx)
     fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
     fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
     fprintf (stdout, " Sizeof:\n");
-    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
+    fprintf (stdout, "  mpm_ctx_t         %" PRIuMAX "\n", (uintmax_t)sizeof(mpm_ctx_t));
     fprintf (stdout, "  hs_ctx_t:       %" PRIuMAX "\n", (uintmax_t)sizeof(hs_ctx_t));
     fprintf (stdout, "  hs_pattern_t    %" PRIuMAX "\n", (uintmax_t)sizeof(hs_pattern_t));
     fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
@@ -1057,7 +904,7 @@ static void hs_ctx_print(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx       Mpm context.
  */
-static void hs_ctx_init(MpmCtx *mpm_ctx)
+static void hs_ctx_init(mpm_ctx_t *mpm_ctx)
 {
     if (mpm_ctx->ctx != NULL)
         return;
@@ -1085,7 +932,7 @@ static void hs_ctx_init(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static void hs_ctx_destroy(MpmCtx *mpm_ctx)
+static void hs_ctx_destroy(mpm_ctx_t *mpm_ctx)
 {
     hs_ctx_t *ctx = (hs_ctx_t *)mpm_ctx->ctx;
     if (ctx == NULL)
@@ -1117,24 +964,196 @@ static void hs_ctx_destroy(MpmCtx *mpm_ctx)
     mpm_ctx->memory_size -= sizeof(hs_ctx_t);
 }
 
-/* Hyperscan MPM match event handler */
+/**
+ * This is the function that will be called for each match that occurs. @a ctx
+ * is to allow you to have some application-specific state that you will get
+ * access to for each match. In our simple example we're just going to use it
+ * to pass in the pattern that was being searched for so we can print it out.
+ */
 static int hs_match_event(unsigned int id, unsigned long long __oryx_unused_param__ from,
                           unsigned long long __oryx_unused_param__ to, unsigned int __oryx_unused_param__ flags,
                           void *ctx)
 {
-    hs_search_cb_ctx *cctx = ctx;
+    hs_search_cb_ctx_t *cctx = ctx;
     PrefilterRuleStore *pmq = cctx->pmq;
     const hs_pat_database_t *pd = cctx->ctx->pattern_db;
     const hs_pattern_t *pat = pd->parray[id];
 #if 0
-    fprintf (stdout, "Hyperscan Match %" PRIu32 ": id=%" PRIu32 " @ %" PRIuMAX
+    fprintf (stdout, "Match %" PRIu32 ": id=%" PRIu32 " @ %" PRIuMAX
                " (pat id=%" PRIu32 ")\n",
                cctx->match_count, (uint32_t)id, (uintmax_t)to, pat->id);
 #endif
-    MpmAddSids(pmq, pat->sids, pat->sids_size);
+    mpm_hold_matched_sids(pmq, pat->sids, pat->sids_size);
 
     cctx->match_count++;
     return 0;
+}
+
+/**
+* \brief Process the patterns added to the mpm, and create the internal tables.
+*
+* \param mpm_ctx Pointer to the mpm context.
+*/
+static int hs_pattern_prepare(mpm_ctx_t *mpm_ctx)
+{
+	hs_ctx_t *ctx = (hs_ctx_t *)mpm_ctx->ctx;
+
+	if (mpm_ctx->pattern_cnt == 0 || ctx->init_hash == NULL) {
+	  fprintf (stdout, "no patterns supplied to this mpm_ctx\n");
+	  return 0;
+	}
+
+	hs_error_t err;
+	hs_compile_error_t *compile_err = NULL;
+	hs_compile_data_t *cd = NULL;
+	hs_pat_database_t *pd = NULL;
+
+	cd = hs_compile_data_alloc(mpm_ctx->pattern_cnt);
+	if (cd == NULL) {
+	  goto error;
+	}
+
+	pd = hs_pat_database_alloc(mpm_ctx->pattern_cnt);
+	if (pd == NULL) {
+	  goto error;
+	}
+
+	/* populate the pattern array with the patterns in the hash */
+	for (uint32_t i = 0, p = 0; i < INIT_HASH_SIZE; i++) {
+	  hs_pattern_t *node = ctx->init_hash[i], *nnode = NULL;
+	  while (node != NULL) {
+		  nnode = node->next;
+		  node->next = NULL;
+		  pd->parray[p++] = node;
+		  node = nnode;
+	  }
+	}
+
+	/* we no longer need the hash, so free its memory */
+	free(ctx->init_hash);
+	ctx->init_hash = NULL;
+
+	/* Serialise whole database compilation as a relatively easy way to ensure
+	* dedupe is safe. */
+	do_mutex_lock(&g_db_table_mutex);
+
+	/* Init global pattern database hash if necessary. */
+	if (g_db_table == NULL) {
+	  g_db_table = oryx_htable_init(INIT_DB_HASH_SIZE, hs_pat_database_hash,
+								 hs_pat_database_cmp,
+								 hs_pat_database_destroy, 0);
+	  if (g_db_table == NULL) {
+		  do_mutex_unlock(&g_db_table_mutex);
+		  goto error;
+	  }
+	}
+
+	/* Check global hash table to see if we've seen this pattern database
+	* before, and reuse the Hyperscan database if so. */
+	hs_pat_database_t *pd_cached = oryx_htable_lookup(g_db_table, pd, 1);
+
+	if (pd_cached != NULL) {
+	  fprintf (stdout, "Reusing cached database %p with %" PRIu32
+				 " patterns (ref_cnt=%" PRIu32 ")\n",
+				 pd_cached->hs_db, pd_cached->pattern_cnt,
+				 pd_cached->ref_cnt);
+	  pd_cached->ref_cnt++;
+	  ctx->pattern_db = pd_cached;
+	  do_mutex_unlock(&g_db_table_mutex);
+	  hs_pat_database_free(pd);
+	  hs_compile_data_free(cd);
+	  return 0;
+	}
+
+	BUG_ON(ctx->pattern_db != NULL); /* already built? */
+
+	for (uint32_t i = 0; i < pd->pattern_cnt; i++) {
+	  const hs_pattern_t *p = pd->parray[i];
+
+	  cd->ids[i] = i;
+	  cd->flags[i] = HS_FLAG_SINGLEMATCH;
+	  if (p->flags & MPM_PATTERN_FLAG_NOCASE) {
+		  cd->flags[i] |= HS_FLAG_CASELESS;
+	  }
+
+	  cd->expressions[i] = hs_pat_render(p->original_pat, p->len);
+
+	  if (p->flags & (MPM_PATTERN_FLAG_OFFSET | MPM_PATTERN_FLAG_DEPTH)) {
+		  cd->ext[i] = malloc(sizeof(hs_expr_ext_t));
+		  if (cd->ext[i] == NULL) {
+			  do_mutex_unlock(&g_db_table_mutex);
+			  goto error;
+		  }
+		  memset(cd->ext[i], 0, sizeof(hs_expr_ext_t));
+
+		  if (p->flags & MPM_PATTERN_FLAG_OFFSET) {
+			  cd->ext[i]->flags |= HS_EXT_FLAG_MIN_OFFSET;
+			  cd->ext[i]->min_offset = p->offset + p->len;
+		  }
+		  if (p->flags & MPM_PATTERN_FLAG_DEPTH) {
+			  cd->ext[i]->flags |= HS_EXT_FLAG_MAX_OFFSET;
+			  cd->ext[i]->max_offset = p->offset + p->depth;
+		  }
+	  }
+	}
+
+	BUG_ON(mpm_ctx->pattern_cnt == 0);
+
+	err = hs_compile_ext_multi((const char *const *)cd->expressions, cd->flags,
+							 cd->ids, (const hs_expr_ext_t *const *)cd->ext,
+							 cd->pattern_cnt, HS_MODE_BLOCK, NULL, &pd->hs_db,
+							 &compile_err);
+
+	if (err != HS_SUCCESS) {
+	  fprintf (stdout,	"failed to compile hyperscan database (%d)\n", err);
+	  if (compile_err) {
+		  fprintf (stdout,	"compile error: %s\n", compile_err->message);
+	  }
+	  hs_free_compile_error(compile_err);
+	  do_mutex_unlock(&g_db_table_mutex);
+	  goto error;
+	}
+
+	ctx->pattern_db = pd;
+
+	do_mutex_lock(&g_scratch_proto_mutex);
+	err = hs_alloc_scratch(pd->hs_db, &g_scratch_proto);
+	do_mutex_unlock(&g_scratch_proto_mutex);
+	if (err != HS_SUCCESS) {
+	  fprintf (stdout,	"%s***Failed to allocate scratch%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
+	  do_mutex_unlock(&g_db_table_mutex);
+	  goto error;
+	}
+
+	err = hs_database_size(pd->hs_db, &ctx->hs_db_size);
+	if (err != HS_SUCCESS) {
+	  fprintf (stdout,	"%s***Failed to query database size%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
+	  do_mutex_unlock(&g_db_table_mutex);
+	  goto error;
+	}
+
+	mpm_ctx->memory_cnt++;
+	mpm_ctx->memory_size += ctx->hs_db_size;
+
+	fprintf (stdout, "Built %" PRIu32 " patterns into a database of size %" PRIuMAX
+			 " bytes\n", mpm_ctx->pattern_cnt, (uintmax_t)ctx->hs_db_size);
+
+	/* Cache this database globally for later. */
+	pd->ref_cnt = 1;
+	oryx_htable_add(g_db_table, pd, 1);
+	do_mutex_unlock(&g_db_table_mutex);
+
+	hs_compile_data_free(cd);
+	return 0;
+
+	error:
+	if (pd) {
+	  hs_pat_database_free(pd);
+	}
+	if (cd) {
+	  hs_compile_data_free(cd);
+	}
+	return -1;
 }
 
 /**
@@ -1149,7 +1168,7 @@ static int hs_match_event(unsigned int id, unsigned long long __oryx_unused_para
  *
  * \retval matches Match count.
  */
-static uint32_t hs_search(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
+static uint32_t hs_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, const uint16_t buflen)
 {
     uint32_t ret = 0;
@@ -1161,7 +1180,7 @@ static uint32_t hs_search(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
         return 0;
     }
 
-    hs_search_cb_ctx cctx = {
+    hs_search_cb_ctx_t cctx = {
 		.ctx = ctx, 
 		.pmq = pmq, 
 		.match_count = 0
@@ -1204,7 +1223,7 @@ static uint32_t hs_search(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-static int hs_pat_add_ci(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int hs_pattern_add_ci(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
@@ -1229,7 +1248,7 @@ static int hs_pat_add_ci(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-static int hs_pat_add_cs(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int hs_pattern_add_cs(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
@@ -1248,10 +1267,10 @@ void mpm_register_hs(void)
     mpm_table[MPM_HS].threadctx_init = hs_threadctx_init;
     mpm_table[MPM_HS].ctx_destroy = hs_ctx_destroy;
     mpm_table[MPM_HS].threadctx_destroy = hs_threadctx_destroy;
-    mpm_table[MPM_HS].pat_add = hs_pat_add_cs;
-    mpm_table[MPM_HS].pat_add_nocase = hs_pat_add_ci;
-    mpm_table[MPM_HS].pat_prepare = hs_pat_prepare;
-    mpm_table[MPM_HS].pat_search = hs_search;
+    mpm_table[MPM_HS].pat_add = hs_pattern_add_cs;
+    mpm_table[MPM_HS].pat_add_nocase = hs_pattern_add_ci;
+    mpm_table[MPM_HS].pat_prepare = hs_pattern_prepare;
+    mpm_table[MPM_HS].pat_search = hs_pattern_search;
     mpm_table[MPM_HS].ctx_print = hs_ctx_print;
     mpm_table[MPM_HS].threadctx_print = hs_threadctx_print;
 

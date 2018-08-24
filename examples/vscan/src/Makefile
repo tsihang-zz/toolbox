@@ -39,7 +39,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = mpm
+APP = vscan
 
 # all source are stored in SRCS-y
 SRCS-y := main.c rx.c mpm.c mpm_ac.c mpm_hs.c

@@ -6,7 +6,7 @@ uint8_t *bitarray_ptr;
 #define BIT_ARRAY_DEFAULT_SIZE		102400
 
 /* a placeholder to denote a failure transition in the goto table */
-#define SC_AC_FAIL (-1)
+#define AC_FAIL (-1)
 
 #define STATE_QUEUE_CONTAINER_SIZE 65536
 
@@ -19,11 +19,11 @@ static int construct_both_16_and_32_state_tables = 0;
 /**
  * \brief Helper structure used by AC during state table creation
  */
-typedef struct StateQueue_ {
+typedef struct ac_state_queue_t_ {
     int32_t store[STATE_QUEUE_CONTAINER_SIZE];
     int top;
     int bot;
-} StateQueue;
+} ac_state_queue_t;
 
 /**
  * \internal
@@ -132,8 +132,7 @@ ASSERT (ptmp);
     ctx->output_table = ptmp;
 }
 
-static __oryx_always_inline__
-int SCACInitNewState(MpmCtx *mpm_ctx)
+static __oryx_always_inline__ int ac_state_init(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;;
 
@@ -156,7 +155,7 @@ int SCACInitNewState(MpmCtx *mpm_ctx)
     int ascii_code = 0;
     /* set all transitions for the newly assigned state as FAIL transitions */
     for (ascii_code = 0; ascii_code < 256; ascii_code++) {
-        ctx->goto_table[ctx->state_count][ascii_code] = SC_AC_FAIL;
+        ctx->goto_table[ctx->state_count][ascii_code] = AC_FAIL;
     }
 
     return ctx->state_count++;
@@ -170,7 +169,7 @@ int SCACInitNewState(MpmCtx *mpm_ctx)
  * \param pid     The pattern id to add.
  * \param mpm_ctx Pointer to the mpm context.
  */
-static void SCACSetOutputState(int32_t state, uint32_t pid, MpmCtx *mpm_ctx)
+static void SCACSetOutputState(int32_t state, uint32_t pid, mpm_ctx_t *mpm_ctx)
 {
     void *ptmp;
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
@@ -200,7 +199,7 @@ ASSERT (ptmp);
 }
 
 /**
- * \brief Helper function used by SCACCreateGotoTable.  Adds a pattern to the
+ * \brief Helper function used by ac_create_goto_table.  Adds a pattern to the
  *        goto table.
  *
  * \param pattern     Pointer to the pattern.
@@ -211,7 +210,7 @@ ASSERT (ptmp);
  */
 static __oryx_always_inline__
 void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
-                             MpmCtx *mpm_ctx)
+                             mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int32_t state = 0;
@@ -222,7 +221,7 @@ void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
     /* walk down the trie till we have a match for the pattern prefix */
     state = 0;
     for (i = 0; i < pattern_len; i++) {
-        if (ctx->goto_table[state][pattern[i]] != SC_AC_FAIL) {
+        if (ctx->goto_table[state][pattern[i]] != AC_FAIL) {
             state = ctx->goto_table[state][pattern[i]];
         } else {
             break;
@@ -232,7 +231,7 @@ void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
     /* add the non-matching pattern suffix to the trie, from the last state
      * we left off */
     for (p = i; p < pattern_len; p++) {
-        newstate = SCACInitNewState(mpm_ctx);
+        newstate = ac_state_init(mpm_ctx);
         ctx->goto_table[state][pattern[p]] = newstate;
         state = newstate;
     }
@@ -251,7 +250,7 @@ void SCACEnter(uint8_t *pattern, uint16_t pattern_len, uint32_t pid,
  * \param mpm_ctx Pointer to the mpm context.
  */
 static __oryx_always_inline__
-void SCACCreateGotoTable(MpmCtx *mpm_ctx)
+void ac_create_goto_table(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t i = 0;
@@ -264,7 +263,7 @@ void SCACCreateGotoTable(MpmCtx *mpm_ctx)
 
     int ascii_code = 0;
     for (ascii_code = 0; ascii_code < 256; ascii_code++) {
-        if (ctx->goto_table[0][ascii_code] == SC_AC_FAIL) {
+        if (ctx->goto_table[0][ascii_code] == AC_FAIL) {
             ctx->goto_table[0][ascii_code] = 0;
         }
     }
@@ -273,7 +272,7 @@ void SCACCreateGotoTable(MpmCtx *mpm_ctx)
 }
 
 static __oryx_always_inline__
-void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
+void SCACDetermineLevel1Gap(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t u = 0;
@@ -287,7 +286,7 @@ void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
     for (u = 0; u < 256; u++) {
         if (map[u] == 0)
             continue;
-        int32_t newstate = SCACInitNewState(mpm_ctx);
+        int32_t newstate = ac_state_init(mpm_ctx);
         ctx->goto_table[0][u] = newstate;
     }
 
@@ -295,7 +294,7 @@ void SCACDetermineLevel1Gap(MpmCtx *mpm_ctx)
 }
 
 static __oryx_always_inline__
-int SCACStateQueueIsEmpty(StateQueue *q)
+int ac_state_queue_is_empty(ac_state_queue_t *q)
 {
     if (q->top == q->bot)
         return 1;
@@ -304,7 +303,7 @@ int SCACStateQueueIsEmpty(StateQueue *q)
 }
 
 static __oryx_always_inline__
-void SCACEnqueue(StateQueue *q, int32_t state)
+void ac_state_enqueue(ac_state_queue_t *q, int32_t state)
 {
     int i = 0;
 
@@ -329,13 +328,13 @@ void SCACEnqueue(StateQueue *q, int32_t state)
 }
 
 static __oryx_always_inline__
-int32_t SCACDequeue(StateQueue *q)
+int32_t ac_state_dequeue(ac_state_queue_t *q)
 {
     if (q->bot == STATE_QUEUE_CONTAINER_SIZE)
         q->bot = 0;
 
     if (q->bot == q->top) {
-        fprintf (stdout, "StateQueue behaving weirdly.  "
+        fprintf (stdout, "ac_state_queue_t behaving weirdly.  "
                       "Fatal Error.  Exiting.  Please file a bug report on this");
         exit(EXIT_FAILURE);
     }
@@ -344,9 +343,9 @@ int32_t SCACDequeue(StateQueue *q)
 }
 
 /*
-#define SCACStateQueueIsEmpty(q) (((q)->top == (q)->bot) ? 1 : 0)
+#define ac_state_queue_is_empty(q) (((q)->top == (q)->bot) ? 1 : 0)
 
-#define SCACEnqueue(q, state) do { \
+#define ac_state_enqueue(q, state) do { \
                                   int i = 0; \
                                              \
                                   for (i = (q)->bot; i < (q)->top; i++) { \
@@ -366,9 +365,9 @@ int32_t SCACDequeue(StateQueue *q)
                                   }                                     \
                               } while (0)
 
-#define SCACDequeue(q) ( (((q)->bot == STATE_QUEUE_CONTAINER_SIZE)? ((q)->bot = 0): 0), \
+#define ac_state_dequeue(q) ( (((q)->bot == STATE_QUEUE_CONTAINER_SIZE)? ((q)->bot = 0): 0), \
                          (((q)->bot == (q)->top) ?                      \
-                          (fprintf (stdout, "StateQueue behaving "                \
+                          (fprintf (stdout, "ac_state_queue_t behaving "                \
                                          "weirdly.  Fatal Error.  Exiting.  Please " \
                                          "file a bug report on this"), \
                            exit(EXIT_FAILURE)) : 0), \
@@ -386,7 +385,7 @@ int32_t SCACDequeue(StateQueue *q)
  */
 static __oryx_always_inline__
 void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
-                                        MpmCtx *mpm_ctx)
+                                        mpm_ctx_t *mpm_ctx)
 {
     void *ptmp;
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
@@ -430,16 +429,15 @@ void SCACClubOutputStates(int32_t dst_state, int32_t src_state,
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static __oryx_always_inline__
-void SCACCreateFailureTable(MpmCtx *mpm_ctx)
+static __oryx_always_inline__ void ac_create_failure_table(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
     int32_t state = 0;
     int32_t r_state = 0;
 
-    StateQueue q;
-    memset(&q, 0, sizeof(StateQueue));
+    ac_state_queue_t q;
+    memset(&q, 0, sizeof(ac_state_queue_t));
 
     /* allot space for the failure table.  A failure entry in the table for
      * every state(ac_ctx_t->state_count) */
@@ -456,22 +454,22 @@ ASSERT (ctx->failure_table);
     for (ascii_code = 0; ascii_code < 256; ascii_code++) {
         int32_t temp_state = ctx->goto_table[0][ascii_code];
         if (temp_state != 0) {
-            SCACEnqueue(&q, temp_state);
+            ac_state_enqueue(&q, temp_state);
             ctx->failure_table[temp_state] = 0;
         }
     }
 
-    while (!SCACStateQueueIsEmpty(&q)) {
+    while (!ac_state_queue_is_empty(&q)) {
         /* pick up every state from the queue and add failure transitions */
-        r_state = SCACDequeue(&q);
+        r_state = ac_state_dequeue(&q);
         for (ascii_code = 0; ascii_code < 256; ascii_code++) {
             int32_t temp_state = ctx->goto_table[r_state][ascii_code];
-            if (temp_state == SC_AC_FAIL)
+            if (temp_state == AC_FAIL)
                 continue;
-            SCACEnqueue(&q, temp_state);
+            ac_state_enqueue(&q, temp_state);
             state = ctx->failure_table[r_state];
 
-            while(ctx->goto_table[state][ascii_code] == SC_AC_FAIL)
+            while(ctx->goto_table[state][ascii_code] == AC_FAIL)
                 state = ctx->failure_table[state];
             ctx->failure_table[temp_state] = ctx->goto_table[state][ascii_code];
             SCACClubOutputStates(temp_state, ctx->failure_table[temp_state],
@@ -489,7 +487,7 @@ ASSERT (ctx->failure_table);
  * \param mpm_ctx Pointer to the mpm context.
  */
 static __oryx_always_inline__
-void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
+void ac_create_delta_table(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
@@ -497,7 +495,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 
     if ((ctx->state_count < 32767) || construct_both_16_and_32_state_tables) {
         ctx->state_table_u16 = kmalloc(ctx->state_count *
-                                        sizeof(SC_AC_STATE_TYPE_U16) * 256, MPF_CLR, __oryx_unused_val__);
+                                        sizeof(AC_STATE_TYPE_U16) * 256, MPF_CLR, __oryx_unused_val__);
 		ASSERT (ctx->state_table_u16);
         if (ctx->state_table_u16 == NULL) {
             fprintf (stdout, "Error allocating memory");
@@ -506,25 +504,25 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 
         mpm_ctx->memory_cnt++;
         mpm_ctx->memory_size += (ctx->state_count *
-                                 sizeof(SC_AC_STATE_TYPE_U16) * 256);
+                                 sizeof(AC_STATE_TYPE_U16) * 256);
 
-        StateQueue q;
-        memset(&q, 0, sizeof(StateQueue));
+        ac_state_queue_t q;
+        memset(&q, 0, sizeof(ac_state_queue_t));
 
         for (ascii_code = 0; ascii_code < 256; ascii_code++) {
-            SC_AC_STATE_TYPE_U16 temp_state = ctx->goto_table[0][ascii_code];
+            AC_STATE_TYPE_U16 temp_state = ctx->goto_table[0][ascii_code];
             ctx->state_table_u16[0][ascii_code] = temp_state;
             if (temp_state != 0)
-                SCACEnqueue(&q, temp_state);
+                ac_state_enqueue(&q, temp_state);
         }
 
-        while (!SCACStateQueueIsEmpty(&q)) {
-            r_state = SCACDequeue(&q);
+        while (!ac_state_queue_is_empty(&q)) {
+            r_state = ac_state_dequeue(&q);
 
             for (ascii_code = 0; ascii_code < 256; ascii_code++) {
                 int32_t temp_state = ctx->goto_table[r_state][ascii_code];
-                if (temp_state != SC_AC_FAIL) {
-                    SCACEnqueue(&q, temp_state);
+                if (temp_state != AC_FAIL) {
+                    ac_state_enqueue(&q, temp_state);
                     ctx->state_table_u16[r_state][ascii_code] = temp_state;
                 } else {
                     ctx->state_table_u16[r_state][ascii_code] =
@@ -539,7 +537,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
          * table, but since we have it set to hold 32 bit state values, we will create
          * a new state table here of type SC_AC_STATE_TYPE(current set to uint16_t) */
         ctx->state_table_u32 = kmalloc(ctx->state_count *
-                                        sizeof(SC_AC_STATE_TYPE_U32) * 256, MPF_CLR, __oryx_unused_val__);
+                                        sizeof(AC_STATE_TYPE_U32) * 256, MPF_CLR, __oryx_unused_val__);
 	ASSERT (ctx->state_table_u32);
         if (ctx->state_table_u32 == NULL) {
             fprintf (stdout, "Error allocating memory");
@@ -548,25 +546,25 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 
         mpm_ctx->memory_cnt++;
         mpm_ctx->memory_size += (ctx->state_count *
-                                 sizeof(SC_AC_STATE_TYPE_U32) * 256);
+                                 sizeof(AC_STATE_TYPE_U32) * 256);
 
-        StateQueue q;
-        memset(&q, 0, sizeof(StateQueue));
+        ac_state_queue_t q;
+        memset(&q, 0, sizeof(ac_state_queue_t));
 
         for (ascii_code = 0; ascii_code < 256; ascii_code++) {
-            SC_AC_STATE_TYPE_U32 temp_state = ctx->goto_table[0][ascii_code];
+            AC_STATE_TYPE_U32 temp_state = ctx->goto_table[0][ascii_code];
             ctx->state_table_u32[0][ascii_code] = temp_state;
             if (temp_state != 0)
-                SCACEnqueue(&q, temp_state);
+                ac_state_enqueue(&q, temp_state);
         }
 
-        while (!SCACStateQueueIsEmpty(&q)) {
-            r_state = SCACDequeue(&q);
+        while (!ac_state_queue_is_empty(&q)) {
+            r_state = ac_state_dequeue(&q);
 
             for (ascii_code = 0; ascii_code < 256; ascii_code++) {
                 int32_t temp_state = ctx->goto_table[r_state][ascii_code];
-                if (temp_state != SC_AC_FAIL) {
-                    SCACEnqueue(&q, temp_state);
+                if (temp_state != AC_FAIL) {
+                    ac_state_enqueue(&q, temp_state);
                     ctx->state_table_u32[r_state][ascii_code] = temp_state;
                 } else {
                     ctx->state_table_u32[r_state][ascii_code] =
@@ -580,7 +578,7 @@ void SCACCreateDeltaTable(MpmCtx *mpm_ctx)
 }
 
 static __oryx_always_inline__
-void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
+void SCACClubOutputStatePresenceWithDeltaTable(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int ascii_code = 0;
@@ -611,7 +609,7 @@ void SCACClubOutputStatePresenceWithDeltaTable(MpmCtx *mpm_ctx)
 }
 
 static __oryx_always_inline__
-void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
+void SCACInsertCaseSensitiveEntriesForPatterns(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     uint32_t state = 0;
@@ -633,7 +631,7 @@ void SCACInsertCaseSensitiveEntriesForPatterns(MpmCtx *mpm_ctx)
 }
 
 #if 0
-static void SCACPrintDeltaTable(MpmCtx *mpm_ctx)
+static void SCACPrintDeltaTable(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     int i = 0, j = 0;
@@ -657,21 +655,21 @@ static void SCACPrintDeltaTable(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static void ac_state_table_prepare(MpmCtx *mpm_ctx)
+static void ac_state_table_prepare(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 
     /* create the 0th state in the goto table and output_table */
-    SCACInitNewState(mpm_ctx);
+    ac_state_init(mpm_ctx);
 
     SCACDetermineLevel1Gap(mpm_ctx);
 
     /* create the goto table */
-    SCACCreateGotoTable(mpm_ctx);
+    ac_create_goto_table(mpm_ctx);
     /* create the failure table */
-    SCACCreateFailureTable(mpm_ctx);
+    ac_create_failure_table(mpm_ctx);
     /* create the final state(delta) table */
-    SCACCreateDeltaTable(mpm_ctx);
+    ac_create_delta_table(mpm_ctx);
     /* club the output state presence with delta transition entries */
     SCACClubOutputStatePresenceWithDeltaTable(mpm_ctx);
 
@@ -694,7 +692,7 @@ static void ac_state_table_prepare(MpmCtx *mpm_ctx)
     return;
 }
 
-static void ac_threadctx_print(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
+static void ac_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx)
 {
 
 #ifdef SC_AC_COUNTERS
@@ -714,9 +712,9 @@ static void ac_threadctx_print(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ct
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  * \param matchsize      We don't need this.
  */
-static void ac_threadctx_init(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+static void ac_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
-    memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
+    memset(mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 
     mpm_thread_ctx->ctx = kmalloc(sizeof(ac_threadctx_t), MPF_CLR, __oryx_unused_val__);
     if (mpm_thread_ctx->ctx == NULL) {
@@ -735,7 +733,7 @@ static void ac_threadctx_init(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCt
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void ac_threadctx_destroy(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+static void ac_threadctx_destroy(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     ac_threadctx_print(mpm_thread_ctx);
 
@@ -749,7 +747,7 @@ static void ac_threadctx_destroy(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThrea
     return;
 }
 
-static void ac_ctx_print(MpmCtx __oryx_unused_param__ *mpm_ctx)
+static void ac_ctx_print(mpm_ctx_t __oryx_unused_param__ *mpm_ctx)
 {
     ac_ctx_t __oryx_unused_param__ *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 #if 1
@@ -757,10 +755,10 @@ static void ac_ctx_print(MpmCtx __oryx_unused_param__ *mpm_ctx)
     fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
     fprintf (stdout, "Memory alloced:  %" PRIu32 "\n", mpm_ctx->memory_size);
     fprintf (stdout, " Sizeof:\n");
-    fprintf (stdout, "  MpmCtx         %" PRIuMAX "\n", (uintmax_t)sizeof(MpmCtx));
+    fprintf (stdout, "  mpm_ctx_t         %" PRIuMAX "\n", (uintmax_t)sizeof(mpm_ctx_t));
     fprintf (stdout, "  ac_ctx_t:         %" PRIuMAX "\n", (uintmax_t)sizeof(ac_ctx_t));
-    fprintf (stdout, "  MpmPattern      %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
-    fprintf (stdout, "  MpmPattern     %" PRIuMAX "\n", (uintmax_t)sizeof(MpmPattern));
+    fprintf (stdout, "  mpm_pattern_t      %" PRIuMAX "\n", (uintmax_t)sizeof(mpm_pattern_t));
+    fprintf (stdout, "  mpm_pattern_t     %" PRIuMAX "\n", (uintmax_t)sizeof(mpm_pattern_t));
     fprintf (stdout, "Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
     fprintf (stdout, "Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
     fprintf (stdout, "Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
@@ -776,7 +774,7 @@ static void ac_ctx_print(MpmCtx __oryx_unused_param__ *mpm_ctx)
  *
  * \param mpm_ctx       Mpm context.
  */
-static void ac_ctx_init(MpmCtx *mpm_ctx)
+static void ac_ctx_init(mpm_ctx_t *mpm_ctx)
 {
     if (mpm_ctx->ctx != NULL)
         return;
@@ -790,7 +788,7 @@ static void ac_ctx_init(MpmCtx *mpm_ctx)
     mpm_ctx->memory_size += sizeof(ac_ctx_t);
 
     /* initialize the hash we use to speed up pattern insertions */
-    mpm_ctx->init_hash = kmalloc(sizeof(MpmPattern *) * MPM_INIT_HASH_SIZE, MPF_CLR, __oryx_unused_val__);
+    mpm_ctx->init_hash = kmalloc(sizeof(mpm_pattern_t *) * MPM_INIT_HASH_SIZE, MPF_CLR, __oryx_unused_val__);
     if (mpm_ctx->init_hash == NULL) {
         exit(EXIT_FAILURE);
     }
@@ -799,7 +797,6 @@ static void ac_ctx_init(MpmCtx *mpm_ctx)
      * now.  We will certainly need this, as we develop the algo */
     ac_get_config();
 
-    SCReturn;
 }
 
 /**
@@ -807,7 +804,7 @@ static void ac_ctx_init(MpmCtx *mpm_ctx)
  *
  * \param mpm_ctx Pointer to the mpm context.
  */
-static void ac_ctx_destroy(MpmCtx *mpm_ctx)
+static void ac_ctx_destroy(mpm_ctx_t *mpm_ctx)
 {
     ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
     if (ctx == NULL)
@@ -817,21 +814,21 @@ static void ac_ctx_destroy(MpmCtx *mpm_ctx)
         kfree(mpm_ctx->init_hash);
         mpm_ctx->init_hash = NULL;
         mpm_ctx->memory_cnt--;
-        mpm_ctx->memory_size -= (MPM_INIT_HASH_SIZE * sizeof(MpmPattern *));
+        mpm_ctx->memory_size -= (MPM_INIT_HASH_SIZE * sizeof(mpm_pattern_t *));
     }
 
     if (ctx->parray != NULL) {
         uint32_t i;
         for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
             if (ctx->parray[i] != NULL) {
-                MpmFreePattern(mpm_ctx, ctx->parray[i]);
+                mpm_pattern_free(mpm_ctx, ctx->parray[i]);
             }
         }
 
         kfree(ctx->parray);
         ctx->parray = NULL;
         mpm_ctx->memory_cnt--;
-        mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
+        mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(mpm_pattern_t *));
     }
 
     if (ctx->state_table_u16 != NULL) {
@@ -840,7 +837,7 @@ static void ac_ctx_destroy(MpmCtx *mpm_ctx)
 
         mpm_ctx->memory_cnt++;
         mpm_ctx->memory_size -= (ctx->state_count *
-                                 sizeof(SC_AC_STATE_TYPE_U16) * 256);
+                                 sizeof(AC_STATE_TYPE_U16) * 256);
     }
     if (ctx->state_table_u32 != NULL) {
         kfree(ctx->state_table_u32);
@@ -848,7 +845,7 @@ static void ac_ctx_destroy(MpmCtx *mpm_ctx)
 
         mpm_ctx->memory_cnt++;
         mpm_ctx->memory_size -= (ctx->state_count *
-                                 sizeof(SC_AC_STATE_TYPE_U32) * 256);
+                                 sizeof(AC_STATE_TYPE_U32) * 256);
     }
 
     if (ctx->output_table != NULL) {
@@ -891,7 +888,7 @@ static void ac_ctx_destroy(MpmCtx *mpm_ctx)
  *
  * \retval matches Match count.
  */
-static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx,
+static uint32_t ac_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
     const ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
@@ -934,8 +931,8 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
 #endif
 
     if (ctx->state_count < 32767) {
-        register SC_AC_STATE_TYPE_U16 state = 0;
-        SC_AC_STATE_TYPE_U16 (*state_table_u16)[256] = ctx->state_table_u16;
+        register AC_STATE_TYPE_U16 state = 0;
+        AC_STATE_TYPE_U16 (*state_table_u16)[256] = ctx->state_table_u16;
         for (i = 0; i < buflen; i++) {
             state = state_table_u16[state & 0x7FFF][u8_tolower(buf[i])];
             if (state & 0x8000) {
@@ -955,7 +952,7 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
                             ;
                         } else {
                             bitarray[(lower_pid) / 8] |= (1 << ((lower_pid) % 8));
-                            MpmAddSids(pmq, pid_pat_list[lower_pid].sids, pid_pat_list[lower_pid].sids_size);
+                            mpm_hold_matched_sids(pmq, pid_pat_list[lower_pid].sids, pid_pat_list[lower_pid].sids_size);
                         }
                         matches++;
                     } else {
@@ -963,7 +960,7 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
                             ;
                         } else {
                             bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
-                            MpmAddSids(pmq, pid_pat_list[pids[k]].sids, pid_pat_list[pids[k]].sids_size);
+                            mpm_hold_matched_sids(pmq, pid_pat_list[pids[k]].sids, pid_pat_list[pids[k]].sids_size);
                         }
                         matches++;
                     }
@@ -974,8 +971,8 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
         } /* for (i = 0; i < buflen; i++) */
 
     } else {
-        register SC_AC_STATE_TYPE_U32 state = 0;
-        SC_AC_STATE_TYPE_U32 (*state_table_u32)[256] = ctx->state_table_u32;
+        register AC_STATE_TYPE_U32 state = 0;
+        AC_STATE_TYPE_U32 (*state_table_u32)[256] = ctx->state_table_u32;
         for (i = 0; i < buflen; i++) {
             state = state_table_u32[state & 0x00FFFFFF][u8_tolower(buf[i])];
             if (state & 0xFF000000) {
@@ -995,7 +992,7 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
                             ;
                         } else {
                             bitarray[(lower_pid) / 8] |= (1 << ((lower_pid) % 8));
-                            MpmAddSids(pmq, pid_pat_list[lower_pid].sids, pid_pat_list[lower_pid].sids_size);
+                            mpm_hold_matched_sids(pmq, pid_pat_list[lower_pid].sids, pid_pat_list[lower_pid].sids_size);
                         }
                         matches++;
                     } else {
@@ -1003,7 +1000,7 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
                             ;
                         } else {
                             bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
-                            MpmAddSids(pmq, pid_pat_list[pids[k]].sids, pid_pat_list[pids[k]].sids_size);
+                            mpm_hold_matched_sids(pmq, pid_pat_list[pids[k]].sids, pid_pat_list[pids[k]].sids_size);
                         }
                         matches++;
                     }
@@ -1034,12 +1031,12 @@ static uint32_t ac_search(MpmCtx *mpm_ctx, MpmThreadCtx __oryx_unused_param__ *m
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-static int ac_pat_add_ci(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int ac_pattern_add_ci(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
     flags |= MPM_PATTERN_FLAG_NOCASE;
-    return MpmAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
+    return mpm_pattern_add(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
 /**
@@ -1059,11 +1056,11 @@ static int ac_pat_add_ci(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
  * \retval  0 On success.
  * \retval -1 On failure.
  */
-static int ac_pat_add_cs(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
+static int ac_pattern_add_cs(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
                      uint16_t offset, uint16_t depth, uint32_t pid,
                      sig_id sid, uint8_t flags)
 {
-    return MpmAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
+    return mpm_pattern_add(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
 /**
@@ -1071,7 +1068,7 @@ static int ac_pat_add_cs(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
 *
 * \param mpm_ctx Pointer to the mpm context.
 */
-static int ac_pat_prepare(MpmCtx *mpm_ctx)
+static int ac_pattern_prepare(mpm_ctx_t *mpm_ctx)
 {
 	ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 
@@ -1081,18 +1078,18 @@ static int ac_pat_prepare(MpmCtx *mpm_ctx)
 	}
 
 	/* alloc the pattern array */
-	ctx->parray = (MpmPattern **)kmalloc(mpm_ctx->pattern_cnt *
-										sizeof(MpmPattern *), MPF_CLR, __oryx_unused_val__);
+	ctx->parray = (mpm_pattern_t **)kmalloc(mpm_ctx->pattern_cnt *
+										sizeof(mpm_pattern_t *), MPF_CLR, __oryx_unused_val__);
 	if (ctx->parray == NULL)
 	 goto error;
 
 	mpm_ctx->memory_cnt++;
-	mpm_ctx->memory_size += (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
+	mpm_ctx->memory_size += (mpm_ctx->pattern_cnt * sizeof(mpm_pattern_t *));
 
 	/* populate it with the patterns in the hash */
 	uint32_t i = 0, p = 0;
 	for (i = 0; i < MPM_INIT_HASH_SIZE; i++) {
-	 MpmPattern *node = mpm_ctx->init_hash[i], *nnode = NULL;
+	 mpm_pattern_t *node = mpm_ctx->init_hash[i], *nnode = NULL;
 	 while(node != NULL) {
 		 nnode = node->next;
 		 node->next = NULL;
@@ -1146,13 +1143,13 @@ static int ac_pat_prepare(MpmCtx *mpm_ctx)
 	/* free all the stored patterns.  Should save us a good 100-200 mbs */
 	for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
 	 if (ctx->parray[i] != NULL) {
-		 MpmFreePattern(mpm_ctx, ctx->parray[i]);
+		 mpm_pattern_free(mpm_ctx, ctx->parray[i]);
 	 }
 	}
 	kfree(ctx->parray);
 	ctx->parray = NULL;
 	mpm_ctx->memory_cnt--;
-	mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(MpmPattern *));
+	mpm_ctx->memory_size -= (mpm_ctx->pattern_cnt * sizeof(mpm_pattern_t *));
 
 	ctx->pattern_id_bitarray_size = (mpm_ctx->max_pat_id / 8) + 1;
 
@@ -1181,10 +1178,10 @@ void mpm_register_ac(void)
     mpm_table[MPM_AC].threadctx_init = ac_threadctx_init;
     mpm_table[MPM_AC].ctx_destroy = ac_ctx_destroy;
     mpm_table[MPM_AC].threadctx_destroy = ac_threadctx_destroy;
-    mpm_table[MPM_AC].pat_add = ac_pat_add_cs;
-    mpm_table[MPM_AC].pat_add_nocase = ac_pat_add_ci;
-    mpm_table[MPM_AC].pat_prepare = ac_pat_prepare;
-    mpm_table[MPM_AC].pat_search = ac_search;
+    mpm_table[MPM_AC].pat_add = ac_pattern_add_cs;
+    mpm_table[MPM_AC].pat_add_nocase = ac_pattern_add_ci;
+    mpm_table[MPM_AC].pat_prepare = ac_pattern_prepare;
+    mpm_table[MPM_AC].pat_search = ac_pattern_search;
     mpm_table[MPM_AC].Cleanup = NULL;
     mpm_table[MPM_AC].ctx_print = ac_ctx_print;
     mpm_table[MPM_AC].threadctx_print = ac_threadctx_print;

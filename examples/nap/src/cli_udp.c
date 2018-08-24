@@ -663,8 +663,8 @@ static void * thread_fn (void *a)
 	const char *patterns_file = local_path_pattern_file_txt;
 	oryx_size_t rl = 0;
 	uint32_t random_string_input_size = 0;
-	MpmCtx mpm_ctx;
-	MpmThreadCtx mpm_thread_ctx;
+	mpm_ctx_t mpm_ctx;
+	mpm_threadctx_t mpm_thread_ctx;
 	PrefilterRuleStore pmq;
 	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
@@ -705,19 +705,19 @@ static void * thread_fn (void *a)
 	/** FILE is ready or not. */
 	ASSERT (fp);
 
-    	memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
-    	memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
+    	memset(&mpm_ctx, 0x00, sizeof(mpm_ctx_t));
+    	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 	
 	if (!strncmp (argv[0], "h", 1)) {
 		mpm_type = MPM_HS;
 	}
 
-	MpmInitCtx(&mpm_ctx, mpm_type);
-    	PmqSetup(&pmq);
+	mpm_ctx_init(&mpm_ctx, mpm_type);
+    	mpm_pmq_setup(&pmq);
 		
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"bCdEfG", 6, 0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"fghJikl", 7, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"bCdEfG", 6, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"fghJikl", 7, 0, 0, pattern_id ++, 0, 0);
 
 	/** */
 	do {
@@ -733,12 +733,12 @@ static void * thread_fn (void *a)
 		s = oryx_file_read_write (fp, &frw_ctx);
 		rl += frw_ctx.ul_rw_size;
 		if (s > 0) {
-			MpmAddPatternCI (&mpm_ctx, (uint8_t *)&pattern[0], frw_ctx.ul_rw_size, 0, 0, pattern_id ++, 0, 0);
+			mpm_pattern_add_ci (&mpm_ctx, (uint8_t *)&pattern[0], frw_ctx.ul_rw_size, 0, 0, pattern_id ++, 0, 0);
 		}
 	}while (s > 0);
 	
-    	MpmPreparePatterns(&mpm_ctx);
-	MpmInitThreadCtx (&mpm_thread_ctx, mpm_type);
+    	mpm_pattern_prepare(&mpm_ctx);
+	mpm_threadctx_init (&mpm_thread_ctx, mpm_type);
 
 	u64 total_cost = 0;
 	u64 longest_cost = 1;
@@ -761,7 +761,7 @@ static void * thread_fn (void *a)
 		}
 		
 		gettimeofday(&start,NULL);
-		MpmSearch(&mpm_ctx, &mpm_thread_ctx, &pmq,
+		mpm_search(&mpm_ctx, &mpm_thread_ctx, &pmq,
 	                               (uint8_t *)buf, pl);
 		gettimeofday(&end,NULL);
 
@@ -790,9 +790,9 @@ static void * thread_fn (void *a)
 		"throughput: ", Mbps(matched_size, total_cost));
 
 
-    MpmDestroyCtx(&mpm_ctx);
-    MpmDestroyThreadCtx(&mpm_ctx, &mpm_thread_ctx);
-    PmqFree(&pmq);
+    mpm_ctx_destroy(&mpm_ctx);
+    mpm_threadctx_destroy(&mpm_ctx, &mpm_thread_ctx);
+    mpm_pmq_free(&pmq);
 
     oryx_file_close (fp);
     kfree (buf);
@@ -832,8 +832,8 @@ DEFUN(test_udp,
 	const char *patterns_file = local_path_pattern_file_txt;
 	oryx_size_t rl = 0;
 	uint32_t random_string_input_size = 0;
-	MpmCtx mpm_ctx;
-	MpmThreadCtx mpm_thread_ctx;
+	mpm_ctx_t mpm_ctx;
+	mpm_threadctx_t mpm_thread_ctx;
 	PrefilterRuleStore pmq;
 	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
@@ -869,19 +869,19 @@ DEFUN(test_udp,
 	/** FILE is ready or not. */
 	ASSERT (fp);
 
-    	memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
-    	memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
+    	memset(&mpm_ctx, 0x00, sizeof(mpm_ctx_t));
+    	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 	
 	if (!strncmp (argv[0], "h", 1)) {
 		mpm_type = MPM_HS;
 	}
 
-	MpmInitCtx(&mpm_ctx, mpm_type);
-    	PmqSetup(&pmq);
+	mpm_ctx_init(&mpm_ctx, mpm_type);
+    	mpm_pmq_setup(&pmq);
 		
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"bCdEfG", 6, 0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(&mpm_ctx, (uint8_t *)"fghJikl", 7, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"bCdEfG", 6, 0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"fghJikl", 7, 0, 0, pattern_id ++, 0, 0);
 
 	/** */
 	do {
@@ -897,12 +897,12 @@ DEFUN(test_udp,
 		s = oryx_file_read_write (fp, &frw_ctx);
 		rl += frw_ctx.ul_rw_size;
 		if (s > 0) {
-			MpmAddPatternCI (&mpm_ctx, (uint8_t *)&pattern[0], frw_ctx.ul_rw_size, 0, 0, pattern_id ++, 0, 0);
+			mpm_pattern_add_ci (&mpm_ctx, (uint8_t *)&pattern[0], frw_ctx.ul_rw_size, 0, 0, pattern_id ++, 0, 0);
 		}
 	} while (s > 0);
 	
-    MpmPreparePatterns(&mpm_ctx);
-	MpmInitThreadCtx (&mpm_thread_ctx, mpm_type);
+    mpm_pattern_prepare(&mpm_ctx);
+	mpm_threadctx_init (&mpm_thread_ctx, mpm_type);
 
 	int i;
 	u64 total_cost = 0;
@@ -926,7 +926,7 @@ DEFUN(test_udp,
 		}
 		
 		gettimeofday(&start,NULL);
-		MpmSearch(&mpm_ctx, &mpm_thread_ctx, &pmq,
+		mpm_search(&mpm_ctx, &mpm_thread_ctx, &pmq,
 	                               (uint8_t *)buf, pl);
 		gettimeofday(&end,NULL);
 
@@ -955,9 +955,9 @@ DEFUN(test_udp,
 		"throughput: ", Mbps(matched_size, total_cost));
 
 
-    MpmDestroyCtx(&mpm_ctx);
-    MpmDestroyThreadCtx(&mpm_ctx, &mpm_thread_ctx);
-    PmqFree(&pmq);
+    mpm_ctx_destroy(&mpm_ctx);
+    mpm_threadctx_destroy(&mpm_ctx, &mpm_thread_ctx);
+    mpm_pmq_free(&pmq);
 
     oryx_file_close (fp);
     kfree (buf);

@@ -6,37 +6,85 @@ static int pattern_id;
 volatile bool force_quit = false;
 extern struct oryx_task_t rx_netdev_task;
 
-MpmCtx mpm_ctx;
-MpmThreadCtx mpm_thread_ctx;
+mpm_ctx_t mpm_ctx;
+mpm_threadctx_t mpm_thread_ctx;
 PrefilterRuleStore pmq;
 
 struct http_content_type_handler_t {
-	MpmCtx mpm_ctx;
-	MpmThreadCtx mpm_thread_ctx;
+	mpm_ctx_t mpm_ctx;
+	mpm_threadctx_t mpm_thread_ctx;
 	PrefilterRuleStore pmq;
 };
 
-static void mpm_install_content_type(MpmCtx *mpm_ctx)
+static int mpm_test(void)
 {
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
+	mpm_ctx_t mpm_ctx;
+	mpm_threadctx_t mpm_thread_ctx;
+	PrefilterRuleStore pmq;
+
+	int result = 0;
+	mpm_table_setup();
+	memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
+	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
+	
+	mpm_ctx_init(&mpm_ctx, MPM_HS);
+	/* 1 match */
+	mpm_pattern_add_cs(&mpm_ctx, (uint8_t *)"abcd", 4, 0, 0, 0, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"AB*C", 4, 0, 0, 0, 0, 0);
+	mpm_pmq_setup(&pmq);
+	mpm_pattern_prepare(&mpm_ctx);
+	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
+
+	const char *buf = "abcdefghjiklmnopqrstuvwxyz";
+
+	uint32_t cnt;
+
+	cnt = mpm_pattern_search(&mpm_ctx, &mpm_thread_ctx, &pmq, (uint8_t *)buf,
+							  strlen(buf));
+
+	if (cnt == 1)
+		result = 1;
+	else
+		fprintf(stdout, "1 != %" PRIu32 " ", cnt);
+
+	const char *buf1 = "ab*";
+
+	cnt = mpm_pattern_search(&mpm_ctx, &mpm_thread_ctx, &pmq, (uint8_t *)buf1,
+							  strlen(buf1));
+
+	if (cnt == 1)
+		result = 1;
+	else
+		fprintf(stdout, "1 != %" PRIu32 " ", cnt);
+
+	mpm_ctx_destroy(&mpm_ctx);
+	mpm_threadctx_destroy(&mpm_ctx, &mpm_thread_ctx);
+	mpm_pmq_free(&pmq);
+	
+	return result;
+}
+
+static void mpm_install_content_type(mpm_ctx_t *mpm_ctx)
+{
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
 			0, 0, pattern_id ++, 0, 0);
-	MpmAddPatternCI(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
 			0, 0, pattern_id ++, 0, 0);	
 }
 
-int http_match(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v)
+int http_match(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v)
 {
-	return MpmSearch(mpm_ctx, mpm_thread_ctx, pmq,
+	return mpm_pattern_search(mpm_ctx, mpm_thread_ctx, pmq,
 				(uint8_t *)&v->val[0], v->valen);
 }
 
@@ -55,6 +103,21 @@ int main (
 )
 {
     int result = 0;
+
+	uint64_t ns = 1234567899;
+	struct timeval tv;
+	struct timespec ts;
+
+	tv.tv_sec = ns / 1000000000;
+	tv.tv_usec = (ns % 1000000000)/1000;
+
+	ts.tv_sec = ns / 1000000000;
+	ts.tv_nsec = (ns % 1000000000);
+
+	fprintf (stdout, "tv.sec = %u, tv.usec = %u, ts.sec = %u, ts.nsec = %u\n",
+		tv.tv_sec, tv.tv_usec, ts.tv_sec, ts.tv_nsec);
+
+	mpm_test();
 	
 	/* video/flv */
     uint8_t http_buf0[] =
@@ -144,57 +207,56 @@ int main (
 
     uint32_t cnt;
 	oryx_initialize();
-	MpmTableSetup();
+	oryx_register_sighandler(SIGINT, sig_handler);
+	oryx_register_sighandler(SIGTERM, sig_handler);
 
-    memset(&mpm_ctx, 0, sizeof(MpmCtx));
-    memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));	
-	MpmInitCtx(&mpm_ctx, MPM_HS);
+	mpm_table_setup();
+
+    memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
+    memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));	
+	mpm_ctx_init(&mpm_ctx, MPM_HS);
 	mpm_install_content_type(&mpm_ctx);
-    PmqSetup(&pmq);
-	MpmPreparePatterns(&mpm_ctx);
-	MpmInitThreadCtx(&mpm_thread_ctx, MPM_HS);
+    mpm_pmq_setup(&pmq);
+	mpm_pattern_prepare(&mpm_ctx);
+	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h0.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h1.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h2.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h3.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h4.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
 
 	cnt = http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &h5.ct);
 	if (cnt == 1)
 	  result = 1;
 	else
-	  printf("1 != %" PRIu32 " \n", cnt);
-
-	oryx_register_sighandler(SIGINT, sig_handler);
-	oryx_register_sighandler(SIGTERM, sig_handler);
+	  fprintf(stdout, "1 != %" PRIu32 " \n", cnt);
+	
 	oryx_task_registry(&rx_netdev_task);
-
-
 	oryx_task_launch();
 	FOREVER {
 		/* wait for quit. */
@@ -204,9 +266,9 @@ int main (
 		usleep(10000);
 	}
 
-    MpmDestroyCtx(&mpm_ctx);
-    MpmDestroyThreadCtx(&mpm_ctx, &mpm_thread_ctx);
-    PmqFree(&pmq);
+    mpm_ctx_destroy(&mpm_ctx);
+    mpm_threadctx_destroy(&mpm_ctx, &mpm_thread_ctx);
+    mpm_pmq_free(&pmq);
 	
     return result;
 }
