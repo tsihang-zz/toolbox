@@ -580,6 +580,14 @@ do {							\
     }							\
 } while (0)
 
+struct oryx_cfg_t {
+	const char	*progname;
+} oryx_cfg;
+
+static __oryx_always_inline__
+struct oryx_cfg_t *oryx_cfg_get(void) {
+	return &oryx_cfg;
+}
 
 #include "oryx_error.h"
 #include "oryx_format.h"
