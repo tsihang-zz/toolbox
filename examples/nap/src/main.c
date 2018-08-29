@@ -135,12 +135,14 @@ int main (
 		/* wait for dataplane quit. */
 		if(vlib_main.force_quit)
 			break;
+		sleep(3);
 	}
 #else
 	FOREVER {
 		/* wait for dataplane quit. */
 		if(vlib_main.force_quit)
 			break;
+		sleep(3);
 	}
 #endif
 
