@@ -33,9 +33,9 @@
 /** Flow was inspected against IP-Only sigs in the toclient direction */
 #define FLOW_TOCLIENT_IPONLY_SET        BIT_U32(4)
 
-/** Packet belonging to this flow should not be inspected at all */
+/** packet_t belonging to this flow should not be inspected at all */
 #define FLOW_NOPACKET_INSPECTION        BIT_U32(5)
-/** Packet payloads belonging to this flow should not be inspected */
+/** packet_t payloads belonging to this flow should not be inspected */
 #define FLOW_NOPAYLOAD_INSPECTION       BIT_U32(6)
 
 /** All packets in this flow should be dropped */

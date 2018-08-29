@@ -81,7 +81,7 @@ typedef struct DecodeThreadVars_
      * flow recycle during lookups */
     void *output_flow_thread_data;
 
-} DecodeThreadVars;
+} decode_threadvar_ctx_t;
 
 
 #endif

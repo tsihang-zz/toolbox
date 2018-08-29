@@ -2,7 +2,7 @@
 #define DP_DECODE_ETHERNET_H
 
 static __oryx_always_inline__
-int DecodeEthernet0 (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+int DecodeEthernet0 (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
    EthernetHdr *ethh;

@@ -1,8 +1,8 @@
 #include "oryx.h"
 #include "dp_decode.h"
 
-ThreadVars g_tv[MAX_LCORES];
-DecodeThreadVars g_dtv[MAX_LCORES];
+threadvar_ctx_t g_tv[MAX_LCORES];
+decode_threadvar_ctx_t g_dtv[MAX_LCORES];
 PacketQueue g_pq[MAX_LCORES];
 
 volatile bool force_quit = false;
@@ -14,7 +14,7 @@ void dp_start_dpdk(vlib_main_t *vm);
 void dp_end_dpdk(vlib_main_t *vm);
 #endif
 
-static void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv)
+static void dp_register_perf_counters(decode_threadvar_ctx_t *dtv, threadvar_ctx_t *tv)
 {
 	/* register counters */
 	dtv->counter_pkts = 
@@ -176,8 +176,8 @@ notify_dp(vlib_main_t *vm, int signum)
 void dp_start(vlib_main_t *vm)
 {
 	int i;
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
+	threadvar_ctx_t *tv;
+	decode_threadvar_ctx_t *dtv;
 	char thrgp_name[128] = {0}; 
 
 #if defined(HAVE_DPDK)

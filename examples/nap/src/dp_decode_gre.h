@@ -6,7 +6,7 @@
  */
 
 static __oryx_always_inline__
-int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeGRE0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     uint16_t header_len = GRE_HDR_LEN;
     GRESreHdr *gsre = NULL;
@@ -165,7 +165,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             {
             #if 0
                 if (pq != NULL) {
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                             len - header_len, DECODE_TUNNEL_IPv4, pq);
                     if (tp != NULL) {
                         PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);
@@ -180,7 +180,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             {
             #if 0
                 if (pq != NULL) {
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                             len - header_len, DECODE_TUNNEL_PPP, pq);
                     if (tp != NULL) {
                         PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);
@@ -195,7 +195,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             {
             #if 0
                 if (pq != NULL) {
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                             len - header_len, DECODE_TUNNEL_IPv6, pq);
                     if (tp != NULL) {
                         PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);
@@ -210,7 +210,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             {
             #if 0
                 if (pq != NULL) {
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                             len - header_len, DECODE_TUNNEL_VLAN, pq);
                     if (tp != NULL) {
                         PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);
@@ -225,7 +225,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
         {
         #if 0
             if (pq != NULL) {
-                Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                         len - header_len, DECODE_TUNNEL_ERSPAN, pq);
                 if (tp != NULL) {
                     PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);
@@ -240,7 +240,7 @@ int DecodeGRE0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, u
             {
             #if 0
                 if (pq != NULL) {
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + header_len,
                             len - header_len, DECODE_TUNNEL_ETHERNET, pq);
                     if (tp != NULL) {
                         PKT_SET_SRC(tp, PKT_SRC_DECODER_GRE);

@@ -12,8 +12,8 @@
 #endif
 
 extern vlib_main_t vlib_main;
-extern ThreadVars g_tv[];
-extern DecodeThreadVars g_dtv[];
+extern threadvar_ctx_t g_tv[];
+extern decode_threadvar_ctx_t g_dtv[];
 extern PacketQueue g_pq[];
 
 int
@@ -58,8 +58,8 @@ DEFUN(show_dp_stats,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
 	int lcore = 0;
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
+	threadvar_ctx_t *tv;
+	decode_threadvar_ctx_t *dtv;
 	vlib_main_t *vm = &vlib_main;
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	u64 counter_eth[MAX_LCORES] = {0};
@@ -245,8 +245,8 @@ DEFUN(clear_dp_stats,
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
 	int lcore = 0;
-	ThreadVars *tv;
-	DecodeThreadVars *dtv;
+	threadvar_ctx_t *tv;
+	decode_threadvar_ctx_t *dtv;
 	vlib_main_t *vm = &vlib_main;
 
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
@@ -273,7 +273,7 @@ DEFUN(clear_dp_stats,
 
 void common_cli(vlib_main_t *vm)
 {
-	ThreadVars *tv;
+	threadvar_ctx_t *tv;
 	
 	install_element (CONFIG_NODE, &set_log_level_cmd);
 	install_element (CONFIG_NODE, &show_dp_stats_cmd);

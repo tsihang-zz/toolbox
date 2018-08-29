@@ -30,7 +30,7 @@ typedef struct StatsCounter_ {
 
 
 /**
- * \brief Stats Context for a ThreadVars instance
+ * \brief Stats Context for a threadvar_ctx_t instance
  */
 typedef struct StatsPublicThreadContext_ {
     /* flag set by the wakeup thread, to inform the client threads to sync */

@@ -27,6 +27,6 @@ typedef struct ThreadVars_ {
 
 	/** decode ops. */
 	void *d_ops;
-}ThreadVars;
+}threadvar_ctx_t;
 
 #endif

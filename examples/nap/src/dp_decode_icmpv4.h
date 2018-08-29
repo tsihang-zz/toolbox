@@ -129,7 +129,7 @@ uint16_t ICMPV4CalculateChecksum0(uint16_t *pkt, uint16_t tlen)
  * Note, this is the IP header, plus a bit of the original packet, not the whole thing!
  */
 static __oryx_always_inline__
-int DecodePartialIPv4(Packet* p, uint8_t* partial_packet, uint16_t len)
+int DecodePartialIPv4(packet_t* p, uint8_t* partial_packet, uint16_t len)
 {
     /** Check the sizes, the header must fit at least */
     if (len < IPv4_HEADER_LEN) {
@@ -235,7 +235,7 @@ int DecodePartialIPv4(Packet* p, uint8_t* partial_packet, uint16_t len)
  *  \brief Main ICMPv4 decoding function
  */
 static __oryx_always_inline__
-int DecodeICMPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeICMPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("ICMPv4");
 	

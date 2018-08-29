@@ -124,7 +124,7 @@ uint16_t IPv4Checksum(uint16_t *pkt, uint16_t hlen, uint16_t init)
  * See: RFC 791
  */
 static __oryx_always_inline__
-int IPv4OptValidateGeneric(Packet *p, const IPv4Opt *o)
+int IPv4OptValidateGeneric(packet_t *p, const IPv4Opt *o)
 {
     switch (o->type) {
         /* See: RFC 4782 */
@@ -171,7 +171,7 @@ int IPv4OptValidateGeneric(Packet *p, const IPv4Opt *o)
  * See: RFC 791
  */
 static __oryx_always_inline__
-int IPv4OptValidateRoute(Packet *p, const IPv4Opt *o)
+int IPv4OptValidateRoute(packet_t *p, const IPv4Opt *o)
 {
     uint8_t ptr;
 
@@ -209,7 +209,7 @@ int IPv4OptValidateRoute(Packet *p, const IPv4Opt *o)
  * See: RFC 781
  */
 static __oryx_always_inline__
-int IPv4OptValidateTimestamp(Packet *p, const IPv4Opt *o)
+int IPv4OptValidateTimestamp(packet_t *p, const IPv4Opt *o)
 {
     uint8_t ptr;
     uint8_t flag;
@@ -259,7 +259,7 @@ int IPv4OptValidateTimestamp(Packet *p, const IPv4Opt *o)
  * See: FIPS 188 (tags 6 & 7)
  */
 static __oryx_always_inline__
-int IPv4OptValidateCIPSO(Packet *p, const IPv4Opt *o)
+int IPv4OptValidateCIPSO(packet_t *p, const IPv4Opt *o)
 {
 //    uint32_t doi;
     uint8_t *tag;
@@ -377,7 +377,7 @@ typedef struct IPv4Options_ {
  * Decode/Validate IPv4 Options.
  */
 static __oryx_always_inline__
-int DecodeIPv4Options(Packet *p, uint8_t *pkt, uint16_t len, IPv4Options *opts)
+int DecodeIPv4Options(packet_t *p, uint8_t *pkt, uint16_t len, IPv4Options *opts)
 {
     uint16_t plen = len;
 
@@ -565,7 +565,7 @@ int DecodeIPv4Options(Packet *p, uint8_t *pkt, uint16_t len, IPv4Options *opts)
 
 
 static __oryx_always_inline__
-int DecodeIPv4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeIPv4Packet0(packet_t *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPv4_HEADER_LEN)) {
 		oryx_loge(-1,
@@ -621,7 +621,7 @@ int DecodeIPv4Packet0(Packet *p, uint8_t *pkt, uint16_t len)
 }
 
 static __oryx_always_inline__
-int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeIPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("IPv4");
 
@@ -640,7 +640,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
 #if defined(HAVE_DEFRAG)
     /* If a fragment, pass off for re-assembly. */
     if (unlikely(IPv4_GET_IPOFFSET(p) > 0 || IPv4_GET_MF(p) == 1)) {
-        Packet *rp = Defrag(tv, dtv, p, pq);
+        packet_t *rp = Defrag(tv, dtv, p, pq);
         if (rp != NULL) {
             PacketEnqueue(pq, rp);
         }
@@ -690,7 +690,7 @@ int DecodeIPv40(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
             #if 0
                 if (pq != NULL) {
                     /* spawn off tunnel packet */
-                    Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + IPv4_GET_HLEN(p),
+                    packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt + IPv4_GET_HLEN(p),
                             IPv4_GET_IPLEN(p) - IPv4_GET_HLEN(p),
                             DECODE_TUNNEL_IPv6, pq);
                     if (tp != NULL) {

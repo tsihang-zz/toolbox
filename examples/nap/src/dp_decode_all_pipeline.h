@@ -21,7 +21,7 @@
 
 
 static __oryx_always_inline__
-int dp_decode_pipeline(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int dp_decode_pipeline(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	tv = tv;
 	dtv= dtv;

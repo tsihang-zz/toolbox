@@ -2,6 +2,7 @@
 #include "dpdk_classify.h"
 
 extern volatile bool force_quit;
+extern struct rte_eth_conf dpdk_eth_default_conf;
 
 #define MAX_TX_QUEUE_PER_PORT RTE_MAX_ETHPORTS
 #define MAX_RX_QUEUE_PER_PORT 128
@@ -39,6 +40,7 @@ static const char short_options[] =
 #define CMD_LINE_OPT_ENABLE_JUMBO "enable-jumbo"
 #define CMD_LINE_OPT_HASH_ENTRY_NUM "hash-entry-num"
 #define CMD_LINE_OPT_PARSE_PTYPE "parse-ptype"
+
 enum {
 	/* long options mapped to a short option */
 
@@ -335,8 +337,8 @@ init_mem()
 {
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
-
 	struct lcore_conf *qconf;
+
 	int socketid;
 	unsigned lcore_id;
 	char s[64];
@@ -356,13 +358,16 @@ init_mem()
 				socketid, lcore_id, NB_SOCKETS);
 		}
 
-		if (pktmbuf_pool[socketid] == NULL) {
+		if (dm->pktmbuf_pool[socketid] == NULL) {
 			snprintf(s, sizeof(s), "mbuf_pool_%d", socketid);
-			pktmbuf_pool[socketid] =
-				rte_pktmbuf_pool_create(s, conf->nr_mbufs,
-					conf->mempool_cache_size, conf->mempool_priv_size,
-					conf->mempool_data_room_size, socketid);
-			if (pktmbuf_pool[socketid] == NULL)
+			dm->pktmbuf_pool[socketid] =
+				rte_pktmbuf_pool_create(s,
+							conf->nr_mbufs,
+							DPDK_MEMPOOL_DEFAULT_CACHE_SIZE,
+							conf->mempool_priv_size,
+							DPDK_MEMPOOL_DEFAULT_BUFFER_SIZE,
+							socketid);
+			if (dm->pktmbuf_pool[socketid] == NULL)
 				rte_exit(EXIT_FAILURE,
 					"Cannot init mbuf pool on socket %d\n",
 					socketid);
@@ -454,8 +459,8 @@ void parse_ptype0(struct rte_mbuf *m, struct lcore_conf *lconf)
 	int hdr_len;
 	struct ipv4_hdr *ipv4h;
 	struct ipv6_hdr *ipv6h;
-	ThreadVars *tv = &g_tv[lconf->lcore_id];
-	DecodeThreadVars *dtv = &g_dtv[lconf->lcore_id];
+	threadvar_ctx_t *tv = &g_tv[lconf->lcore_id];
+	decode_threadvar_ctx_t *dtv = &g_dtv[lconf->lcore_id];
 
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
 	oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, m->pkt_len);
@@ -690,7 +695,7 @@ static int parse_args(int argc, char **argv)
 	char *prgname = argv[0];
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
-	struct rte_eth_conf *pcfg = conf->ethdev_default_conf;
+	struct rte_eth_conf *pcfg = &dpdk_eth_default_conf;
 
 	argvopt = argv;
 
@@ -821,8 +826,8 @@ dpdk_env_setup(vlib_main_t *vm)
 	
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
-	struct rte_eth_conf *pcfg = conf->ethdev_default_conf;
-	dpdk_device_config_t *dev;
+	struct rte_eth_conf *pcfg = &dpdk_eth_default_conf;
+	dpdk_dev_t *dev;
 	
 	force_quit = false;
 	/* convert to number of cycles */
@@ -856,11 +861,10 @@ dpdk_env_setup(vlib_main_t *vm)
 	oryx_logn("================ DPDK INIT ARGS =================");
 	oryx_logn("%20s%15x", "ul_core_mask", conf->coremask);
 	oryx_logn("%20s%15x", "ul_port_mask", conf->portmask);
-	oryx_logn("%20s%15d", "ul_priv_size", vm->extra_priv_size);
 	oryx_logn("%20s%15d", "n_pool_mbufs", conf->nr_mbufs);
 	oryx_logn("%20s%15d", "rte_cachelin", RTE_CACHE_LINE_SIZE);
-	oryx_logn("%20s%15d", "mp_data_room", conf->mempool_data_room_size);
-	oryx_logn("%20s%15d", "mp_cache_siz", conf->mempool_cache_size);
+	oryx_logn("%20s%15d", "mp_data_room", DPDK_MEMPOOL_DEFAULT_BUFFER_SIZE);
+	oryx_logn("%20s%15d", "mp_cache_siz", DPDK_MEMPOOL_DEFAULT_CACHE_SIZE);
 	oryx_logn("%20s%15d", "mp_priv_size", conf->mempool_priv_size);
 	oryx_logn("%20s%15d", "n_rx_desc", (int)conf->num_rx_desc);
 	oryx_logn("%20s%15d", "n_tx_desc", (int)conf->num_tx_desc);
@@ -883,7 +887,7 @@ dpdk_env_setup(vlib_main_t *vm)
 	/* initialize all ports */
 	for (portid = 0; portid < nb_ports; portid++) {
 
-		dev = &conf->devs[portid];
+		dev = &dm->devs[portid];
 		
 		/* skip ports that are not enabled */
 		if ((conf->portmask & (1 << portid)) == 0) {
@@ -979,7 +983,7 @@ dpdk_env_setup(vlib_main_t *vm)
 			ret = rte_eth_rx_queue_setup(portid, queueid, nb_rxd,
 					socketid,
 					NULL,
-					pktmbuf_pool[socketid]);
+					dm->pktmbuf_pool[socketid]);
 			if (ret < 0)
 				rte_exit(EXIT_FAILURE,
 				"rte_eth_rx_queue_setup: err=%d, port=%d\n",

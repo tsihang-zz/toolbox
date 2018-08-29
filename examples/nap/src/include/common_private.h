@@ -69,7 +69,6 @@ typedef struct vlib_main
 	int					log_level;
 	char				*log_path;
 	void 				(*sighandler)(int signum);
-	uint32_t			extra_priv_size;	/** equal with sizeof (Packet) */
 
 #define VLIB_DPDK_EAL_INITIALIZED		(1 << 0)
 #define VLIB_DPDK_MEMPOOL_INITIALIZED	(1 << 1)

@@ -31,7 +31,7 @@
  *
  */
 static __oryx_always_inline__
-void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+void DecodeIPv4inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
 	oryx_logd("IPv4InIPv6");
 	
@@ -42,7 +42,7 @@ void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 #if 0
     if (IP_GET_RAW_VER(pkt) == 4) {
         if (pq != NULL) {
-            Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt, plen, DECODE_TUNNEL_IPv4, pq);
+            packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt, plen, DECODE_TUNNEL_IPv4, pq);
             if (tp != NULL) {
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPv6);
                 /* add the tp to the packet queue. */
@@ -64,7 +64,7 @@ void DecodeIPv4inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
  *
  */
 static __oryx_always_inline__
-int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+int DecodeIPv6inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
 {
 	oryx_logd("IPv6InIPv6");
 
@@ -75,7 +75,7 @@ int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *
 #if 0
     if (IP_GET_RAW_VER(pkt) == 6) {
         if (unlikely(pq != NULL)) {
-            Packet *tp = PacketTunnelPktSetup(tv, dtv, p, pkt, plen, DECODE_TUNNEL_IPv6, pq);
+            packet_t *tp = PacketTunnelPktSetup(tv, dtv, p, pkt, plen, DECODE_TUNNEL_IPv6, pq);
             if (tp != NULL) {
                 PKT_SET_SRC(tp, PKT_SRC_DECODER_IPv6);
                 PacketEnqueue(pq,tp);
@@ -91,7 +91,7 @@ int DecodeIPv6inIPv6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *
 }
 
 static __oryx_always_inline__
-void DecodeIPv6FragHeader(Packet *p, uint8_t *pkt,
+void DecodeIPv6FragHeader(packet_t *p, uint8_t *pkt,
                           uint16_t hdrextlen, uint16_t plen,
                           uint16_t prev_hdrextlen)
 {
@@ -132,7 +132,7 @@ void DecodeIPv6FragHeader(Packet *p, uint8_t *pkt,
 }
 
 static __oryx_always_inline__ 
-void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+void DecodeIPv6ExtHdrs(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
     uint8_t *orig_pkt = pkt;
     uint8_t nh = 0; /* careful, 0 is actually a real type */
@@ -235,7 +235,7 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
                 uint8_t *ptr = pkt + 2; /* +2 to go past nxthdr and len */
 
                 /* point the pointers to right structures
-                 * in Packet. */
+                 * in packet_t. */
                 if (nh == IPPROTO_HOPOPTS) {
                     if (hh) {
                         ENGINE_SET_EVENT(p, IPv6_EXTHDR_DUPL_HH);
@@ -541,7 +541,7 @@ void DecodeIPv6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t
 }
 
 static __oryx_always_inline__
-int DecodeIPv6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeIPv6Packet (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < IPv6_HEADER_LEN)) {
         return -1;
@@ -568,7 +568,7 @@ int DecodeIPv6Packet (ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t 
 }
 
 static __oryx_always_inline__
-int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeIPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("IPv6");
 	
@@ -644,7 +644,7 @@ int DecodeIPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, 
     /* Pass to defragger if a fragment. */
     if (IPv6_EXTHDR_ISSET_FH(p)) {
 #if defined(HAVE_DEFRAG)
-        Packet *rp = Defrag(tv, dtv, p, pq);
+        packet_t *rp = Defrag(tv, dtv, p, pq);
         if (rp != NULL) {
             PacketEnqueue(pq,rp);
         }

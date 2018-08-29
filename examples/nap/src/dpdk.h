@@ -55,7 +55,7 @@
 /*
  * Size of the data buffer in each mbuf. These two macro means a frame
  */
-#define	DPDK_DEFAULT_BUFFER_SIZE	\
+#define	DPDK_MEMPOOL_DEFAULT_BUFFER_SIZE	\
 	(DPDK_BUFFER_DATA_SIZE + DPDK_BUFFER_PRE_DATA_SIZE)
 
 /*
@@ -79,7 +79,7 @@
 /*
  * How many objects (mbufs) to keep in per-lcore mempool cache
  */
-#define DPDK_DEFAULT_MEMPOOL_CACHE_SIZE	256
+#define DPDK_MEMPOOL_DEFAULT_CACHE_SIZE	256
 
 #define NS_PER_US 1000
 #define US_PER_MS 1000
@@ -199,21 +199,18 @@ typedef struct
 	/* PCI address */
 	vlib_pci_addr_t pci_addr;
 
-	/* */
-	uint8_t vlan_strip_offload;
-
-#define DPDK_DEVICE_VLAN_STRIP_DEFAULT 0
-#define DPDK_DEVICE_VLAN_STRIP_OFF 1
-#define DPDK_DEVICE_VLAN_STRIP_ON  2
-#define _(x) uword x;
-	foreach_dpdk_device_config_item
-#undef _
-} dpdk_device_config_t;
+} dpdk_dev_t;
 
 typedef struct {
-	char *uio_driver_name;
-	uint8_t no_multi_seg;
+
+	/* caculate checksum when a tcp or udp comes. */
 	uint8_t enable_tcp_udp_checksum;
+
+	/* maximum of bytes of a frame can be. */
+	uint8_t	jumbo_frame_size;
+
+	/* strip vlan */
+	uint8_t vlan_strip_offload;
 
 	/* mask of working logical cores */
 	uint32_t coremask;
@@ -223,23 +220,13 @@ typedef struct {
 
 	/* number of channels. */
 	uint32_t nr_channels;
-	
-	uint32_t nr_mbufs;
-	uint32_t mempool_cache_size;
-	uint32_t mempool_priv_size;
-	uint32_t mempool_data_room_size;
 
-	/** unused */
-	uint32_t n_rx_q_per_lcore;
+	/* number of buffer elements. */
+	uint32_t nr_mbufs;
 
 	/* */
-	uint8_t vlan_strip_offload;
+	uint32_t mempool_priv_size;
 
-
-	dpdk_device_config_t devs[RTE_MAX_ETHPORTS];
-
-	struct rte_eth_conf *ethdev_default_conf;
-	
 #define DPDK_DEVICE_VLAN_STRIP_DEFAULT 0
 #define DPDK_DEVICE_VLAN_STRIP_OFF 1
 #define DPDK_DEVICE_VLAN_STRIP_ON  2
@@ -260,15 +247,14 @@ typedef struct {
 	dpdk_config_main_t *conf;
 	
 	/* mempool */
-	struct rte_mempool *pktmbuf_pools;
+	struct rte_mempool *pktmbuf_pool[NB_SOCKETS];
+
+	/* Tx buffer. */
 	struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
-	uint32_t n_lcores;
-	uint32_t n_ports;
-	uint32_t master_lcore;
-	
-	/** hold threadvars, detect_thread_ctx etc. */
-	void *ext_private;
+	/* DPDK NIC. */
+	dpdk_dev_t devs[RTE_MAX_ETHPORTS];
+
 } dpdk_main_t;
 
 struct lcore_params {

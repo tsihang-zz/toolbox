@@ -19,7 +19,7 @@
 #define MPLS_PROTO_IPv6         6
 
 static __oryx_always_inline__
-int DecodeMPLS0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt,
+int DecodeMPLS0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt,
     uint16_t len, PacketQueue *pq)
 {
     uint32_t shim;

@@ -9,7 +9,7 @@
 } while (0)
 
 static __oryx_always_inline__
-int DecodeSCTPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeSCTPPacket(threadvar_ctx_t *tv, packet_t *p, uint8_t *pkt, uint16_t len)
 {
     if (unlikely(len < SCTP_HEADER_LEN)) {
         ENGINE_SET_INVALID_EVENT(p, SCTP_PKT_TOO_SMALL);
@@ -30,7 +30,7 @@ int DecodeSCTPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
 }
 
 static __oryx_always_inline__
-int DecodeSCTP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeSCTP0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	oryx_logd("SCTP");
 

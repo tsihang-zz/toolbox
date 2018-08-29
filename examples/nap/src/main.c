@@ -17,12 +17,8 @@
 /** CLI decalre */
 extern void common_cli(vlib_main_t *vm);
 
-/** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
-#define DPDK_MBUF_PRIVATE_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct Packet_)))
-
 vlib_main_t vlib_main = {
-	.prgname = "et1500",
-	.extra_priv_size = DPDK_MBUF_PRIVATE_SIZE,
+	.prgname = "napd",
 };
 
 static unsigned short int alternative_port = 12000;

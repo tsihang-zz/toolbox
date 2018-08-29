@@ -123,7 +123,7 @@ uint16_t ICMPV6CalculateChecksum0(uint16_t *shdr, uint16_t *pkt,
  * \retval void No return value
  */
 static __oryx_always_inline__
-void DecodePartialIPv6(Packet *p, uint8_t *partial_packet, uint16_t len )
+void DecodePartialIPv6(packet_t *p, uint8_t *partial_packet, uint16_t len )
 {
 	/** Check the sizes, the header must fit at least */
 	if (len < IPv6_HEADER_LEN) {
@@ -220,7 +220,7 @@ void DecodePartialIPv6(Packet *p, uint8_t *partial_packet, uint16_t len )
 }
 
 /**
- * \brief Decode ICMPV6 packets and fill the Packet with the decoded info
+ * \brief Decode ICMPV6 packets and fill the packet_t with the decoded info
  *
  * \param tv Pointer to the thread variables
  * \param dtv Pointer to the decode thread variables
@@ -232,7 +232,7 @@ void DecodePartialIPv6(Packet *p, uint8_t *partial_packet, uint16_t len )
  * \retval void No return value
  */
 static __oryx_always_inline__
-int DecodeICMPv60(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+int DecodeICMPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
 	int full_hdr = 0;

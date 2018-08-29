@@ -24,8 +24,8 @@
 #include "util_map.h"
 
 extern volatile bool force_quit;
-extern ThreadVars g_tv[];
-extern DecodeThreadVars g_dtv[];
+extern threadvar_ctx_t g_tv[];
+extern decode_threadvar_ctx_t g_dtv[];
 extern PacketQueue g_pq[];
 
 /* Configure how many packets ahead to prefetch, when reading packets */
@@ -207,14 +207,14 @@ int dp_decide_tx_port(struct map_t *map, struct iface_t *rx_iface,
 }
 
 static __oryx_always_inline__
-void dp_free_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_free_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	struct rte_mbuf *pkt){
 	rte_pktmbuf_free(pkt);
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
 }
 	
 static __oryx_always_inline__
-void dp_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_drop_all(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	struct rte_mbuf **pkts_in, int nb){
 	int i;
 	for (i = 0; i < nb; i ++) {
@@ -225,7 +225,7 @@ void dp_drop_all(ThreadVars *tv, DecodeThreadVars *dtv,
 	
 /* Send burst of packets on an output interface */
 static __oryx_always_inline__
-int dp_send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint32_t tx_port_id)
+int dp_send_burst(threadvar_ctx_t *tv, struct lcore_conf *qconf, uint16_t n, uint32_t tx_port_id)
 {
 	int 		ret;
 	uint16_t		tx_queue_id;
@@ -258,7 +258,7 @@ int dp_send_burst(ThreadVars *tv, struct lcore_conf *qconf, uint16_t n, uint32_t
 
 /* Enqueue a single packet, and send burst if queue is filled */
 static __oryx_always_inline__
-int dp_send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+int dp_send_single_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 		struct iface_t *rx_iface, struct lcore_conf *qconf, 
 		struct rte_mbuf *m, uint32_t tx_port_id, uint8_t tx_panel_port_id)
 {
@@ -269,7 +269,7 @@ int dp_send_single_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 	vlib_iface_main_t	*pm = &vlib_iface_main;
 	
 	if (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID) {
-		Packet *p = GET_MBUF_PRIVATE(Packet, m);
+		packet_t *p = GET_MBUF_PRIVATE(packet_t, m);
 		if(tx_panel_port_id > SW_PORT_OFFSET) {
 			/* GE ---> GE */
 			tx_panel_ge_id = tx_panel_port_id - SW_PORT_OFFSET;
@@ -339,15 +339,15 @@ flush2_buffer:
 }
 
 static __oryx_always_inline__
-void dp_classify_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int index)
 {
-	Packet			*p;
+	packet_t			*p;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
 	struct rte_mbuf 	*pkt = pkts_in[index];
 	struct iface_t		*rx_panel_iface = NULL;
 	
-	p = GET_MBUF_PRIVATE(Packet, pkt);
+	p = GET_MBUF_PRIVATE(packet_t, pkt);
 	p->iphd_offset = 0;
 	p->dsa = 0;
 
@@ -438,7 +438,7 @@ void dp_classify_prepare_one_packet(ThreadVars *tv, DecodeThreadVars *dtv,
 }
 
 static __oryx_always_inline__
-void dp_classify_post(ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_classify_post(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 		struct iface_t *rx_iface, struct lcore_conf *qconf, struct rte_mbuf *m, uint32_t res)
 {
 	int			i;
@@ -538,7 +538,7 @@ finish:
 }
 
 static __oryx_always_inline__
-void dp_classify_prepare (ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int nb_rx)
 {
 	int i;
@@ -564,7 +564,7 @@ void dp_classify_prepare (ThreadVars *tv, DecodeThreadVars *dtv,
 }
 
 static __oryx_always_inline__
-void dp_classify (ThreadVars *tv, DecodeThreadVars *dtv,
+void dp_classify (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 		struct iface_t *rx_iface, struct lcore_conf *qconf, struct rte_mbuf **m, uint32_t *res, int num)
 {
 	int i;
@@ -608,9 +608,9 @@ int main_loop (void *ptr_data)
 	const uint64_t	drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
 							US_PER_S * BURST_TX_DRAIN_US;
 
-	Packet			*p;
-	ThreadVars		*tv;
-	DecodeThreadVars	*dtv;
+	packet_t			*p;
+	threadvar_ctx_t		*tv;
+	decode_threadvar_ctx_t	*dtv;
 	vlib_main_t		*vm = (vlib_main_t *)ptr_data;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
 	vlib_map_main_t		*mm = &vlib_map_main;

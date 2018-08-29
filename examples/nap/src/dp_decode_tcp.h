@@ -195,7 +195,7 @@ uint16_t TCPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
 	(dst).data = (src).data
 
 static __oryx_always_inline__
-int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeTCPOptions(packet_t *p, uint8_t *pkt, uint16_t len)
 {
  uint8_t tcp_opt_cnt = 0;
  TCPOpt tcp_opts[TCP_OPTMAX];
@@ -309,7 +309,7 @@ int DecodeTCPOptions(Packet *p, uint8_t *pkt, uint16_t len)
 }
 
 static __oryx_always_inline__
-int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeTCPPacket(threadvar_ctx_t *tv, packet_t *p, uint8_t *pkt, uint16_t len)
 {
 	if (unlikely(len < TCP_HEADER_LEN)) {
 	 ENGINE_SET_INVALID_EVENT(p, TCP_PKT_TOO_SMALL);
@@ -348,7 +348,7 @@ int DecodeTCPPacket(ThreadVars *tv, Packet *p, uint8_t *pkt, uint16_t len)
 }
 
 static __oryx_always_inline__
-int DecodeTCP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeTCP0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
 {
  oryx_logd("TCP");
 

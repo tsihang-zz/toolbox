@@ -19,8 +19,11 @@
 #include "iface_private.h"
 #include "dpdk.h"
 
-extern ThreadVars g_tv[];
-extern DecodeThreadVars g_dtv[];
+/** How to define a priv size within a packet before rte_pktmbuf_pool_create. */
+#define DPDK_MBUF_PRIVATE_SIZE  (RTE_CACHE_LINE_ROUNDUP(sizeof(struct packet_t_)))
+
+extern threadvar_ctx_t g_tv[];
+extern decode_threadvar_ctx_t g_dtv[];
 extern PacketQueue g_pq[];
 
 /* main processing loop */
@@ -61,9 +64,10 @@ static int dp_dpdk_check_port(vlib_main_t *vm)
 void dp_end_dpdk(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
-	u8 portid;
+	uint16_t nr_ports = rte_eth_dev_count();
+	uint8_t portid;
 	
-	for (portid = 0; portid < dm->n_ports; portid++) {
+	for (portid = 0; portid < nr_ports; portid++) {
 		if ((dm->conf->portmask & (1 << portid)) == 0)
 			continue;
 		fprintf (stdout, "Closing port %d...", portid);
@@ -78,15 +82,15 @@ void dp_init_dpdk(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
 
-	dm->conf->mempool_priv_size = vm->extra_priv_size;	
+	dm->conf->mempool_priv_size = DPDK_MBUF_PRIVATE_SIZE;	
 	dp_dpdk_check_port(vm);
 	dpdk_env_setup(vm);
 }
 
 void dp_start_dpdk(vlib_main_t *vm) {
 
-	fprintf (stdout, "Master Lcore @ %d/%d\n", rte_get_master_lcore(),
-		vm->nb_lcores);
+	fprintf(stdout,
+		"Master Lcore @ %d/%d\n", rte_get_master_lcore(), vm->nb_lcores);
 
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(main_loop, vm, CALL_MASTER);

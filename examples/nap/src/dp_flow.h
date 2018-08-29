@@ -35,7 +35,7 @@ typedef struct FlowCnf_
  *  \retval 0 no match
  */
 static __oryx_always_inline__
-int FlowCompareICMPv4(Flow *f, const Packet *p)
+int FlowCompareICMPv4(Flow *f, const packet_t *p)
 {
     if (ICMPV4_DEST_UNREACH_IS_VALID(p)) {
         /* first check the direction of the flow, in other words, the client ->
@@ -100,7 +100,7 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
         (pa)->addr_data32[3] = (fa)->addr_data32[3];    \
     } while (0)
 
-/* Set the IPv4 addressesinto the Addrs of the Packet.
+/* Set the IPv4 addressesinto the Addrs of the packet_t.
  * Make sure p->ip4h is initialized and validated.
  *
  * We set the rest of the struct to 0 so we can
@@ -127,7 +127,7 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
         (a)->addr_data32[3] = 0; \
     } while (0)
 
-/* Set the IPv6 addressesinto the Addrs of the Packet.
+/* Set the IPv6 addressesinto the Addrs of the packet_t.
  * Make sure p->ip6h is initialized and validated. */
 #define FLOW_SET_IPv6_SRC_ADDR_FROM_PACKET(p, a) do {   \
         (a)->addr_data32[0] = (p)->ip6h->s_ip6_src[0];  \
@@ -146,7 +146,7 @@ int FlowCompareICMPv4(Flow *f, const Packet *p)
 #endif	/** end of if defined(HAVE_FLOW_MGR */
 
 static __oryx_always_inline__
-void FlowSetupPacket(Packet *p)
+void FlowSetupPacket(packet_t *p)
 {
 #if defined(HAVE_FLOW_MGR)
     p->flags |= PKT_WANTS_FLOW;

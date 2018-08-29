@@ -16,24 +16,24 @@
 #include "dp_decode_marvell_dsa.h"
 #include "dp_decode_eth.h"
 
-extern ThreadVars g_tv[];
-extern DecodeThreadVars g_dtv[];
+extern threadvar_ctx_t g_tv[];
+extern decode_threadvar_ctx_t g_dtv[];
 extern PacketQueue g_pq[];
 extern volatile bool force_quit;
 
 
 extern void
-dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
+dp_register_perf_counters(decode_threadvar_ctx_t *dtv, threadvar_ctx_t *tv);
 
 void
 dp_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
                                    		const u_char *bytes)
 {
 	int lcore = 0; //rte_lcore_id();
-	ThreadVars *tv = &g_tv[lcore];
-	DecodeThreadVars *dtv = &g_dtv[lcore];
+	threadvar_ctx_t *tv = &g_tv[lcore];
+	decode_threadvar_ctx_t *dtv = &g_dtv[lcore];
 	PacketQueue *pq = &g_pq[lcore];
-	Packet *p = PacketGetFromAlloc();
+	packet_t *p = PacketGetFromAlloc();
 	const struct pcap_pkthdr *pkthdr = (struct pcap_pkthdr *)h;
 	struct netdev_t *netdev = (struct netdev_t *)user;
 

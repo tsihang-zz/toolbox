@@ -186,7 +186,7 @@ Flow *FlowAlloc(void)
  *
  *  For ICMP we only consider UNREACHABLE errors atm.
  */
-static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
+static __oryx_always_inline__ uint32_t FlowGetHash(const packet_t *p)
 {
     uint32_t hash = 0;
 
@@ -289,7 +289,7 @@ static __oryx_always_inline__ uint32_t FlowGetHash(const Packet *p)
  *  \retval 1 true
  *  \retval 0 false
  */
-static __oryx_always_inline__ int FlowCreateCheck(const Packet *p)
+static __oryx_always_inline__ int FlowCreateCheck(const packet_t *p)
 {
     if (PKT_IS_ICMPV4(p)) {
         if (ICMPV4_IS_ERROR_MSG(p)) {
@@ -300,7 +300,7 @@ static __oryx_always_inline__ int FlowCreateCheck(const Packet *p)
     return 1;
 }
 
-static __oryx_always_inline__ void FlowUpdateCounter(ThreadVars *tv, DecodeThreadVars *dtv,
+static __oryx_always_inline__ void FlowUpdateCounter(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
         uint8_t proto)
 {
 #ifdef UNITTESTS
@@ -337,7 +337,7 @@ static __oryx_always_inline__ void FlowUpdateCounter(ThreadVars *tv, DecodeThrea
  *
  *  \retval f *LOCKED* flow on succes, NULL on error.
  */
-static Flow *FlowGetNew(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p)
+static Flow *FlowGetNew(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, const packet_t *p)
 {
     Flow *f = NULL;
 
@@ -400,7 +400,7 @@ static Flow *FlowGetNew(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p)
     return f;
 }
 
-static __oryx_always_inline__ int FlowCompare(Flow *f, const Packet *p)
+static __oryx_always_inline__ int FlowCompare(Flow *f, const packet_t *p)
 {
     if (p->proto == IPPROTO_ICMP) {
         return FlowCompareICMPv4(f, p);
@@ -455,7 +455,7 @@ void FlowUpdateState(Flow *f, enum FlowState s)
 
 /* initialize the flow from the first packet
  * we see from it. */
-void FlowInit(Flow *f, const Packet *p)
+void FlowInit(Flow *f, const packet_t *p)
 {
     oryx_logd("flow %p", f);
 
@@ -568,7 +568,7 @@ static __oryx_always_inline__ void FlowReference(Flow **d, Flow *f)
  *
  *  \retval f *LOCKED* flow or NULL
  */
-Flow *FlowGetFlowFromHash(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p, Flow **dest)
+Flow *FlowGetFlowFromHash(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, const packet_t *p, Flow **dest)
 {
     Flow *f = NULL;
 
@@ -701,7 +701,7 @@ Flow *FlowGetFlowFromHash(ThreadVars *tv, DecodeThreadVars *dtv, const Packet *p
  *  \param dtv decode thread vars (for flow output api thread data)
  *  \param p packet to handle flow for
  */
-void FlowHandlePacket(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
+void FlowHandlePacket(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p)
 {
     /* Get this packet's flow from the hash. FlowHandlePacket() will setup
      * a new flow if nescesary. If we get NULL, we're out of flow memory.

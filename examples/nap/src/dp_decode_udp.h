@@ -151,7 +151,7 @@ uint16_t UDPV6Checksum0(uint16_t *shdr, uint16_t *pkt,
 }
 
 static __oryx_always_inline__
-int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16_t len)
+int DecodeUDPPacket(threadvar_ctx_t *t, packet_t *p, uint8_t *pkt, uint16_t len)
 {
 	if (unlikely(len < UDP_HEADER_LEN)) {
 	 ENGINE_SET_INVALID_EVENT(p, UDP_HLEN_TOO_SMALL);
@@ -182,7 +182,7 @@ int DecodeUDPPacket(ThreadVars *t, Packet *p, uint8_t *pkt, uint16_t len)
 }
  
  static __oryx_always_inline__
- int DecodeUDP0(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+ int DecodeUDP0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
  {
 	 oryx_logd("UDP");
  

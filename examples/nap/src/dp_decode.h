@@ -75,7 +75,7 @@ typedef struct PacketAlerts_ {
 } PacketAlerts;
 #endif
 
-/* Set the IPv4 addresses into the Addrs of the Packet.
+/* Set the IPv4 addresses into the Addrs of the packet_t.
  * Make sure p->ip4h is initialized and validated.
  *
  * We set the rest of the struct to 0 so we can
@@ -96,7 +96,7 @@ typedef struct PacketAlerts_ {
         (a)->addr_data32[3] = 0;                                  \
     } while (0)
 
-/* Set the IPv6 addressesinto the Addrs of the Packet.
+/* Set the IPv6 addressesinto the Addrs of the packet_t.
  * Make sure p->ip6h is initialized and validated. */
 #define SET_IPv6_SRC_ADDR(p, a) do {                    \
         (a)->family = AF_INET6;                         \
@@ -114,7 +114,7 @@ typedef struct PacketAlerts_ {
         (a)->addr_data32[3] = (p)->ip6h->s_ip6_dst[3];  \
     } while (0)
 
-/* Set the TCP ports into the Ports of the Packet.
+/* Set the TCP ports into the Ports of the packet_t.
  * Make sure p->tcph is initialized and validated. */
 #define SET_TCP_SRC_PORT(pkt, prt) do {            \
         SET_PORT(TCP_GET_SRC_PORT((pkt)), *(prt)); \
@@ -124,7 +124,7 @@ typedef struct PacketAlerts_ {
         SET_PORT(TCP_GET_DST_PORT((pkt)), *(prt)); \
     } while (0)
 
-/* Set the UDP ports into the Ports of the Packet.
+/* Set the UDP ports into the Ports of the packet_t.
  * Make sure p->udph is initialized and validated. */
 #define SET_UDP_SRC_PORT(pkt, prt) do {            \
         SET_PORT(UDP_GET_SRC_PORT((pkt)), *(prt)); \
@@ -133,7 +133,7 @@ typedef struct PacketAlerts_ {
         SET_PORT(UDP_GET_DST_PORT((pkt)), *(prt)); \
     } while (0)
 
-/* Set the SCTP ports into the Ports of the Packet.
+/* Set the SCTP ports into the Ports of the packet_t.
  * Make sure p->sctph is initialized and validated. */
 #define SET_SCTP_SRC_PORT(pkt, prt) do {            \
         SET_PORT(SCTP_GET_SRC_PORT((pkt)), *(prt)); \
@@ -205,42 +205,42 @@ typedef struct PacketEngineEvents_ {
     uint8_t events[PACKET_ENGINE_EVENT_MAX];   /**< array of events */
 } PacketEngineEvents;
 
-/*Packet Flags*/
+/*packet_t Flags*/
 #define PKT_NOPACKET_INSPECTION         (1)         /**< Flag to indicate that packet header or contents should not be inspected*/
 #define PKT_NOPAYLOAD_INSPECTION        (1<<2)      /**< Flag to indicate that packet contents should not be inspected*/
-#define PKT_ALLOC                       (1<<3)      /**< Packet was alloc'd this run, needs to be freed */
-#define PKT_HAS_TAG                     (1<<4)      /**< Packet has matched a tag */
-#define PKT_STREAM_ADD                  (1<<5)      /**< Packet payload was added to reassembled stream */
-#define PKT_STREAM_EST                  (1<<6)      /**< Packet is part of establised stream */
+#define PKT_ALLOC                       (1<<3)      /**< packet_t was alloc'd this run, needs to be freed */
+#define PKT_HAS_TAG                     (1<<4)      /**< packet_t has matched a tag */
+#define PKT_STREAM_ADD                  (1<<5)      /**< packet_t payload was added to reassembled stream */
+#define PKT_STREAM_EST                  (1<<6)      /**< packet_t is part of establised stream */
 #define PKT_STREAM_EOF                  (1<<7)      /**< Stream is in eof state */
 #define PKT_HAS_FLOW                    (1<<8)
 #define PKT_PSEUDO_STREAM_END           (1<<9)      /**< Pseudo packet to end the stream */
-#define PKT_STREAM_MODIFIED             (1<<10)     /**< Packet is modified by the stream engine, we need to recalc the csum and reinject/replace */
-#define PKT_MARK_MODIFIED               (1<<11)     /**< Packet mark is modified */
+#define PKT_STREAM_MODIFIED             (1<<10)     /**< packet_t is modified by the stream engine, we need to recalc the csum and reinject/replace */
+#define PKT_MARK_MODIFIED               (1<<11)     /**< packet_t mark is modified */
 #define PKT_STREAM_NOPCAPLOG            (1<<12)     /**< Exclude packet from pcap logging as it's part of a stream that has reassembly depth reached. */
 
 #define PKT_TUNNEL                      (1<<13)
 #define PKT_TUNNEL_VERDICTED            (1<<14)
 
-#define PKT_IGNORE_CHECKSUM             (1<<15)     /**< Packet checksum is not computed (TX packet for example) */
-#define PKT_ZERO_COPY                   (1<<16)     /**< Packet comes from zero copy (ext_pkt must not be freed) */
+#define PKT_IGNORE_CHECKSUM             (1<<15)     /**< packet_t checksum is not computed (TX packet for example) */
+#define PKT_ZERO_COPY                   (1<<16)     /**< packet_t comes from zero copy (ext_pkt must not be freed) */
 
 #define PKT_HOST_SRC_LOOKED_UP          (1<<17)
 #define PKT_HOST_DST_LOOKED_UP          (1<<18)
 
-#define PKT_IS_FRAGMENT                 (1<<19)     /**< Packet is a fragment */
+#define PKT_IS_FRAGMENT                 (1<<19)     /**< packet_t is a fragment */
 #define PKT_IS_INVALID                  (1<<20)
 #define PKT_PROFILE                     (1<<21)
 
 /** indication by decoder that it feels the packet should be handled by
- *  flow engine: Packet::flow_hash will be set */
+ *  flow engine: packet_t::flow_hash will be set */
 #define PKT_WANTS_FLOW                  (1<<22)
 
 /** protocol detection done */
 #define PKT_PROTO_DETECT_TS_DONE        (1<<23)
 #define PKT_PROTO_DETECT_TC_DONE        (1<<24)
 
-#define PKT_REBUILT_FRAGMENT            (1<<25)     /**< Packet is rebuilt from
+#define PKT_REBUILT_FRAGMENT            (1<<25)     /**< packet_t is rebuilt from
                                                      * fragments. */
 #define PKT_DETECT_HAS_STREAMDATA       (1<<26)     /**< Set by Detect() if raw stream data is available. */
 
@@ -259,11 +259,10 @@ typedef struct PacketEngineEvents_ {
 
 #define DEFAULT_PACKET_SIZE (DEFAULT_MTU + ETHERNET_HEADER_LEN)
 
-typedef struct Packet_
-{
+typedef struct packet_t_ {
     /* Addresses, Ports and protocol
      * these are on top so we can use
-     * the Packet as a hash key */
+     * the packet_t as a hash key */
     Address src;
     Address dst;
     union {
@@ -361,7 +360,7 @@ typedef struct Packet_
 
     /* engine events */
     PacketEngineEvents events;
-}    __attribute__((aligned(128))) Packet;
+}    __attribute__((aligned(128))) packet_t;
 
 #define PACKET_CLEAR_L4VARS(p) do {             \
     }while (0);
@@ -460,7 +459,7 @@ typedef struct Packet_
 
 #if 0
 static __oryx_always_inline__
-Packet * get_priv(struct rte_mbuf *m)
+packet_t * get_priv(struct rte_mbuf *m)
 {
 	return RTE_PTR_ADD(m, sizeof(struct rte_mbuf));
 }
@@ -469,54 +468,54 @@ Packet * get_priv(struct rte_mbuf *m)
 	((type *)RTE_PTR_ADD((m), sizeof(struct rte_mbuf)));
 #endif
 
-typedef int (*decode_eth_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_eth_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int	(*decode_arp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int	(*decode_arp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_dsa_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_dsa_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				 uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int	(*decode_vlan_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int	(*decode_vlan_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_mpls_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_mpls_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_ppp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_ppp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_pppoe_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_pppoe_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_ipv4_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_ipv4_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_ipv6_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_ipv6_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_gre_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_gre_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_icmpv4_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_icmpv4_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_icmpv6_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_icmpv6_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_tcp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_tcp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_udp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_udp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
-typedef int (*decode_sctp_t)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
+typedef int (*decode_sctp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
                    uint8_t *pkt, uint16_t len, PacketQueue *pq);
 
 typedef struct _dp_args_t {
-   ThreadVars tv[MAX_LCORES];
-   DecodeThreadVars dtv[MAX_LCORES];
+   threadvar_ctx_t tv[MAX_LCORES];
+   decode_threadvar_ctx_t dtv[MAX_LCORES];
    PacketQueue pq[MAX_LCORES];
 }dp_private_t;
 
@@ -578,8 +577,8 @@ struct MarvellDSAMap {
 
 #if defined(BUILD_DEBUG)
 static __oryx_always_inline__
-void DecodeUpdateCounters(ThreadVars *tv,
-                                const DecodeThreadVars *dtv, const Packet *p)
+void DecodeUpdateCounters(threadvar_ctx_t *tv,
+                                const decode_threadvar_ctx_t *dtv, const packet_t *p)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_pkts);
     oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_bytes, GET_PKT_LEN(p));
@@ -593,7 +592,7 @@ void DecodeUpdateCounters(ThreadVars *tv,
 * functions when decoding has been succesful.
 */
 static __oryx_always_inline__
-void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
+void PacketDecodeFinalize(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p)
 
 {
 	if (p->flags & PKT_IS_INVALID) {
