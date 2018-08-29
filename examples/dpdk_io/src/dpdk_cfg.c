@@ -7,12 +7,12 @@
 #define RTE_RX_DESC_DEFAULT 512
 #define RTE_TX_DESC_DEFAULT 512
 
-#define RTE_MBUF_OVERHEAD (sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
-#define RTE_RX_MBUF_DATA_SIZE 4096
+#define RTE_RX_MBUF_DATA_SIZE	2048
+#define RTE_MBUF_OVERHEAD	(sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define RTE_MBUF_SIZE (RTE_RX_MBUF_DATA_SIZE + RTE_MBUF_OVERHEAD)
 
 #define RTE_MBUFS_PER_PORT	1024
-#define RTE_MBUFS		(2048 * RTE_MBUFS_PER_PORT)
+#define RTE_MBUFS		(512 * RTE_MBUFS_PER_PORT)
 
 /*
  * RX and TX Prefetch, Host, and Write-back threshold values should be
@@ -64,6 +64,7 @@ struct dpdk_cfg_t dpdk_main_cfg = {
 static int init_one_port(uint8_t portid)
 {
 	/* for port configuration all features are off by default */
+#if 0
 	const struct rte_eth_conf port_conf = {
 		.rxmode = {
 			.mq_mode = ETH_MQ_RX_RSS,
@@ -76,6 +77,30 @@ static int init_one_port(uint8_t portid)
 			.hw_strip_crc	= 0, /**< CRC stripped by hardware */
 		}
 	};
+#else
+struct rte_eth_conf port_conf = {
+	.rxmode = {
+		.mq_mode = ETH_MQ_RX_RSS,
+		.max_rx_pkt_len = ETHER_MAX_LEN,
+		.split_hdr_size = 0,
+		.header_split	= 0, /**< Header Split disabled */
+		.hw_ip_checksum = 1, /**< IP checksum offload enabled */
+		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
+		.jumbo_frame	= 0, /**< Jumbo Frame Support disabled */
+		.hw_strip_crc	= 1, /**< CRC stripped by hardware */
+	},
+	.rx_adv_conf = {
+		.rss_conf = {
+			.rss_key = NULL,
+			.rss_hf = ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP,
+		},
+	},
+	.txmode = {
+		.mq_mode = ETH_MQ_TX_NONE,
+	},
+};
+
+#endif
 
 #if (1)
 	uint32_t nb_lcores = rte_lcore_count();
@@ -94,11 +119,20 @@ static int init_one_port(uint8_t portid)
 
 	fflush(stdout);
 
+#if 0
+	retval = rte_eal_has_hugpages();
+	if (retval < 0) {
+		fprintf (stdout,
+			"Warning(%d): Huge page is not configured!\n", retval);
+		return retval;
+	}
+#endif
 	/* Standard DPDK port initialisation - config port, then set up
 	 * rx and tx rings */
 	retval = rte_eth_dev_configure(portid, rx_rings, tx_rings, &port_conf);
 	if (retval < 0){
-		fprintf (stdout, "Warning: port %u set txqueue failed (%d)!\n", portid, retval);
+		fprintf (stdout,
+			"Warning(%d): port %u configure failed!\n", retval, portid);
 		return retval;
 	}
 
@@ -107,26 +141,29 @@ static int init_one_port(uint8_t portid)
 		retval = rte_eth_rx_queue_setup(portid, q, rx_ring_size,
 							rte_eth_dev_socket_id(portid), &rx_conf_default, dpdk_main_cfg.pktmbuf_pool);
 		if (retval < 0){
-			fprintf (stdout, "Warning: port %u set rxqueue failed (%d)!\n", portid, retval);
+			fprintf (stdout,
+			 "Warning(%d): port %u set Rx queue failed!\n", retval, portid);
 			continue;
 		}
 
 	}
-
+#if 1
 	for (q = 0; q < tx_rings; q ++) {
 		retval = rte_eth_tx_queue_setup(portid, q, tx_ring_size,
 				rte_eth_dev_socket_id(portid), &tx_conf_default);
 		if (retval < 0){
-			fprintf (stdout, "Warning: port %u set txqueue failed (%d)!\n", portid, retval);
+			fprintf (stdout,
+			 "Warning(%d): port %u set Tx queue failed!\n", retval, portid);
 			continue;
 		}
 	}
-
+#endif
 	rte_eth_promiscuous_enable(portid);
 
 	retval	= rte_eth_dev_start(portid);
 	if (retval < 0) {
-		fprintf (stdout, "Warning: port %u is not running!\n", portid);
+		fprintf (stdout,
+			 "Warning(%d): Can not start port %d!\n", retval, portid);
 		return retval;
 	}
 
