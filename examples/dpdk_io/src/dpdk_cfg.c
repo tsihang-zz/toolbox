@@ -149,16 +149,15 @@ int dpdk_parse_portmask (uint8_t max_ports, const char *portmask)
 	
 	/* convert parameter to a number and verify */
 	pm = strtoul(portmask, &end, 16);
-	if (end == NULL || *end != '\0' || pm == 0) {
-		fprintf (stdout, "Warning: invalid port mask %s\n", portmask);
-		return -1;
-	}
+	if (end == NULL || *end != '\0' || pm == 0)
+		oryx_logn(-1,
+			"Warning: invalid port mask %s\n", portmask);
 
 	/* loop through bits of the mask and mark ports */
 	while (pm != 0) {
 		if (pm & 0x01) { /* bit is set in mask, use port */
  			if (count >= max_ports) {
-				fprintf(stdout, "WARNING: requested port %u not present"
+				oryx_logn("WARNING: requested port %u not present"
 				" - ignoring\n", (unsigned)count);
  			}
 			else {
@@ -200,7 +199,7 @@ void dpdk_init_mbuf_pools(void)
 
 	/* don't pass single-producer/single-consumer flags to mbuf create as it
 	 * seems faster to use a cache instead */
-	fprintf(stdout, "[ncapds] Creating mbuf pool '%s' [%u mbufs ,mbuf_size=%lu] ...\n",
+	fprintf(stdout, "Creating mbuf pool '%s' [%u mbufs, mbuf_size %lu] ...\n",
 			dpdk_main_cfg.pktmbuf_pool_name, num_mbufs , RTE_MBUF_SIZE);
 
 	dpdk_main_cfg.pktmbuf_pool = rte_mempool_create(

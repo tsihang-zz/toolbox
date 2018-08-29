@@ -38,12 +38,14 @@ int parse_args (int argc, char *argv[])
 				 * and parse them with a given $portmask. */
 				if (dpdk_parse_portmask(rte_eth_dev_count(), optarg) != 0) {
 					usage();
-					return -1;
+					oryx_panic(-1,
+							"Port mask parse error");
 				}
 				break;
 
 			default:
-				fprintf(stdout, "ERROR: Unknown option '%c'\n", opt);
+				oryx_panic(-1,
+						"Unknown option '%c'", opt);
 				usage();
 				return -1;
 		}
@@ -53,7 +55,7 @@ int parse_args (int argc, char *argv[])
 }
 
 int main (
-	int argc,
+	int		argc,
     char ** argv)
 {
 	int retval;
@@ -63,13 +65,14 @@ int main (
 	/* init EAL, parsing EAL args */
 	retval = rte_eal_init(argc, argv);
 	if (retval < 0)
-		return -1;
+		oryx_panic(-1,
+			"ERROR(%d): rte eal init", retval);
 
 	argc -= retval;
 	argv += retval;
 
 	parse_args(argc, argv);
-
+	
 	/* Rx queue. */
 	dpdk_init_lcore_rx_queues();
 	/* initialise mbuf pools */
