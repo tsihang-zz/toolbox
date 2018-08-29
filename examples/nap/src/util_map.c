@@ -11,29 +11,29 @@ int map_has_this_appl (struct map_t *map, struct appl_t *appl)
 }
 
 __oryx_always_extern__
-void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to)
+void map_entry_add_port (struct iface_t *port, struct map_t *map, uint8_t qua)
 {
 	/** Map Rx Port */
-	if(from_to == QUA_RX) {
+	if(qua == QUA_RX) {
 		map->rx_panel_port_mask |= (1 << iface_id(port));
 	}
 
 	/** Map Tx Port */
-	if(from_to == QUA_TX) {
+	if(qua == QUA_TX) {
 		map->tx_panel_port_mask |= (1 << iface_id(port));
 	}
 }
 
 __oryx_always_extern__
-void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to)
+void map_entry_remove_port (struct iface_t *port, struct map_t *map, uint8_t qua)
 {
 	/** Unmap Rx Port */
-	if(from_to == QUA_RX) {
+	if(qua == QUA_RX) {
 		map->rx_panel_port_mask &= ~(1 << iface_id(port));
 	}
 
 	/** Unmap Tx Port */
-	if(from_to == QUA_TX) {
+	if(qua == QUA_TX) {
 		map->tx_panel_port_mask &= ~(1 << iface_id(port));
 	}
 }
@@ -87,7 +87,7 @@ int map_entry_new (struct map_t **map,
 				const char *from,
 				const char *to)
 {
-	u8 table = MPM_TABLE0;
+	uint8_t table = MPM_TABLE0;
 
 	ASSERT (alias);
 	ASSERT (from);

@@ -113,7 +113,7 @@ extern vlib_iface_main_t vlib_iface_main;
 
 static __oryx_always_inline__
 int iface_lookup_id0(vlib_iface_main_t *pm,
-				uint32_t id, struct iface_t **this)
+				const uint32_t id, struct iface_t **this)
 {
 	BUG_ON(pm->entry_vec == NULL);
 	

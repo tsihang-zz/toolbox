@@ -14,7 +14,7 @@ extern struct MarvellDSAMap phy_to_dsa_map_list[];
 	phy_to_dsa_map_list[pid].p
 
 static __oryx_always_inline__
-void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
+void PrintDSA(const char *comment, uint32_t cpu_dsa, uint8_t rx_tx)
 {
 	fprintf (stdout, "=================== %s ===================\n", comment);
 	fprintf (stdout, "%12s%8x\n", "dsa:",    cpu_dsa);

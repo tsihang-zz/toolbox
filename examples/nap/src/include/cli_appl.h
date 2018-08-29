@@ -20,7 +20,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				struct appl_t *v = NULL;\
+				v = NULL;\
 				if (isalldigit (token)) {\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -85,7 +85,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				struct appl_t *v = NULL;\
+				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
@@ -151,7 +151,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				struct appl_t *v = NULL;\
+				v = NULL;\
 				if (isalldigit (token)) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
@@ -218,7 +218,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 				token = strtok_r (alias_list, split, &save);\
 				while (token) {\
 					if (token) {\
-						struct appl_t *v = NULL;\
+						v = NULL;\
 						if (isalldigit (token)) {\
 							/** Lookup by ID. */\
 							uint32_t id = atoi(token);\

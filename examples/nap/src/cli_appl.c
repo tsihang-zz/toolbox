@@ -87,9 +87,9 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	BUG_ON(appl == NULL);
 	
 	struct prefix *p;
-	u8 pfx_buf[SRC_DST][INET_ADDRSTRLEN];
-	u8 port_buf[SRC_DST][16];
-	u8 proto_buf[32];
+	uint8_t pfx_buf[SRC_DST][INET_ADDRSTRLEN];
+	uint8_t port_buf[SRC_DST][16];
+	uint8_t proto_buf[32];
 	struct prefix_ipv4 ip4;
 	
 	char tmstr[100];
@@ -177,7 +177,7 @@ static int appl_entry_desenitize (struct appl_t *appl,
 	if (value) {
 		appl->sc_keyword = strdup (value);
 		/** Init rc4. */
-		rc4_init (appl->uc_keyword_encrypt, (u8 *)appl->sc_keyword, (u64)strlen (appl->sc_keyword));
+		rc4_init (appl->uc_keyword_encrypt, (uint8_t *)appl->sc_keyword, (uint64_t)strlen (appl->sc_keyword));
 		VTY_SUCCESS_APPLICATION ("Encrypt-Keyword", appl);
 		vty_out (vty, "%s -> %s", keyword_backup, appl->sc_keyword);
 		vty_newline(vty);

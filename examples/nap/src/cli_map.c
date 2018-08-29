@@ -77,35 +77,41 @@ ht_map_cmp (const ht_value_t v1,
 }
 
 static __oryx_always_inline__
-void map_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
+void map_ports (struct map_t *map, const char *iface_str, uint8_t qua)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
 	foreach_iface_split_func1_param2 (
-		iface_str, map_entry_add_port, map, from_to);
+		iface_str, map_entry_add_port, map, qua);
 }
 
 static __oryx_always_inline__
-void unmap_ports (struct map_t *map, const char *iface_str, uint8_t from_to)
+void unmap_ports (struct map_t *map, const char *iface_str, uint8_t qua)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
 	foreach_iface_split_func1_param2 (
-		iface_str, map_entry_remove_port, map, from_to);
+		iface_str, map_entry_remove_port, map, qua);
 }
 
 static __oryx_always_inline__
-void unmap_all_ports (struct map_t *map, const uint8_t from_to)
+void unmap_all_ports (struct map_t *map, const uint8_t qua)
 {
 #if defined(BUILD_DEBUG)
 	BUG_ON(map == NULL);
 #endif
 	foreach_iface_func1_param2 (
-		NULL, map_entry_remove_port, map, from_to);
+		NULL, map_entry_remove_port, map, qua);
+
+	/* Hold this BUG. */
+	if (qua == QUA_RX)
+		BUG_ON(map->rx_panel_port_mask != 0);
+	if (qua == QUA_TX)
+		BUG_ON(map->tx_panel_port_mask != 0);
 }
 
 
@@ -124,8 +130,8 @@ static __oryx_always_inline__
 void unmap_appls (struct map_t *map, char *appl_str)
 {
 #if defined(BUILD_DEBUG)
-		BUG_ON(map == NULL);
-		BUG_ON(appl_str == NULL);
+	BUG_ON(map == NULL);
+	BUG_ON(appl_str == NULL);
 #endif
 
 	split_foreach_application_func1_param1 (
@@ -141,6 +147,9 @@ void unmap_all_appls (struct map_t *map)
 
 	foreach_application_func1_param1 (
 		NULL, map_entry_remove_appl, map);
+
+	/* Hold this BUG. */
+	BUG_ON(map->ul_nb_appls != 0);
 }
 
 static __oryx_always_inline__
@@ -160,11 +169,10 @@ void map_inherit(struct map_t *son, struct map_t *father)
 static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 {
 	int r = 0;
-	
-	do_mutex_lock (&mm->lock);
-
 	int each;
 	struct map_t *son = NULL, *a = NULL;
+	
+	do_mutex_lock (&mm->lock);
 	
 	/** lookup for an empty slot for this map. */
 	vec_foreach_element(mm->entry_vec, each, a) {
@@ -225,20 +233,17 @@ static int no_map_table_entry (struct map_t *map)
 
 	if (r == 0 /** success */) {
 
-		/** disable. */
+		/** disable this map. */
 		map->ul_flags &= ~MAP_VALID;
 		
-		/** delete all rx & tx ports */
+		/** unmap all rx & tx ports */
 		unmap_all_ports (map, QUA_RX);
 		unmap_all_ports (map, QUA_TX);
 
-		/** delete all applications */
+		/** unmap all applications */
 		if(map->ul_nb_appls) {
 			unmap_all_appls(map);
 		}
-
-		map->ul_nb_appls = 0;
-
 		mm->nb_maps --;
 	}
 

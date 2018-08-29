@@ -22,8 +22,8 @@ void map_table_entry_lookup (struct prefix_t *lp,
 int em_download_appl(struct map_t *map, struct appl_t *appl);
 int acl_download_appl(struct map_t *map, struct appl_t *appl);
 
-void map_entry_add_port (struct iface_t *port, struct map_t *map, u8 from_to);
-void map_entry_remove_port (struct iface_t *port, struct map_t *map, u8 from_to);
+void map_entry_add_port (struct iface_t *port, struct map_t *map, uint8_t qua);
+void map_entry_remove_port (struct iface_t *port, struct map_t *map, uint8_t qua);
 
 #endif
 

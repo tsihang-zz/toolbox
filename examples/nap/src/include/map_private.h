@@ -123,14 +123,14 @@ typedef struct {
 extern vlib_map_main_t vlib_map_main;
 
 static __oryx_always_inline__
-void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **map)
+void map_entry_lookup_alias (vlib_map_main_t *mm, const char *alias, struct map_t **map)
 {
 	(*map) = NULL;
 	
 	if (!alias) return;
 
 	void *s = oryx_htable_lookup (mm->htable,
-		(ht_value_t)alias, strlen((const char *)alias));
+		(ht_value_t)alias, strlen(alias));
 
 	if (s) {
 		(*map) = (struct map_t *) container_of (s, struct map_t, sc_alias);
@@ -138,7 +138,7 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, char *alias, struct map_t **ma
 }
 
 static __oryx_always_inline__
-void map_entry_lookup_id0 (vlib_map_main_t *mm, uint32_t id, struct map_t **m)
+void map_entry_lookup_id0 (vlib_map_main_t *mm, const uint32_t id, struct map_t **m)
 {
 	BUG_ON(mm->entry_vec == NULL);
 
@@ -170,10 +170,10 @@ void map_table_entry_lookup (struct prefix_t *lp,
 	
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			map_entry_lookup_id0(mm, (*(uint32_t*)lp->v), m);
+			map_entry_lookup_id0(mm, (*(uint32_t *)lp->v), m);
 			break;
 		case LOOKUP_ALIAS:
-			map_entry_lookup_alias(mm, (char*)lp->v, m);
+			map_entry_lookup_alias(mm, (const char *)lp->v, m);
 			break;
 		default:
 			break;

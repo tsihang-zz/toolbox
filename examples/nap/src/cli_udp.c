@@ -186,7 +186,7 @@ static void udp_entry_output (struct udp_t *udp, struct vty *vty)
 	fmt_time (udp->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Udp ", udp->sc_alias, udp->ul_id, tmstr, VTY_NEWLINE);
 
-	u8 qua;
+	uint8_t qua;
 	uint32_t passed_maps;
 	uint32_t dropped_maps;
 	oryx_vector v;
@@ -669,8 +669,8 @@ static void * thread_fn (void *a)
 	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
 	struct  timeval  end;
-	u64 t;
-	u8 mpm_type = MPM_AC;
+	uint64_t t;
+	uint8_t mpm_type = MPM_AC;
 	int pattern_id = 0;
 	char pattern[128] = {0};
 	oryx_size_t pl;
@@ -740,9 +740,9 @@ static void * thread_fn (void *a)
     	mpm_pattern_prepare(&mpm_ctx);
 	mpm_threadctx_init (&mpm_thread_ctx, mpm_type);
 
-	u64 total_cost = 0;
-	u64 longest_cost = 1;
-	u64 shortest_cost = 10000000;
+	uint64_t total_cost = 0;
+	uint64_t longest_cost = 1;
+	uint64_t shortest_cost = 10000000;
 	int times = 10000;
 	uint32_t matched_size = 0;
 
@@ -838,8 +838,8 @@ DEFUN(test_udp,
 	const uint32_t fixed_heap_size = 1024000;
 	struct  timeval  start;
 	struct  timeval  end;
-	u64 t;
-	u8 mpm_type = MPM_AC;
+	uint64_t t;
+	uint8_t mpm_type = MPM_AC;
 	int pattern_id = 0;
 	char pattern[128] = {0};
 	oryx_size_t pl;
@@ -905,9 +905,9 @@ DEFUN(test_udp,
 	mpm_threadctx_init (&mpm_thread_ctx, mpm_type);
 
 	int i;
-	u64 total_cost = 0;
-	u64 longest_cost = 1;
-	u64 shortest_cost = 10000000;
+	uint64_t total_cost = 0;
+	uint64_t longest_cost = 1;
+	uint64_t shortest_cost = 10000000;
 	int times = 10000;
 	uint32_t matched_size = 0;
 

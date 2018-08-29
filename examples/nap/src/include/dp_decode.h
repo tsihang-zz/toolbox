@@ -571,7 +571,7 @@ void dump_pkt(uint8_t *pkt, int len)
 #endif
 
 struct MarvellDSAMap {
-	u8 p;
+	uint8_t p;
 	const char *comment;
 };
 

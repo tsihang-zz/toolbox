@@ -43,10 +43,10 @@ struct pattern_t {
 	uint32_t ul_flags;
 
 	/** Offset where this pattern first appears in a packet. */
-	u16 us_offset;
+	uint16_t us_offset;
 
 	/** Depth of search for this pattern in a packet. */
-	u16 us_depth;
+	uint16_t us_depth;
 
 };
 
