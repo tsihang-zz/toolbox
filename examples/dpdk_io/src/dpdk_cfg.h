@@ -37,6 +37,7 @@ struct dpdk_port_cfg_t {
 
 struct dpdk_cfg_t {
 	uint8_t		nr_ports;
+	uint16_t	nr_port_mask;
 	struct dpdk_port_cfg_t port[RTE_MAX_ETHPORTS];
 	const char	*pktmbuf_pool_name;
 	/* The mbuf pool for packet rx */

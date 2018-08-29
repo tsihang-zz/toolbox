@@ -21,7 +21,7 @@ usage(void)
  * processes these application arguments, printing usage info
  * on error.
  */
-int parse_args (int argc, char *argv[])
+static int parse_args (int argc, char *argv[])
 {
 	int option_index, opt;
 	char **argvopt = argv;

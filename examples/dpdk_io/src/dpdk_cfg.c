@@ -1,6 +1,9 @@
 #include "oryx.h"
 #include "dpdk_cfg.h"
 
+#define RTE_CHECK_INTERVAL 100 /* 100ms */
+#define RTE_MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+
 /* allow max jumbo frame 9 KB */
 #define RTE_JUMBO_FRAME_MAX_SIZE 0x2400
 
@@ -64,51 +67,33 @@ struct dpdk_cfg_t dpdk_main_cfg = {
 static int init_one_port(uint8_t portid)
 {
 	/* for port configuration all features are off by default */
-#if 0
 	const struct rte_eth_conf port_conf = {
 		.rxmode = {
 			.mq_mode = ETH_MQ_RX_RSS,
-			.max_rx_pkt_len = RTE_JUMBO_FRAME_MAX_SIZE,
+			.max_rx_pkt_len = ETHER_MAX_LEN,
 			.split_hdr_size = 0,
 			.header_split	= 0, /**< Header Split disabled */
-			.hw_ip_checksum = 0, /**< IP checksum offload enabled */
+			.hw_ip_checksum = 1, /**< IP checksum offload enabled */
 			.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-			.jumbo_frame	= 1, /**< Jumbo Frame Support disabled */
-			.hw_strip_crc	= 0, /**< CRC stripped by hardware */
-		}
-	};
-#else
-struct rte_eth_conf port_conf = {
-	.rxmode = {
-		.mq_mode = ETH_MQ_RX_RSS,
-		.max_rx_pkt_len = ETHER_MAX_LEN,
-		.split_hdr_size = 0,
-		.header_split	= 0, /**< Header Split disabled */
-		.hw_ip_checksum = 1, /**< IP checksum offload enabled */
-		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-		.jumbo_frame	= 0, /**< Jumbo Frame Support disabled */
-		.hw_strip_crc	= 1, /**< CRC stripped by hardware */
-	},
-	.rx_adv_conf = {
-		.rss_conf = {
-			.rss_key = NULL,
-			.rss_hf = ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP,
+			.jumbo_frame	= 0, /**< Jumbo Frame Support disabled */
+			.hw_strip_crc	= 1, /**< CRC stripped by hardware */
 		},
-	},
-	.txmode = {
-		.mq_mode = ETH_MQ_TX_NONE,
-	},
-};
-
-#endif
+		.rx_adv_conf = {
+			.rss_conf = {
+				.rss_key = NULL,
+				.rss_hf = ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP,
+			},
+		},
+		.txmode = {
+			.mq_mode = ETH_MQ_TX_NONE,
+		},
+	};
 
 #if (1)
-	uint32_t nb_lcores = rte_lcore_count();
 	const uint16_t rx_rings = 1, tx_rings = 1;
 	const uint16_t rx_ring_size = (RTE_RX_DESC_DEFAULT * 2);
 	const uint16_t tx_ring_size = (RTE_TX_DESC_DEFAULT);
 #else
-	uint32_t nb_lcores = rte_lcore_count();
 	const uint16_t rx_rings = nb_lcores - 1, tx_rings = 1;
 	const uint16_t rx_ring_size = (RTE_RX_DESC_DEFAULT);
 	const uint16_t tx_ring_size = (RTE_TX_DESC_DEFAULT);
@@ -119,20 +104,12 @@ struct rte_eth_conf port_conf = {
 
 	fflush(stdout);
 
-#if 0
-	retval = rte_eal_has_hugpages();
-	if (retval < 0) {
-		fprintf (stdout,
-			"Warning(%d): Huge page is not configured!\n", retval);
-		return retval;
-	}
-#endif
 	/* Standard DPDK port initialisation - config port, then set up
 	 * rx and tx rings */
 	retval = rte_eth_dev_configure(portid, rx_rings, tx_rings, &port_conf);
 	if (retval < 0){
 		fprintf (stdout,
-			"Warning(%d): port %u configure failed!\n", retval, portid);
+			"Warning(%d): Cannot configure port %u!\n", retval, portid);
 		return retval;
 	}
 
@@ -142,32 +119,91 @@ struct rte_eth_conf port_conf = {
 							rte_eth_dev_socket_id(portid), &rx_conf_default, dpdk_main_cfg.pktmbuf_pool);
 		if (retval < 0){
 			fprintf (stdout,
-			 "Warning(%d): port %u set Rx queue failed!\n", retval, portid);
+			 "Warning(%d): Cannot setup Rx queue for port %u!\n", retval, portid);
 			continue;
 		}
 
 	}
-#if 1
+
 	for (q = 0; q < tx_rings; q ++) {
 		retval = rte_eth_tx_queue_setup(portid, q, tx_ring_size,
 				rte_eth_dev_socket_id(portid), &tx_conf_default);
 		if (retval < 0){
 			fprintf (stdout,
-			 "Warning(%d): port %u set Tx queue failed!\n", retval, portid);
+			 "Warning(%d): Cannot setup Tx queue for port %u!\n", retval, portid);
 			continue;
 		}
 	}
-#endif
+
 	rte_eth_promiscuous_enable(portid);
 
 	retval	= rte_eth_dev_start(portid);
 	if (retval < 0) {
 		fprintf (stdout,
-			 "Warning(%d): Can not start port %d!\n", retval, portid);
+			 "Warning(%d): Cannot start port %d!\n", retval, portid);
 		return retval;
 	}
 
 	return 0;
+}
+
+
+/* Check the link status of all ports in up to 9s, and print them finally */
+static void check_all_ports_link_status(uint8_t nr_ports, uint32_t nr_port_mask)
+{
+	int i;
+	uint8_t portid, count, all_ports_up, print_flag = 0;
+	struct rte_eth_link link;
+	struct dpdk_port_cfg_t *pcfg;
+	
+	fprintf (stdout,
+		"\nChecking link status");
+	fflush(stdout);
+	for (count = 0; count <= RTE_MAX_CHECK_TIME; count++) {
+		all_ports_up = 1;
+		for (i = 0; i < nr_ports; i ++) {
+			pcfg	= &dpdk_main_cfg.port[i];
+			portid	= pcfg->portid;
+			if ((nr_port_mask & (1 << portid)) == 0)
+				continue;
+			memset(&link, 0, sizeof(link));
+			rte_eth_link_get_nowait(portid, &link);
+			/* print link status if flag set */
+			if (print_flag == 1) {
+				if (link.link_status)
+					fprintf (stdout,
+						"Port %d Link Up - speed %u "
+						"Mbps - %s\n", portid,
+						(unsigned)link.link_speed,
+				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+					("full-duplex") : ("half-duplex\n"));
+				else
+					fprintf (stdout,
+						"Port %d Link Down\n", portid);
+				continue;
+			}
+			/* clear all_ports_up flag if any link down */
+			if (link.link_status == 0) {
+				all_ports_up = 0;
+				break;
+			}
+		}
+		/* after finally printing all link status, get out */
+		if (print_flag == 1)
+			break;
+
+		if (all_ports_up == 0) {
+			fprintf (stdout,".");
+			fflush(stdout);
+			rte_delay_ms(RTE_CHECK_INTERVAL);
+		}
+
+		/* set the print_flag if all ports up or timeout */
+		if (all_ports_up == 1 || count == (RTE_MAX_CHECK_TIME - 1)) {
+			print_flag = 1;
+			fprintf (stdout,"done\n");
+		}
+	}
 }
 
 /**
@@ -181,15 +217,17 @@ int dpdk_parse_portmask (uint8_t max_ports, const char *portmask)
 	char *end = NULL;
 	unsigned long pm;
 	uint8_t count = 0;
+	struct dpdk_port_cfg_t *pcfg;
 
 	BUG_ON((portmask == NULL) || (*portmask == '\0'));
 	
 	/* convert parameter to a number and verify */
 	pm = strtoul(portmask, &end, 16);
 	if (end == NULL || *end != '\0' || pm == 0)
-		oryx_logn(-1,
-			"Warning: invalid port mask %s\n", portmask);
+		oryx_logn("Warning: invalid port mask %s\n", portmask);
 
+	dpdk_main_cfg.nr_port_mask = pm;
+	
 	/* loop through bits of the mask and mark ports */
 	while (pm != 0) {
 		if (pm & 0x01) { /* bit is set in mask, use port */
@@ -198,8 +236,7 @@ int dpdk_parse_portmask (uint8_t max_ports, const char *portmask)
 				" - ignoring\n", (unsigned)count);
  			}
 			else {
-			 //   ncapd_share_info->id[ncapd_share_info->nr_ports++] = count;
-			 	struct dpdk_port_cfg_t *pcfg = &dpdk_main_cfg.port[dpdk_main_cfg.nr_ports ++];
+			 	pcfg = &dpdk_main_cfg.port[dpdk_main_cfg.nr_ports ++];
 			 	pcfg->portid = count;
 			}
 		}
@@ -270,4 +307,5 @@ void dpdk_init_ports(void)
 		fprintf(stdout, "%s", "done\n");
 	}
 
+	check_all_ports_link_status(dpdk_main_cfg.nr_ports, dpdk_main_cfg.nr_port_mask);
 }
