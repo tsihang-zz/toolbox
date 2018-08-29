@@ -31,32 +31,6 @@ void classify_setup_lpm(const int socketid)
 		rte_exit(EXIT_FAILURE,
 			"Unable to create the l3fwd LPM table on socket %d\n",
 			socketid);
-#if 0
-	/* populate the LPM table */
-	for (i = 0; i < IPv4_L3FWD_LPM_NUM_ROUTES; i++) {
-
-		/* skip unused ports */
-		if ((1 << ipv4_l3fwd_lpm_route_array[i].if_out &
-				enabled_port_mask) == 0)
-			continue;
-
-		ret = rte_lpm_add(ipv4_l3fwd_lpm_lookup_struct[socketid],
-			ipv4_l3fwd_lpm_route_array[i].ip,
-			ipv4_l3fwd_lpm_route_array[i].depth,
-			ipv4_l3fwd_lpm_route_array[i].if_out);
-
-		if (ret < 0) {
-			rte_exit(EXIT_FAILURE,
-				"Unable to add entry %u to the l3fwd LPM table on socket %d\n",
-				i, socketid);
-		}
-
-		fprintf (stdout, "LPM: Adding route 0x%08x / %d (%d)\n",
-			(unsigned)ipv4_l3fwd_lpm_route_array[i].ip,
-			ipv4_l3fwd_lpm_route_array[i].depth,
-			ipv4_l3fwd_lpm_route_array[i].if_out);
-	}
-#endif
 	/* create the LPM6 table */
 	snprintf(s, sizeof(s), "IPv6_L3FWD_LPM_%d", socketid);
 
@@ -69,32 +43,6 @@ void classify_setup_lpm(const int socketid)
 		rte_exit(EXIT_FAILURE,
 			"Unable to create the l3fwd LPM table on socket %d\n",
 			socketid);
-#if 0
-	/* populate the LPM table */
-	for (i = 0; i < IPv6_L3FWD_LPM_NUM_ROUTES; i++) {
-
-		/* skip unused ports */
-		if ((1 << ipv6_l3fwd_lpm_route_array[i].if_out &
-				enabled_port_mask) == 0)
-			continue;
-
-		ret = rte_lpm6_add(ipv6_l3fwd_lpm_lookup_struct[socketid],
-			ipv6_l3fwd_lpm_route_array[i].ip,
-			ipv6_l3fwd_lpm_route_array[i].depth,
-			ipv6_l3fwd_lpm_route_array[i].if_out);
-
-		if (ret < 0) {
-			rte_exit(EXIT_FAILURE,
-				"Unable to add entry %u to the l3fwd LPM table on socket %d\n",
-				i, socketid);
-		}
-
-		fprintf (stdout, "LPM: Adding route %s / %d (%d)\n",
-			"IPv6",
-			ipv6_l3fwd_lpm_route_array[i].depth,
-			ipv6_l3fwd_lpm_route_array[i].if_out);
-	}
-#endif
 }
 
 

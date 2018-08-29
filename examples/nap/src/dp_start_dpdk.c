@@ -19,15 +19,44 @@
 #include "iface_private.h"
 #include "dpdk.h"
 
-#define US_PER_SEC (US_PER_MS * MS_PER_S)
-
 extern ThreadVars g_tv[];
 extern DecodeThreadVars g_dtv[];
 extern PacketQueue g_pq[];
 
+/* main processing loop */
+extern int main_loop (void *ptr_data);
 
-extern void dp_register_perf_counters(DecodeThreadVars *dtv, ThreadVars *tv);
-extern void dpdk_env_setup(vlib_main_t *vm);
+static const char *enp5s0fx[] = {
+	"enp5s0f1",
+	"enp5s0f2",
+	"enp5s0f3"
+};
+
+static int dp_dpdk_check_port(vlib_main_t *vm)
+{
+	uint8_t portid;
+	struct iface_t *this;
+	vlib_iface_main_t *pm = &vlib_iface_main;
+	int n_ports_now = vec_count(pm->entry_vec);
+	int nr_ports = rte_eth_dev_count();
+
+	if(!(vm->ul_flags & VLIB_PORT_INITIALIZED)) {
+		oryx_panic(-1, "Run port initialization first.");
+	}
+	
+	/* register to vlib_iface_main. */
+	for (portid = 0; portid < nr_ports; portid ++) {
+		iface_lookup_id(pm, portid, &this);
+		if(!this) {
+			oryx_panic(-1, "no such ethdev.");
+		}
+		if(strcmp(this->sc_alias_fixed, enp5s0fx[portid])) {
+			oryx_panic(-1, "no such ethdev named %s.", this->sc_alias_fixed);
+		}
+	}
+
+	return 0;
+}
 
 void dp_end_dpdk(vlib_main_t *vm)
 {
@@ -45,49 +74,12 @@ void dp_end_dpdk(vlib_main_t *vm)
 	fprintf (stdout, "Bye...\n");
 }
 
-static const char *enp5s0fx[] = {
-	"enp5s0f1",
-	"enp5s0f2",
-	"enp5s0f3"
-};
-
-static int dp_dpdk_check_port(vlib_main_t *vm)
-{
-	uint8_t portid;
-	struct iface_t *this;
-	vlib_iface_main_t *pm = &vlib_iface_main;
-	int n_ports_now = vec_count(pm->entry_vec);
-
-	if(!(vm->ul_flags & VLIB_PORT_INITIALIZED)) {
-		oryx_panic(-1, "Run port initialization first.");
-	}
-	
-	/* register to vlib_iface_main. */
-	for (portid = 0; portid < vm->nb_dpdk_ports; portid ++) {
-		iface_lookup_id(pm, portid, &this);
-		if(!this) {
-			oryx_panic(-1, "no such ethdev.");
-		}
-		if(strcmp(this->sc_alias_fixed, enp5s0fx[portid])) {
-			oryx_panic(-1, "no such ethdev named %s.", this->sc_alias_fixed);
-		}
-	}
-
-	return 0;
-}
-
-extern int
-main_loop(__attribute__((unused)) void *dummy);
-extern void dpdk_format_eal_args (vlib_main_t *vm);
-
-
 void dp_init_dpdk(vlib_main_t *vm)
 {
 	dpdk_main_t *dm = &dpdk_main;
 
 	dm->conf->mempool_priv_size = vm->extra_priv_size;	
 	dp_dpdk_check_port(vm);
-	//dpdk_format_eal_args(vm);
 	dpdk_env_setup(vm);
 }
 

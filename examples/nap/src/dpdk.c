@@ -5,9 +5,9 @@
 
 #define MAX_LCORE_PARAMS 1024
 
-struct lcore_conf lconf_ctx[RTE_MAX_LCORE];
+/* Global variables. */
 
-struct rte_eth_conf dpdk_eth_default_conf = {
+static struct rte_eth_conf dpdk_eth_default_conf = {
 	.rxmode = {
 		.mq_mode = ETH_MQ_RX_RSS,
 		.max_rx_pkt_len = ETHER_MAX_LEN,
@@ -28,14 +28,13 @@ struct rte_eth_conf dpdk_eth_default_conf = {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
 };
-
 		
 static dpdk_config_main_t dpdk_config_main = {
-	.nchannels = 2, 	/** */		
+	.nr_channels = 2, 	/** */
+	.nr_mbufs = 	DPDK_DEFAULT_NB_MBUF,
 	.coremask = 0xF,	/** c1,c2,c3 lcores. */
 	.portmask = 0x07,	/** 3 xe ports */
 	.uio_driver_name = (char *)"vfio-pci",
-	.num_mbufs =		DPDK_DEFAULT_NB_MBUF,
 	.mempool_cache_size =	DPDK_DEFAULT_MEMPOOL_CACHE_SIZE,
 	.mempool_data_room_size = DPDK_DEFAULT_BUFFER_SIZE, 
 	.mempool_priv_size = 0,
@@ -56,73 +55,11 @@ struct lcore_conf lcore_conf[RTE_MAX_LCORE];
 /* A tsc-based timer responsible for triggering statistics printout */
 uint64_t timer_period = 10; /* default period is 10 seconds */
 
-static void
-dpdk_eal_args_format(vlib_main_t *vm, const char *argv)
-{
-	char *t = kmalloc(strlen(argv) + 1, MPF_CLR, __oryx_unused_val__);
-	sprintf (t, "%s", argv);
-	vm->argv[vm->argc ++] = t;
-}
 
-static void
-dpdk_eal_args_2string(vlib_main_t *vm, char *format_buffer) {
-	int i;
-	int l = 0;
-	
-	for (i = 0; i < vm->argc; i ++) {
-		fprintf (stdout, "argc[%d] : %s\n", i, vm->argv[i]);
-		if(!strcmp(vm->argv[i], "--")) {
-			l += sprintf (format_buffer + l, " %s ", vm->argv[i]);
-		}
-		else {
-			l += sprintf (format_buffer + l, "%s", vm->argv[i]);
-		}
-	}
-}
+//volatile bool force_quit;
 
-void dpdk_format_eal_args (vlib_main_t *vm)
-{
-	int i;
-	dpdk_config_main_t *conf = dpdk_main.conf;
-	char argv_buf[128] = {0};
-	const char *socket_mem = "256";
-	const char *prgname = "napd";
-	
-	/** ARGS: < APPNAME >  */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "%s", prgname);
-	dpdk_eal_args_format(vm, argv_buf);
+/* ethernet addresses of ports */
+struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
-	/** ARGS: < -c $COREMASK > */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "-c");
-	dpdk_eal_args_format(vm, argv_buf);
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "0x%x", conf->coremask);	/** [core2:p0] [core3:p1] */
-	dpdk_eal_args_format(vm, argv_buf);
 
-	/** ARGS: < -- > */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "--");
-	dpdk_eal_args_format(vm, argv_buf);
-
-	/** ARGS: < -p $PORTMASK > */
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "-p");
-	dpdk_eal_args_format(vm, argv_buf);
-	memset(argv_buf, 0, 128);
-	sprintf (argv_buf, "0x%x", conf->portmask);	/** Port0 Port1 */
-	dpdk_eal_args_format(vm, argv_buf);
-
-	/** ARGS: < -q $QUEUE_PER_LOCRE > */
-	//memset(argv_buf, 0, 128);
-	//sprintf (argv_buf, "--config=\"%s\"",
-	//	"(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)");
-	//dpdk_eal_args_format(vm, argv_buf);
-
-	char eal_args_format_buffer[1024] = {0};
-	dpdk_eal_args_2string(vm, eal_args_format_buffer);
-
-	oryx_logn("eal args[%d]= %s", vm->argc, eal_args_format_buffer);
-}
 

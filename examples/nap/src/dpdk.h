@@ -104,14 +104,6 @@
 #define DPDK_LINK_POLL_INTERVAL       (3.0)
 #define DPDK_MIN_LINK_POLL_INTERVAL   (0.001)	/* 1msec */
 
-/*
- * DO not change DEFAULT_HUGE_DIR. see dpdk-mount-hugedir.sh in conf
- */
-#define DPDK_DEFAULT_HUGE_DIR "/mnt/huge"
-#define DPDK_DEFAULT_RUN_DIR "/run/et1500"
-
-#define DPDK_SETUP_ENV_SH		"dpdk-setup-env.sh"
-
 #define HASH_ENTRY_NUMBER_DEFAULT	4
 
 struct mbuf_table {
@@ -158,17 +150,17 @@ struct lcore_conf {
 
 typedef union {
 	struct {
-		u16 domain; 
-		u8 bus; 
-		u8 slot: 5; 
-		u8 function: 3;
+		uint16_t domain; 
+		uint8_t bus; 
+		uint8_t slot: 5; 
+		uint8_t function: 3;
 	};
 	uint32_t as_u32;
 } __attribute__ ((packed)) vlib_pci_addr_t;
 
 typedef struct {
 	/* /sys/bus/pci/devices/... directory name for this device. */
-	u8 *dev_dir_name;
+	uint8_t *dev_dir_name;
 
 	/* Resource file descriptors. */
 	int *resource_fds;
@@ -200,13 +192,15 @@ typedef struct
 	uint32_t global_id;
 
 	/* Enabled or disabled by configurations */
-	u8 enable;
+	uint8_t enable;
 
+	struct ether_addr eth_addr;
+	
 	/* PCI address */
 	vlib_pci_addr_t pci_addr;
 
 	/* */
-	u8 vlan_strip_offload;
+	uint8_t vlan_strip_offload;
 
 #define DPDK_DEVICE_VLAN_STRIP_DEFAULT 0
 #define DPDK_DEVICE_VLAN_STRIP_OFF 1
@@ -218,19 +212,19 @@ typedef struct
 
 typedef struct {
 	char *uio_driver_name;
-	u8 no_multi_seg;
-	u8 enable_tcp_udp_checksum;
+	uint8_t no_multi_seg;
+	uint8_t enable_tcp_udp_checksum;
 
-	/* Required config parameters */
-	u8 coremask_set_manually;
-	u8 nchannels_set_manually;
-
-	int device_config_index_by_pci_addr;
-
+	/* mask of working logical cores */
 	uint32_t coremask;
+
+	/* mask of enabled ports. */
 	uint32_t portmask;
-	uint32_t nchannels;
-	uint32_t num_mbufs;
+
+	/* number of channels. */
+	uint32_t nr_channels;
+	
+	uint32_t nr_mbufs;
 	uint32_t mempool_cache_size;
 	uint32_t mempool_priv_size;
 	uint32_t mempool_data_room_size;
@@ -238,17 +232,11 @@ typedef struct {
 	/** unused */
 	uint32_t n_rx_q_per_lcore;
 
-	/* PCI address */
-	vlib_pci_addr_t pci_addr;
-
 	/* */
-	u8 vlan_strip_offload;
+	uint8_t vlan_strip_offload;
 
-	/*
-	* format interface names ala xxxEthernet%d/%d/%d instead of
-	* xxxEthernet%x/%x/%x.
-	*/
-	u8 interface_name_format_decimal;
+
+	dpdk_device_config_t devs[RTE_MAX_ETHPORTS];
 
 	struct rte_eth_conf *ethdev_default_conf;
 	
@@ -283,18 +271,14 @@ typedef struct {
 	void *ext_private;
 } dpdk_main_t;
 
-static __oryx_always_inline__
-void log_usage(void)
-{
-	/** run env-setup script. bind vfio-pci and mount hugedir.*/
-	oryx_loge(0,
-		"Make sure that you have run %s to setup dpdk enviroment before startup this application.", DPDK_SETUP_ENV_SH);
-	sleep(1);
-}
+struct lcore_params {
+	uint8_t port_id;
+	uint8_t queue_id;
+	uint8_t lcore_id;
+} __rte_cache_aligned;
 
 extern dpdk_main_t dpdk_main;
 extern struct lcore_conf lcore_conf[RTE_MAX_LCORE];
-extern struct rte_eth_conf dpdk_eth_default_conf;
 /* A tsc-based timer responsible for triggering statistics printout */
 extern uint64_t timer_period;
 

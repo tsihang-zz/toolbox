@@ -92,7 +92,6 @@ typedef struct vlib_main
 	volatile bool		force_quit;
 
 	int					nb_lcores;
-	int					nb_dpdk_ports;
 
 	struct oryx_timer_t	*perf_tmr;
 

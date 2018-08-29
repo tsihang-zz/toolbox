@@ -1,8 +1,5 @@
-
 #include "oryx.h"
-
 #include "version.h"
-
 #include "zebra.h"
 #include "memory.h"
 #include "log.h"

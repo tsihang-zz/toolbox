@@ -19,18 +19,6 @@ static int numa_on = 1; /**< NUMA is enabled by default. */
 static int parse_ptype = 1; /**< Parse packet type using rx callback, and */
 			/**< disabled by default */
 
-/* Global variables. */
-
-//volatile bool force_quit;
-
-/* ethernet addresses of ports */
-uint64_t dest_eth_addr[RTE_MAX_ETHPORTS];
-struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
-
-
-/* mask of enabled ports */
-uint32_t enabled_port_mask;
-
 #define CHECK_INTERVAL 100 /* 100ms */
 #define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
 
@@ -77,12 +65,6 @@ static const struct option lgopts[] = {
 	{NULL, 0, 0, 0}
 };
 
-struct lcore_params {
-	uint8_t port_id;
-	uint8_t queue_id;
-	uint8_t lcore_id;
-} __rte_cache_aligned;
-
 static struct lcore_params lcore_params_array[MAX_LCORE_PARAMS];
 static struct lcore_params lcore_params_array_default[] = {
 /* start lcore 1 */	
@@ -104,7 +86,6 @@ static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
 				sizeof(lcore_params_array_default[0]);
 
 static struct rte_mempool * pktmbuf_pool[NB_SOCKETS];
-
 
 static int
 check_lcore_params(void)
@@ -134,17 +115,20 @@ check_lcore_params(void)
 }
 
 static int
-check_port_config(const unsigned nb_ports)
+check_port_config(const uint32_t portmask, const unsigned nb_ports)
 {
 	unsigned portid;
 	uint16_t i;
 
 	for (i = 0; i < nb_lcore_params; ++i) {
 		portid = lcore_params[i].port_id;
-		if ((enabled_port_mask & (1 << portid)) == 0) {
-			fprintf (stdout, "port %u is not enabled in port mask\n", portid);
+		
+		if ((portmask & (1 << portid)) == 0) {
+			fprintf(stdout,
+				"port %u is not enabled in port mask\n", portid);
 			return -1;
 		}
+		
 		if (portid >= nb_ports) {
 			fprintf (stdout, "port %u is not present on the board\n", portid);
 			return -1;
@@ -154,7 +138,7 @@ check_port_config(const unsigned nb_ports)
 }
 
 static uint8_t
-get_port_n_rx_queues(const uint8_t port)
+nr_rx_queue_of_port(const uint8_t port)
 {
 	int queue = -1;
 	uint16_t i;
@@ -246,18 +230,23 @@ parse_max_pkt_len(const char *pktlen)
 	return len;
 }
 
-static int
-parse_portmask(const char *portmask)
+/**
+ * The ports to be used by the application are passed in
+ * the form of a bitmask. This function parses the bitmask
+ * and places the port numbers to be used into the port[]
+ * array variable
+ */
+static int parse_portmask(const char *portmask)
 {
 	char *end = NULL;
-	unsigned long pm;
+	unsigned long pm = 0;
 
+	if((portmask == NULL) || (portmask[0] == '\0'))
+		return -1;
+	
 	/* parse hexadecimal string */
 	pm = strtoul(portmask, &end, 16);
 	if ((portmask[0] == '\0') || (end == NULL) || (*end != '\0'))
-		return -1;
-
-	if (pm == 0)
 		return -1;
 
 	return pm;
@@ -333,128 +322,6 @@ parse_config(const char *q_arg)
 	return 0;
 }
 
-/* Parse the argument given in the command line of the application */
-static int
-parse_args(int argc, char **argv)
-{
-	int opt, ret;
-	char **argvopt;
-	int option_index;
-	char *prgname = argv[0];
-
-	argvopt = argv;
-
-	/* Error or normal output strings. */
-	const char *str1 = "Invalid portmask";
-	const char *str2 = "Promiscuous mode selected";
-	const char *str3 = "Exact match selected";
-	const char *str4 = "Longest-prefix match selected";
-	const char *str5 = "Invalid config";
-	const char *str6 = "NUMA is disabled";
-	const char *str7 = "IPv6 is specified";
-	const char *str8 = "Jumbo frame is enabled - disabling simple TX path";
-	const char *str9 = "Invalid packet length";
-	const char *str10 = "Set jumbo frame max packet len to ";
-	const char *str11 = "Invalid hash entry number";
-	const char *str12 = "LPM and EM are mutually exclusive, select only one";
-	const char *str13 = "LPM or EM none selected, default LPM on";
-
-	while ((opt = getopt_long(argc, argvopt, short_options,
-				lgopts, &option_index)) != EOF) {
-
-		switch (opt) {
-		/* portmask */
-		case 'p':
-			enabled_port_mask = parse_portmask(optarg);
-			if (enabled_port_mask == 0) {
-				fprintf (stdout, "%s: %s\n", prgname, str1);
-				print_usage(prgname);
-				return -1;
-			}
-			break;
-
-		case 'P':
-			break;
-
-		case 'E':
-			break;
-
-		case 'L':
-			break;
-
-		/* long options */
-		case CMD_LINE_OPT_CONFIG_NUM:
-			fprintf (stdout, "----------------------------------\n");
-			ret = parse_config(optarg);
-			if (ret) {
-				fprintf (stdout, "%s: %s\n", prgname, str5);
-				print_usage(prgname);
-				return -1;
-			}
-			break;
-
-		case CMD_LINE_OPT_ETH_DEST_NUM:
-			break;
-
-		case CMD_LINE_OPT_NO_NUMA_NUM:
-			fprintf (stdout, "%s: %s\n", prgname, str6);
-			numa_on = 0;
-			break;
-
-		case CMD_LINE_OPT_IPv6_NUM:
-			fprintf (stdout, "%s: %s\n", prgname, str7);
-			break;
-
-		case CMD_LINE_OPT_ENABLE_JUMBO_NUM: {
-			struct option lenopts = {
-				"max-pkt-len", required_argument, 0, 0
-			};
-
-			fprintf (stdout, "%s: %s\n", prgname, str8);
-			dpdk_eth_default_conf.rxmode.jumbo_frame = 1;
-
-			/*
-			 * if no max-pkt-len set, use the default
-			 * value ETHER_MAX_LEN.
-			 */
-			if (getopt_long(argc, argvopt, "",
-					&lenopts, &option_index) == 0) {
-				ret = parse_max_pkt_len(optarg);
-				if ((ret < 64) ||
-					(ret > MAX_JUMBO_PKT_LEN)) {
-					fprintf (stdout, "%s: %s\n", prgname, str9);
-					print_usage(prgname);
-					return -1;
-				}
-				dpdk_eth_default_conf.rxmode.max_rx_pkt_len = ret;
-			}
-			fprintf (stdout, "%s: %s %u\n", prgname, str10,
-				(unsigned int)dpdk_eth_default_conf.rxmode.max_rx_pkt_len);
-			break;
-		}
-
-		case CMD_LINE_OPT_HASH_ENTRY_NUM_NUM:
-			break;
-
-		case CMD_LINE_OPT_PARSE_PTYPE_NUM:
-			fprintf (stdout, "soft parse-ptype is enabled\n");
-			parse_ptype = 1;
-			break;
-
-		default:
-			print_usage(prgname);
-			return -1;
-		}
-	}
-				
-	if (optind >= 0)
-		argv[optind-1] = prgname;
-
-	ret = optind-1;
-	optind = 1; /* reset getopt lib */
-	return ret;
-}
-
 static void
 print_ethaddr(const char *name, const struct ether_addr *eth_addr)
 {
@@ -492,7 +359,7 @@ init_mem()
 		if (pktmbuf_pool[socketid] == NULL) {
 			snprintf(s, sizeof(s), "mbuf_pool_%d", socketid);
 			pktmbuf_pool[socketid] =
-				rte_pktmbuf_pool_create(s, conf->num_mbufs,
+				rte_pktmbuf_pool_create(s, conf->nr_mbufs,
 					conf->mempool_cache_size, conf->mempool_priv_size,
 					conf->mempool_data_room_size, socketid);
 			if (pktmbuf_pool[socketid] == NULL)
@@ -814,10 +681,129 @@ int prepare_ptype_parser(uint8_t portid, uint16_t queueid, void *usr_param)
 }
 #endif
 
-/**
-./build/l3fwd -c e -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)"
+/* Parse the argument given in the command line of the application */
+static int parse_args(int argc, char **argv)
+{
+	int opt, ret;
+	char **argvopt;
+	int option_index;
+	char *prgname = argv[0];
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_config_main_t *conf = dm->conf;
+	struct rte_eth_conf *pcfg = conf->ethdev_default_conf;
 
-*/
+	argvopt = argv;
+
+	/* Error or normal output strings. */
+	const char *str1 = "Invalid portmask";
+	const char *str2 = "Promiscuous mode selected";
+	const char *str3 = "Exact match selected";
+	const char *str4 = "Longest-prefix match selected";
+	const char *str5 = "Invalid config";
+	const char *str6 = "NUMA is disabled";
+	const char *str7 = "IPv6 is specified";
+	const char *str8 = "Jumbo frame is enabled - disabling simple TX path";
+	const char *str9 = "Invalid packet length";
+	const char *str10 = "Set jumbo frame max packet len to ";
+	const char *str11 = "Invalid hash entry number";
+	const char *str12 = "LPM and EM are mutually exclusive, select only one";
+	const char *str13 = "LPM or EM none selected, default LPM on";
+
+	while ((opt = getopt_long(argc, argvopt, short_options,
+				lgopts, &option_index)) != EOF) {
+
+		switch (opt) {
+		/* portmask */
+		case 'p':
+			conf->portmask = parse_portmask(optarg);
+			if (conf->portmask == 0) {
+				fprintf (stdout, "%s: %s\n", prgname, str1);
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
+		case 'P':
+			break;
+
+		case 'E':
+			break;
+
+		case 'L':
+			break;
+
+		/* long options */
+		case CMD_LINE_OPT_CONFIG_NUM:
+			ret = parse_config(optarg);
+			if (ret) {
+				fprintf (stdout, "%s: %s\n", prgname, str5);
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
+		case CMD_LINE_OPT_ETH_DEST_NUM:
+			break;
+
+		case CMD_LINE_OPT_NO_NUMA_NUM:
+			fprintf (stdout, "%s: %s\n", prgname, str6);
+			numa_on = 0;
+			break;
+
+		case CMD_LINE_OPT_IPv6_NUM:
+			fprintf (stdout, "%s: %s\n", prgname, str7);
+			break;
+
+		case CMD_LINE_OPT_ENABLE_JUMBO_NUM: {
+			struct option lenopts = {
+				"max-pkt-len", required_argument, 0, 0
+			};
+
+			fprintf (stdout, "%s: %s\n", prgname, str8);
+			pcfg->rxmode.jumbo_frame = 1;
+
+			/*
+			 * if no max-pkt-len set, use the default
+			 * value ETHER_MAX_LEN.
+			 */
+			if (getopt_long(argc, argvopt, "",
+					&lenopts, &option_index) == 0) {
+				ret = parse_max_pkt_len(optarg);
+				if ((ret < 64) ||
+					(ret > MAX_JUMBO_PKT_LEN)) {
+					fprintf (stdout, "%s: %s\n", prgname, str9);
+					print_usage(prgname);
+					return -1;
+				}
+				pcfg->rxmode.max_rx_pkt_len = ret;
+			}
+			fprintf (stdout, "%s: %s %u\n", prgname, str10,
+				(unsigned int)pcfg->rxmode.max_rx_pkt_len);
+			break;
+		}
+
+		case CMD_LINE_OPT_HASH_ENTRY_NUM_NUM:
+			break;
+
+		case CMD_LINE_OPT_PARSE_PTYPE_NUM:
+			fprintf (stdout, "soft parse-ptype is enabled\n");
+			parse_ptype = 1;
+			break;
+
+		default:
+			print_usage(prgname);
+			return -1;
+		}
+	}
+				
+	if (optind >= 0)
+		argv[optind-1] = prgname;
+
+	ret = optind-1;
+	optind = 1; /* reset getopt lib */
+	return ret;
+}
+
 int
 dpdk_env_setup(vlib_main_t *vm)
 {
@@ -828,58 +814,58 @@ dpdk_env_setup(vlib_main_t *vm)
 	unsigned nb_ports;
 	uint16_t queueid;
 	unsigned lcore_id;
-	uint32_t n_tx_queue, nb_lcores;
+	uint32_t n_tx_queue;
 	uint8_t portid, nb_rx_queue, queue, socketid;
-	int argc = vm->argc;
-	char **argv = vm->argv;
-
+	int argc;
+	char **argv;
+	
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
+	struct rte_eth_conf *pcfg = conf->ethdev_default_conf;
+	dpdk_device_config_t *dev;
 	
-	enabled_port_mask = conf->portmask;
+	force_quit = false;
+	/* convert to number of cycles */
+	timer_period *= rte_get_timer_hz();
+	argc = vm->argc;
+	argv = vm->argv;
 	
 	/* init EAL */
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0) {
-		log_usage();
+		print_usage(vm->argv[0]);
 		rte_exit(EXIT_FAILURE, "Invalid EAL parameters\n");
 	}
 	argc -= ret;
 	argv += ret;
 
-	force_quit = false;
-	
-	/* convert to number of cycles */
-	timer_period *= rte_get_timer_hz();
-
-	nb_lcores = rte_lcore_count();
+	vm->nb_lcores = rte_lcore_count();
 	nb_ports  = rte_eth_dev_count();
 	if (nb_ports == 0) {
-		log_usage();
-		rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
+		oryx_panic(-1,
+			"No Ethernet ports - bye\n");
 	}
 	
-	vm->nb_lcores = nb_lcores;
-	vm->nb_dpdk_ports = nb_ports;
-
 	/* parse application arguments (after the EAL ones) */
 	ret = parse_args(argc, argv);
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Invalid L3FWD parameters\n");
+	if (ret < 0) {
+		oryx_panic(-1,
+			"Invalid eal parameters\n");
+	}
 
-	conf->portmask = enabled_port_mask;
 	oryx_logn("================ DPDK INIT ARGS =================");
 	oryx_logn("%20s%15x", "ul_core_mask", conf->coremask);
 	oryx_logn("%20s%15x", "ul_port_mask", conf->portmask);
 	oryx_logn("%20s%15d", "ul_priv_size", vm->extra_priv_size);
-	oryx_logn("%20s%15d", "n_pool_mbufs", conf->num_mbufs);
+	oryx_logn("%20s%15d", "n_pool_mbufs", conf->nr_mbufs);
 	oryx_logn("%20s%15d", "rte_cachelin", RTE_CACHE_LINE_SIZE);
 	oryx_logn("%20s%15d", "mp_data_room", conf->mempool_data_room_size);
 	oryx_logn("%20s%15d", "mp_cache_siz", conf->mempool_cache_size);
 	oryx_logn("%20s%15d", "mp_priv_size", conf->mempool_priv_size);
 	oryx_logn("%20s%15d", "n_rx_desc", (int)conf->num_rx_desc);
 	oryx_logn("%20s%15d", "n_tx_desc", (int)conf->num_tx_desc);
-	oryx_logn("%20s%15d", "socket_id", rte_socket_id());	
+	oryx_logn("%20s%15d", "socket_id", rte_socket_id());
+	
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
 
@@ -888,17 +874,21 @@ dpdk_env_setup(vlib_main_t *vm)
 		rte_exit(EXIT_FAILURE, "init_lcore_rx_queues failed\n");
 
 
-	if (check_port_config(nb_ports) < 0)
+	if (check_port_config(conf->portmask, nb_ports) < 0)
 		rte_exit(EXIT_FAILURE, "check_port_config failed\n");
 
-	fprintf (stdout, "Master Lcore %d, nb_lcores %d\n", rte_get_master_lcore(),
-		nb_lcores);
+	fprintf(stdout,
+		"Master Lcore %d, nb_lcores %d\n", rte_get_master_lcore(), vm->nb_lcores);
 
 	/* initialize all ports */
 	for (portid = 0; portid < nb_ports; portid++) {
+
+		dev = &conf->devs[portid];
+		
 		/* skip ports that are not enabled */
-		if ((enabled_port_mask & (1 << portid)) == 0) {
-			fprintf (stdout, "\nSkipping disabled port %d\n", portid);
+		if ((conf->portmask & (1 << portid)) == 0) {
+			fprintf(stdout,
+				"\nSkipping disabled port %d\n", portid);
 			continue;
 		}
 
@@ -906,22 +896,22 @@ dpdk_env_setup(vlib_main_t *vm)
 		fprintf (stdout, "Initializing port %d ... ", portid);
 		fflush(stdout);
 
-		nb_rx_queue = get_port_n_rx_queues(portid);
+		nb_rx_queue = nr_rx_queue_of_port(portid);
 		BUG_ON(nb_rx_queue == 0);
-		n_tx_queue = nb_lcores;
+		n_tx_queue = vm->nb_lcores;
 		if (n_tx_queue > MAX_TX_QUEUE_PER_PORT)
 			n_tx_queue = MAX_TX_QUEUE_PER_PORT;
 		fprintf (stdout, "Creating queues: nb_rxq=%d nb_txq=%u... ",
 			nb_rx_queue, (unsigned)n_tx_queue );
 		ret = rte_eth_dev_configure(portid, nb_rx_queue,
-					(uint16_t)n_tx_queue, &dpdk_eth_default_conf);
+					(uint16_t)n_tx_queue, pcfg);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 				"Cannot configure device: err=%d, port=%d\n",
 				ret, portid);
 
-		rte_eth_macaddr_get(portid, &ports_eth_addr[portid]);
-		print_ethaddr(" Address:", &ports_eth_addr[portid]);
+		rte_eth_macaddr_get(portid, &dev->eth_addr);
+		print_ethaddr(" Address:", &dev->eth_addr);
 		fprintf (stdout, "\n");
 
 		/* init memory */
@@ -946,7 +936,7 @@ dpdk_env_setup(vlib_main_t *vm)
 
 			rte_eth_dev_info_get(portid, &dev_info);
 			txconf = &dev_info.default_txconf;
-			if (dpdk_eth_default_conf.rxmode.jumbo_frame)
+			if (pcfg->rxmode.jumbo_frame)
 				txconf->txq_flags = 0;
 			ret = rte_eth_tx_queue_setup(portid, queueid, nb_txd,
 						     socketid, txconf);
@@ -970,7 +960,7 @@ dpdk_env_setup(vlib_main_t *vm)
 		if (rte_lcore_is_enabled(lcore_id) == 0)
 			continue;
 		qconf = &lcore_conf[lcore_id];
-		fprintf (stdout, "\nInitializing rx queues on lcore %u ... ", lcore_id );
+		fprintf (stdout, "\nInitializing rx queues on lcore %u ... ", lcore_id);
 		fflush(stdout);
 		/* init RX queues */
 		for(queue = 0; queue < qconf->n_rx_queue; ++queue) {
@@ -1001,7 +991,7 @@ dpdk_env_setup(vlib_main_t *vm)
 
 	/* start ports */
 	for (portid = 0; portid < nb_ports; portid++) {
-		if ((enabled_port_mask & (1 << portid)) == 0) {
+		if ((conf->portmask & (1 << portid)) == 0) {
 			continue;
 		}
 		/* Start device */
@@ -1037,31 +1027,8 @@ dpdk_env_setup(vlib_main_t *vm)
 		}
 	}
 
-
 	//check_all_ports_link_status((uint8_t)nb_ports, enabled_port_mask);
 
-#if 0
-	ret = 0;
-	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(l3fwd_lkp.main_loop, NULL, CALL_MASTER);
-	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
-		if (rte_eal_wait_lcore(lcore_id) < 0) {
-			ret = -1;
-			break;
-		}
-	}
-
-	/* stop ports */
-	for (portid = 0; portid < nb_ports; portid++) {
-		if ((enabled_port_mask & (1 << portid)) == 0)
-			continue;
-		fprintf (stdout, "Closing port %d...", portid);
-		rte_eth_dev_stop(portid);
-		rte_eth_dev_close(portid);
-		fprintf (stdout, " Done\n");
-	}
-	fprintf (stdout, "Bye...\n");
-#endif
 	return ret;
 }
 
