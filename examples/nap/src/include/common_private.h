@@ -64,7 +64,7 @@ enum {
 typedef struct vlib_main
 {
 	int					argc;
-	char				*argv[1024];
+	char				**argv;
 	const char			*prgname;			/* Name for e.g. syslog. */
 	int					log_level;
 	char				*log_path;

@@ -46,7 +46,7 @@ SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp_start_pcap.c dp_start_d
 	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
 	dp_decode_arp.c dp_decode_marvell_dsa.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
 	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c\
-	dp_flow.c dp_flow_queue.c dpdk.c dpdk_rss.c rfc.c em.c lpm.c acl.c util_iface.c util_map.c util_udp.c util_ipset.c\
+	dp_flow.c dp_flow_queue.c dpdk.c dpdk_cfg.c rfc.c em.c lpm.c acl.c util_iface.c util_map.c util_udp.c util_ipset.c\
 	cli_iface.c cli_map.c cli_udp.c cli_appl.c\
 	cli_common.c
 

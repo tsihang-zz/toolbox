@@ -53,7 +53,7 @@ static const char *enp5s0fx[] = {
 
 static int dp_dpdk_check_port(vlib_main_t *vm)
 {
-	u8 portid;
+	uint8_t portid;
 	struct iface_t *this;
 	vlib_iface_main_t *pm = &vlib_iface_main;
 	int n_ports_now = vec_count(pm->entry_vec);
@@ -87,7 +87,7 @@ void dp_init_dpdk(vlib_main_t *vm)
 
 	dm->conf->mempool_priv_size = vm->extra_priv_size;	
 	dp_dpdk_check_port(vm);
-	dpdk_format_eal_args(vm);
+	//dpdk_format_eal_args(vm);
 	dpdk_env_setup(vm);
 }
 

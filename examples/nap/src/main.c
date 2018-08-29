@@ -97,10 +97,14 @@ sig_handler(int signum) {
 }
 
 int main (
-	int	__oryx_unused_param__	argc,
-	char	__oryx_unused_param__	** argv
+	int		argc,
+	char ** argv
 )
 {
+	vlib_main.argc = argc;
+	vlib_main.argv = argv;
+	vlib_main.prgname = argv[0];
+	
 	uint32_t id_core;
 
 	oryx_register_sighandler(SIGINT, sig_handler);
