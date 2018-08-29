@@ -351,10 +351,6 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 	p->iphd_offset = 0;
 	p->dsa = 0;
 
-#if defined(BUILD_DEBUG)
-	oryx_logn("Rules [IPv4=%d, IPv6=%d]", g_runtime_acl_config->nb_ipv4_rules, g_runtime_acl_config->nb_ipv6_rules);
-#endif
-
 	if (iface_support_marvell_dsa(rx_iface)) {
 			uint16_t ether_type;
 			uint8_t rx_panel_port_id;
@@ -367,72 +363,65 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 #if defined(BUILD_DEBUG)
 			oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
 			oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
-			oryx_logn("%20s%4ld", "iphd_offset: ", OFF_DSAETHHEAD);
+			oryx_logn("%20s%4ld", "iphd_offset: ", 		OFF_DSAETHHEAD);
 			PrintDSA("RX", p->dsa, QUA_RX);
 			dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
 #endif
 
+			/* Rx statistics on an ethernet GE port. */
 			if (rx_panel_port_id > SW_PORT_OFFSET) {
 				iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
 				iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
 			}
 
+			/* DSA is invalid. */
 			if (!DSA_IS_INGRESS(p->dsa)) {
-				/* Unknown type, drop the packet */
 				dp_free_packet(tv, dtv, pkt);
 				return;
 			}
 			
 			if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
 				/* Fill acl structure */
-				acl->data_ipv4[acl->num_ipv4] = DSA_MBUF_IPv4_2PROTO(pkt);
-				acl->m_ipv4[(acl->num_ipv4)++] = pkt;
-
-	#if defined(BUILD_DEBUG)
+				acl->data_ipv4[acl->num_ipv4]	= DSA_MBUF_IPv4_2PROTO(pkt);
+				acl->m_ipv4[acl->num_ipv4]		= pkt;
+				acl->num_ipv4 ++;
+		#if defined(BUILD_DEBUG)
 				dp_dump_packet_key(pkt, sizeof(MarvellDSAEthernetHdr));
-	#endif
-				if (!g_runtime_acl_config->nb_ipv4_rules) {
-					dp_free_packet(tv, dtv, pkt);
-				}
-
+		#endif
 			} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
 				/* Fill acl structure */
-				acl->data_ipv6[acl->num_ipv6] = DSA_MBUF_IPv6_2PROTO(pkt);
-				acl->m_ipv6[(acl->num_ipv6)++] = pkt;
-				if (!g_runtime_acl_config->nb_ipv6_rules) {
-					dp_free_packet(tv, dtv, pkt);
-				}
+				acl->data_ipv6[acl->num_ipv6]	= DSA_MBUF_IPv6_2PROTO(pkt);
+				acl->m_ipv6[acl->num_ipv6]		= pkt;
+				acl->num_ipv6 ++;
 			} else {
-			/* Unknown type, drop the packet */
+			acl->m_notip[(acl->num_notip)++] = pkt;
+			/* Unknown type, a simplified drop for the packet */
 			dp_free_packet(tv, dtv, pkt);
 			return;
 		}
-
 	} else {
 
 		if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
 			/* Fill acl structure */
-			acl->data_ipv4[acl->num_ipv4] = MBUF_IPv4_2PROTO(pkt);
-			acl->m_ipv4[(acl->num_ipv4)++] = pkt;
+			acl->data_ipv4[acl->num_ipv4]	= MBUF_IPv4_2PROTO(pkt);
+			acl->m_ipv4[acl->num_ipv4]		= pkt;
+			acl->num_ipv4 ++;
 		
-#if defined(BUILD_DEBUG)
+		#if defined(BUILD_DEBUG)
 			dp_dump_packet_key(pkt, sizeof(struct ether_hdr));
-#endif
-			if (!g_runtime_acl_config->nb_ipv4_rules) {
-				dp_free_packet(tv, dtv, pkt);
-			}
+		#endif
 		} 
 		else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
 			/* Fill acl structure */
-			acl->data_ipv6[acl->num_ipv6] = MBUF_IPv6_2PROTO(pkt);
-			acl->m_ipv6[(acl->num_ipv6)++] = pkt;
-			if (!g_runtime_acl_config->nb_ipv6_rules) {
-				dp_free_packet(tv, dtv, pkt);
-			}
+			acl->data_ipv6[acl->num_ipv6]	= MBUF_IPv6_2PROTO(pkt);
+			acl->m_ipv6[acl->num_ipv6]		= pkt;
+			acl->num_ipv6 ++;
 		}
 		else {
-			/* Unknown type, drop the packet */
+			acl->m_notip[(acl->num_notip)++] = pkt;
+			/* Unknown type, a simplified drop for the packet */
 			dp_free_packet(tv, dtv, pkt);
+			return;
 		}
 	}
 }
@@ -543,8 +532,10 @@ void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 {
 	int i;
 
-	acl->num_ipv4 = 0;
-	acl->num_ipv6 = 0;
+	/* reset acl search context. */
+	acl->num_ipv4	= 0;
+	acl->num_ipv6	= 0;
+	acl->num_notip	= 0;
 
 	/* Prefetch first packets */
 	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
@@ -559,8 +550,9 @@ void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	}
 
 	/* Process left packets */
-	for (; i < nb_rx; i++)
+	for (; i < nb_rx; i++) {
 		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, acl, i);
+	}
 }
 
 static __oryx_always_inline__
@@ -605,6 +597,8 @@ int main_loop (void *ptr_data)
 	uint64_t		diff_tsc;
 	uint64_t		cur_tsc;
 	uint64_t		timer_tsc;
+	int32_t			nr_ip4_acl;
+	int32_t			nr_ip6_acl;
 	const uint64_t	drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
 							US_PER_S * BURST_TX_DRAIN_US;
 
@@ -690,6 +684,7 @@ int main_loop (void *ptr_data)
 			prev_tsc = cur_tsc;
 		}
 
+		/* SYNC */
 		while(vm->ul_flags & VLIB_DP_SYNC) {
 			if(!(vm->ul_core_mask & (1 << tv->lcore)))
 				vm->ul_core_mask |= (1 << tv->lcore);
@@ -711,8 +706,10 @@ int main_loop (void *ptr_data)
 			if (nb_rx == 0)
 				continue;
 
-			/** port ID -> iface */
+			/* port ID -> iface */
 			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);
+
+			/* Rx statistics on this port. */
 			iface_counter_update(rx_cpu_iface, nb_rx, 0, QUA_RX, tv->lcore);
 
 			//iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
@@ -720,56 +717,68 @@ int main_loop (void *ptr_data)
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 
+			struct acl_search_t acl_search;
+			nr_ip4_acl = g_runtime_acl_config->nr_ipv4_rules;
+			nr_ip6_acl = g_runtime_acl_config->nr_ipv6_rules;
+
 		#if defined(BUILD_DEBUG)
 			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d, rx_cpu_iface %p, iface_id %d",
 							rx_port_id, rx_queue_id, tv->lcore,
 							rx_cpu_iface, iface_id(rx_cpu_iface));
+			oryx_logn("Rules [IPv4=%d, IPv6=%d]", nr_ip4_acl, nr_ip6_acl);
 		#endif
 
-			struct acl_search_t acl_search;
+			/* Anyway, classify frames with IPv4, IPv6 and non-IP. */
+			dp_classify_prepare (tv, dtv,
+					rx_cpu_iface, pkts_burst, &acl_search, nb_rx);
 
-			dp_classify_prepare (tv, dtv, rx_cpu_iface, pkts_burst, &acl_search,
-					nb_rx);
-			
-			if (g_runtime_acl_config->nb_ipv4_rules &&
+			/* Do classify on IPv4 frames. */
+			if (nr_ip4_acl &&
 				acl_search.num_ipv4) {
 				{
+					/* get classify private context to guide us how to handle coming frames. */
 					rte_acl_classify(
-						g_runtime_acl_config->acx_ipv4[socketid],
+						g_runtime_acl_config->acl_ctx_ip4[socketid],
 						acl_search.data_ipv4,
 						acl_search.res_ipv4,
 						acl_search.num_ipv4,
 						DEFAULT_MAX_CATEGORIES);
 
+					/* do real classify. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
 						acl_search.m_ipv4,
 						acl_search.res_ipv4,
 						acl_search.num_ipv4);
+					
+					/* IPv4 frame statistics. */
+					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, acl_search.num_ipv4);
 				}
 			}
-
-			if (g_runtime_acl_config->nb_ipv6_rules &&
+			
+			/* Do classify on IPv6 frames. */
+			if (nr_ip6_acl &&
 				acl_search.num_ipv6) {
-				{
+				{				
+					/* get classify private context to guide us how to handle coming frames. */
 					rte_acl_classify(
-						g_runtime_acl_config->acx_ipv6[socketid],
+						g_runtime_acl_config->acl_ctx_ip6[socketid],
 						acl_search.data_ipv6,
 						acl_search.res_ipv6,
 						acl_search.num_ipv6,
 						DEFAULT_MAX_CATEGORIES);
-					
+
+					/* do real classify. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
 						acl_search.m_ipv6,
 						acl_search.res_ipv6,
 						acl_search.num_ipv6);
+
+					/* IPv6 frame statistics. */
+					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv6, acl_search.num_ipv6);
 				}
 			}
-			
-			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, acl_search.num_ipv4);
-			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv6, acl_search.num_ipv6);
-
 		}
 	}
 
