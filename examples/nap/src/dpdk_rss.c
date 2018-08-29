@@ -345,21 +345,19 @@ parse_args(int argc, char **argv)
 	argvopt = argv;
 
 	/* Error or normal output strings. */
-	const char *str1 = "L3FWD: Invalid portmask";
-	const char *str2 = "L3FWD: Promiscuous mode selected";
-	const char *str3 = "L3FWD: Exact match selected";
-	const char *str4 = "L3FWD: Longest-prefix match selected";
-	const char *str5 = "L3FWD: Invalid config";
-	const char *str6 = "L3FWD: NUMA is disabled";
-	const char *str7 = "L3FWD: IPv6 is specified";
-	const char *str8 =
-		"L3FWD: Jumbo frame is enabled - disabling simple TX path";
-	const char *str9 = "L3FWD: Invalid packet length";
-	const char *str10 = "L3FWD: Set jumbo frame max packet len to ";
-	const char *str11 = "L3FWD: Invalid hash entry number";
-	const char *str12 =
-		"L3FWD: LPM and EM are mutually exclusive, select only one";
-	const char *str13 = "L3FWD: LPM or EM none selected, default LPM on";
+	const char *str1 = "Invalid portmask";
+	const char *str2 = "Promiscuous mode selected";
+	const char *str3 = "Exact match selected";
+	const char *str4 = "Longest-prefix match selected";
+	const char *str5 = "Invalid config";
+	const char *str6 = "NUMA is disabled";
+	const char *str7 = "IPv6 is specified";
+	const char *str8 = "Jumbo frame is enabled - disabling simple TX path";
+	const char *str9 = "Invalid packet length";
+	const char *str10 = "Set jumbo frame max packet len to ";
+	const char *str11 = "Invalid hash entry number";
+	const char *str12 = "LPM and EM are mutually exclusive, select only one";
+	const char *str13 = "LPM or EM none selected, default LPM on";
 
 	while ((opt = getopt_long(argc, argvopt, short_options,
 				lgopts, &option_index)) != EOF) {
@@ -369,7 +367,7 @@ parse_args(int argc, char **argv)
 		case 'p':
 			enabled_port_mask = parse_portmask(optarg);
 			if (enabled_port_mask == 0) {
-				fprintf (stdout, "%s\n", str1);
+				fprintf (stdout, "%s: %s\n", prgname, str1);
 				print_usage(prgname);
 				return -1;
 			}
@@ -389,7 +387,7 @@ parse_args(int argc, char **argv)
 			fprintf (stdout, "----------------------------------\n");
 			ret = parse_config(optarg);
 			if (ret) {
-				fprintf (stdout, "XXXXX   %s\n", str5);
+				fprintf (stdout, "%s: %s\n", prgname, str5);
 				print_usage(prgname);
 				return -1;
 			}
@@ -399,12 +397,12 @@ parse_args(int argc, char **argv)
 			break;
 
 		case CMD_LINE_OPT_NO_NUMA_NUM:
-			fprintf (stdout, "%s\n", str6);
+			fprintf (stdout, "%s: %s\n", prgname, str6);
 			numa_on = 0;
 			break;
 
 		case CMD_LINE_OPT_IPv6_NUM:
-			fprintf (stdout, "%sn", str7);
+			fprintf (stdout, "%s: %s\n", prgname, str7);
 			break;
 
 		case CMD_LINE_OPT_ENABLE_JUMBO_NUM: {
@@ -412,7 +410,7 @@ parse_args(int argc, char **argv)
 				"max-pkt-len", required_argument, 0, 0
 			};
 
-			fprintf (stdout, "%s\n", str8);
+			fprintf (stdout, "%s: %s\n", prgname, str8);
 			dpdk_eth_default_conf.rxmode.jumbo_frame = 1;
 
 			/*
@@ -424,13 +422,13 @@ parse_args(int argc, char **argv)
 				ret = parse_max_pkt_len(optarg);
 				if ((ret < 64) ||
 					(ret > MAX_JUMBO_PKT_LEN)) {
-					fprintf (stdout, "%s\n", str9);
+					fprintf (stdout, "%s: %s\n", prgname, str9);
 					print_usage(prgname);
 					return -1;
 				}
 				dpdk_eth_default_conf.rxmode.max_rx_pkt_len = ret;
 			}
-			fprintf (stdout, "%s %u\n", str10,
+			fprintf (stdout, "%s: %s %u\n", prgname, str10,
 				(unsigned int)dpdk_eth_default_conf.rxmode.max_rx_pkt_len);
 			break;
 		}
