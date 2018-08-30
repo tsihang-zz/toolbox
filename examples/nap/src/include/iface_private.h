@@ -101,6 +101,7 @@ typedef struct vlib_iface_main {
 	int						ul_n_ports;	/* dpdk_ports + sw_ports */
 	uint32_t				ul_flags;
 	struct oryx_timer_t		*link_detect_tmr;
+	struct oryx_timer_t		*healthy_tmr;
 	uint32_t						link_detect_tmr_interval;
 	uint32_t						poll_interval;
 	os_mutex_t				lock;

@@ -1,5 +1,5 @@
 #include "oryx.h"
-
+#if 0
 /* return oryx_sockunion structure : this function should be revised. */
 static const char *
 sockunion_log (const union oryx_sockunion *su, char *buf, size_t len)
@@ -217,5 +217,5 @@ oryx_sockunion_bind (int sock, union oryx_sockunion *su, unsigned short port,
 
   return ret;
 }
-
+#endif
 

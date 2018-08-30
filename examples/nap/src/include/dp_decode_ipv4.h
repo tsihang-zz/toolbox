@@ -621,7 +621,7 @@ int DecodeIPv4Packet0(packet_t *p, uint8_t *pkt, uint16_t len)
 }
 
 static __oryx_always_inline__
-int DecodeIPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeIPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	oryx_logd("IPv4");
 

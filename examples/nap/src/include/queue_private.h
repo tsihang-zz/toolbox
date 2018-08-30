@@ -1,7 +1,8 @@
 #ifndef QUEUE_PRIVATE_H
 #define QUEUE_PRIVATE_H
 
-typedef struct PacketQueue_ {
+/* Packet Queue. */
+typedef struct pq_t_ {
     void *top;
     void *bot;
     uint32_t len;
@@ -10,7 +11,7 @@ typedef struct PacketQueue_ {
 #endif /* DBG_PERF */
     os_mutex_t mutex_q;
     os_cond_t cond_q;
-} PacketQueue;
+} pq_t;
 
 
 #endif

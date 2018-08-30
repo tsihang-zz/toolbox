@@ -469,54 +469,54 @@ packet_t * get_priv(struct rte_mbuf *m)
 #endif
 
 typedef int (*decode_eth_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int	(*decode_arp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+				  uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_dsa_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-				 uint8_t *pkt, uint16_t len, PacketQueue *pq);
+				 uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int	(*decode_vlan_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+				  uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_mpls_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_ppp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_pppoe_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_ipv4_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_ipv6_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_gre_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-				  uint8_t *pkt, uint16_t len, PacketQueue *pq);
+				  uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_icmpv4_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_icmpv6_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_tcp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_udp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef int (*decode_sctp_t)(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
-                   uint8_t *pkt, uint16_t len, PacketQueue *pq);
+                   uint8_t *pkt, uint16_t len, pq_t *pq);
 
 typedef struct _dp_args_t {
    threadvar_ctx_t tv[MAX_LCORES];
    decode_threadvar_ctx_t dtv[MAX_LCORES];
-   PacketQueue pq[MAX_LCORES];
+   pq_t pq[MAX_LCORES];
 }dp_private_t;
 
 struct eth_decode_ops {

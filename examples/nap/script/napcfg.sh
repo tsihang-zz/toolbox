@@ -22,7 +22,7 @@ uio_path=$RTE_SDK/$RTE_TARGET/kmod
 # Mount point of huge pages.
 huge_dir="/mnt/huge"
 
-# Cache for CDR, this is a ramdisk
+# Cache for temp data, this is a ramdisk
 data_dir="/data/"
 
 # PID

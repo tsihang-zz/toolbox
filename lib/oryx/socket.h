@@ -1,6 +1,7 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
+#if 0
 #define HAVE_IPV6
 
 /* Sockunion address string length.  Same as INET6_ADDRSTRLEN. */
@@ -110,5 +111,7 @@ struct oryx_client_t {
 
 #define CLIENT_RESET(c)\
 	((c)->ul_flags |= TO_SERVER_RESET)
-	
+
+#endif
+
 #endif

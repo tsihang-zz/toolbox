@@ -42,8 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = vscan
 
 # all source are stored in SRCS-y
-SRCS-y := main.c rx.c mpm.c mpm_ac.c mpm_hs.c
-DEPDIRS-y += ../../lib/oryx
+SRCS-y := main.c rx.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
@@ -55,9 +54,9 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_HYPERSCAN
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/../oryx\
-		  -I$(SRCDIR)/../oryx/osih\
-		  -I/usr/include/hs/
+	  -I$(SRCDIR)/../oryx\
+	  -I$(SRCDIR)/../oryx/osih\
+	  -I/usr/include/hs/
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
 		   -lhs -lpcre -lyaml -lpcap -lhs

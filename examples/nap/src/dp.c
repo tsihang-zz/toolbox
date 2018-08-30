@@ -24,7 +24,7 @@
 
 extern threadvar_ctx_t g_tv[];
 extern decode_threadvar_ctx_t g_dtv[];
-extern PacketQueue g_pq[];
+extern pq_t g_pq[];
 
 /* main processing loop */
 extern int main_loop (void *ptr_data);

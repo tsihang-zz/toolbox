@@ -51,7 +51,7 @@ typedef struct MarvellDSAEthernetHdr_ {
  *
  */
 static __oryx_always_inline__
-int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	MarvellDSAHdr *dsah;
 	MarvellDSAEthernetHdr *dsaeth;

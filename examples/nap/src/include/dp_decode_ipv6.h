@@ -31,7 +31,7 @@
  *
  */
 static __oryx_always_inline__
-void DecodeIPv4inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+void DecodeIPv4inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, pq_t *pq)
 {
 	oryx_logd("IPv4InIPv6");
 	
@@ -64,7 +64,7 @@ void DecodeIPv4inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
  *
  */
 static __oryx_always_inline__
-int DecodeIPv6inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, PacketQueue *pq)
+int DecodeIPv6inIPv6(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t plen, pq_t *pq)
 {
 	oryx_logd("IPv6InIPv6");
 
@@ -132,7 +132,7 @@ void DecodeIPv6FragHeader(packet_t *p, uint8_t *pkt,
 }
 
 static __oryx_always_inline__ 
-void DecodeIPv6ExtHdrs(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+void DecodeIPv6ExtHdrs(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
     uint8_t *orig_pkt = pkt;
     uint8_t nh = 0; /* careful, 0 is actually a real type */
@@ -568,7 +568,7 @@ int DecodeIPv6Packet (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
 }
 
 static __oryx_always_inline__
-int DecodeIPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeIPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	oryx_logd("IPv6");
 	

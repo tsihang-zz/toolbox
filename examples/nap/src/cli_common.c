@@ -14,7 +14,7 @@
 extern vlib_main_t vlib_main;
 extern threadvar_ctx_t g_tv[];
 extern decode_threadvar_ctx_t g_dtv[];
-extern PacketQueue g_pq[];
+extern pq_t g_pq[];
 
 int
 loglevel_unformat(const char *level_str);

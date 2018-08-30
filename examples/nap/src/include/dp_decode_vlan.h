@@ -35,7 +35,7 @@ uint16_t DecodeVLANGetId0(const packet_t *p, uint8_t layer)
 
 #if 0
 static __oryx_always_inline__
-int DecodeIEEE8021ah0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeIEEE8021ah0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
     oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ieee8021ah);
 
@@ -72,7 +72,7 @@ int DecodeIEEE8021ah0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
  *
  */
 static __oryx_always_inline__
-int DecodeVLAN0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeVLAN0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
     uint32_t proto;
 

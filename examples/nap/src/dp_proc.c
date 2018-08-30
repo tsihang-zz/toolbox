@@ -26,7 +26,7 @@
 extern volatile bool force_quit;
 extern threadvar_ctx_t g_tv[];
 extern decode_threadvar_ctx_t g_dtv[];
-extern PacketQueue g_pq[];
+extern pq_t g_pq[];
 
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	  3
@@ -581,18 +581,13 @@ void dp_classify (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 /* main processing loop */
 int main_loop (void *ptr_data)
 {
-	int i, j, nb_rx;
-	int			qua = QUA_RX;
-	int			hdr_len;
+	int i, nb_rx;
 	int			socketid;
-	
+	uint8_t			lcore_id;
 	uint8_t			rx_port_id;
 	uint8_t			rx_queue_id;
 	uint8_t			tx_queue_id;
-	uint16_t		pkt_len;
-	uint16_t		ether_type;
 	uint32_t		tx_port_id;
-	uint32_t		packet_type = RTE_PTYPE_UNKNOWN;
 	uint64_t		prev_tsc;
 	uint64_t		diff_tsc;
 	uint64_t		cur_tsc;
@@ -611,16 +606,21 @@ int main_loop (void *ptr_data)
 
 	struct lcore_conf	*qconf;
 	struct iface_t		*rx_cpu_iface = NULL;
-	struct rte_mbuf		*pkts_burst[DPDK_MAX_RX_BURST], *m;
+	struct rte_mbuf		*pkts_burst[DPDK_MAX_RX_BURST];
 	
 	uint8_t *pkt;
 
 	prev_tsc = 0;
-	tv		=	&g_tv[rte_lcore_id()];
-	dtv		=	&g_dtv[rte_lcore_id()];
-	qconf		=	&lcore_conf[rte_lcore_id()];
-	tv->lcore	=	rte_lcore_id();
-	socketid	=	rte_lcore_to_socket_id(rte_lcore_id());
+	timer_tsc = 0;
+
+	lcore_id = rte_lcore_id();
+	tv		=	&g_tv[lcore_id];
+	dtv		=	&g_dtv[lcore_id];
+	qconf		=	&lcore_conf[lcore_id];
+	socketid	=	rte_lcore_to_socket_id(lcore_id);
+
+	/* record which TV this core belong to. */	
+	tv->lcore	=	lcore_id;
 
 	if (qconf->n_rx_queue == 0) {
 		oryx_logn("lcore %u has nothing to do\n", tv->lcore);
@@ -641,9 +641,6 @@ int main_loop (void *ptr_data)
 			tv->lcore, rx_port_id, rx_queue_id);
 		fflush(stdout);
 	}
-
-	prev_tsc = 0;
-	timer_tsc = 0;
 
 	while (!force_quit) {
 
@@ -689,7 +686,8 @@ int main_loop (void *ptr_data)
 			if(!(vm->ul_core_mask & (1 << tv->lcore)))
 				vm->ul_core_mask |= (1 << tv->lcore);
 		}
-		
+
+		/* fast switch to a prepared ACL context. */
 		if(vm->ul_core_mask & (1 << tv->lcore)) {
 			g_runtime_acl_config = &acl_config[g_runtime_acl_config_qua % ACL_TABLES];
 			vm->ul_core_mask &= ~(1 << tv->lcore);
@@ -744,7 +742,7 @@ int main_loop (void *ptr_data)
 						acl_search.num_ipv4,
 						DEFAULT_MAX_CATEGORIES);
 
-					/* do real classify. */
+					/* do real classification. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
 						acl_search.m_ipv4,
@@ -768,7 +766,7 @@ int main_loop (void *ptr_data)
 						acl_search.num_ipv6,
 						DEFAULT_MAX_CATEGORIES);
 
-					/* do real classify. */
+					/* do real classification. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
 						acl_search.m_ipv6,

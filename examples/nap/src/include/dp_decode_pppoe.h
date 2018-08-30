@@ -6,7 +6,7 @@
  * \brief Main decoding function for PPPOE Discovery packets
  */
 static __oryx_always_inline__
-int DecodePPPoEDiscovery0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodePPPoEDiscovery0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	oryx_logd("PPPoE_discovery");
 
@@ -85,7 +85,7 @@ int DecodePPPoEDiscovery0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, pack
  * \brief Main decoding function for PPPOE Session packets
  */
 static __oryx_always_inline__
-int DecodePPPoESession0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodePPPoESession0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	oryx_logd("PPPoE_session");
 

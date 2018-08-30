@@ -53,18 +53,18 @@ SRCS-y :=\
    cluster.c counter.c debug.c format.c fop.c rbtree.c ipc.c lq.c \
    memcache.c oryx.c error.c atomic.c netdev_pcap.c ring.c mpool.c parser.c task.c htable.c memory.c \
    socket.c socket6.c mdx.c netdev.c netdev_pfring.c lru.c list.c tmr.c vec.c conf.c \
-   conf-yaml-loader.c
+   conf-yaml-loader.c mpm.c mpm_ac.c mpm_hs.c
 
 
 #CFLAGS += $(WERROR_FLAGS)
-CFLAGS_ORYX := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS_ORYX += -Wmissing-declarations -Wpointer-arith
-CFLAGS_ORYX += -Wcast-align -Wnested-externs
-CFLAGS_ORYX += -Wformat-nonliteral -Wformat-security
-CFLAGS_ORYX += -Wundef -Wwrite-strings
-#CFLAGS_ORYX += -Wold-style-definition -Wcast-qual
+CFLAGS := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS += -Wmissing-declarations -Wpointer-arith
+CFLAGS += -Wcast-align -Wnested-externs
+CFLAGS += -Wformat-nonliteral -Wformat-security
+CFLAGS += -Wundef -Wwrite-strings
+#CFLAGS += -Wold-style-definition -Wcast-qual
 
-CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_ORYX)
+CFLAGS += -g -O3 --std=gnu99 
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
 

@@ -3,7 +3,7 @@
 
 threadvar_ctx_t g_tv[MAX_LCORES];
 decode_threadvar_ctx_t g_dtv[MAX_LCORES];
-PacketQueue g_pq[MAX_LCORES];
+pq_t g_pq[MAX_LCORES];
 
 volatile bool force_quit = false;
 
@@ -183,9 +183,6 @@ void dp_start(vlib_main_t *vm)
 #if defined(HAVE_DPDK)
 	dp_init_dpdk(vm);
 	dp_start_dpdk(vm);
-#else
-	vm->nb_lcores = MAX_LCORES;
-	dp_start_pcap(vm);
 #endif
 
 	/** init thread vars for dataplane. */
@@ -206,8 +203,6 @@ void dp_end(vlib_main_t *vm)
 {
 #if defined(HAVE_DPDK)
 	dp_end_dpdk(vm);
-#else
-	dp_end_pcap(vm);
 #endif
 }
 

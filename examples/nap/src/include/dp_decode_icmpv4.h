@@ -235,7 +235,7 @@ int DecodePartialIPv4(packet_t* p, uint8_t* partial_packet, uint16_t len)
  *  \brief Main ICMPv4 decoding function
  */
 static __oryx_always_inline__
-int DecodeICMPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, PacketQueue *pq)
+int DecodeICMPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, uint8_t *pkt, uint16_t len, pq_t *pq)
 {
 	oryx_logd("ICMPv4");
 	

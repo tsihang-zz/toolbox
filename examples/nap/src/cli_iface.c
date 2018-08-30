@@ -524,6 +524,76 @@ static void register_ports(void)
 
 
 static __oryx_always_inline__
+void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
+			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
+
+{
+	int i;
+	uint64_t nr_rx_pkts;
+	uint64_t nr_rx_bytes;
+	uint64_t nr_tx_pkts;
+	uint64_t nr_tx_bytes;
+
+	int lcore;
+	uint64_t lcore_nr_rx_pkts[MAX_LCORES];
+	uint64_t lcore_nr_rx_bytes[MAX_LCORES];
+	uint64_t lcore_nr_tx_pkts[MAX_LCORES];
+	uint64_t lcore_nr_tx_bytes[MAX_LCORES];
+
+	static oryx_file_t *fp;
+	const char *healthy_file = "/data/iface_healthy.txt";
+	char file_null[64] = "cat /dev/null > ";
+	int each;
+	oryx_vector vec = vlib_iface_main.entry_vec;
+	struct iface_t *iface;
+
+	strcat(file_null, healthy_file);
+	system(file_null);
+
+	if(!fp) {
+		fp = fopen(healthy_file, "a+");
+		if(!fp) return;
+	}
+
+	vec_foreach_element(vec, each, iface){
+		if (!iface)
+			continue;
+		{
+			/* reset counter. */
+			nr_rx_bytes = nr_rx_pkts = nr_tx_bytes = nr_tx_pkts = 0;
+			
+			for (lcore = 0; lcore < MAX_LCORES; lcore ++) {
+
+				lcore_nr_rx_bytes[lcore] = lcore_nr_rx_pkts[lcore] =\
+					lcore_nr_tx_bytes[lcore] = lcore_nr_tx_pkts[lcore] = 0;
+				
+				lcore_nr_rx_pkts[lcore] = oryx_counter_get(iface_perf(iface),
+					iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore]);
+				lcore_nr_rx_bytes[lcore] = oryx_counter_get(iface_perf(iface),
+					iface->if_counter_ctx->lcore_counter_bytes[QUA_RX][lcore]);
+				nr_rx_bytes += lcore_nr_rx_bytes[lcore];
+				nr_rx_pkts += lcore_nr_rx_pkts[lcore];
+
+				lcore_nr_tx_pkts[lcore] = oryx_counter_get(iface_perf(iface),
+					iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][lcore]);
+				lcore_nr_tx_bytes[lcore] = oryx_counter_get(iface_perf(iface),
+					iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][lcore]);
+				nr_tx_bytes += lcore_nr_tx_bytes[lcore];
+				nr_tx_pkts += lcore_nr_tx_pkts[lcore];
+			}
+
+			fprintf (fp, "=== %s\n", iface_alias(iface));
+			fprintf (fp, "%12s%12lu", "Rx pkts:", nr_rx_pkts);
+			fprintf (fp, "%12s%12lu", "Rx bytes:", nr_rx_bytes);
+
+
+			fflush(fp);
+		}
+	}
+}
+
+
+static __oryx_always_inline__
 void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
 			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
 {
@@ -578,9 +648,15 @@ void vlib_iface_init(vlib_main_t *vm)
 							(TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
 							iface_activity_prob_tmr_handler,
 							0, NULL, pm->link_detect_tmr_interval);
-
 	if(likely(pm->link_detect_tmr))
 		oryx_tmr_start(pm->link_detect_tmr);
+
+	pm->healthy_tmr = oryx_tmr_create(1, "iface healthy monitoring tmr", 
+							(TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
+							iface_healthy_tmr_handler,
+							0, NULL, 3);
+	if(likely(pm->healthy_tmr))
+		oryx_tmr_start(pm->healthy_tmr);
 
 	vm->ul_flags |= VLIB_PORT_INITIALIZED;
 }
