@@ -92,7 +92,7 @@
 #define ICMP_HOST_UNR_TOS       12
 #endif
 #ifndef ICMP_PKT_FILTERED
-#define ICMP_PKT_FILTERED       13      /* Packet filtered */
+#define ICMP_PKT_FILTERED       13      /* packet_t filtered */
 #endif
 #ifndef ICMP_PREC_VIOLATION
 #define ICMP_PREC_VIOLATION     14      /* Precedence violation */

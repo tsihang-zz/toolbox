@@ -563,7 +563,7 @@ static int oryx_log2_buffer(
  * which will lock tv_root_lock. This can happen while we already hold this
  * lock. */
 #if 0
-                ThreadVars *tv = TmThreadsGetCallingThread();
+                threadvar_ctx_t *tv = TmThreadsGetCallingThread();
                 cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - *msg),
                               "%s%s", substr, ((tv != NULL)? tv->name: "UNKNOWN TM"));
 #endif

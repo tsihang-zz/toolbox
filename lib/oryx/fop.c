@@ -200,7 +200,7 @@ void oryx_ipaddr_generate (char *ipv4)
 	uint32_t rand = __os_rand;
 	int a = 0, b = 0, c = 0, d = 0;
 	char aa[4], bb[4], cc[4], dd[4];
-	u8 mask;
+	uint8_t mask;
 	char maskp[4];
 	
 	a = next_rand_ (&rand) % 256;
@@ -599,7 +599,7 @@ strlcat(char *d, const char *s, size_t bufsize)
  * \param len len of the string sent in s.
  */
 __oryx_always_extern__
-void memcpy_tolower (u8 *d, u8 *s, u16 len)
+void memcpy_tolower (uint8_t *d, uint8_t *s, uint16_t len)
 {
     uint16_t i;
 	
