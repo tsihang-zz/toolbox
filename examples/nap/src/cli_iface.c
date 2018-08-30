@@ -583,10 +583,10 @@ void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
 			}
 
 			fprintf (fp, "=== %s\n", iface_alias(iface));
-			fprintf (fp, "%12s%12lu", "Rx pkts:", nr_rx_pkts);
-			fprintf (fp, "%12s%12lu", "Rx bytes:", nr_rx_bytes);
+			fprintf (fp, "%12s%12s%12lu", " ", "Rx pkts:", nr_rx_pkts);
+			fprintf (fp, "%12s%12s%12lu", " ", "Rx bytes:", nr_rx_bytes);
 
-
+			fprintf (fp, "%s", "\n");
 			fflush(fp);
 		}
 	}
