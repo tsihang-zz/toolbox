@@ -73,12 +73,21 @@ typedef union MarvellDSAHdr_ {
 #define DSA_IS_INGRESS(dsa)		(DSA_CMD(dsa) == DSA_CMD_INGRESS)
 #define DSA_IS_EGRESS(dsa)		(DSA_CMD(dsa) == DSA_CMD_EGRESS)
 
-/** DSA header length */
-#define DSA_HEADER_LEN (12 + 4 + 2 /** eth_type*/)
-
 /** DSA extend header length */
 #define DSA_EXTEND_HEADER_LEN 8
 
+/** sizeof MarvellDSAHdr */
+#define DSA_HEADER_LEN	4
+
+/** DSA header length */
+#define ETHERNET_DSA_HEADER_LEN (ETHERNET_HEADER_LEN + DSA_HEADER_LEN)
+
+typedef struct MarvellDSAEthernetHdr_ {
+    uint8_t eth_dst[6];
+    uint8_t eth_src[6];
+    MarvellDSAHdr dsah;
+    uint16_t eth_type;
+} __attribute__((__packed__)) MarvellDSAEthernetHdr;
 
 #endif
 

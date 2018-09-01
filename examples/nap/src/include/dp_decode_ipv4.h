@@ -711,7 +711,7 @@ int DecodeIPv40(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, u
             }
             break;
 	#endif
-        case IPPROTO_ICMPV6:
+        case IPPROTO_ICMPv6:
 			oryx_logd("ICMPv6");
             ENGINE_SET_INVALID_EVENT(p, IPv4_WITH_ICMPV6);
             break;

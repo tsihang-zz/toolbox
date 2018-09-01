@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = vscan
 
 # all source are stored in SRCS-y
-SRCS-y := main.c rx.c
+SRCS-y := main.c rx.c mpm.c mpm_ac.c mpm_hs.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)

@@ -226,7 +226,6 @@ typedef signed long long i64;
 typedef unsigned char u8;
 typedef unsigned char uchar;
 typedef unsigned short u16;
-typedef unsigned int uint32_t;
 /* Floating point types. */
 typedef double f64;
 typedef float f32;

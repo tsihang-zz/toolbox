@@ -172,7 +172,7 @@ void DecodeIPv6ExtHdrs(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_
                 DecodeUDP0(tv, dtv, p, pkt, plen, pq);
                 return;
 
-            case IPPROTO_ICMPV6:
+            case IPPROTO_ICMPv6:
                 IPv6_SET_L4PROTO(p,nh);
                 DecodeICMPv60(tv, dtv, p, pkt, plen, pq);
                 return;
@@ -604,8 +604,8 @@ int DecodeIPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p, u
             IPv6_SET_L4PROTO (p, IPPROTO_UDP);
             DecodeUDP0(tv, dtv, p, pkt + IPv6_HEADER_LEN, IPv6_GET_PLEN(p), pq);
             return TM_ECODE_OK;
-        case IPPROTO_ICMPV6:
-            IPv6_SET_L4PROTO (p, IPPROTO_ICMPV6);
+        case IPPROTO_ICMPv6:
+            IPv6_SET_L4PROTO (p, IPPROTO_ICMPv6);
             DecodeICMPv60(tv, dtv, p, pkt + IPv6_HEADER_LEN, IPv6_GET_PLEN(p), pq);
             return TM_ECODE_OK;
         case IPPROTO_SCTP:

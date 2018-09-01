@@ -15,6 +15,7 @@
 #include "dp_decode_vlan.h"
 #include "dp_decode_marvell_dsa.h"
 #include "dp_decode_eth.h"
+#include "dp_decode_http.h"
 
 #include "iface_private.h"
 #include "map_private.h"
@@ -134,14 +135,27 @@ uint32_t ipv4_hash_crc(const void *data, __rte_unused uint32_t data_len,
 	return init_val;
 }
 
+static __oryx_always_inline__
+void dp_load_frame_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt, uint32_t ipoff)
+{
+	void *iph;
+
+	iph = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipoff);
+	iph = (uint8_t *)iph + offsetof(struct ipv4_hdr, time_to_live);
+	/*
+	 * Get 5 tuple: dst port, src port, dst IP address,
+	 * src IP address and protocol.
+	 */
+	key->xmm = em_mask_key(iph, mask0.x);
+}
 
 static __oryx_always_inline__
-void dp_dump_packet_key(struct rte_mbuf *pkt, uint32_t ipv4h_offset)
+void dp_dump_packet_key4(struct rte_mbuf *pkt, uint32_t ipoff)
 {
 	union ipv4_5tuple_host key;
 	void *ipv4h;
 	
-	ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipv4h_offset);
+	ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipoff);
 	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
 	/*
 	 * Get 5 tuple: dst port, src port, dst IP address,
@@ -348,52 +362,151 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 	struct iface_t		*rx_panel_iface = NULL;
 	
 	p = GET_MBUF_PRIVATE(packet_t, pkt);
-	p->iphd_offset = 0;
-	p->dsa = 0;
 
-	if (iface_support_marvell_dsa(rx_iface)) {
-			uint16_t ether_type;
-			uint8_t rx_panel_port_id;
-			MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(pkt, MarvellDSAEthernetHdr *);
-			
-			ether_type = dsaeth->eth_type;
-			p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
-			rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
+	/* ethernet type. */
+	uint16_t ether_type;
+
+	/* offset of every header. */
+	size_t nroff = ETHERNET_HEADER_LEN;
+
+	size_t pkt_len = 0;
+	uint8_t rx_panel_port_id;
+	const bool dsa_support = iface_support_marvell_dsa(rx_iface);
+
+#if 1
+	if (dsa_support) {
+		/* change default if we get a dsa frame. */
+		nroff = ETHERNET_DSA_HEADER_LEN;
+		
+		MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(pkt, MarvellDSAEthernetHdr *);
+		p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
+		ether_type = dsaeth->eth_type;
+		rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
+		
 
 #if defined(BUILD_DEBUG)
-			oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
-			oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
-			oryx_logn("%20s%4ld", "iphd_offset: ", 		OFF_DSAETHHEAD);
-			PrintDSA("RX", p->dsa, QUA_RX);
-			dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
+		oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
+		oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
+		PrintDSA("RX", p->dsa, QUA_RX);
+		dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
+#endif		
+		/* Rx statistics on an ethernet GE port. */
+		if (rx_panel_port_id > SW_PORT_OFFSET) {
+			iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
+			iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
+		}
+		
+		/* DSA is invalid. */
+		if (!DSA_IS_INGRESS(p->dsa)) {
+			dp_free_packet(tv, dtv, pkt);
+			return;
+		}
+
+	} else {
+		EthernetHdr *eth = rte_pktmbuf_mtod(pkt, EthernetHdr *);
+		ether_type = eth->eth_type;		
+	}
+
+	if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IP)) {
+#if defined(BUILD_DEBUG)
+		dp_dump_packet_key4(pkt, nroff);
+#endif
+		nroff += IPv4_HEADER_LEN;		/* start from IPv4 header to offset of the next layer header. */
+		acl->data_ipv4[acl->num_ipv4]	= dsa_support ? DSA_MBUF_IPv4_2PROTO(pkt) : MBUF_IPv4_2PROTO(pkt);
+		acl->m_ipv4[acl->num_ipv4]		= pkt;
+		acl->num_ipv4 ++;
+
+
+#if defined(HAVE_HTTP_PARSER)
+		/* HTTP acl is registered. */
+		if (0) {
+			union ipv4_5tuple_host k4;
+			/* load IPv4 key. */
+			dp_load_frame_key4(&k4, pkt, nroff);
+			if(k4.port_src == 80 || k4.port_dst == 80) {
+				if (k4.proto == IPPROTO_TCP)
+					nroff += TCP_HEADER_LEN;	/* offset to application header skip TCP. */
+				else if (k4.proto == IPPROTO_SCTP)
+					nroff += SCTP_HEADER_LEN;	/* offset to application header skip SCTP. */
+				else if (k4.proto == IPPROTO_UDP)
+					nroff += UDP_HEADER_LEN;	/* offset to application header skip UDP. */
+				else {
+					fprintf (stdout, "Unknown L4 header.\n");
+					return;
+				}
+				/* redirect to Application Layer */
+				char *v = rte_pktmbuf_mtod_offset(pkt, char *, nroff);
+				struct http_ctx_t ctx;
+				if (!http_parse(&ctx, v, 0)) {
+					if (ctx.method == HTTP_METHOD_GET &&
+						http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.uri)) {
+						__http_kv_dump("Hit URI", &ctx.uri);
+					} else {
+						if (http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct))
+							__http_kv_dump("Hit Content-Type", &ctx.ct);
+					}
+					//http_dump(&ctx, http_start, http_len);
+				}
+
+			}
+		}
+#endif
+	} else if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IPv6)) {
+		nroff += IPv6_HEADER_LEN;
+		/* Fill acl structure */
+		acl->data_ipv6[acl->num_ipv6]	= dsa_support ? DSA_MBUF_IPv6_2PROTO(pkt) : MBUF_IPv6_2PROTO(pkt);
+		acl->m_ipv6[acl->num_ipv6]		= pkt;
+		acl->num_ipv6 ++;
+	} else {
+		acl->m_notip[(acl->num_notip)++] = pkt;
+		/* Unknown type, a simplified drop for the packet */
+		dp_free_packet(tv, dtv, pkt);
+		return;
+	}
+	
+#else
+	if (iface_support_marvell_dsa(rx_iface)) {
+		uint16_t ether_type;
+		uint8_t rx_panel_port_id;
+		MarvellDSAEthernetHdr *dsaeth = rte_pktmbuf_mtod(pkt, MarvellDSAEthernetHdr *);
+		
+		ether_type = dsaeth->eth_type;
+		p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
+		rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
+
+#if defined(BUILD_DEBUG)
+		oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
+		oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
+		PrintDSA("RX", p->dsa, QUA_RX);
+		dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
 #endif
 
-			/* Rx statistics on an ethernet GE port. */
-			if (rx_panel_port_id > SW_PORT_OFFSET) {
-				iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
-				iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
-			}
+		/* Rx statistics on an ethernet GE port. */
+		if (rx_panel_port_id > SW_PORT_OFFSET) {
+			iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
+			iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
+		}
 
-			/* DSA is invalid. */
-			if (!DSA_IS_INGRESS(p->dsa)) {
-				dp_free_packet(tv, dtv, pkt);
-				return;
-			}
-			
-			if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4)) {
-				/* Fill acl structure */
-				acl->data_ipv4[acl->num_ipv4]	= DSA_MBUF_IPv4_2PROTO(pkt);
-				acl->m_ipv4[acl->num_ipv4]		= pkt;
-				acl->num_ipv4 ++;
-		#if defined(BUILD_DEBUG)
-				dp_dump_packet_key(pkt, sizeof(MarvellDSAEthernetHdr));
-		#endif
-			} else if (ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
-				/* Fill acl structure */
-				acl->data_ipv6[acl->num_ipv6]	= DSA_MBUF_IPv6_2PROTO(pkt);
-				acl->m_ipv6[acl->num_ipv6]		= pkt;
-				acl->num_ipv6 ++;
-			} else {
+		/* DSA is invalid. */
+		if (!DSA_IS_INGRESS(p->dsa)) {
+			dp_free_packet(tv, dtv, pkt);
+			return;
+		}
+		
+		if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IP)) {
+			/* Fill acl structure */
+			acl->data_ipv4[acl->num_ipv4]	= DSA_MBUF_IPv4_2PROTO(pkt);
+			acl->m_ipv4[acl->num_ipv4]		= pkt;
+			acl->num_ipv4 ++;
+	#if defined(BUILD_DEBUG)
+			dp_dump_packet_key(pkt, sizeof(MarvellDSAEthernetHdr));
+	#endif
+		} else if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IPv6)) {
+			/* Fill acl structure */
+			acl->data_ipv6[acl->num_ipv6]	= DSA_MBUF_IPv6_2PROTO(pkt);
+			acl->m_ipv6[acl->num_ipv6]		= pkt;
+			acl->num_ipv6 ++;
+		} else {
 			acl->m_notip[(acl->num_notip)++] = pkt;
 			/* Unknown type, a simplified drop for the packet */
 			dp_free_packet(tv, dtv, pkt);
@@ -424,6 +537,7 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 			return;
 		}
 	}
+#endif
 }
 
 static __oryx_always_inline__
@@ -597,7 +711,6 @@ int main_loop (void *ptr_data)
 	const uint64_t	drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
 							US_PER_S * BURST_TX_DRAIN_US;
 
-	packet_t			*p;
 	threadvar_ctx_t		*tv;
 	decode_threadvar_ctx_t	*dtv;
 	vlib_main_t		*vm = (vlib_main_t *)ptr_data;
@@ -608,8 +721,6 @@ int main_loop (void *ptr_data)
 	struct iface_t		*rx_cpu_iface = NULL;
 	struct rte_mbuf		*pkts_burst[DPDK_MAX_RX_BURST];
 	
-	uint8_t *pkt;
-
 	prev_tsc = 0;
 	timer_tsc = 0;
 

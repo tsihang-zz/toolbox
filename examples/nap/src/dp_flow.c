@@ -316,7 +316,7 @@ static __oryx_always_inline__ void FlowUpdateCounter(threadvar_ctx_t *tv, decode
             case IPPROTO_ICMP:
                 oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_icmp4);
                 break;
-            case IPPROTO_ICMPV6:
+            case IPPROTO_ICMPv6:
                 oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_flow_icmp6);
                 break;
         }

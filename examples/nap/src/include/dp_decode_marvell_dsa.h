@@ -30,14 +30,6 @@ void PrintDSA(const char *comment, uint32_t cpu_dsa, uint8_t rx_tx)
 									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 
-typedef struct MarvellDSAEthernetHdr_ {
-    uint8_t eth_dst[6];
-    uint8_t eth_src[6];
-    MarvellDSAHdr dsah;
-    uint16_t eth_type;
-} __attribute__((__packed__)) MarvellDSAEthernetHdr;
-
-
 /**
  * \internal
  * \brief this function is used to decode Marvell DSA packets
@@ -59,7 +51,7 @@ int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
 	oryx_logd("Marvell DSA ...");
 
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_dsa);
-	if (unlikely(len < DSA_HEADER_LEN)) {
+	if (unlikely(len < ETHERNET_DSA_HEADER_LEN)) {
 		ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_TOO_SMALL);
 		return TM_ECODE_FAILED;
 	}
@@ -78,34 +70,34 @@ int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
 
 	switch (ntoh16(dsaeth->eth_type)) {
 			case ETHERNET_TYPE_IP:
-				DecodeIPv40(tv, dtv, p, pkt + DSA_HEADER_LEN,
-						   len - DSA_HEADER_LEN, pq);
+				DecodeIPv40(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+						   len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_IPv6:
-				DecodeIPv60(tv, dtv, p, pkt + DSA_HEADER_LEN,
-						   len - DSA_HEADER_LEN, pq);
+				DecodeIPv60(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+						   len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_PPPOE_SESS:
-				DecodePPPoESession0(tv, dtv, p, pkt + DSA_HEADER_LEN,
-								   len - DSA_HEADER_LEN, pq);
+				DecodePPPoESession0(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+								   len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_PPPOE_DISC:
-				DecodePPPoEDiscovery0(tv, dtv, p, pkt + DSA_HEADER_LEN,
-									 len - DSA_HEADER_LEN, pq);
+				DecodePPPoEDiscovery0(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+									 len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_VLAN:
 			case ETHERNET_TYPE_8021QINQ:
-				DecodeVLAN0(tv, dtv, p, pkt + DSA_HEADER_LEN,
-									 len - DSA_HEADER_LEN, pq);
+				DecodeVLAN0(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+									 len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_MPLS_UNICAST:
 			case ETHERNET_TYPE_MPLS_MULTICAST:
-				DecodeMPLS0(tv, dtv, p, pkt + DSA_HEADER_LEN,
-						   len - DSA_HEADER_LEN, pq);
+				DecodeMPLS0(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+						   len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			case ETHERNET_TYPE_ARP:
-				DecodeARP0(tv, dtv, p, pkt + DSA_HEADER_LEN,
-					 len - DSA_HEADER_LEN, pq);
+				DecodeARP0(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
+					 len - ETHERNET_DSA_HEADER_LEN, pq);
 				break;
 			default:
 		#if defined(BUILD_DEBUG)

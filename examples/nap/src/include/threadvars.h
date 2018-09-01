@@ -2,8 +2,6 @@
 #ifndef THREADVARS_H
 #define THREADVARS_H
 
-//#include "counters.h"
-
 /** \brief Per thread variable structure */
 typedef struct ThreadVars_ {
     pthread_t t;

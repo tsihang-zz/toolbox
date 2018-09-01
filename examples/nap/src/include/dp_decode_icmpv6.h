@@ -195,7 +195,7 @@ void DecodePartialIPv6(packet_t *p, uint8_t *partial_packet, uint16_t len )
 			}
 
 			break;
-		case IPPROTO_ICMPV6:
+		case IPPROTO_ICMPv6:
 			p->icmpv6vars.emb_icmpv6h = (ICMPV6Hdr*)(partial_packet + IPv6_HEADER_LEN);
 			p->icmpv6vars.emb_sport = 0;
 			p->icmpv6vars.emb_dport = 0;
@@ -248,7 +248,7 @@ int DecodeICMPv60(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t *p,
 	}
 
 	p->icmpv6h = (ICMPV6Hdr *)pkt;
-	p->proto = IPPROTO_ICMPV6;
+	p->proto = IPPROTO_ICMPv6;
 	p->type = p->icmpv6h->type;
 	p->code = p->icmpv6h->code;
 	p->payload_len = len - ICMPV6_HEADER_LEN;

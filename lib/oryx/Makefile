@@ -53,7 +53,7 @@ SRCS-y :=\
    cluster.c counter.c debug.c format.c fop.c rbtree.c ipc.c lq.c \
    memcache.c oryx.c error.c atomic.c netdev_pcap.c ring.c mpool.c parser.c task.c htable.c memory.c \
    socket.c socket6.c mdx.c netdev.c netdev_pfring.c lru.c list.c tmr.c vec.c conf.c \
-   conf-yaml-loader.c mpm.c mpm_ac.c mpm_hs.c
+   conf-yaml-loader.c
 
 
 #CFLAGS += $(WERROR_FLAGS)

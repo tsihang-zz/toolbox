@@ -171,8 +171,8 @@ typedef struct ICMPV4Vars_
 } ICMPV4Vars;
 
 
-#ifndef IPPROTO_ICMPV6
-#define IPPROTO_ICMPV6 58
+#ifndef IPPROTO_ICMPv6
+#define IPPROTO_ICMPv6 58
 #endif
 
 #define ICMPV6_HEADER_LEN       8
