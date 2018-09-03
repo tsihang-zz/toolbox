@@ -4,7 +4,7 @@
 static struct iface_t iface_list[] = {
 	{
 		.sc_alias_fixed	=	"eth0",
-		.type			=	ETH_XE,
+		.type			=	ETH_GE,
 		.ul_flags		=	NETDEV_PANEL,
 		.if_poll_state	=	iface_poll_linkstate,
 		.if_poll_up 	=	iface_poll_up,
@@ -24,7 +24,7 @@ static struct iface_t iface_list[] = {
 
 	{
 		.sc_alias_fixed =	"eth1",
-		.type			=	ETH_XE,
+		.type			=	ETH_GE,
 		.ul_flags		=	NETDEV_PANEL,
 		.if_poll_state	=	iface_poll_linkstate,
 		.if_poll_up 	=	iface_poll_up,

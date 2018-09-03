@@ -66,7 +66,7 @@ struct appl_t {
 	uint32_t			ul_flags;			/** */
 	uint8_t				uc_keyword_encrypt[256];	/** RC4 encrypt keyword. */
 	char				*sc_keyword;		/** Keyword before enctypt. */
-	uint64_t			ull_create_time;
+	uint64_t			create_time;
 	os_mutex_t			ol_lock;
 
 	uint32_t			ul_map_mask;		/** map for this application belong to. */
@@ -88,6 +88,9 @@ struct appl_t {
 	uint16_t			l4_port_src_mask;
 	uint16_t			l4_port_dst;		/** */
 	uint16_t			l4_port_dst_mask;	/** if l4_port_dst is */
+
+
+	uint64_t			refcnt;				/* refcnt for every hit. */
 
 }__attribute__((__packed__));
 

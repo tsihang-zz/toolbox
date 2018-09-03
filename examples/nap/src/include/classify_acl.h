@@ -78,7 +78,7 @@ struct acl_route {
 #define DSA_MBUF_IPv6_2PROTO(m)	\
 	rte_pktmbuf_mtod_offset((m), uint8_t *, ETHERNET_DSA_HEADER_LEN + OFF_IPv62PROTO)
 
-struct acl_search_t {
+struct parser_ctx_t {
 	const uint8_t *data_ipv4[DPDK_MAX_RX_BURST];
 	struct rte_mbuf *m_ipv4[DPDK_MAX_RX_BURST];
 	uint32_t res_ipv4[DPDK_MAX_RX_BURST];

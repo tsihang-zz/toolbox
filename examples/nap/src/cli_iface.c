@@ -495,13 +495,14 @@ static void register_ports(void)
 	for (i = 0; i < (int)DIM(iface_list); i ++) {
 
 		this = &iface_list[i];
-		
+	#if 0	
 		/** lan1-lan8 are not vfio-pci drv iface. */
 		if (this->type == ETH_GE && (this->ul_flags & NETDEV_PANEL)) {
 			if (!netdev_exist(this->sc_alias_fixed)) {
 				continue;
 			}
 		}
+	#endif
 		
 		iface_alloc(&new);
 		if (!new) {

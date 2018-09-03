@@ -64,7 +64,7 @@ struct udp_t {
 	uint32_t ul_dpo;
 
 	/** Create time. */
-	uint64_t			ull_create_time;
+	uint64_t			create_time;
 
 	/** Which map this udp_t belongs to. */
 	oryx_vector qua[QUAS];

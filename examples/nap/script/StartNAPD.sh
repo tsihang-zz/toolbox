@@ -128,7 +128,9 @@ dpdk_start_nap() {
 	
 	wait_sec=5
 
-	nohup $app_bin -c 0xf -n 2 -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)" >> $logfile 2>&1 &
+	# config="(port,queue,lcore)"
+	#nohup $app_bin -c 0xf -n 2 -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)" >> $logfile 2>&1 &
+	nohup $app_bin -c 0xf -n 2 -- -p 0x3 --config="(0,0,1),(0,1,2),(1,0,1),(1,1,2)" >> $logfile 2>&1 &
 
 	echo "Starting $app_bin ... (wait $wait_sec secs)"	
 	sleep $wait_sec

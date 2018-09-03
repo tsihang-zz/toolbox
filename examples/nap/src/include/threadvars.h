@@ -23,6 +23,8 @@ typedef struct ThreadVars_ {
 	struct ThreadVars_ *next;
     struct ThreadVars_ *prev;
 
+	uint64_t	cur_tsc;
+	
 	/** decode ops. */
 	void *d_ops;
 }threadvar_ctx_t;

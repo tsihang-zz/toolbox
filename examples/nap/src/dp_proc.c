@@ -24,6 +24,8 @@
 #include "dpdk_classify.h"
 #include "util_map.h"
 
+#include "mpm.h"
+
 extern volatile bool force_quit;
 extern threadvar_ctx_t g_tv[];
 extern decode_threadvar_ctx_t g_dtv[];
@@ -150,25 +152,15 @@ void dp_load_frame_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt, uint3
 }
 
 static __oryx_always_inline__
-void dp_dump_packet_key4(struct rte_mbuf *pkt, uint32_t ipoff)
+void dp_dump_packet_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt)
 {
-	union ipv4_5tuple_host key;
-	void *ipv4h;
-	
-	ipv4h = rte_pktmbuf_mtod_offset(pkt, struct ipv4_hdr *, ipoff);
-	ipv4h = (uint8_t *)ipv4h + offsetof(struct ipv4_hdr, time_to_live);
-	/*
-	 * Get 5 tuple: dst port, src port, dst IP address,
-	 * src IP address and protocol.
-	 */
-	key.xmm = em_mask_key(ipv4h, mask0.x);
 	char s[16];
 	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
-	oryx_logn ("%16s%s", "ip_src: ",		inet_ntop(AF_INET, &key.ip_src, s, 16));
-	oryx_logn ("%16s%s", "ip_dst: ",		inet_ntop(AF_INET, &key.ip_dst, s, 16));
-	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key.port_src));
-	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key.port_dst));
-	oryx_logn ("%16s%08d", "protocol: ",	key.proto);
+	oryx_logn ("%16s%s", "ip_src: ",		inet_ntop(AF_INET, &key->ip_src, s, 16));
+	oryx_logn ("%16s%s", "ip_dst: ",		inet_ntop(AF_INET, &key->ip_dst, s, 16));
+	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key->port_src));
+	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key->port_dst));
+	oryx_logn ("%16s%08d", "protocol: ",	key->proto);
 	oryx_logn ("%16s%08u", "RSS: ", 		pkt->hash.rss);
 
 }
@@ -351,10 +343,96 @@ flush2_buffer:
 	
 	return 0;
 }
+		
+#if defined(HAVE_MPM)
+static int pattern_id;
+static mpm_ctx_t mpm_ctx;
+static mpm_threadctx_t mpm_thread_ctx;
+static PrefilterRuleStore pmq;
+
+static void mpm_install_content_type(mpm_ctx_t *mpm_ctx)
+{
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
+			0, 0, pattern_id ++, 0, 0); 
+}
+
+int http_match(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v)
+{
+return mpm_pattern_search(mpm_ctx, mpm_thread_ctx, pmq,
+			(uint8_t *)&v->val[0], v->valen);
+}
+#endif
+
+static __oryx_always_inline__
+void dp_parse_http(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
+			struct rte_mbuf *pkt, size_t *nr_off, union ipv4_5tuple_host *k)
+{
+	/* HTTP acl is registered. */
+	size_t nroff = (*nr_off);
+	/* redirect to start of this layer */
+	char *v = rte_pktmbuf_mtod_offset(pkt, char *, nroff);
+	struct http_ctx_t ctx;
+
+	if(k->proto != IPPROTO_TCP && k->proto != IPPROTO_UDP)
+		return;
+	
+	if(ntoh16(k->port_src) == 80 || ntoh16(k->port_dst) == 80) {
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_http);
+		//dp_dump_packet_key4(k, pkt);
+		if(!http_parse(&ctx, v, 0)) {
+#if defined(HAVE_MPM)
+			if(ctx.method == HTTP_METHOD_GET &&
+				http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.uri)) {
+				__http_kv_dump("Hit URI", &ctx.uri);
+			} else {
+				if(http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct))
+					__http_kv_dump("Hit Content-Type", &ctx.ct);
+			}
+#endif
+		}
+	}
+}
+
+static __oryx_always_inline__
+void dp_parse_key4(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
+			struct rte_mbuf *pkt, size_t *nr_off, union ipv4_5tuple_host *k)
+{
+	size_t nroff = (*nr_off);
+	
+	if (k->proto == IPPROTO_TCP) {
+		nroff += TCP_HEADER_LEN;	/* offset to application header skip TCP. */
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_tcp);
+	}
+	else if (k->proto == IPPROTO_SCTP) {
+		nroff += SCTP_HEADER_LEN;	/* offset to application header skip SCTP. */
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_sctp);
+	}
+	else if (k->proto == IPPROTO_UDP) {
+		nroff += UDP_HEADER_LEN;	/* offset to application header skip UDP. */
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_udp);
+	}
+	else {
+		return;
+	}
+
+	(*nr_off) = nroff;
+}
 
 static __oryx_always_inline__
 void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int index)
+	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct parser_ctx_t *parser, int index)
 {
 	packet_t			*p;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
@@ -404,66 +482,39 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 
 	} else {
 		EthernetHdr *eth = rte_pktmbuf_mtod(pkt, EthernetHdr *);
-		ether_type = eth->eth_type;		
+		ether_type = eth->eth_type;
 	}
 
 	if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IP)) {
+		union ipv4_5tuple_host k4;
+		/* load IPv4 key. */
+		dp_load_frame_key4(&k4, pkt, nroff);
 #if defined(BUILD_DEBUG)
-		dp_dump_packet_key4(pkt, nroff);
+		dp_dump_packet_key4(&k4, pkt);
 #endif
+		/* IPv4 frame statistics. */
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv4);
 		nroff += IPv4_HEADER_LEN;		/* start from IPv4 header to offset of the next layer header. */
-		acl->data_ipv4[acl->num_ipv4]	= dsa_support ? DSA_MBUF_IPv4_2PROTO(pkt) : MBUF_IPv4_2PROTO(pkt);
-		acl->m_ipv4[acl->num_ipv4]		= pkt;
-		acl->num_ipv4 ++;
-
-
-#if defined(HAVE_HTTP_PARSER)
-		/* HTTP acl is registered. */
-		if (0) {
-			union ipv4_5tuple_host k4;
-			/* load IPv4 key. */
-			dp_load_frame_key4(&k4, pkt, nroff);
-			if(k4.port_src == 80 || k4.port_dst == 80) {
-				if (k4.proto == IPPROTO_TCP)
-					nroff += TCP_HEADER_LEN;	/* offset to application header skip TCP. */
-				else if (k4.proto == IPPROTO_SCTP)
-					nroff += SCTP_HEADER_LEN;	/* offset to application header skip SCTP. */
-				else if (k4.proto == IPPROTO_UDP)
-					nroff += UDP_HEADER_LEN;	/* offset to application header skip UDP. */
-				else {
-					fprintf (stdout, "Unknown L4 header.\n");
-					return;
-				}
-				/* redirect to Application Layer */
-				char *v = rte_pktmbuf_mtod_offset(pkt, char *, nroff);
-				struct http_ctx_t ctx;
-				if (!http_parse(&ctx, v, 0)) {
-					if (ctx.method == HTTP_METHOD_GET &&
-						http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.uri)) {
-						__http_kv_dump("Hit URI", &ctx.uri);
-					} else {
-						if (http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct))
-							__http_kv_dump("Hit Content-Type", &ctx.ct);
-					}
-					//http_dump(&ctx, http_start, http_len);
-				}
-
-			}
-		}
-#endif
+		parser->data_ipv4[parser->num_ipv4]	= dsa_support ? DSA_MBUF_IPv4_2PROTO(pkt) : MBUF_IPv4_2PROTO(pkt);
+		parser->m_ipv4[parser->num_ipv4]		= pkt;
+		parser->num_ipv4 ++;
+		dp_parse_key4(tv, dtv, pkt, &nroff, &k4);
+		dp_parse_http(tv, dtv, pkt, &nroff, &k4);
 	} else if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IPv6)) {
+		/* IPv6 frame statistics. */
+		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv6);
 		nroff += IPv6_HEADER_LEN;
 		/* Fill acl structure */
-		acl->data_ipv6[acl->num_ipv6]	= dsa_support ? DSA_MBUF_IPv6_2PROTO(pkt) : MBUF_IPv6_2PROTO(pkt);
-		acl->m_ipv6[acl->num_ipv6]		= pkt;
-		acl->num_ipv6 ++;
+		parser->data_ipv6[parser->num_ipv6]	= dsa_support ? DSA_MBUF_IPv6_2PROTO(pkt) : MBUF_IPv6_2PROTO(pkt);
+		parser->m_ipv6[parser->num_ipv6]		= pkt;
+		parser->num_ipv6 ++;
 	} else {
-		acl->m_notip[(acl->num_notip)++] = pkt;
+		parser->m_notip[(parser->num_notip)++] = pkt;
 		/* Unknown type, a simplified drop for the packet */
 		dp_free_packet(tv, dtv, pkt);
 		return;
 	}
-	
+
 #else
 	if (iface_support_marvell_dsa(rx_iface)) {
 		uint16_t ether_type;
@@ -495,19 +546,19 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 		
 		if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IP)) {
 			/* Fill acl structure */
-			acl->data_ipv4[acl->num_ipv4]	= DSA_MBUF_IPv4_2PROTO(pkt);
-			acl->m_ipv4[acl->num_ipv4]		= pkt;
-			acl->num_ipv4 ++;
+			parser->data_ipv4[parser->num_ipv4]	= DSA_MBUF_IPv4_2PROTO(pkt);
+			parser->m_ipv4[parser->num_ipv4]		= pkt;
+			parser->num_ipv4 ++;
 	#if defined(BUILD_DEBUG)
-			dp_dump_packet_key(pkt, sizeof(MarvellDSAEthernetHdr));
+			dp_dump_packet_key4(pkt, sizeof(MarvellDSAEthernetHdr));
 	#endif
 		} else if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IPv6)) {
 			/* Fill acl structure */
-			acl->data_ipv6[acl->num_ipv6]	= DSA_MBUF_IPv6_2PROTO(pkt);
-			acl->m_ipv6[acl->num_ipv6]		= pkt;
-			acl->num_ipv6 ++;
+			parser->data_ipv6[parser->num_ipv6]	= DSA_MBUF_IPv6_2PROTO(pkt);
+			parser->m_ipv6[parser->num_ipv6]		= pkt;
+			parser->num_ipv6 ++;
 		} else {
-			acl->m_notip[(acl->num_notip)++] = pkt;
+			parser->m_notip[(parser->num_notip)++] = pkt;
 			/* Unknown type, a simplified drop for the packet */
 			dp_free_packet(tv, dtv, pkt);
 			return;
@@ -516,22 +567,22 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 
 		if (RTE_ETH_IS_IPV4_HDR(pkt->packet_type)) {
 			/* Fill acl structure */
-			acl->data_ipv4[acl->num_ipv4]	= MBUF_IPv4_2PROTO(pkt);
-			acl->m_ipv4[acl->num_ipv4]		= pkt;
-			acl->num_ipv4 ++;
+			parser->data_ipv4[parser->num_ipv4]	= MBUF_IPv4_2PROTO(pkt);
+			parser->m_ipv4[parser->num_ipv4]		= pkt;
+			parser->num_ipv4 ++;
 		
 		#if defined(BUILD_DEBUG)
-			dp_dump_packet_key(pkt, sizeof(struct ether_hdr));
+			dp_dump_packet_key4(pkt, sizeof(struct ether_hdr));
 		#endif
 		} 
 		else if (RTE_ETH_IS_IPV6_HDR(pkt->packet_type)) {
 			/* Fill acl structure */
-			acl->data_ipv6[acl->num_ipv6]	= MBUF_IPv6_2PROTO(pkt);
-			acl->m_ipv6[acl->num_ipv6]		= pkt;
-			acl->num_ipv6 ++;
+			parser->data_ipv6[parser->num_ipv6]	= MBUF_IPv6_2PROTO(pkt);
+			parser->m_ipv6[parser->num_ipv6]		= pkt;
+			parser->num_ipv6 ++;
 		}
 		else {
-			acl->m_notip[(acl->num_notip)++] = pkt;
+			parser->m_notip[(parser->num_notip)++] = pkt;
 			/* Unknown type, a simplified drop for the packet */
 			dp_free_packet(tv, dtv, pkt);
 			return;
@@ -588,6 +639,8 @@ void dp_classify_post(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	oryx_logn ("%18s%15s(id=%08d)", "hit_appl: ", appl_alias(appl), appid);
 #endif
 
+	appl->refcnt ++;
+
 	for (i = 0; i < (int)appl->nb_maps; i ++) {
 		
 		struct appl_priv_t *priv = &appl->priv[i];
@@ -634,7 +687,8 @@ void dp_classify_post(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 			}
 		}
 	}
-	
+	/* everything is running okay, let's go back to the caller. */
+	return;
 finish:
 	dp_free_packet(tv, dtv, m);
 	return;
@@ -642,14 +696,14 @@ finish:
 
 static __oryx_always_inline__
 void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct acl_search_t *acl, int nb_rx)
+	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct parser_ctx_t *parser, int nb_rx)
 {
 	int i;
 
 	/* reset acl search context. */
-	acl->num_ipv4	= 0;
-	acl->num_ipv6	= 0;
-	acl->num_notip	= 0;
+	parser->num_ipv4	= 0;
+	parser->num_ipv6	= 0;
+	parser->num_notip	= 0;
 
 	/* Prefetch first packets */
 	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
@@ -660,12 +714,12 @@ void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
 				i + PREFETCH_OFFSET], void *));
-		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, acl, i);
+		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, parser, i);
 	}
 
 	/* Process left packets */
 	for (; i < nb_rx; i++) {
-		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, acl, i);
+		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, parser, i);
 	}
 }
 
@@ -690,6 +744,22 @@ void dp_classify (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	/* Process left packets */
 	for (; i < num; i++)
 		dp_classify_post(tv, dtv, rx_iface, qconf, m[i], res[i]);
+}
+
+void dp_init_mpm_ctx(void)
+{
+#if defined(HAVE_MPM)
+	mpm_table_setup();
+	memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
+	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));	
+	mpm_ctx_init(&mpm_ctx, MPM_HS);
+	mpm_pmq_setup(&pmq);
+	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
+
+	mpm_install_content_type(&mpm_ctx);
+	mpm_pattern_prepare(&mpm_ctx);	
+#endif
+	fprintf(stdout, "mpm init done.\n");
 }
 
 /* main processing loop */
@@ -730,6 +800,10 @@ int main_loop (void *ptr_data)
 	qconf		=	&lcore_conf[lcore_id];
 	socketid	=	rte_lcore_to_socket_id(lcore_id);
 
+	if(lcore_id == rte_get_master_lcore()) {
+		dp_init_mpm_ctx();
+	}
+	
 	/* record which TV this core belong to. */	
 	tv->lcore	=	lcore_id;
 
@@ -743,7 +817,7 @@ int main_loop (void *ptr_data)
 		sleep(1);
 	}
 
-	oryx_logn("entering main loop on lcore %u\n", tv->lcore);
+	oryx_logn("entering main loop @lcore %u @socket %d\n", tv->lcore, socketid);
 
 	for (i = 0; i < qconf->n_rx_queue; i++) {
 		rx_port_id = qconf->rx_queue_list[i].port_id;
@@ -755,12 +829,12 @@ int main_loop (void *ptr_data)
 
 	while (!force_quit) {
 
-		cur_tsc = rte_rdtsc();
+		tv->cur_tsc = rte_rdtsc();
 
 		/*
 		 * TX burst queue drain
 		 */
-		diff_tsc = cur_tsc - prev_tsc;
+		diff_tsc = tv->cur_tsc - prev_tsc;
 		if (unlikely(diff_tsc > drain_tsc)) {
 
 			for (i = 0; i < qconf->n_tx_port; ++i) {
@@ -789,7 +863,7 @@ int main_loop (void *ptr_data)
 				}
 			}
 
-			prev_tsc = cur_tsc;
+			prev_tsc = tv->cur_tsc;
 		}
 
 		/* SYNC */
@@ -826,7 +900,7 @@ int main_loop (void *ptr_data)
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
 			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
 
-			struct acl_search_t acl_search;
+			struct parser_ctx_t parser;
 			nr_ip4_acl = g_runtime_acl_config->nr_ipv4_rules;
 			nr_ip6_acl = g_runtime_acl_config->nr_ipv6_rules;
 
@@ -836,58 +910,67 @@ int main_loop (void *ptr_data)
 							rx_cpu_iface, iface_id(rx_cpu_iface));
 			oryx_logn("Rules [IPv4=%d, IPv6=%d]", nr_ip4_acl, nr_ip6_acl);
 		#endif
-
+#if 0
+			dp_drop_all(tv, dtv, pkts_burst, nb_rx);
+#else
 			/* Anyway, classify frames with IPv4, IPv6 and non-IP. */
 			dp_classify_prepare (tv, dtv,
-					rx_cpu_iface, pkts_burst, &acl_search, nb_rx);
+					rx_cpu_iface, pkts_burst, &parser, nb_rx);
 
 			/* Do classify on IPv4 frames. */
 			if (nr_ip4_acl &&
-				acl_search.num_ipv4) {
+				parser.num_ipv4) {
 				{
 					/* get classify private context to guide us how to handle coming frames. */
 					rte_acl_classify(
 						g_runtime_acl_config->acl_ctx_ip4[socketid],
-						acl_search.data_ipv4,
-						acl_search.res_ipv4,
-						acl_search.num_ipv4,
+						parser.data_ipv4,
+						parser.res_ipv4,
+						parser.num_ipv4,
 						DEFAULT_MAX_CATEGORIES);
 
 					/* do real classification. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
-						acl_search.m_ipv4,
-						acl_search.res_ipv4,
-						acl_search.num_ipv4);
+						parser.m_ipv4,
+						parser.res_ipv4,
+						parser.num_ipv4);
 					
 					/* IPv4 frame statistics. */
-					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, acl_search.num_ipv4);
+					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, parser.num_ipv4);
 				}
+			}else {
+				/* drop them all. */
+				dp_drop_all(tv, dtv, (struct rte_mbuf **)parser.m_ipv4, parser.num_ipv4);
 			}
 			
 			/* Do classify on IPv6 frames. */
 			if (nr_ip6_acl &&
-				acl_search.num_ipv6) {
+				parser.num_ipv6) {
 				{				
 					/* get classify private context to guide us how to handle coming frames. */
 					rte_acl_classify(
 						g_runtime_acl_config->acl_ctx_ip6[socketid],
-						acl_search.data_ipv6,
-						acl_search.res_ipv6,
-						acl_search.num_ipv6,
+						parser.data_ipv6,
+						parser.res_ipv6,
+						parser.num_ipv6,
 						DEFAULT_MAX_CATEGORIES);
 
 					/* do real classification. */
 					dp_classify (tv, dtv, rx_cpu_iface,
 						qconf,
-						acl_search.m_ipv6,
-						acl_search.res_ipv6,
-						acl_search.num_ipv6);
+						parser.m_ipv6,
+						parser.res_ipv6,
+						parser.num_ipv6);
 
 					/* IPv6 frame statistics. */
-					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv6, acl_search.num_ipv6);
+					oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv6, parser.num_ipv6);
 				}
+			}else {
+				/* drop them all. */
+				dp_drop_all(tv, dtv, (struct rte_mbuf **)&parser.m_ipv6[0], parser.num_ipv6);
 			}
+#endif				
 		}
 	}
 

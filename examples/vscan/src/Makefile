@@ -58,8 +58,10 @@ CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/../oryx/osih\
 	  -I/usr/include/hs/
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lhs -lpcre -lyaml -lpcap -lhs
+LDFLAGS += -lstdc++\
+	   -lhs -lhs_runtime\
+	   -ldl -lpthread -lm -lrt\
+	   -lpcre -lyaml -lpcap
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

@@ -151,7 +151,7 @@ void appl_entry_new (struct appl_t **appl,
 	(*appl)->ul_flags			=	(APPL_CHANGED);
 	(*appl)->ul_type			=	APPL_TYPE_STREAM;
 	(*appl)->ul_id				=	APPL_INVALID_ID;
-	(*appl)->ull_create_time	=	time(NULL);
+	(*appl)->create_time	=	time(NULL);
 	(*appl)->vlan_id			=	0;
 	(*appl)->l4_port_src		=	0;
 	(*appl)->l4_port_dst		=	0;

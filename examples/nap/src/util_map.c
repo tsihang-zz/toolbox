@@ -97,7 +97,7 @@ int map_entry_new (struct map_t **map,
 	(*map) = kmalloc (sizeof (struct map_t), MPF_CLR, __oryx_unused_val__);
 	ASSERT ((*map));
 
-	(*map)->ull_create_time = time(NULL);
+	(*map)->create_time = time(NULL);
 
 	(*map)->ul_flags = MAP_TRAFFIC_TRANSPARENT;
 	

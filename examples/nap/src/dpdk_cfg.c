@@ -906,7 +906,7 @@ dpdk_env_setup(vlib_main_t *vm)
 		if (n_tx_queue > MAX_TX_QUEUE_PER_PORT)
 			n_tx_queue = MAX_TX_QUEUE_PER_PORT;
 		fprintf (stdout, "Creating queues: nb_rxq=%d nb_txq=%u... ",
-			nb_rx_queue, (unsigned)n_tx_queue );
+			nb_rx_queue, (unsigned)n_tx_queue);
 		ret = rte_eth_dev_configure(portid, nb_rx_queue,
 					(uint16_t)n_tx_queue, pcfg);
 		if (ret < 0)

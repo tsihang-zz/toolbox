@@ -53,22 +53,27 @@ SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp.c dp_proc.c dp_decode.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
-CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
 		  -DHAVE_PCAP\
 		  -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK\
-		  -DHAVE_SF1500
+		  -DHAVE_HYPERSCAN\
+		  -DHAVE_DPDK
+CFLAGS += -DHAVE_SF1500
+#CFLAGS += -DHAVE_MPM
+#CFLAGS += -DBUILD_DEBUG
 			  
 CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/include\
 	  -I$(SRCDIR)/../oryx\
 	  -I$(SRCDIR)/../oryx/osih\
-	  -I$(SRCDIR)/../quagga
+	  -I$(SRCDIR)/../quagga\
+	  -I/usr/include/hs
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lpcre -lyaml -lpcap
+LDFLAGS += -lstdc++\
+	   -lhs -lhs_runtime\
+	   -ldl -lpthread -lm -lrt\
+	   -lpcre -lyaml -lpcap
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

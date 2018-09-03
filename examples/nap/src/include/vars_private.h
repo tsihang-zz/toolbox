@@ -56,6 +56,10 @@ typedef struct DecodeThreadVars_
     counter_id counter_ipv4inipv6;
     counter_id counter_ipv6inipv6;
     counter_id counter_erspan;
+
+	counter_id counter_http;
+	counter_id counter_http_get;
+	counter_id counter_http_post;
 	
 	counter_id counter_drop;
 

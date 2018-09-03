@@ -18,6 +18,9 @@ target_eth_num=${#target_nic_list[@]}
 #uio_driver="vfio-pci"
 uio_driver="igb_uio"
 
+keyword="Intel"
+#keyword="a034"
+
 # $dpdk_bind_bin calls "dpdk_nic_bind.py in dpdk-16.07, it is
 # different with dpdk-17.xx
 dpdk_bind_bin=$RTE_SDK/usertools/dpdk-devbind.py
@@ -35,9 +38,6 @@ app_home="/var/run/nap"
 
 # Total remain memory. 
 system_mem=`free -m | grep Mem | awk '{print $2}'`
-
-#keyword="Intel"
-keyword="a034"
 
 # DPDK supported NIC list, almost Intel.
 system_nic_list=`lspci | grep Eth | grep $keyword | awk '{print$1}'`

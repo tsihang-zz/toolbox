@@ -183,7 +183,7 @@ static void udp_entry_output (struct udp_t *udp, struct vty *vty)
 		return;
 	}
 	
-	fmt_time (udp->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (udp->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Udp ", udp->sc_alias, udp->ul_id, tmstr, VTY_NEWLINE);
 
 	uint8_t qua;
@@ -441,7 +441,7 @@ int udp_entry_new (struct udp_t **udp, char *alias)
 	(*udp)->patterns = pattern;
 	(*udp)->ul_id = UDP_INVALID_ID;
 	(*udp)->ul_flags = 0;
-	(*udp)->ull_create_time = time(NULL);
+	(*udp)->create_time = time(NULL);
 	/** make udp alias. */
 	sprintf ((char *)&(*udp)->sc_alias[0], "%s", ((alias != NULL) ? alias: UDP_PREFIX));	
 

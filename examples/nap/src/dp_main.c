@@ -107,6 +107,10 @@ static void dp_register_perf_counters(decode_threadvar_ctx_t *dtv, threadvar_ctx
 		oryx_register_counter("decoder.erspan",
 									NULL, &tv->perf_private_ctx0);
 
+	dtv->counter_http = 
+		oryx_register_counter("decoder.http",
+									NULL, &tv->perf_private_ctx0);
+
 	dtv->counter_drop =
 		oryx_register_counter("decoder.drop",
 									NULL, &tv->perf_private_ctx0);

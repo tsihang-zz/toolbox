@@ -53,7 +53,8 @@ DEFUN(set_log_level,
 
 DEFUN(show_dp_stats,
 	show_dp_stats_cmd,
-	"show dp_stats",
+	"show dp_stats [clear]",
+	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR
 	KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
@@ -75,6 +76,7 @@ DEFUN(show_dp_stats,
 	uint64_t counter_bytes[MAX_LCORES] = {0};
 	uint64_t counter_pkts_invalid[MAX_LCORES] = {0};
 	uint64_t counter_drop[MAX_LCORES] = {0};
+	uint64_t counter_http[MAX_LCORES] = {0};
 	uint64_t counter_eth_total = 0;
 	uint64_t counter_ipv4_total = 0;
 	uint64_t counter_ipv6_total = 0;
@@ -88,6 +90,7 @@ DEFUN(show_dp_stats,
 	uint64_t counter_sctp_total = 0;
 	uint64_t counter_pkts_invalid_total = 0;
 	uint64_t counter_drop_total = 0;
+	uint64_t counter_http_total = 0;
 
 	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
 		vty_out(vty, "Dataplane is not ready%s", VTY_NEWLINE);
@@ -122,8 +125,32 @@ DEFUN(show_dp_stats,
 			counter_sctp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_sctp);
 		counter_pkts_invalid_total +=
 			counter_pkts_invalid[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_invalid);
+		counter_http_total +=
+			counter_http[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_http);
 		counter_drop_total +=
 			counter_drop[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_drop);
+	}
+
+	if(argc == 1 && !strncmp (argv[0], "c", 1)) {
+		for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+			tv = &g_tv[lcore % vm->nb_lcores];
+			dtv = &g_dtv[lcore % vm->nb_lcores];
+		
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv4, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv6, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_tcp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_udp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv4, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv6, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_arp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_sctp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_invalid, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_drop, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_http, 0);
+		}
 	}
 
 	vty_out(vty, "==== summary%s", VTY_NEWLINE);
@@ -148,6 +175,14 @@ DEFUN(show_dp_stats,
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "cur_tsc");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", tv->cur_tsc);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+	
 
 	oryx_format(&fb, "%12s", "pkts");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
@@ -205,6 +240,13 @@ DEFUN(show_dp_stats,
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
+	oryx_format(&fb, "%12s", "http");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		oryx_format(&fb, "%20llu", counter_http[lcore]);
+	}
+	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
+	oryx_format_reset(&fb);
+
 	oryx_format(&fb, "%12s", "arp");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
 		oryx_format(&fb, "%20llu", counter_arp[lcore]);
@@ -238,44 +280,10 @@ DEFUN(show_dp_stats,
 	return CMD_SUCCESS;
 }
 
-DEFUN(clear_dp_stats,
-	clear_dp_stats_cmd,
-	"clear dp_stats",
-	KEEP_QUITE_STR KEEP_QUITE_CSTR
-	KEEP_QUITE_STR KEEP_QUITE_CSTR)
-{
-	int lcore = 0;
-	threadvar_ctx_t *tv;
-	decode_threadvar_ctx_t *dtv;
-	vlib_main_t *vm = &vlib_main;
-
-	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		tv = &g_tv[lcore % vm->nb_lcores];
-		dtv = &g_dtv[lcore % vm->nb_lcores];
-
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv4, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv6, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_tcp, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_udp, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv4, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv6, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_arp, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_sctp, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_invalid, 0);
-		oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_drop, 0);
-	}
-
-	return CMD_SUCCESS;
-}
-
 void common_cli(vlib_main_t *vm)
 {
 	threadvar_ctx_t *tv;
 	
 	install_element (CONFIG_NODE, &set_log_level_cmd);
 	install_element (CONFIG_NODE, &show_dp_stats_cmd);
-	install_element (CONFIG_NODE, &clear_dp_stats_cmd);
 }

@@ -93,7 +93,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	struct prefix_ipv4 ip4;
 	
 	char tmstr[100];
-	fmt_time (appl->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (appl->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	if(appl->ip_src_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
@@ -133,11 +133,11 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 		sprintf ((char *)&proto_buf[0], "%02x/%02x", appl->ip_next_proto, appl->ip_next_proto_mask);
 	}
 	
-	vty_out (vty, "%24s%4u%8u%20s%20s%10s%10s%10s%12s%08x%23s%s", 
+	vty_out (vty, "%24s%4u%8u%20s%20s%10s%10s%10s%12s%08x%23s%23lu%s", 
 				appl_alias(appl), appl_id(appl), appl->priority,
 				pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
 				(appl->ul_flags & APPL_CHANGED) ? "!synced" : "synced",
-				appl->ul_map_mask, tmstr, VTY_NEWLINE);
+				appl->ul_map_mask, tmstr, appl->refcnt, VTY_NEWLINE);
 
 	return 0;
 }
@@ -228,8 +228,8 @@ DEFUN(show_application,
 	
 	/** display all stream applications. */
 	vty_out (vty, "Trying to display %d elements ...%s", am->nb_appls, VTY_NEWLINE);
-	vty_out (vty, "%24s%4s%8s%20s%20s%10s%10s%10s%12s%8s%23s%s", 
-		"ALIAS", "ID", "PRIO", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", VTY_NEWLINE);
+	vty_out (vty, "%24s%4s%8s%20s%20s%10s%10s%10s%12s%8s%23s%23s%s", 
+		"ALIAS", "ID", "PRIO", "IP-SRC", "IP-DST", "PORT-SRC", "PORT-DST", "PROTO", "STATEs", "MAP", "CREAT-TIME", "REFCNT", VTY_NEWLINE);
 	
 	if (argc == 0){
 		foreach_application_func1_param1 (argv[0], 

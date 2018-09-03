@@ -269,7 +269,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	if(!(map->ul_flags & MAP_VALID))
 		return;
 
-	fmt_time (map->ull_create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	fmt_time (map->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	/** let us try to find the map which name is 'alias'. */
 	vty_out (vty, "%20s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);

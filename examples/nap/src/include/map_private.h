@@ -93,7 +93,7 @@ struct map_t {
 #define MAP_ENABLED				(1 << 3)
 #define MAP_VALID				(1 << 4)
 	uint32_t		ul_flags;
-	uint64_t		ull_create_time;			/** Create time. */
+	uint64_t		create_time;			/** Create time. */
 	
 };
 
