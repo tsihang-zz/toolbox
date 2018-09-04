@@ -1,9 +1,0 @@
-ifconfig enp5s0f1 down
-ifconfig lan1 down
-ifconfig lan2 down
-ifconfig lan3 down
-ifconfig lan4 down
-ifconfig lan5 down
-ifconfig lan6 down
-ifconfig lan7 down
-ifconfig lan8 down

@@ -7,7 +7,7 @@ logfile=/tmp/nap_startup.log
 
 # NIC list trying to bind to DPDK.
 # @example: target_nic_list=("0000:09:00.0" "09:00.1" "$next" "$next")
-target_nic_list=("07:00.2" "07:00.3")
+target_nic_list=("05:00.1" "05:00.2" "05:00.3")
 
 # Target ethernet NIC number. 
 # number of elements hold by the $target_nic_list.
@@ -15,11 +15,11 @@ target_nic_list=("07:00.2" "07:00.3")
 target_eth_num=${#target_nic_list[@]}
 
 # DPDK supplied UIO driver.
-#uio_driver="vfio-pci"
-uio_driver="igb_uio"
+uio_driver="vfio-pci"
+#uio_driver="igb_uio"
 
-keyword="Intel"
-#keyword="a034"
+#keyword="Intel"
+keyword="a034"
 
 # $dpdk_bind_bin calls "dpdk_nic_bind.py in dpdk-16.07, it is
 # different with dpdk-17.xx

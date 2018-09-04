@@ -94,6 +94,7 @@ dpdk_env_check() {
 
 dpdk_nic_bind() {
 	portmask=`echo "obase=16;ibase=10;2^$target_nic_num-1" |bc`
+	cat /dev/null > /tmp/eth_info
 
 	# bind each NIC in $target_nic_list
 	for nic in ${target_nic_list[@]};do
@@ -129,8 +130,8 @@ dpdk_start_nap() {
 	wait_sec=5
 
 	# config="(port,queue,lcore)"
-	#nohup $app_bin -c 0xf -n 2 -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)" >> $logfile 2>&1 &
-	nohup $app_bin -c 0xf -n 2 -- -p 0x3 --config="(0,0,1),(0,1,2),(1,0,1),(1,1,2)" >> $logfile 2>&1 &
+	nohup $app_bin -c 0xf -n 2 -- -p 0x7 --config="(0,0,1),(0,1,2),(0,2,3),(1,0,1),(1,1,2),(1,2,3),(2,0,1),(2,1,2),(2,2,3)" >> $logfile 2>&1 &
+	#nohup $app_bin -c 0xf -n 2 -- -p 0x3 --config="(0,0,1),(0,1,2),(1,0,1),(1,1,2)" >> $logfile 2>&1 &
 
 	echo "Starting $app_bin ... (wait $wait_sec secs)"	
 	sleep $wait_sec
@@ -147,7 +148,7 @@ dpdk_start_nap() {
 
 log2 "Start NAPD initialization ..."
 
-dpdk-devbind.py -b thunder-nicvf 05:00.1
+$dpdk_bind_bin -b thunder-nicvf 05:00.1
 sleep 3
 
 ifconfig enp5s0f1 up
