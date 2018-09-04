@@ -17,7 +17,7 @@
 #include "dpdk.h"	/* struct eth_addr */
 #endif
 
-void sync_acl(vlib_main_t *vm);
+void sync_acl(vlib_main_t *vm, int *nr_entries);
 
 
 vlib_map_main_t vlib_map_main = {
@@ -543,10 +543,14 @@ DEFUN(sync_appl,
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_main_t *vm = mm->vm;
+	struct timeval start, end;
+	int nr_entries = 0;
 	
 	vty_out(vty, "Syncing ... %s", VTY_NEWLINE);
-	sync_acl(vm);
-	vty_out(vty, "done %s", VTY_NEWLINE);
+	gettimeofday(&start, NULL);
+	sync_acl(vm, &nr_entries);
+	gettimeofday(&end, NULL);
+	vty_out(vty, "%d entries done (cost %lu us)%s", nr_entries, tm_elapsed_us(&start, &end), VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }

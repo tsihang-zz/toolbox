@@ -96,12 +96,14 @@ typedef struct vlib_main
 
 } vlib_main_t;
 
+/* All lcores will set its own bit on vm->ul_core_mask.
+ * */
 static __oryx_always_inline__
 void lock_lcores(vlib_main_t *vm)
 {
 	vm->ul_flags |= VLIB_DP_SYNC;
 	while(vm->ul_core_mask != VLIB_ALL_WORK_CORES);
-	oryx_logn("locres %08x", vm->ul_core_mask);
+	oryx_logn("locked lcores %08x", vm->ul_core_mask);
 }
 
 static __oryx_always_inline__
@@ -109,7 +111,7 @@ void unlock_lcores(vlib_main_t *vm)
 {
 	vm->ul_flags &= ~VLIB_DP_SYNC;
 	while(vm->ul_core_mask != 0);
-	oryx_logn("locres %08x", vm->ul_core_mask);
+	oryx_logn("unlocked lcores %08x", vm->ul_core_mask);
 }
 
 

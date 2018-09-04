@@ -543,17 +543,17 @@ void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
 
 	static oryx_file_t *fp;
 	const char *healthy_file = "/data/iface_healthy.txt";
-	char file_null[64] = "cat /dev/null > ";
 	int each;
 	oryx_vector vec = vlib_iface_main.entry_vec;
-	struct iface_t *iface;
+	struct iface_t *iface;	
+	char cat_null[128] = "cat /dev/null > ";
 
-	strcat(file_null, healthy_file);
-	system(file_null);
+	strcat(cat_null, healthy_file);
+	system(cat_null);
 
 	if(!fp) {
 		fp = fopen(healthy_file, "a+");
-		if(!fp) return;
+		if(!fp) fp = stdout;
 	}
 
 	vec_foreach_element(vec, each, iface){

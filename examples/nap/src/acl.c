@@ -145,6 +145,7 @@ int dim = RTE_DIM(ipv4_defs);
 struct acl_config_t *g_runtime_acl_config;
 int g_runtime_acl_config_qua = 0;
 
+
 /*
  * Initialize Access Control List (acl) parameters.
  */
@@ -193,42 +194,52 @@ void classify_setup_acl(const int socketid)
 		*d = (unsigned char)(ip & 0xff);\
 	} while (0)
 
-static inline void
-print_one_ipv4_rule(struct acl4_rule *rule, int extra)
+static __oryx_always_inline__
+void print_one_ipv4_rule(FILE *fp, struct acl4_rule *rule, int extra)
 {
 	unsigned char a, b, c, d;
 
 	uint32_t_to_char(rule->field[SRC_FIELD_IPV4].value.u32,
 			&a, &b, &c, &d);
-	fprintf (stdout, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
+	fprintf (fp, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
 			rule->field[SRC_FIELD_IPV4].mask_range.u32);
+	fflush(fp);
+	
 	uint32_t_to_char(rule->field[DST_FIELD_IPV4].value.u32,
 			&a, &b, &c, &d);
-	fprintf (stdout, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
+	fprintf (fp, "%hhu.%hhu.%hhu.%hhu/%u ", a, b, c, d,
 			rule->field[DST_FIELD_IPV4].mask_range.u32);
-	fprintf (stdout, "%hu:%hu %hu:%hu 0x%hhx/0x%hhx ",
+	fflush(fp);
+	
+	fprintf (fp, "%hu:%hu %hu:%hu 0x%hhx/0x%hhx ",
 		rule->field[SRCP_FIELD_IPV4].value.u16,
 		rule->field[SRCP_FIELD_IPV4].mask_range.u16,
 		rule->field[DSTP_FIELD_IPV4].value.u16,
 		rule->field[DSTP_FIELD_IPV4].mask_range.u16,
 		rule->field[PROTO_FIELD_IPV4].value.u8,
 		rule->field[PROTO_FIELD_IPV4].mask_range.u8);
-	if (extra)
-		fprintf (stdout, "0x%x-0x%x-0x%x ",
+	fflush(fp);
+
+	if (extra) {
+		fprintf (fp, "0x%x-0x%x-0x%x ",
 			rule->data.category_mask,
 			rule->data.priority,
-			rule->data.userdata);
+			rule->data.userdata);	
+		fflush(fp);
+	}
 }
 
-static inline void
-dump_ipv4_rules(struct acl4_rule *rule, int num, int extra)
+static __oryx_always_inline__
+void dump_ipv4_rules(FILE *fp, struct acl4_rule *rule, int nr_entries, int extra)
 {
 	int i;
-
-	for (i = 0; i < num; i++, rule++) {
-		fprintf (stdout, "\t%d:", i + 1);
-		print_one_ipv4_rule(rule, extra);
-		fprintf (stdout, "\n");
+	
+	for (i = 0; i < nr_entries; i++, rule++) {
+		fprintf (fp, "\t%d:", i + 1);
+		fflush(fp);
+		print_one_ipv4_rule(fp, rule, extra);
+		fprintf (fp, "\n");		
+		fflush(fp);
 	}
 }
 
@@ -292,23 +303,22 @@ static int acl_build_entries(struct rte_acl_ctx *context,
 	return rte_acl_build(context, &acl_build_param);
 }
 
-int acl_add_entries(struct rte_acl_ctx *context,
-			struct acl_route *entries, int num)
+struct rte_acl_rule *acl_add_entries(struct rte_acl_ctx *context,
+			struct acl_route *entries, int nr_entries)
 {
 	int ret = 0;
 	uint8_t *acl_rules;
-	int acl_num = num;
 	int i;
 	struct rte_acl_rule *acl_base, *next;
 	
-	acl_rules = calloc(acl_num, sizeof(struct acl4_rule));
+	acl_rules = calloc(nr_entries, sizeof(struct acl4_rule));
 	if (!acl_rules) {
-		return -1;
+		return NULL;
 	}
 	
-	memset (acl_rules, 0, sizeof(struct acl4_rule) * acl_num);
+	memset (acl_rules, 0, sizeof(struct acl4_rule) * nr_entries);
 
-	for (i = 0; i < acl_num; i ++) {
+	for (i = 0; i < nr_entries; i ++) {
 		next = (struct rte_acl_rule *)(acl_rules +
 				i * sizeof(struct acl4_rule));
 		convert_acl(&entries[i], next);
@@ -316,57 +326,24 @@ int acl_add_entries(struct rte_acl_ctx *context,
 
 	acl_base = (struct rte_acl_rule *)acl_rules;
 
-	ret = rte_acl_add_rules(context, acl_base, acl_num);
+	ret = rte_acl_add_rules(context, acl_base, nr_entries);
 	if (ret < 0) {
 		oryx_loge(ret, "add rules failed\n");
-		goto finish;
+		free (acl_base);
+		return NULL;
 	}
 
 	ret = acl_build_entries(context, acl_base);
 	if (ret != 0) {
 		oryx_loge(ret, "Failed to build ACL trie\n");
-		goto finish;
+		free (acl_base);
+		return NULL;
 	}
-	
-	oryx_logn("IPv4 Route entries %u:", acl_num);
-	dump_ipv4_rules((struct acl4_rule *)acl_base, acl_num, 1);
+	oryx_logn("IPv4 Route entries %u:", nr_entries);
+	dump_ipv4_rules(stdout, (struct acl4_rule *)acl_base, nr_entries, 1);
 	rte_acl_dump(context);
 
-finish:
-	free (acl_base);
-	
-	return ret;
-}
-
-int acl_download_appl(struct map_t *map, struct appl_t *appl) {
-	vlib_map_main_t *mm = &vlib_map_main;
-	/** upload this appl to */
-	struct acl_route entry;
-	int hv = 0;
-	int socketid = 0;
-	struct rte_acl_ctx *context = g_runtime_acl_config->acl_ctx_ip4[socketid];
-	
-	appl2_ar(appl, &entry);
-
-	hv = acl_add_entries(context, &entry, 1);
-	if(hv < 0) {
-		oryx_loge(-1,
-			"(%d) add acl error", hv);
-		return -1;
-	} else {
-		/** [key && map ]*/
-		oryx_logn("(%d) download ACL rule ... %08x/%d %08x/%d %5d:%5d %5d:%5d %02x:%02x", hv,
-			entry.u.k4.ip_src, entry.ip_src_mask,
-			entry.u.k4.ip_dst, entry.ip_dst_mask,
-			entry.u.k4.port_src, 
-			entry.port_src_mask,
-			entry.u.k4.port_dst,
-			entry.port_dst_mask,
-			entry.u.k4.proto,
-			entry.ip_next_proto_mask);
-		appl->ul_flags &= ~APPL_CHANGED;
-		return 0;
-	}
+	return acl_base;
 }
 
 static __oryx_always_inline__
@@ -379,7 +356,7 @@ void reset_acl_config_ctx(struct acl_config_t *acl_conf)
 
 }
 
-void sync_acl(vlib_main_t *vm)
+void sync_acl(vlib_main_t *vm, int *nr_entries)
 {
 	vlib_map_main_t *mm = &vlib_map_main;
 	vlib_appl_main_t *am = &vlib_appl_main;
@@ -390,6 +367,9 @@ void sync_acl(vlib_main_t *vm)
 	struct acl_route *entries, *entry;
 	struct rte_acl_ctx *context;
 	struct acl_config_t *acl_next_config; 
+	const char	*f = "/data/acl_sync_result.txt";
+	char cat_null[128] = "cat /dev/null > ";
+	static FILE *acl_fp;
 
 	if(!(vm->ul_flags & VLIB_DP_SYNC_ACL))
 		return;
@@ -422,11 +402,25 @@ void sync_acl(vlib_main_t *vm)
 	
 	context = acl_next_config->acl_ctx_ip4[socketid];
 	
-	hv = acl_add_entries(context, entries, nb_entries);
-	if (hv < 0) {
+	struct rte_acl_rule *acl_base = acl_add_entries(context, entries, nb_entries);
+	if (!acl_base) {
 		oryx_loge(-1,
-			"(%d) sync acl error %d eles", hv, nb_entries);
+			"(%d) sync acl error %d elements", hv, nb_entries);
 	} else {
+		/* clear ACL result file. */		
+		strcat(cat_null, f);
+		system(cat_null);
+		
+		/* open result file. */
+		if(!acl_fp) {
+			acl_fp = fopen(f, "a+");
+			if(!acl_fp) acl_fp = stdout;
+		}
+		dump_ipv4_rules(acl_fp, (struct acl4_rule *)acl_base, nb_entries, 1);
+		
+		/* free acl_base ASAP */
+		free(acl_base);
+		
 		vec_foreach_element(am->entry_vec, each, appl) {
 			if (unlikely(!appl) || !appl_is_inuse(appl))
 				continue;
@@ -444,5 +438,7 @@ void sync_acl(vlib_main_t *vm)
 		g_runtime_acl_config_qua += 1;
 		unlock_lcores(vm);
 	}
+
+	(*nr_entries) = nb_entries;
 }
 

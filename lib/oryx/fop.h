@@ -70,6 +70,8 @@ ORYX_DECLARE(
 			int (*f) (void *arg, char * path_name,
 			char * file_name), void *arg,
 			int scan_dirs));
+ORYX_DECLARE(
+	void oryx_file_clear(const char *f));
 
 #ifndef HAVE_STRLCPY
 ORYX_DECLARE(

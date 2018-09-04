@@ -95,8 +95,8 @@ struct parser_ctx_t {
 };
 
 extern void classify_setup_acl(const int socketid);
-extern int acl_add_entries(struct rte_acl_ctx *context,
-			struct acl_route *entries, int num);
+extern struct rte_acl_rule *acl_add_entries(struct rte_acl_ctx *context,
+			struct acl_route *entries, int nr_entries);
 
 static __oryx_always_inline__
 void acl_set_userdata(struct rte_acl_rule *rar,

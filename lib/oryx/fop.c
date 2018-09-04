@@ -134,6 +134,14 @@ int oryx_file_close (oryx_file_t *fp)
 }
 
 __oryx_always_extern__
+void oryx_file_clear(const char *f) {
+	char cat_null[128] = "cat /dev/null > ";
+
+	strcat(cat_null, f);
+	system(cat_null);
+}
+
+__oryx_always_extern__
 int oryx_file_read_write (oryx_file_t *fp, 
 			struct oryx_file_rw_context_t *frw_ctx)
 {
