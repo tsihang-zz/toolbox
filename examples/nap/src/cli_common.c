@@ -62,6 +62,11 @@ DEFUN(show_dp_stats,
 	threadvar_ctx_t *tv;
 	decode_threadvar_ctx_t *dtv;
 	vlib_main_t *vm = &vlib_main;
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_config_main_t *conf = dm->conf;
+	uint64_t nr_mbufs_delta = 0;
+
+	static uint64_t	cur_tsc[MAX_LCORES];
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	uint64_t counter_eth[MAX_LCORES] = {0};
 	uint64_t counter_ipv4[MAX_LCORES] = {0};
@@ -91,6 +96,8 @@ DEFUN(show_dp_stats,
 	uint64_t counter_pkts_invalid_total = 0;
 	uint64_t counter_drop_total = 0;
 	uint64_t counter_http_total = 0;
+	uint64_t nr_mbufs_usage = 0;
+	uint64_t nr_mbufs_feedback = 0;
 
 	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
 		vty_out(vty, "Dataplane is not ready%s", VTY_NEWLINE);
@@ -101,6 +108,10 @@ DEFUN(show_dp_stats,
 		tv = &g_tv[lcore % vm->nb_lcores];
 		dtv = &g_dtv[lcore % vm->nb_lcores];
 
+		cur_tsc[lcore] 		=  tv->cur_tsc;
+		nr_mbufs_usage		+= tv->nr_mbufs_refcnt;
+		nr_mbufs_feedback	+= tv->nr_mbufs_feedback;
+		
 		counter_pkts_total += 
 			counter_pkts[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_pkts);
 		counter_bytes_total += 
@@ -131,11 +142,14 @@ DEFUN(show_dp_stats,
 			counter_drop[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_drop);
 	}
 
-	if(argc == 1 && !strncmp (argv[0], "c", 1)) {
+	if (argc == 1 && !strncmp (argv[0], "c", 1)) {
 		for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-			tv = &g_tv[lcore % vm->nb_lcores];
-			dtv = &g_dtv[lcore % vm->nb_lcores];
-		
+			tv	= &g_tv[lcore % vm->nb_lcores];
+			dtv	= &g_dtv[lcore % vm->nb_lcores];
+
+			tv->nr_mbufs_feedback	= 0;
+			tv->nr_mbufs_refcnt		= 0;
+			
 			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
 			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
 			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);
@@ -153,9 +167,13 @@ DEFUN(show_dp_stats,
 		}
 	}
 
-	vty_out(vty, "==== summary%s", VTY_NEWLINE);
-	vty_out(vty, "%12s%16llu%s", "Total_Pkts:", counter_pkts_total, VTY_NEWLINE);
-	vty_out(vty, "%12s%16llu%s", "Total_Bytes:", counter_bytes_total, VTY_NEWLINE);
+	nr_mbufs_delta = (nr_mbufs_usage - nr_mbufs_feedback);
+	
+	vty_out(vty, "==== Summary%s", VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu%s", "Total_Pkts:", counter_pkts_total, VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu%s", "Total_Bytes:", counter_bytes_total, VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu/%lu(%.2f%%)%s", "MBUF Usage:", nr_mbufs_delta, conf->nr_mbufs, ratio_of(nr_mbufs_delta, conf->nr_mbufs), VTY_NEWLINE);
+	vty_newline(vty);
 	
 	oryx_format_reset(&fb);
 	oryx_format(&fb, "%12s", " ");
@@ -176,9 +194,9 @@ DEFUN(show_dp_stats,
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
-	oryx_format(&fb, "%12s", "cur_tsc");
+	oryx_format(&fb, "%12s", "alive");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", tv->cur_tsc);
+		oryx_format(&fb, "%20s", cur_tsc[lcore] == tv->cur_tsc ? "N" : "Y");
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);

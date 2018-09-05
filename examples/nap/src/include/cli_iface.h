@@ -6,7 +6,7 @@
 extern atomic_t nb_ifaces;
 extern void vlib_iface_init(vlib_main_t *vm);
 
-#define foreach_iface_split_func1(argv_x, func){\
+#define split_foreach_iface_func1(argv_x, func){\
 	const char *split = ",";/** split tokens */\
 	char *token = NULL;\
 	char *save = NULL;\
@@ -81,7 +81,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 	}\
 }
 
-#define foreach_iface_split_func1_param1(argv_x, func, param0){\
+#define split_foreach_iface_func1_param1(argv_x, func, param0){\
 	const char *split = ",";/** split tokens */\
 	char *token = NULL;\
 	char *save = NULL;\
@@ -157,7 +157,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 }
 
 
-#define foreach_iface_split_func1_param2(argv_x, func, param0, param_1) {\
+#define split_foreach_iface_func1_param2(argv_x, func, param0, param_1) {\
 	const char *split = ",";/** split tokens */\
 	char *token = NULL;\
 	char *save = NULL;\

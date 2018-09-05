@@ -87,8 +87,8 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	BUG_ON(appl == NULL);
 	
 	struct prefix *p;
-	uint8_t pfx_buf[SRC_DST][INET_ADDRSTRLEN];
-	uint8_t port_buf[SRC_DST][16];
+	uint8_t pfx_buf[__SRC_DST__][INET_ADDRSTRLEN];
+	uint8_t port_buf[__SRC_DST__][16];
 	uint8_t proto_buf[32];
 	struct prefix_ipv4 ip4;
 	
@@ -96,35 +96,35 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	fmt_time (appl->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	if(appl->ip_src_mask == ANY_IPADDR) {
-		sprintf((char *)&pfx_buf[HD_SRC][0], "%s", "any");
+		sprintf((char *)&pfx_buf[__SRC__][0], "%s", "any");
 	} else {
 		ip4.family			= AF_INET;
 		ip4.prefixlen		= appl->ip_src_mask;
 		ip4.prefix.s_addr	= hton32(appl->ip_src);
 		p = (struct prefix *)&ip4;
-		prefix2str_ (p, (char *)&pfx_buf[HD_SRC][0], INET_ADDRSTRLEN);
+		prefix2str_ (p, (char *)&pfx_buf[__SRC__][0], INET_ADDRSTRLEN);
 	}
 
 	if(appl->ip_dst_mask == ANY_IPADDR) {
-		sprintf((char *)&pfx_buf[HD_DST][0], "%s", "any");
+		sprintf((char *)&pfx_buf[__DST__][0], "%s", "any");
 	} else {
 		ip4.family			= AF_INET;
 		ip4.prefixlen		= appl->ip_dst_mask;
 		ip4.prefix.s_addr	= hton32(appl->ip_dst);
 		p = (struct prefix *)&ip4;
-		prefix2str_ (p, (char *)&pfx_buf[HD_DST][0], INET_ADDRSTRLEN);
+		prefix2str_ (p, (char *)&pfx_buf[__DST__][0], INET_ADDRSTRLEN);
 	}
 
 	if(appl->l4_port_src_mask == ANY_PORT) {
-		sprintf ((char *)&port_buf[HD_SRC][0], "%s", "any");
+		sprintf ((char *)&port_buf[__SRC__][0], "%s", "any");
 	} else {
-		sprintf ((char *)&port_buf[HD_SRC][0], "%d:%d", appl->l4_port_src, appl->l4_port_src_mask);
+		sprintf ((char *)&port_buf[__SRC__][0], "%d:%d", appl->l4_port_src, appl->l4_port_src_mask);
 	}
 
 	if(appl->l4_port_dst_mask == ANY_PORT) {
-		sprintf ((char *)&port_buf[HD_DST][0], "%s", "any");
+		sprintf ((char *)&port_buf[__DST__][0], "%s", "any");
 	} else {
-		sprintf ((char *)&port_buf[HD_DST][0], "%d:%d", appl->l4_port_dst, appl->l4_port_dst_mask);
+		sprintf ((char *)&port_buf[__DST__][0], "%d:%d", appl->l4_port_dst, appl->l4_port_dst_mask);
 	}
 
 	if(appl->ip_next_proto_mask == ANY_PROTO) {
@@ -135,7 +135,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	
 	vty_out (vty, "%24s%4u%8u%20s%20s%10s%10s%10s%12s%08x%23s%23lu%s", 
 				appl_alias(appl), appl_id(appl), appl->priority,
-				pfx_buf[HD_SRC], pfx_buf[HD_DST], port_buf[HD_SRC], port_buf[HD_DST], proto_buf, 
+				pfx_buf[__SRC__], pfx_buf[__DST__], port_buf[__SRC__], port_buf[__DST__], proto_buf, 
 				(appl->ul_flags & APPL_CHANGED) ? "!synced" : "synced",
 				appl->ul_map_mask, tmstr, appl->refcnt, VTY_NEWLINE);
 
@@ -455,6 +455,22 @@ DEFUN(test_application,
 	  }
   }
   return CMD_SUCCESS;
+}
+
+void appl_config_write(struct vty *vty)
+{
+	int each;
+	vlib_appl_main_t *am = &vlib_appl_main;
+	struct appl_t *v;
+	char fmt_buf[1024] = {0};
+
+	vec_foreach_element(am->entry_vec, each, v){
+		if (v && (v->ul_flags & APPL_VALID)) {
+			memset (fmt_buf, 0, 1024);
+			appl_entry_unformat(v, fmt_buf, 1024);
+			vty_out(vty, "%s%s", fmt_buf, VTY_NEWLINE);
+		}
+	}
 }
 
 void vlib_appl_init(vlib_main_t *vm)

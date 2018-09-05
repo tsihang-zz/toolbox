@@ -162,7 +162,6 @@ void dp_dump_packet_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt)
 	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key->port_dst));
 	oryx_logn ("%16s%08d", "protocol: ",	key->proto);
 	oryx_logn ("%16s%08u", "RSS: ", 		pkt->hash.rss);
-
 }
 
 static __oryx_always_inline__
@@ -217,6 +216,7 @@ void dp_free_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	struct rte_mbuf *pkt){
 	rte_pktmbuf_free(pkt);
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
+	tv->nr_mbufs_feedback ++;
 }
 	
 static __oryx_always_inline__
@@ -258,6 +258,8 @@ int dp_send_burst(threadvar_ctx_t *tv, struct lcore_conf *qconf, uint16_t n, uin
 #endif
 
 	iface_counters_add(tx_iface, tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], nb_tx_pkts);
+
+	tv->nr_mbufs_feedback += n;
 
 	return 0;
 }
@@ -641,6 +643,7 @@ void dp_classify_post(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 
 	appl->refcnt ++;
 
+	/* What we want is that an ACL must not be in different maps. */
 	for (i = 0; i < (int)appl->nb_maps; i ++) {
 		
 		struct appl_priv_t *priv = &appl->priv[i];
@@ -663,32 +666,40 @@ void dp_classify_post(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 		oryx_logn("		 tx_online_ports_num %d", map->nb_online_tx_panel_ports);
 	#endif
 
-		/* drop it defaulty if this rx_iface is not mapped */
+		/* drop this packet ASAP, if this rx_iface is not mapped */
 		if(!map_rx_has_iface(map, rx_iface)) {
 			continue;
-		} else {
-			tx_panel_port_id = dp_decide_tx_port(map, rx_iface, m, &tx_port_id);
-		#if defined(BUILD_DEBUG)
-			oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
-		#endif
-			if(tx_panel_port_is_online(tx_panel_port_id)) {
-				
-				if(priv->ul_flags & ACT_SLICE) {
-					act_packet_trim(m, 64);
-				}
-				
-				if(priv->ul_flags & ACT_TIMESTAMP) {
-					act_packet_timestamp(m);
-				}
-				
-				/* forward packets for this map. */
-				dp_send_single_packet(tv, dtv, rx_iface, qconf, m, tx_port_id, tx_panel_port_id);
-				continue;
+		}
+
+	#if 0
+		/* ACT_DROP has a highest priority than other actions.
+		 * Here is a problem that when an ACL is hold by different map ??? */
+		if (priv->ul_flags & ACT_DROP) {
+			goto finish;
+		}
+	#endif
+		tx_panel_port_id = dp_decide_tx_port(map, rx_iface, m, &tx_port_id);
+	#if defined(BUILD_DEBUG)
+		oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
+	#endif
+		if(tx_panel_port_is_online(tx_panel_port_id)) {
+			
+			if(priv->ul_flags & ACT_SLICE) {
+				act_packet_trim(m, 64);
 			}
+			
+			if(priv->ul_flags & ACT_TIMESTAMP) {
+				act_packet_timestamp(m);
+			}
+			
+			/* forward packets for this map. */
+			dp_send_single_packet(tv, dtv, rx_iface, qconf, m, tx_port_id, tx_panel_port_id);
 		}
 	}
+	
 	/* everything is running okay, let's go back to the caller. */
 	return;
+
 finish:
 	dp_free_packet(tv, dtv, m);
 	return;
@@ -751,13 +762,13 @@ void dp_init_mpm_ctx(void)
 #if defined(HAVE_MPM)
 	mpm_table_setup();
 	memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
-	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));	
+	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 	mpm_ctx_init(&mpm_ctx, MPM_HS);
 	mpm_pmq_setup(&pmq);
 	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
 
 	mpm_install_content_type(&mpm_ctx);
-	mpm_pattern_prepare(&mpm_ctx);	
+	mpm_pattern_prepare(&mpm_ctx);
 #endif
 	fprintf(stdout, "mpm init done.\n");
 }
@@ -889,6 +900,8 @@ int main_loop (void *ptr_data)
 			if (nb_rx == 0)
 				continue;
 
+			tv->nr_mbufs_refcnt += nb_rx;
+			
 			/* port ID -> iface */
 			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);
 

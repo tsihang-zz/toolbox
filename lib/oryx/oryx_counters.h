@@ -24,7 +24,7 @@ uint64_t oryx_counter_get(struct CounterCtx *ctx, counter_id id)
   BUG_ON ((id < 1) || (id > ctx->size));
 
 #if defined(COUNTER_USE_ATOMIC)
-  return (u64)atomic64_read(&ctx->head[id].value);
+  return (uint64_t)atomic64_read(&ctx->head[id].value);
 #else
   return ctx->head[id].value;
 #endif
@@ -53,7 +53,7 @@ void oryx_counter_inc(struct CounterCtx *ctx, counter_id id)
 * \brief Adds a value of type uint64_t to the local counter.
 */
 static __oryx_always_inline__
-void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
+void oryx_counter_add(struct CounterCtx *ctx, counter_id id, uint64_t x)
 {
   BUG_ON ((id < 1) || (id > ctx->size));
 
@@ -96,12 +96,12 @@ void oryx_counter_add(struct CounterCtx *ctx, counter_id id, u64 x)
 * \brief Sets a value of type double to the local counter
 */
 static __oryx_always_inline__
-void oryx_counter_set(struct CounterCtx *ctx, counter_id id, u64 x)
+void oryx_counter_set(struct CounterCtx *ctx, counter_id id, uint64_t x)
 {
 	BUG_ON ((id < 1) || (id > ctx->size));
 
 	if ((ctx->head[id].type == STATS_TYPE_Q_MAXIMUM) &&
-	  				(x > (u64)oryx_counter_get(ctx, id))) {
+	  				(x > (uint64_t)oryx_counter_get(ctx, id))) {
 #if defined(COUNTER_USE_ATOMIC)
 		atomic64_set(&ctx->head[id].value, x);
 #else

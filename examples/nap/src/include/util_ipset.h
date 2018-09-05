@@ -3,6 +3,8 @@
 
 #include "appl_private.h"
 
+int appl_entry_unformat (struct appl_t *appl, char *fmt_buf, size_t fmt_buflen);
+
 int appl_entry_format (struct appl_t *appl,
 	const uint32_t __oryx_unused_param__*rule_id,
 	const char *unused_var,

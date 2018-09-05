@@ -2,6 +2,19 @@
 #include "prefix.h"
 #include "util_ipset.h"
 
+static __oryx_always_inline__
+int prefix2str_(const struct prefix *p, char *str, int size)
+{
+	char buf[BUFSIZ];
+	
+	if (p->prefixlen == 0)
+		snprintf(str, size, "%s", "any");
+	else {
+		inet_ntop(p->family, &p->u.prefix, buf, BUFSIZ);
+			snprintf(str, size, "%s/%d", buf, p->prefixlen);
+	}
+	return 0;
+}
 
 static __oryx_always_inline__
 void appl_inherit(struct appl_t *son, struct appl_t *father)
@@ -14,6 +27,83 @@ void appl_inherit(struct appl_t *son, struct appl_t *father)
 	/** except THE ID and PRIORITY. */
 	appl_id(son) = id;
 	son->priority = id;
+}
+
+int appl_entry_unformat (struct appl_t *appl, char *fmt_buf, size_t fmt_buflen)
+{
+	struct prefix *p;
+	uint8_t pfx_buf[__SRC_DST__][INET_ADDRSTRLEN];
+	uint8_t port_buf[__SRC_DST__][16];
+	uint8_t proto_buf[32];
+	uint8_t	vlan[32];
+	struct prefix_ipv4 ip4;
+
+	BUG_ON(appl == NULL);
+
+	/* unformate vlan */
+	if (appl->l2_vlan_id_mask == ANY_VLAN)
+		sprintf((char *)&vlan[0], "%s", "any");
+	else {
+		if (appl->vlan_id == appl->l2_vlan_id_mask)
+			sprintf((char *)&vlan[0], "%d", appl->vlan_id);
+		else
+			sprintf((char *)&vlan[0], "%d:%d", appl->vlan_id, appl->l2_vlan_id_mask);
+	}
+
+	/* unformate source IP */
+	if(appl->ip_src_mask == ANY_IPADDR)
+		sprintf((char *)&pfx_buf[__SRC__][0], "%s", "any");
+	else {
+		ip4.family			= AF_INET;
+		ip4.prefixlen		= appl->ip_src_mask;
+		ip4.prefix.s_addr	= hton32(appl->ip_src);
+		p = (struct prefix *)&ip4;
+		prefix2str_ (p, (char *)&pfx_buf[__SRC__][0], INET_ADDRSTRLEN);
+	}
+
+	/* unformate destination IP */
+	if(appl->ip_dst_mask == ANY_IPADDR)
+		sprintf((char *)&pfx_buf[__DST__][0], "%s", "any");
+	else {
+		ip4.family			= AF_INET;
+		ip4.prefixlen		= appl->ip_dst_mask;
+		ip4.prefix.s_addr	= hton32(appl->ip_dst);
+		p = (struct prefix *)&ip4;
+		prefix2str_ (p, (char *)&pfx_buf[__DST__][0], INET_ADDRSTRLEN);
+	}
+
+	/* unformate source Port */
+	if(appl->l4_port_src_mask == ANY_PORT)
+		sprintf ((char *)&port_buf[__SRC__][0], "%s", "any");
+	else {
+		if (appl->l4_port_src == appl->l4_port_src_mask)
+			sprintf ((char *)&port_buf[__SRC__][0], "%d", appl->l4_port_src);
+		else
+			sprintf ((char *)&port_buf[__SRC__][0], "%d:%d", appl->l4_port_src, appl->l4_port_src_mask);
+	}
+	
+	/* unformate desitnation Port */
+	if(appl->l4_port_dst_mask == ANY_PORT)
+		sprintf ((char *)&port_buf[__DST__][0], "%s", "any");
+	else {
+		if (appl->l4_port_dst == appl->l4_port_dst_mask)
+			sprintf ((char *)&port_buf[__DST__][0], "%d", appl->l4_port_dst);
+		else
+			sprintf ((char *)&port_buf[__DST__][0], "%d:%d", appl->l4_port_dst, appl->l4_port_dst_mask);
+	}
+
+	if(appl->ip_next_proto_mask == ANY_PROTO)
+		sprintf ((char *)&proto_buf[0], "%s", "any");
+	else
+		sprintf ((char *)&proto_buf[0], "%02x/%02x", appl->ip_next_proto, appl->ip_next_proto_mask);
+
+	snprintf(fmt_buf, fmt_buflen, "application %s vlan %s ip_src %s ip_dst %s port_src %s port_dst %s proto %s",
+			appl_alias(appl),
+			(char *)&vlan[0],
+			(char *)&pfx_buf[__SRC__][0], (char *)&pfx_buf[__DST__][0],
+			(char *)&port_buf[__SRC__][0], (char *)&port_buf[__DST__][0],
+			(char *)&proto_buf[0]);
+	return 0;
 }
 
 int appl_entry_format (struct appl_t *appl,

@@ -4,9 +4,9 @@
 typedef uint32_t counter_id;
 
 #if defined(COUNTER_USE_ATOMIC)
-typedef atomic64_t cu64;
+typedef atomic64_t uintx_t;
 #else
-typedef uint64_t cu64;
+typedef uint64_t uintx_t;
 #endif
 
 
@@ -30,8 +30,8 @@ struct counter_t {
     counter_id		gid;			/* global id, used in output */
 
     /* counter value(s). thread-safety. */
-    cu64 value;     /**< sum of updates/increments, or 'set' value */
-    cu64 updates;   /**< number of updates (for avg) */
+    uintx_t value;     /**< sum of updates/increments, or 'set' value */
+    uintx_t updates;   /**< number of updates (for avg) */
 
 	uint64_t		(*hook)(void);	/* when using type STATS_TYPE_Q_FUNC this function is called once.
 								 	 * to get the counter value, regardless of how many threads there are. */

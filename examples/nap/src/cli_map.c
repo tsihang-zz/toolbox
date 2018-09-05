@@ -83,7 +83,7 @@ void map_ports (struct map_t *map, const char *iface_str, uint8_t qua)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
-	foreach_iface_split_func1_param2 (
+	split_foreach_iface_func1_param2 (
 		iface_str, map_entry_add_port, map, qua);
 }
 
@@ -94,7 +94,7 @@ void unmap_ports (struct map_t *map, const char *iface_str, uint8_t qua)
 	BUG_ON(map == NULL);
 	BUG_ON(iface_str == NULL);
 #endif
-	foreach_iface_split_func1_param2 (
+	split_foreach_iface_func1_param2 (
 		iface_str, map_entry_remove_port, map, qua);
 }
 
@@ -288,7 +288,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 		}
 	}
 
-	vty_out (vty, "%s", "  ---->  ");
+	vty_out (vty, "%s", "  =>>  ");
 
 	if (!map->tx_panel_port_mask) {
 		vty_out (vty, "N/A");
@@ -333,7 +333,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	}
 	vty_newline(vty);
 
-	vty_out (vty, "		%20s", "Application: ");
+	vty_out (vty, "		%20s", "ACLs: ");
 	if (!map->ul_nb_appls) {	vty_out (vty, "N/A"); }
 	else {
 		vec_foreach_element(am->entry_vec, i, appl) {

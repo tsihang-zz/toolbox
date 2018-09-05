@@ -23,10 +23,11 @@ typedef struct ThreadVars_ {
 	struct ThreadVars_ *next;
     struct ThreadVars_ *prev;
 
+	uint64_t nr_mbufs_refcnt;
+	uint64_t nr_mbufs_feedback;
+
+	/* cur_tsc@lcore. */
 	uint64_t	cur_tsc;
-	
-	/** decode ops. */
-	void *d_ops;
 }threadvar_ctx_t;
 
 #endif

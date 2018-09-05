@@ -76,6 +76,8 @@ struct iface_t {
 
 	struct CounterCtx 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
+
+	uint32_t			ul_map_mask;		/** map for this iface belong to. */
 };
 
 #define iface_alias(p) (p)->sc_alias

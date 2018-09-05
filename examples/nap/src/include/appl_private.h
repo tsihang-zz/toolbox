@@ -18,9 +18,9 @@ enum appl_type_t {
 };
 
 enum {
-	HD_SRC,
-	HD_DST,
-	SRC_DST,
+	__SRC__,
+	__DST__,
+	__SRC_DST__,
 };
 
 #define	ACT_DROP		(1 << 0)

@@ -127,7 +127,7 @@ void iface_entry_stat_clear (struct iface_t *iface, struct vty *vty)
 	
 /** if a null iface specified, map_entry_output display all */
 static __oryx_always_inline__
-void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
+void iface_entry_stat_out (struct iface_t *iface, struct vty *vty, bool clear)
 {
 	int lcore;
 	uint64_t nb_rx_pkts;
@@ -154,6 +154,9 @@ void iface_entry_stat_out (struct iface_t *iface, struct vty *vty)
 			iface->if_counter_ctx->lcore_counter_bytes[QUA_TX][lcore]);
 	}
 
+	if (clear)
+		iface_entry_stat_clear(iface, vty);
+	
 	{
 		/** find this iface named 'alias'. */
 	
@@ -250,7 +253,7 @@ DEFUN(show_interfacce,
 			argv[0], iface_entry_out, vty);
 	}
 	else {
-		foreach_iface_split_func1_param1 (
+		split_foreach_iface_func1_param1 (
 			argv[0], iface_entry_out, vty);
 	}
 
@@ -261,61 +264,29 @@ DEFUN(show_interfacce,
 
 DEFUN(show_interfacce_stats,
       show_interfacce_stats_cmd,
-      "show interface stats [WORD]",
+      "show interface stats [clear]",
       SHOW_STR SHOW_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR
       KEEP_QUITE_STR KEEP_QUITE_CSTR)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;
+	bool clear = 0;
 	
 	vty_out(vty, "Trying to display %d elements ...%s", 
 			vec_active(pm->entry_vec), VTY_NEWLINE);
 
 	vty_out(vty, "%20s%20s%20s%s", "Port", "Rx(p/b)", "Tx(p/b)", VTY_NEWLINE);
+
+	if (argc && !strncmp (argv[0], "c", 1))
+		clear = 1;
 	
-	if (argc == 0) {
-		foreach_iface_func1_param1 (
-			argv[0], iface_entry_stat_out, vty);
-	}
-	else {
-		foreach_iface_split_func1_param1 (
-			argv[0], iface_entry_stat_out, vty);
-	}
+	foreach_iface_func1_param2 (
+		argv[0], iface_entry_stat_out, vty, clear);
 
 	PRINT_SUMMARY;
 
     return CMD_SUCCESS;
-}
-
-DEFUN(clear_interface_stats,
-	clear_interface_stats_cmd,
-	"clear interface stats [WORD]",
-	KEEP_QUITE_STR
-	KEEP_QUITE_CSTR
-	KEEP_QUITE_STR
-	KEEP_QUITE_CSTR
-	KEEP_QUITE_STR
-	KEEP_QUITE_CSTR
-	KEEP_QUITE_STR
-	KEEP_QUITE_CSTR)
-{
-	vlib_iface_main_t *pm = &vlib_iface_main;
-	vty_out(vty, "Trying to display %d elements ...%s", 
-			vec_active(pm->entry_vec), VTY_NEWLINE);
-
-	if (argc == 0) {
-		foreach_iface_func1_param1 (
-			argv[0], iface_entry_stat_clear, vty);
-	}
-	else {
-		foreach_iface_split_func1_param1 (
-			argv[0], iface_entry_stat_clear, vty);
-	}
-	
-	PRINT_SUMMARY;
-
-	return CMD_SUCCESS;
 }
 
 DEFUN(interface_alias,
@@ -333,7 +304,7 @@ DEFUN(interface_alias,
 		.s = __oryx_unused_val__,
 	};
 	
-	foreach_iface_split_func1_param2 (
+	split_foreach_iface_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -360,7 +331,7 @@ DEFUN(interface_mtu,
 		.s = __oryx_unused_val__,
 	};
 	
-	foreach_iface_split_func1_param2 (
+	split_foreach_iface_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -389,7 +360,7 @@ DEFUN(interface_looback,
 		.s = __oryx_unused_val__,
 	};
 	
-	foreach_iface_split_func1_param2 (
+	split_foreach_iface_func1_param2 (
 		argv[0], iface_entry_config, vty, (const struct prefix_t *)&var);
 
 	PRINT_SUMMARY;
@@ -622,6 +593,12 @@ void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused_param__*t
 	}
 }
 
+void iface_config_write(struct vty *vty)
+{
+	vty = vty;
+	vty_out (vty, "! skip%s", VTY_NEWLINE);
+}
+
 void vlib_iface_init(vlib_main_t *vm)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;
@@ -638,7 +615,6 @@ void vlib_iface_init(vlib_main_t *vm)
 	    
 	install_element (CONFIG_NODE, &show_interface_cmd);
 	install_element (CONFIG_NODE, &show_interfacce_stats_cmd);
-	install_element (CONFIG_NODE, &clear_interface_stats_cmd);
 	install_element (CONFIG_NODE, &interface_alias_cmd);
 	install_element (CONFIG_NODE, &interface_mtu_cmd);
 	install_element (CONFIG_NODE, &interface_looback_cmd);

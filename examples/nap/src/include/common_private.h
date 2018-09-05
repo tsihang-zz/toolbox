@@ -93,7 +93,7 @@ typedef struct vlib_main
 	int					nb_lcores;
 
 	struct oryx_timer_t	*perf_tmr;
-
+	
 } vlib_main_t;
 
 /* All lcores will set its own bit on vm->ul_core_mask.
