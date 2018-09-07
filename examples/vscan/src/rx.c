@@ -163,7 +163,7 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 				return;
 		}
 
-		cdr_information(&pkt[offset], 0);
+		//cdr_information(&pkt[offset], 0);
 		return;
 		
 		if((sp == 80 || dp == 80)) {

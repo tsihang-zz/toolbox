@@ -58,8 +58,7 @@ CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/../oryx/osih\
 	  -I/usr/include/hs/
 
-LDFLAGS += -lstdc++\
-	   -lhs -lhs_runtime\
+LDFLAGS += -lhs -lhs_runtime -lstdc++\
 	   -ldl -lpthread -lm -lrt\
 	   -lpcre -lyaml -lpcap
 
