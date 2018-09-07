@@ -48,7 +48,7 @@ extern volatile bool force_quit;
 int http_match(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v);
 
 extern oryx_file_t *fp;
-static uint32_t refcnt_all = 0, refcnt_tcp = 0, refcnt_udp = 0, refcnt_http = 0;
+static uint32_t refcnt_all = 0, refcnt_tcp = 0, refcnt_udp = 0, refcnt_http = 0, refcnt_hit_uri = 0, refcnt_hit_content_type = 0;
 
 struct class_count_t {
 	uint32_t	pkt_tcp;
@@ -164,7 +164,7 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 		}
 
 		//cdr_information(&pkt[offset], 0);
-		return;
+		//return;
 		
 		if((sp == 80 || dp == 80)) {
 			refcnt_http ++;
@@ -174,12 +174,14 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 			if (!http_parse(&ctx, http_start, http_len)) {
 				if (ctx.method == HTTP_METHOD_GET &&
 					http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.uri)) {
-					__http_kv_dump("Hit URI", &ctx.uri);
+					//__http_kv_dump("Hit URI", &ctx.uri);
+					refcnt_hit_uri ++;
 				} else {
-					if (http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct))
-						__http_kv_dump("Hit Content-Type", &ctx.ct);
+					if (http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct)) {
+						//__http_kv_dump("Hit Content-Type", &ctx.ct);
+						refcnt_hit_content_type ++;
+					}
 				}
-				//http_dump(&ctx, http_start, http_len);
 			}
 #if 0
 			fprintf (stdout,
@@ -195,8 +197,8 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 static void perftmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
 				char __oryx_unused_param__**argv)
 {
-	fprintf (stdout, "refcnt_all %u, refcnt_tcp %u, refcnt_udp %u, refcnt_http %u\n",
-		refcnt_all, refcnt_tcp, refcnt_udp, refcnt_http);
+	fprintf (stdout, "refcnt_all %u, refcnt_tcp %u, refcnt_udp %u, refcnt_http %u, refcnt_hit_uri %u, refcnt_hit_content_type %u\n",
+		refcnt_all, refcnt_tcp, refcnt_udp, refcnt_http, refcnt_hit_uri, refcnt_hit_content_type);
 }
 
 static void *rx_fn(void *argv)

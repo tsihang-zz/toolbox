@@ -30,7 +30,7 @@ static int mpm_test(void)
 	mpm_ctx_init(&mpm_ctx, MPM_HS);
 	/* 1 match */
 	mpm_pattern_add_cs(&mpm_ctx, (uint8_t *)"abcd", 4, 0, 0, 0, 0, 0);
-	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"AB*C", 4, 0, 0, 0, 0, 0);
+	mpm_pattern_add_ci(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, 0, 0, 0);
 	mpm_pmq_setup(&pmq);
 	mpm_pattern_prepare(&mpm_ctx);
 	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
@@ -103,19 +103,6 @@ int main (
 )
 {
     int result = 0;
-
-	uint64_t ns = 1234567899;
-	struct timeval tv;
-	struct timespec ts;
-
-	tv.tv_sec = ns / 1000000000;
-	tv.tv_usec = (ns % 1000000000)/1000;
-
-	ts.tv_sec = ns / 1000000000;
-	ts.tv_nsec = (ns % 1000000000);
-
-	fprintf (stdout, "tv.sec = %u, tv.usec = %u, ts.sec = %u, ts.nsec = %u\n",
-		tv.tv_sec, tv.tv_usec, ts.tv_sec, ts.tv_nsec);
 
 	mpm_test();
 	
