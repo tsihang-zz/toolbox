@@ -117,12 +117,12 @@ void unlock_lcores(vlib_main_t *vm)
 
 #define CONFIG_PATH	"/usr/local/etc/nap"
 #define CONFIG_PATH_YAML CONFIG_PATH"/settings.yaml"
-#define PORT_START_ID	(1)
 #define	SW_CPU_XAUI_PORT_ID	(0)
 #define ET1500_N_XE_PORTS (2 + 1)
 #define ET1500_N_GE_PORTS 8
 #define MAX_PORTS (ET1500_N_XE_PORTS + ET1500_N_GE_PORTS)
-#define SW_PORT_OFFSET	(ET1500_N_XE_PORTS - PORT_START_ID)
+/* SW port */
+#define SW_PORT_OFFSET	(ET1500_N_XE_PORTS - 1)
 
 #if defined(HAVE_DPDK)
 #define MAX_LCORES	RTE_MAX_LCORE

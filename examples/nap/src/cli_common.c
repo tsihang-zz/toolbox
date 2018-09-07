@@ -65,7 +65,7 @@ DEFUN(show_dp_stats,
 	dpdk_main_t *dm = &dpdk_main;
 	dpdk_config_main_t *conf = dm->conf;
 	uint64_t nr_mbufs_delta = 0;
-
+	struct timeval start, end;
 	static uint64_t	cur_tsc[MAX_LCORES];
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	uint64_t counter_eth[MAX_LCORES] = {0};
@@ -96,7 +96,7 @@ DEFUN(show_dp_stats,
 	uint64_t counter_pkts_invalid_total = 0;
 	uint64_t counter_drop_total = 0;
 	uint64_t counter_http_total = 0;
-	uint64_t nr_mbufs_usage = 0;
+	uint64_t nr_mbufs_refcnt = 0;
 	uint64_t nr_mbufs_feedback = 0;
 
 	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
@@ -104,12 +104,14 @@ DEFUN(show_dp_stats,
 		return CMD_SUCCESS;
 	}
 
+	gettimeofday(&start, NULL);
+
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
 		tv = &g_tv[lcore % vm->nb_lcores];
 		dtv = &g_dtv[lcore % vm->nb_lcores];
 
 		cur_tsc[lcore] 		=  tv->cur_tsc;
-		nr_mbufs_usage		+= tv->nr_mbufs_refcnt;
+		nr_mbufs_refcnt		+= tv->nr_mbufs_refcnt;
 		nr_mbufs_feedback	+= tv->nr_mbufs_feedback;
 		
 		counter_pkts_total += 
@@ -167,12 +169,18 @@ DEFUN(show_dp_stats,
 		}
 	}
 
-	nr_mbufs_delta = (nr_mbufs_usage - nr_mbufs_feedback);
-	
-	vty_out(vty, "==== Summary%s", VTY_NEWLINE);
+	nr_mbufs_delta = (nr_mbufs_refcnt - nr_mbufs_feedback);
+
+	vty_newline(vty);
+	vty_out(vty, "==== Global Graph%s", VTY_NEWLINE);	
 	vty_out(vty, "%12s%16lu%s", "Total_Pkts:", counter_pkts_total, VTY_NEWLINE);
-	vty_out(vty, "%12s%16lu%s", "Total_Bytes:", counter_bytes_total, VTY_NEWLINE);
-	vty_out(vty, "%12s%16lu/%lu(%.2f%%)%s", "MBUF Usage:", nr_mbufs_delta, conf->nr_mbufs, ratio_of(nr_mbufs_delta, conf->nr_mbufs), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%lu, %.2f%%)%s", "MBUF Usage:", nr_mbufs_delta, conf->nr_mbufs, ratio_of(nr_mbufs_delta, conf->nr_mbufs), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "IPv4:", counter_ipv4_total, ratio_of(counter_ipv4_total, counter_pkts_total), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "IPv6:", counter_ipv6_total, ratio_of(counter_ipv6_total, counter_pkts_total), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "UDP:", counter_udp_total, ratio_of(counter_udp_total, counter_pkts_total), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "TCP:", counter_tcp_total, ratio_of(counter_tcp_total, counter_pkts_total), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "SCTP:", counter_sctp_total, ratio_of(counter_sctp_total, counter_pkts_total), VTY_NEWLINE);
+	vty_out(vty, "%12s%16lu (%.2f%%)%s", "Drop:", counter_drop_total, ratio_of(counter_drop_total, counter_pkts_total), VTY_NEWLINE);
 	vty_newline(vty);
 	
 	oryx_format_reset(&fb);
@@ -196,7 +204,7 @@ DEFUN(show_dp_stats,
 
 	oryx_format(&fb, "%12s", "alive");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20s", cur_tsc[lcore] == tv->cur_tsc ? "N" : "Y");
+		oryx_format(&fb, "%20s", cur_tsc[lcore] == tv->cur_tsc ? "N" : "-");
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
@@ -204,96 +212,128 @@ DEFUN(show_dp_stats,
 
 	oryx_format(&fb, "%12s", "pkts");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_pkts[lcore]);
-	}
-	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
-	oryx_format_reset(&fb);
-
-	oryx_format(&fb, "%12s", "bytes");
-	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_bytes[lcore]);
+		if(counter_pkts[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_pkts[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "ethernet");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_eth[lcore]);
+		if(counter_eth[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_eth[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "ipv4");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_ipv4[lcore]);
+		if(counter_ipv4[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_ipv4[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "ipv6");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_ipv6[lcore]);
+		if(counter_ipv6[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_ipv6[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "tcp");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_tcp[lcore]);
+		if(counter_tcp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_tcp[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "udp");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_udp[lcore]);
+		if(counter_udp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_udp[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "sctp");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_sctp[lcore]);
+		if(counter_sctp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_sctp[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "http");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_http[lcore]);
+		if(counter_http[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_http[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "arp");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_arp[lcore]);
+		if(counter_arp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_arp[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "icmpv4");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_icmpv4[lcore]);
+		if(counter_icmpv4[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_icmpv4[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);
 
 	oryx_format(&fb, "%12s", "icmpv6");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_icmpv6[lcore]);
+		if(counter_icmpv6[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_icmpv6[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);	
 
 	oryx_format(&fb, "%12s", "drop");
 	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
-		oryx_format(&fb, "%20llu", counter_drop[lcore]);
+		if(counter_drop[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_drop[lcore]);
 	}
 	vty_out(vty, "%s%s", FMT_DATA(fb), VTY_NEWLINE);
 	oryx_format_reset(&fb);	
 
 	oryx_format_free(&fb);
+
+	gettimeofday(&end, NULL);
+	vty_out(vty, ", cost %lu us%s", tm_elapsed_us(&start, &end), VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }

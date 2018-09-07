@@ -462,7 +462,6 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 		p->dsa = rte_be_to_cpu_32(dsaeth->dsah.dsa);
 		ether_type = dsaeth->eth_type;
 		rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
-		
 
 #if defined(BUILD_DEBUG)
 		oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
@@ -470,18 +469,14 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 		PrintDSA("RX", p->dsa, QUA_RX);
 		dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
 #endif		
-		/* Rx statistics on an ethernet GE port. */
-		if (rx_panel_port_id > SW_PORT_OFFSET) {
-			iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
-			iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
-		}
-		
 		/* DSA is invalid. */
 		if (!DSA_IS_INGRESS(p->dsa)) {
 			dp_free_packet(tv, dtv, pkt);
 			return;
 		}
-
+		/* Rx statistics on an ethernet GE port. */
+		iface_lookup_id(pm, rx_panel_port_id, &rx_panel_iface);
+		iface_counter_update(rx_panel_iface, 1, pkt->pkt_len, QUA_RX, tv->lcore);
 	} else {
 		EthernetHdr *eth = rte_pktmbuf_mtod(pkt, EthernetHdr *);
 		ether_type = eth->eth_type;
@@ -510,7 +505,9 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 		parser->data_ipv6[parser->num_ipv6]	= dsa_support ? DSA_MBUF_IPv6_2PROTO(pkt) : MBUF_IPv6_2PROTO(pkt);
 		parser->m_ipv6[parser->num_ipv6]		= pkt;
 		parser->num_ipv6 ++;
-	} else {
+	}  else {
+		if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_ARP))
+			oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_arp);
 		parser->m_notip[(parser->num_notip)++] = pkt;
 		/* Unknown type, a simplified drop for the packet */
 		dp_free_packet(tv, dtv, pkt);
