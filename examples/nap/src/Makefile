@@ -49,7 +49,7 @@ SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp.c dp_proc.c dp_decode.c
 	dp_decode_arp.c dp_decode_marvell_dsa.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
 	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c dp_decode_http.c \
 	dp_flow.c dp_flow_queue.c dpdk.c dpdk_cfg.c rfc.c em.c lpm.c acl.c util_iface.c util_map.c util_udp.c util_ipset.c\
-	cli_iface.c cli_map.c cli_udp.c cli_appl.c cli_common.c
+	cli_iface.c cli_map.c cli_udp.c cli_appl.c cli_common.c $(SRCS_MPM-y)
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
@@ -60,7 +60,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_HYPERSCAN\
 		  -DHAVE_DPDK
 CFLAGS += -DHAVE_SF1500
-#CFLAGS += -DHAVE_MPM
+CFLAGS += -DHAVE_MPM
 #CFLAGS += -DBUILD_DEBUG
 			  
 CFLAGS += -I$(SRCDIR)\
@@ -70,10 +70,9 @@ CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/../quagga\
 	  -I/usr/include/hs
 
-LDFLAGS += -lstdc++\
-	   -lhs -lhs_runtime\
+LDFLAGS += -lhs -lhs_runtime\
 	   -ldl -lpthread -lm -lrt\
-	   -lpcre -lyaml -lpcap
+	   -lpcre -lyaml -lpcap -lstdc++
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
