@@ -26,15 +26,21 @@
 
 #include "mpm.h"
 
+/* Configure how many packets ahead to prefetch, when reading packets */
+#define PREFETCH_OFFSET	  3
+#define tx_panel_port_is_online(tx_panel_port_id)\
+	((tx_panel_port_id) != UINT32_MAX)
+
 extern volatile bool force_quit;
 extern threadvar_ctx_t g_tv[];
 extern decode_threadvar_ctx_t g_dtv[];
 extern pq_t g_pq[];
 
-/* Configure how many packets ahead to prefetch, when reading packets */
-#define PREFETCH_OFFSET	  3
-#define tx_panel_port_is_online(tx_panel_port_id)\
-	((tx_panel_port_id) != UINT32_MAX)
+#if defined(HAVE_MPM)
+extern mpm_ctx_t mpm_ctx;
+extern mpm_threadctx_t mpm_thread_ctx;
+extern PrefilterRuleStore pmq;
+#endif
 
 static __oryx_always_inline__
 void dsa_tag_strip(struct rte_mbuf *m)
@@ -345,35 +351,12 @@ flush2_buffer:
 	
 	return 0;
 }
-		
+
 #if defined(HAVE_MPM)
-static int pattern_id;
-static mpm_ctx_t mpm_ctx;
-static mpm_threadctx_t mpm_thread_ctx;
-static PrefilterRuleStore pmq;
-
-static void mpm_install_content_type(mpm_ctx_t *mpm_ctx)
-{
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
-			0, 0, pattern_id ++, 0, 0);
-	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
-			0, 0, pattern_id ++, 0, 0); 
-}
-
 int http_match(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx, PrefilterRuleStore *pmq, struct http_keyval_t *v)
 {
-return mpm_pattern_search(mpm_ctx, mpm_thread_ctx, pmq,
-			(uint8_t *)&v->val[0], v->valen);
+	return mpm_pattern_search(mpm_ctx, mpm_thread_ctx, pmq,
+				(uint8_t *)&v->val[0], v->valen);
 }
 #endif
 
@@ -387,24 +370,18 @@ void dp_parse_http(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	char *v = rte_pktmbuf_mtod_offset(pkt, char *, nroff);
 	struct http_ctx_t ctx;
 
-	if(k->proto != IPPROTO_TCP && k->proto != IPPROTO_UDP)
+	if(ntoh16(k->port_src) == 80 || ntoh16(k->port_dst) == 80)
+		return;
+	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_http);
+
+	/* Not a wanted HTTP frame. */
+	if(http_parse(&ctx, v, 0))
 		return;
 	
-	if(ntoh16(k->port_src) == 80 || ntoh16(k->port_dst) == 80) {
-		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_http);
-		//dp_dump_packet_key4(k, pkt);
-		if(!http_parse(&ctx, v, 0)) {
-#if defined(HAVE_MPM)
-			if(ctx.method == HTTP_METHOD_GET &&
-				http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.uri)) {
-				__http_kv_dump("Hit URI", &ctx.uri);
-			} else {
-				if(http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct))
-					__http_kv_dump("Hit Content-Type", &ctx.ct);
-			}
-#endif
-		}
-	}
+	if(ctx.ul_flags & HTTP_APPEAR_URI)
+		__http_kv_dump("URI", &ctx.uri);
+	if(ctx.ul_flags & HTTP_APPEAR_CONTENT_TYPE)
+		__http_kv_dump("Content-Type", &ctx.ct);
 }
 
 static __oryx_always_inline__
@@ -754,22 +731,6 @@ void dp_classify (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 		dp_classify_post(tv, dtv, rx_iface, qconf, m[i], res[i]);
 }
 
-void dp_init_mpm_ctx(void)
-{
-#if defined(HAVE_MPM)
-	mpm_table_setup();
-	memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
-	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
-	mpm_ctx_init(&mpm_ctx, MPM_HS);
-	mpm_pmq_setup(&pmq);
-	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
-
-	mpm_install_content_type(&mpm_ctx);
-	mpm_pattern_prepare(&mpm_ctx);
-#endif
-	fprintf(stdout, "mpm init done.\n");
-}
-
 /* main processing loop */
 int main_loop (void *ptr_data)
 {
@@ -809,7 +770,7 @@ int main_loop (void *ptr_data)
 	socketid	=	rte_lcore_to_socket_id(lcore_id);
 
 	if(lcore_id == rte_get_master_lcore()) {
-		dp_init_mpm_ctx();
+		
 	}
 	
 	/* record which TV this core belong to. */	

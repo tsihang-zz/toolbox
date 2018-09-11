@@ -1197,8 +1197,10 @@ static uint32_t hs_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_threa
         /* An error value (other than HS_SCAN_TERMINATED) from hs_scan()
          * indicates that it was passed an invalid database or scratch region,
          * which is not something we can recover from at scan time. */
-        fprintf (stdout,  "Hyperscan returned error %d\n", err);
-        exit(EXIT_FAILURE);
+         if (err != HS_SCRATCH_IN_USE) {
+	        fprintf (stdout,  "Hyperscan returned error %d\n", err);
+    	    exit(EXIT_FAILURE);
+         }
     } else {
         ret = cctx.match_count;
     }

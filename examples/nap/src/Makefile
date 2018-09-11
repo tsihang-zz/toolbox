@@ -41,7 +41,8 @@ include $(RTE_SDK)/mk/rte.vars.mk
 # binary name
 APP = napd
 
-SRCS_MPM-y := mpm.c mpm_ac.c mpm_hs.c
+#SRCS_MPM-y := mpm.c mpm_ac.c mpm_hs.c
+SRCS_MPM-y := 
 
 # all source are stored in SRCS-y
 SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp.c dp_proc.c dp_decode.c dp_storage.c \
@@ -60,7 +61,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_HYPERSCAN\
 		  -DHAVE_DPDK
 CFLAGS += -DHAVE_SF1500
-CFLAGS += -DHAVE_MPM
+#CFLAGS += -DHAVE_MPM
 #CFLAGS += -DBUILD_DEBUG
 			  
 CFLAGS += -I$(SRCDIR)\
@@ -70,8 +71,8 @@ CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/../quagga\
 	  -I/usr/include/hs
 
-LDFLAGS += -lhs -lhs_runtime\
-	   -ldl -lpthread -lm -lrt\
+#LDFLAGS += -lhs -lhs_runtime
+LDFLAGS += -ldl -lpthread -lm -lrt\
 	   -lpcre -lyaml -lpcap -lstdc++
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib

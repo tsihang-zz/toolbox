@@ -35,7 +35,7 @@ static int mpm_test(void)
 	mpm_pattern_prepare(&mpm_ctx);
 	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
 
-	const char *buf = "abcdefghjiklmnopqrstuvwxyz";
+	const char *buf = "efghjiklabcdmnopqrstuvwxyz";
 
 	uint32_t cnt;
 
@@ -47,7 +47,7 @@ static int mpm_test(void)
 	else
 		fprintf(stdout, "1 != %" PRIu32 " ", cnt);
 
-	const char *buf1 = "ab*";
+	const char *buf1 = "abc";
 
 	cnt = mpm_pattern_search(&mpm_ctx, &mpm_thread_ctx, &pmq, (uint8_t *)buf1,
 							  strlen(buf1));
@@ -102,10 +102,9 @@ int main (
 	char	__oryx_unused_param__	** argv
 )
 {
-    int result = 0;
-
-	mpm_test();
-	
+	//mpm_test();
+#if 1
+int result = 0;	
 	/* video/flv */
     uint8_t http_buf0[] =
         "GET /index.html HTTP/1.0\r\n"
@@ -256,7 +255,7 @@ int main (
     mpm_ctx_destroy(&mpm_ctx);
     mpm_threadctx_destroy(&mpm_ctx, &mpm_thread_ctx);
     mpm_pmq_free(&pmq);
-	
-    return result;
+#endif	
+    return 0;
 }
 

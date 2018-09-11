@@ -176,6 +176,8 @@ int __is_wanted_http(struct http_ctx_t *ctx, const char *buf, size_t buflen)
 	 *  this may be not very accurate, but it is efficient for most part of frames. */
 	if (strncmp(buf, METHOD_KEYWORD_GET, 4) == 0) {
 		ctx->method = HTTP_METHOD_GET;
+	} else if (strncmp(buf, METHOD_KEYWORD_POST, 5) == 0) {
+		ctx->method = HTTP_METHOD_POST;
 	} else if (strncmp (buf, METHOD_KEYWORD_RESPONSE, 4) == 0) {
 		/* A http response from server. */
 		ctx->method = HTTP_METHOD_RESPONSE;

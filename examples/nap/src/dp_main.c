@@ -1,11 +1,37 @@
 #include "oryx.h"
 #include "dp_decode.h"
+#include "mpm.h"
+
 
 threadvar_ctx_t g_tv[MAX_LCORES];
 decode_threadvar_ctx_t g_dtv[MAX_LCORES];
 pq_t g_pq[MAX_LCORES];
-
 volatile bool force_quit = false;
+
+#if defined(HAVE_MPM)
+int pattern_id;
+mpm_ctx_t mpm_ctx;
+mpm_threadctx_t mpm_thread_ctx;
+PrefilterRuleStore pmq;
+
+static void mpm_install_patterns(mpm_ctx_t *mpm_ctx)
+{
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/flv", strlen("video/flv"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/x-flv", strlen("video/x-flv"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp4", strlen("video/mp4"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"video/mp2t", strlen("video/mp2t"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/mp4", strlen("application/mp4"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"application/octet-stream", strlen("application/octet-stream"),
+			0, 0, pattern_id ++, 0, 0);
+	mpm_pattern_add_ci(mpm_ctx, (uint8_t *)"flv-application/octet-stream", strlen("flv-application/octet-stream"),
+			0, 0, pattern_id ++, 0, 0); 
+}
+#endif
 
 #if defined(HAVE_DPDK)
 extern void dp_init_dpdk(vlib_main_t *vm);
@@ -177,6 +203,33 @@ notify_dp(vlib_main_t *vm, int signum)
 	}
 }
 
+void dp_init_mpm(vlib_main_t		*vm)
+{
+#if defined(HAVE_MPM)
+	/* Install MPM Table. */
+	mpm_table_setup();
+
+	/* Init MPM context */
+	memset(&mpm_ctx, 0, sizeof(mpm_ctx_t));
+	mpm_ctx_init(&mpm_ctx, MPM_HS);
+
+	/* Setup PMQ */
+	mpm_pmq_setup(&pmq);
+
+	/* Install patterns for VIDEO filter. */
+	mpm_install_patterns(&mpm_ctx);
+
+	/* Compare installed patterns. */
+	mpm_pattern_prepare(&mpm_ctx);
+
+	/* Init MPM Thread context */
+	memset(&mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
+	mpm_threadctx_init(&mpm_thread_ctx, MPM_HS);
+#endif
+	vm->ul_flags |= VLIB_MPM_INITIALIZED;
+	fprintf(stdout, "mpm init done.\n");
+}
+
 void dp_start(vlib_main_t *vm)
 {
 	int i;
@@ -199,6 +252,8 @@ void dp_start(vlib_main_t *vm)
 		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 		dp_register_perf_counters(dtv, tv);
 	}
+
+	dp_init_mpm(vm);
 	
 	vm->ul_flags |= VLIB_DP_INITIALIZED;
 }

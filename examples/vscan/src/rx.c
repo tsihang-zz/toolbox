@@ -162,9 +162,6 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 			default:
 				return;
 		}
-
-		//cdr_information(&pkt[offset], 0);
-		//return;
 		
 		if((sp == 80 || dp == 80)) {
 			refcnt_http ++;
@@ -178,7 +175,7 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 					refcnt_hit_uri ++;
 				} else {
 					if (http_match(&mpm_ctx, &mpm_thread_ctx, &pmq, &ctx.ct)) {
-						//__http_kv_dump("Hit Content-Type", &ctx.ct);
+						__http_kv_dump("Hit Content-Type", &ctx.ct);
 						refcnt_hit_content_type ++;
 					}
 				}
