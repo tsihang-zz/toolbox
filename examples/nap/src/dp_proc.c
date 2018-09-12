@@ -473,7 +473,9 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 		parser->m_ipv4[parser->num_ipv4]		= pkt;
 		parser->num_ipv4 ++;
 		dp_parse_key4(tv, dtv, pkt, &nroff, &k4);
+#if defined(HAVE_MPM)
 		dp_parse_http(tv, dtv, pkt, &nroff, &k4);
+#endif
 	} else if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IPv6)) {
 		/* IPv6 frame statistics. */
 		oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_ipv6);
