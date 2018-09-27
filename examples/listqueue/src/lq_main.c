@@ -3,9 +3,8 @@
 #define MAX_LQ_NUM	2
 static int quit;
 static struct oryx_lq_ctx_t *lqset[MAX_LQ_NUM];
-static struct CounterCtx ctx;
-static counter_id nr_eq_refcnt_id;
-static counter_id nr_dq_refcnt_id;
+static uint64_t	dq_x[MAX_LQ_NUM];
+static uint64_t eq_x[MAX_LQ_NUM];
 
 struct lq_element_t {
 	struct lq_prefix_t lq;
@@ -33,7 +32,6 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				/* drunk out all elements before thread quit */					
 				while (NULL != (lqe = oryx_lq_dequeue(lq))){
 					free(lqe);
-					oryx_counter_inc(&ctx, nr_dq_refcnt_id);
 				}
 
 				break;
@@ -43,7 +41,6 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 			if (lqe != NULL) {
 				free(lqe);
 				lqe = NULL;
-				oryx_counter_inc(&ctx, nr_dq_refcnt_id);
 			}
 		}
 
@@ -70,7 +67,6 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			
 			fetch_lq(sand, &lq);
 			oryx_lq_enqueue(lq, lqe);
-			oryx_counter_inc(&ctx, nr_eq_refcnt_id);
 			usleep(1);
 		}
 
@@ -131,17 +127,12 @@ static void lq_sigint(int sig)
 static void lq_terminal(void)
 {
 	int i;
-	uint64_t eq, dq;
 	struct oryx_lq_ctx_t *lq;
-	
-	eq = oryx_counter_get(&ctx, nr_eq_refcnt_id);
-	dq = oryx_counter_get(&ctx, nr_dq_refcnt_id);
-
-	fprintf (stdout, "nr_eq_refcnt_id %ld, nr_dq_refcnt_id %ld, buffered %ld\n",
-		eq, dq, (eq - dq));
 
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		lq = lqset[i];
+		fprintf (stdout, "LQ[%d], nr_eq_refcnt_id %ld, nr_dq_refcnt_id %ld, buffered %lu(%d)\n",
+			i, lq->nr_eq_refcnt, lq->nr_dq_refcnt, (lq->nr_eq_refcnt - lq->nr_dq_refcnt), lq->len);
 		oryx_lq_destroy(lq);
 	}
 }
@@ -149,19 +140,18 @@ static void lq_terminal(void)
 static void lq_runtime(void)
 {
 	int i;
+	static size_t lqe_size = lq_element_size;
 	static struct timeval start, end;
-	static uint64_t nr_eq_swap_bytes_prev = 0, nr_eq_swap_elements_prev = 0;
-	static uint64_t nr_dq_swap_bytes_prev = 0, nr_dq_swap_elements_prev = 0;
+	static uint64_t nr_eq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_eq_swap_elements_prev[MAX_LQ_NUM] = {0};
+	static uint64_t nr_dq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_dq_swap_elements_prev[MAX_LQ_NUM] = {0};
 	uint64_t	nr_eq_swap_bytes_cur = 0, nr_eq_swap_elements_cur = 0;
 	uint64_t	nr_dq_swap_bytes_cur = 0, nr_dq_swap_elements_cur = 0;	
 	uint64_t	nr_cost_us;
 	uint64_t	eq, dq;
-	uint64_t	nr_buffed = 0;
 	char pps_str[20], bps_str[20];
 	struct oryx_lq_ctx_t *lq;
 	static oryx_file_t *fp;
 	const char *lq_runtime_file = "./lq_runtime_summary.txt";
-	int each;
 	char cat_null[128] = "cat /dev/null > ";
 
 	strcat(cat_null, lq_runtime_file);
@@ -176,50 +166,35 @@ static void lq_runtime(void)
 	
 	/* cost before last time. */
 	nr_cost_us = tm_elapsed_us(&start, &end);
-	dq = oryx_counter_get(&ctx, nr_dq_refcnt_id);
-	eq = oryx_counter_get(&ctx, nr_eq_refcnt_id);
-	
-	nr_eq_swap_bytes_cur		=	(eq * lq_element_size) - nr_eq_swap_bytes_prev;
-	nr_eq_swap_elements_cur 	=	eq - nr_eq_swap_elements_prev;
-	
-	nr_dq_swap_bytes_cur		=	(dq * lq_element_size) - nr_dq_swap_bytes_prev;
-	nr_dq_swap_elements_cur 	=	dq - nr_dq_swap_elements_prev;
-	
-	nr_eq_swap_bytes_prev		=	(eq * lq_element_size);
-	nr_eq_swap_elements_prev	=	eq;
-	
-	nr_dq_swap_bytes_prev		=	(dq * lq_element_size);
-	nr_dq_swap_elements_prev	=	dq;
 	
 	gettimeofday(&start, NULL);
 
-	nr_buffed = 0;
+	fprintf (fp, "Cost %lu us \n", nr_cost_us);
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		lq = lqset[i];
-		nr_buffed += lq->len; 
+		dq = lq->nr_dq_refcnt;
+		eq = lq->nr_eq_refcnt;
+		
+		nr_eq_swap_bytes_cur		=	(eq * lqe_size) - nr_eq_swap_bytes_prev[i];
+		nr_eq_swap_elements_cur 	=	eq - nr_eq_swap_elements_prev[i];
+		
+		nr_dq_swap_bytes_cur		=	(dq * lqe_size) - nr_dq_swap_bytes_prev[i];
+		nr_dq_swap_elements_cur 	=	dq - nr_dq_swap_elements_prev[i];
+		
+		nr_eq_swap_bytes_prev[i]		=	(eq * lqe_size);
+		nr_eq_swap_elements_prev[i]	=	eq;
+		
+		nr_dq_swap_bytes_prev[i]		=	(dq * lqe_size);
+		nr_dq_swap_elements_prev[i]	=	dq;
+
+		fprintf (fp, "LQ[%d], eq %ld (pps %s, bps %s), dq %ld (pps %s, bps %s), buffered %lu(%d)\n",
+			i,
+			eq, oryx_fmt_speed(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur), bps_str, 0, 0),
+			dq, oryx_fmt_speed(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur), bps_str, 0, 0),
+			(lq->nr_eq_refcnt - lq->nr_dq_refcnt), lq->len);
+		fflush(fp);
+
 	}
-	
-	fprintf (fp, "cost %lu us, eq %ld (pps %s, bps %s), dq %ld (pps %s, bps %s), buffered %ld\n",
-		nr_cost_us,
-		eq, oryx_fmt_speed(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur), bps_str, 0, 0),
-		dq, oryx_fmt_speed(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur), bps_str, 0, 0),
-		nr_buffed);
-	fflush(fp);
-
-}
-
-static void lq_env_init(void)
-{
-	memset(&ctx, 0, sizeof(struct CounterCtx));
-
-	nr_eq_refcnt_id = oryx_register_counter("enqueue times", "nr_eq_refcnt_id", &ctx);
-	BUG_ON(nr_eq_refcnt_id != 1);
-	nr_dq_refcnt_id = oryx_register_counter("dequeue times", "nr_dq_refcnt_id", &ctx);
-	BUG_ON(nr_dq_refcnt_id != 2);
-	
-	oryx_counter_get_array_range(1, 
-		atomic_read(&ctx.curr_id), &ctx);
-
 }
 
 int main (
@@ -237,11 +212,9 @@ int main (
 	oryx_register_sighandler(SIGINT, lq_sigint);
 	oryx_register_sighandler(SIGTERM, lq_sigint);
 
-	lq_env_init();
-
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		/* new queue */
-		oryx_lq_new("A new list queue", lq_cfg, &lq);
+		oryx_lq_new("A new list queue", lq_cfg, (void **)&lq);
 		oryx_lq_dump(lq);
 		lqset[i] = lq;
 	}

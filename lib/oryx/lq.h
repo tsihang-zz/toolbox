@@ -1,5 +1,5 @@
-#ifndef LIST_QUEUE_H
-#define LIST_QUEUE_H
+#ifndef LQ_H
+#define LQ_H
 
 #define LQ_ENABLE_PASSIVE
 
@@ -29,7 +29,8 @@ struct oryx_lq_ctx_t {
     void				*bot;
 	const char			*name;
     uint32_t			len;
-
+	uint64_t			nr_eq_refcnt;
+	uint64_t			nr_dq_refcnt;
 #ifdef DBG_PERF
     uint32_t	dbg_maxlen;
 #endif /* DBG_PERF */
@@ -81,6 +82,8 @@ void oryx_lq_enqueue (void *lq, void * f)
     }
 	
 	q->len ++;
+	q->nr_eq_refcnt ++;
+	
 #ifdef DBG_PERF
 	if (q->len > q->dbg_maxlen)
 		q->dbg_maxlen = q->len;
@@ -139,9 +142,11 @@ void * oryx_lq_dequeue (void *lq)
 #if defined(BUILD_DEBUG)
     BUG_ON(q->len == 0);
 #endif
-    if (q->len > 0)
-        q->len--;	
+	q->nr_dq_refcnt ++;
 
+    if (q->len > 0)
+        q->len--;
+	
     FQLOCK_UNLOCK(q);
     return f;
 }
