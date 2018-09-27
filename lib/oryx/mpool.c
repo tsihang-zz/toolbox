@@ -25,6 +25,8 @@ static void os_free(void *mem)
 	BUG_ON(mem == NULL);
 	
 	mh = (struct oryx_mp_handle_t *)mem;
+	BUG_ON(mh->v == NULL);
+
 	vec_foreach_element(mh->v, each, v) {
 		if (likely(v)) {
 			free(v);
@@ -82,24 +84,27 @@ void mpool_init(void ** p, const char *mp_name,
 	
 	/* new queue*/
 	oryx_lq_new(mp_name, 0, &omp->free_q);
+	BUG_ON(omp->free_q == NULL);
 
 	omp->steps					= nb_steps;
 	omp->nb_bytes_per_element	= CACHE_LINE_ROUNDUP(nb_bytes_per_element, cache_line_size);
-	omp->cache_line_size			= cache_line_size;
+	omp->cache_line_size		= cache_line_size;
 
-	BUG_ON(omp->free_q == NULL);
-	
 	for(i = 0 ; i < (int)omp->steps ; i ++) {
-		element = os_alloc(omp->mem, omp->nb_bytes_per_element);
+		element = os_alloc(omp, omp->nb_bytes_per_element);
 		oryx_lq_enqueue(omp->free_q, element);
 		omp->nb_elements ++;
 	}
 
 	(*p) = (void *)omp;
+
+	fprintf (stdout, "Init mempoll %p\n", omp);
 }
 
 void mpool_uninit(void * p)
 {
+	fprintf (stdout, "Uninit mempool %p .... ", p);
+
 	struct oryx_mpool_t *omp = (struct oryx_mpool_t *)p;
 		
 	BUG_ON(omp == NULL || omp->mem == NULL);
@@ -112,6 +117,8 @@ void mpool_uninit(void * p)
 
 	free(omp->mem);
 	free(omp);
+
+	fprintf (stdout, "done\n");
 }
 
 void * mpool_alloc(void * p)

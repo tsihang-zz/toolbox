@@ -33,6 +33,9 @@ list_queue_init (const char *fq_name,	uint32_t fq_cfg, struct oryx_lq_ctx_t *lq)
     memset(lq, 0, sizeof(struct oryx_lq_ctx_t));
 	lq->name		=	fq_name;
 	lq->ul_flags	=	fq_cfg;
+	lq->bot			=	NULL;
+	lq->top			=	NULL;
+	lq->len			=	0;
     FQLOCK_INIT(lq);
 
 #if defined(LQ_ENABLE_PASSIVE)

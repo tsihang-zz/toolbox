@@ -102,10 +102,10 @@ int main (
 	int i = 3;
 
 	mpool_init(&flow_pool, "mempool for flow",
-					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
+					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 	
 	mpool_init(&flow_pool1, "mempool for flow",
-					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
+					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 
 	struct timeval start, end;
 	
@@ -137,13 +137,12 @@ int main (
 	mpool_uninit(flow_pool);
 	mpool_uninit(flow_pool1);
 
-
 	while(1) {
 		mpool_init(&flow_pool, "mempool for flow",
-						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
+						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 		
 		mpool_init(&flow_pool1, "mempool for flow",
-						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE, NULL);
+						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 
 		mpool_uninit(flow_pool);
 		mpool_uninit(flow_pool1);

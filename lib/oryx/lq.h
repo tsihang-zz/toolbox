@@ -25,10 +25,10 @@
 
 /* Define a queue for storing flows */
 struct oryx_lq_ctx_t {
-    void		*top;
-    void		*bot;
-	const char	*name;
-    uint32_t	len;
+    void				*top;
+    void				*bot;
+	const char			*name;
+    uint32_t			len;
 
 #ifdef DBG_PERF
     uint32_t	dbg_maxlen;
@@ -44,6 +44,7 @@ struct oryx_lq_ctx_t {
 
 	uint32_t	ul_flags;
 };
+//}__attribute__((__packed__));
 
 #define lq_blocked_len(lq)	((lq)->len)
 #define lq_type_blocked(lq)	((lq)->ul_flags & LQ_TYPE_PASSIVE)
@@ -63,9 +64,10 @@ static __oryx_always_inline__
 void oryx_lq_enqueue (void *lq, void * f)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
-#if defined(BUILD_DEBUG)
+
+//#if defined(BUILD_DEBUG)
     BUG_ON(q == NULL || f == NULL);
-#endif
+//#endif
 
     FQLOCK_LOCK(q);
 
@@ -104,9 +106,10 @@ static __oryx_always_inline__
 void * oryx_lq_dequeue (void *lq)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
-#if defined(BUILD_DEBUG)
+
+//#if defined(BUILD_DEBUG)
 	BUG_ON(q == NULL);
-#endif
+//#endif
 
 #if defined(LQ_ENABLE_PASSIVE)
 	if(lq_type_blocked(q))
@@ -121,6 +124,7 @@ void * oryx_lq_dequeue (void *lq)
         return NULL;
     }
 
+	/* more elements in queue */
     if (((struct lq_prefix_t *)q->bot)->lprev != NULL) {
         q->bot = ((struct lq_prefix_t *)q->bot)->lprev;
         ((struct lq_prefix_t *)q->bot)->lnext = NULL;
