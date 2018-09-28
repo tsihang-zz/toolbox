@@ -1,8 +1,12 @@
 #include "oryx.h"
 #include "mme_htable.h"
 
-//#define HAVE_CDR
+#define HAVE_CDR
+
 #define MAX_LQ_NUM	4
+
+#define ENQUEUE_LCORE_ID 0
+
 #define LINE_LENGTH	256
 
 static int quit = 0;
@@ -138,7 +142,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		vlib_main_t *vm = &vlib_main;
 
 		static FILE *fp = NULL;
-		const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
+		const char *file = "/home/tsihang/DataExport.s1mmeSAMPLEMME_1538102100.csv";
 		static char line[LINE_LENGTH] = {0};
 		char *p;
 		int sep_refcnt = 0;
@@ -173,6 +177,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 						sscanf(p, "%d.%d.%d.%d", &a, &b, &c, &d);
 						//fprintf (stdout, "%d bytes, mmeip %d.%d.%d.%d\n", line_size, a, b, c, d);
 						lq_cdr_equeue(line, line_size, (a + b + c + d));
+                        usleep(1);
 						break;
 					}
 				}
@@ -189,7 +194,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 static struct oryx_task_t dequeue = {
 		.module 		= THIS,
 		.sc_alias		= "Dequeue Task0",
-		.fn_handler 		= dequeue_handler,
+		.fn_handler 	= dequeue_handler,
 		.lcore_mask		= 0x08,
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 1,
@@ -200,8 +205,8 @@ static struct oryx_task_t dequeue = {
 static struct oryx_task_t enqueue = {
 		.module 		= THIS,
 		.sc_alias		= "Enqueue Task",
-		.fn_handler 		= enqueue_handler,
-		.lcore_mask		= 0x04,
+		.fn_handler 	= enqueue_handler,
+		.lcore_mask		= (1 << ENQUEUE_LCORE_ID),
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,
@@ -309,6 +314,8 @@ static void lq_env_init(vlib_main_t *vm)
 		memset(t, sizeof (struct oryx_task_t), 0);
 		memcpy(t, &dequeue, sizeof (struct oryx_task_t));
 		t->lcore_mask = INVALID_CORE;
+		//t->lcore_mask = (1 << (i + ENQUEUE_LCORE_ID));
+        t->ul_prio = KERNEL_SCHED;
 		t->argc = 1;
 		t->argv = &lqset[i];
 		t->sc_alias = strdup(name);
