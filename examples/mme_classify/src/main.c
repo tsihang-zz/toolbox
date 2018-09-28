@@ -3,16 +3,17 @@
 
 #define HAVE_CDR
 #define MAX_LQ_NUM	4
-#define LINE_LENGTH	1024
+#define LINE_LENGTH	256
 
-static int quit;
+static int quit = 0;
 static struct oryx_lq_ctx_t *lqset[MAX_LQ_NUM];
 static uint64_t	dq_x[MAX_LQ_NUM];
 static uint64_t eq_x[MAX_LQ_NUM];
 
 struct lq_element_t {
-	struct list_head node;
+	struct lq_prefix_t lp;
 #if defined(HAVE_CDR)
+	//char value;
 	char value[LINE_LENGTH];
 #else
 	char value;
@@ -20,7 +21,8 @@ struct lq_element_t {
 };
 #define lq_element_size	(sizeof(struct lq_element_t))
 
-#define VLIB_ENQUEUE_HANDLER_EXITED	(1 << 0)
+#define VLIB_ENQUEUE_HANDLER_EXITED		(1 << 0)
+#define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
 typedef struct vlib_main_t {
 	volatile uint32_t ul_flags;
 	struct oryx_htable_t *mme_hash_tab;
@@ -45,7 +47,7 @@ void lq_cdr_equeue(const char *value, size_t size, int sand)
 	BUG_ON(lqe == NULL);
 	memset(lqe, lq_element_size, 0);	
 	/* soft copy. */
-	memcpy((void *)&lqe->value[0], value, size);
+	//memcpy((void *)&lqe->value[0], value, size);
 	fetch_lq(sand, &lq);
 	oryx_lq_enqueue(lq, lqe);
 }
@@ -95,7 +97,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 		struct oryx_lq_ctx_t *lq = *(struct oryx_lq_ctx_t **)r;
 		vlib_main_t *vm = &vlib_main;
 
-		fprintf(stdout, "Starting thread %lu, %p\n", pthread_self(), lq);
+		fprintf(stdout, "Starting dequeue handler %lu, %p\n", pthread_self(), lq);
 		
 		FOREVER {
 			if (quit) {
@@ -110,6 +112,10 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				fprintf (stdout, " exited!\n");
 				break;
 			}
+
+			/* wait for enqueue handler start. */
+			if (!(vm->ul_flags & VLIB_ENQUEUE_HANDLER_STARTED))
+				continue;
 			
 			lqe = oryx_lq_dequeue(lq);
 			if (lqe != NULL) {
@@ -147,7 +153,8 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		}
 #endif
 		//lq_read_csv();
-		
+
+		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
 		FOREVER {
 			if (quit) {
 				fprintf (stdout, "enqueue exited!\n");
@@ -157,7 +164,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			
 #if defined(HAVE_CDR)
 			while (fgets (line, LINE_LENGTH, fp)) {
-				usleep (1000);
+				//usleep (100);
 				line_size = strlen(line);
 				for (p = &line[0], step = 0, sep_refcnt = 0;
 							*p != '\0' && *p != '\n'; ++ p, step ++) {

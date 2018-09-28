@@ -84,7 +84,8 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			
 			fetch_lq(sand, &lq);
 			oryx_lq_enqueue(lq, lqe);
-			//usleep(1);
+			/* virtual machine is not very efficient on memory allocation. */
+			/* usleep(1); */
 		}
 
 		oryx_task_deregistry_id(pthread_self());
@@ -107,7 +108,7 @@ static struct oryx_task_t enqueue = {
 		.sc_alias		= "Enqueue Task",
 		.fn_handler 		= enqueue_handler,
 		.lcore_mask		= 0x04,
-		.ul_prio		= INVALID_CORE,
+		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
