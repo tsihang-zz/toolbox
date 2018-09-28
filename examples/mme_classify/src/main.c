@@ -1,22 +1,29 @@
 #include "oryx.h"
+#include "mme_htable.h"
 
+#define HAVE_CDR
 #define MAX_LQ_NUM	4
+#define LINE_LENGTH	1024
+
 static int quit;
 static struct oryx_lq_ctx_t *lqset[MAX_LQ_NUM];
 static uint64_t	dq_x[MAX_LQ_NUM];
 static uint64_t eq_x[MAX_LQ_NUM];
 
 struct lq_element_t {
-	struct lq_prefix_t lq;
-	int value;
-}__attribute__((aligned(64)));
-
-
+	struct list_head node;
+#if defined(HAVE_CDR)
+	char value[LINE_LENGTH];
+#else
+	char value;
+#endif
+};
 #define lq_element_size	(sizeof(struct lq_element_t))
 
 #define VLIB_ENQUEUE_HANDLER_EXITED	(1 << 0)
 typedef struct vlib_main_t {
 	volatile uint32_t ul_flags;
+	struct oryx_htable_t *mme_hash_tab;
 } vlib_main_t;
 
 vlib_main_t vlib_main;
@@ -26,6 +33,60 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t sand, struct oryx_lq_ctx_t **lq) {
 	/* fetch an LQ */
 	(*lq) = lqset[sand % MAX_LQ_NUM];
 }
+
+#if defined(HAVE_CDR)
+static __oryx_always_inline__
+void lq_cdr_equeue(const char *value, size_t size, int sand)
+{
+	struct lq_element_t *lqe;
+	struct oryx_lq_ctx_t *lq;
+
+	lqe = malloc(lq_element_size);
+	BUG_ON(lqe == NULL);
+	memset(lqe, lq_element_size, 0);	
+	/* soft copy. */
+	memcpy((void *)&lqe->value[0], value, size);
+	fetch_lq(sand, &lq);
+	oryx_lq_enqueue(lq, lqe);
+}
+#endif
+
+#if defined(HAVE_CDR)
+static __oryx_always_inline__
+void lq_read_csv(void)
+{
+	static FILE *fp = NULL;
+	const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
+	static char line[LINE_LENGTH] = {0};
+	char *p;
+	int sep_refcnt = 0;
+	char sep = ',';
+	size_t line_size = 0, step;
+	uint64_t dec = 0;
+	uint8_t a,b,c,d;
+	
+	if(!fp) {
+		fp = fopen(file, "r");
+		if(!fp) exit(0);
+	}
+
+	while (fgets (line, LINE_LENGTH, fp)) {
+		line_size = strlen(line);
+		for (p = &line[0], step = 0, sep_refcnt = 0;
+					*p != '\0' && *p != '\n'; ++ p, step ++) {
+			if (*p == sep)
+				sep_refcnt ++;
+			if (sep_refcnt == 45) {
+				/* skip the last sep ',' */
+				++ p;
+				sscanf(p, "%d.%d.%d.%d", &a, &b, &c, &d);
+				fprintf (stdout, "%d bytes, mmeip %d.%d.%d.%d\n", line_size, a, b, c, d);
+				break;
+			}
+		}
+	}
+}
+#endif
 
 static
 void * dequeue_handler (void __oryx_unused_param__ *r)
@@ -68,6 +129,24 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		static uint32_t sand = 1315423911;
 		struct oryx_lq_ctx_t *lq;
 		vlib_main_t *vm = &vlib_main;
+
+#if defined(HAVE_CDR)
+		static FILE *fp = NULL;
+		const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
+		static char line[LINE_LENGTH] = {0};
+		char *p;
+		int sep_refcnt = 0;
+		char sep = ',';
+		size_t line_size = 0, step;
+		uint64_t dec = 0;
+		uint8_t a,b,c,d;
+		
+		if(!fp) {
+			fp = fopen(file, "r");
+			if(!fp) exit(0);
+		}
+#endif
+		//lq_read_csv();
 		
 		FOREVER {
 			if (quit) {
@@ -75,16 +154,38 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				vm->ul_flags |= VLIB_ENQUEUE_HANDLER_EXITED;
 				break;
 			}
-	
+			
+#if defined(HAVE_CDR)
+			while (fgets (line, LINE_LENGTH, fp)) {
+				usleep (1000);
+				line_size = strlen(line);
+				for (p = &line[0], step = 0, sep_refcnt = 0;
+							*p != '\0' && *p != '\n'; ++ p, step ++) {
+					if (*p == sep)
+						sep_refcnt ++;
+					if (sep_refcnt == 45) {
+						/* skip the last sep ',' */
+						++ p;
+						sscanf(p, "%d.%d.%d.%d", &a, &b, &c, &d);
+						//fprintf (stdout, "%d bytes, mmeip %d.%d.%d.%d\n", line_size, a, b, c, d);
+						lq_cdr_equeue(line, line_size, (a + b + c + d));
+						break;
+					}
+				}
+			}
+			/* break after end of file. */
+			break;
+#else	
 			lqe = malloc(lq_element_size);
 			BUG_ON(lqe == NULL);
 			memset(lqe, lq_element_size, 0);
 			
-			lqe->value = next_rand_(&sand);
+			next_rand_(&sand);
 			
 			fetch_lq(sand, &lq);
 			oryx_lq_enqueue(lq, lqe);
-			//usleep(1);
+			usleep(1);
+#endif
 		}
 
 		oryx_task_deregistry_id(pthread_self());
@@ -107,7 +208,7 @@ static struct oryx_task_t enqueue = {
 		.sc_alias		= "Enqueue Task",
 		.fn_handler 		= enqueue_handler,
 		.lcore_mask		= 0x04,
-		.ul_prio		= INVALID_CORE,
+		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
@@ -192,27 +293,21 @@ static void lq_runtime(void)
 	}
 }
 
-int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
-)
-
-{	
+static void lq_env_init(vlib_main_t *vm)
+{
 	int i;
 	uint32_t	lq_cfg = 0;
 	struct oryx_lq_ctx_t *lq;
 	
-	oryx_initialize();
-
-	oryx_register_sighandler(SIGINT, lq_sigint);
-	oryx_register_sighandler(SIGTERM, lq_sigint);
+	vm->mme_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+							ht_mme_hval, ht_mme_cmp, ht_mme_free, 0);	
 
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		/* new queue */
 		oryx_lq_new("A new list queue", lq_cfg, (void **)&lq);
 		oryx_lq_dump(lq);
 		lqset[i] = lq;
-		
+
 		char name[64] = {0};
 		sprintf (name, "Dequeue Task%d", i);
 		struct oryx_task_t *t = malloc (sizeof(struct oryx_task_t));
@@ -224,9 +319,23 @@ int main (
 		t->argv = &lqset[i];
 		t->sc_alias = strdup(name);
 		oryx_task_registry(t);
-
 	}
+}
 
+int main (
+        int     __oryx_unused_param__   argc,
+        char    __oryx_unused_param__   ** argv
+)
+
+{
+	vlib_main_t *vm = &vlib_main;
+	
+	oryx_initialize();
+	oryx_register_sighandler(SIGINT, lq_sigint);
+	oryx_register_sighandler(SIGTERM, lq_sigint);
+
+	lq_env_init(vm);
+	
 	oryx_task_registry(&enqueue);
 	
 	oryx_task_launch();

@@ -43,6 +43,7 @@ struct oryx_lq_ctx_t {
 	os_cond_t	cond;
 #endif
 
+	int			unique_id;
 	uint32_t	ul_flags;
 };
 //}__attribute__((__packed__));
