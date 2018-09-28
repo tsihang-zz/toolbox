@@ -1,7 +1,7 @@
 #include "oryx.h"
 #include "mme_htable.h"
 
-#define HAVE_CDR
+//#define HAVE_CDR
 #define MAX_LQ_NUM	4
 #define LINE_LENGTH	256
 
@@ -13,7 +13,6 @@ static uint64_t eq_x[MAX_LQ_NUM];
 struct lq_element_t {
 	struct lq_prefix_t lp;
 #if defined(HAVE_CDR)
-	//char value;
 	char value[LINE_LENGTH];
 #else
 	char value;
@@ -36,7 +35,6 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t sand, struct oryx_lq_ctx_t **lq) {
 	(*lq) = lqset[sand % MAX_LQ_NUM];
 }
 
-#if defined(HAVE_CDR)
 static __oryx_always_inline__
 void lq_cdr_equeue(const char *value, size_t size, int sand)
 {
@@ -46,14 +44,16 @@ void lq_cdr_equeue(const char *value, size_t size, int sand)
 	lqe = malloc(lq_element_size);
 	BUG_ON(lqe == NULL);
 	memset(lqe, lq_element_size, 0);	
+	
+#if defined(HAVE_CDR)
 	/* soft copy. */
-	//memcpy((void *)&lqe->value[0], value, size);
+	memcpy((void *)&lqe->value[0], value, size);
+#endif
+
 	fetch_lq(sand, &lq);
 	oryx_lq_enqueue(lq, lqe);
 }
-#endif
 
-#if defined(HAVE_CDR)
 static __oryx_always_inline__
 void lq_read_csv(void)
 {
@@ -91,7 +91,6 @@ void lq_read_csv(void)
 		}
 	}
 }
-#endif
 
 static
 void * dequeue_handler (void __oryx_unused_param__ *r)
@@ -100,8 +99,12 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 		struct oryx_lq_ctx_t *lq = *(struct oryx_lq_ctx_t **)r;
 		vlib_main_t *vm = &vlib_main;
 
-		fprintf(stdout, "Starting dequeue handler %lu, %p\n", pthread_self(), lq);
-		
+
+		/* wait for enqueue handler start. */
+		while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_STARTED)
+			break;
+
+		fprintf(stdout, "Starting dequeue handler %lu, %p\n", pthread_self(), lq);		
 		FOREVER {
 			if (quit) {
 				/* wait for enqueue handler exit. */
@@ -115,10 +118,6 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				fprintf (stdout, " exited!\n");
 				break;
 			}
-
-			/* wait for enqueue handler start. */
-			if (!(vm->ul_flags & VLIB_ENQUEUE_HANDLER_STARTED))
-				continue;
 			
 			lqe = oryx_lq_dequeue(lq);
 			if (lqe != NULL) {
@@ -135,11 +134,9 @@ static
 void * enqueue_handler (void __oryx_unused_param__ *r)
 {
 		struct lq_element_t *lqe;
-		static uint32_t sand = 1315423911;
 		struct oryx_lq_ctx_t *lq;
 		vlib_main_t *vm = &vlib_main;
 
-#if defined(HAVE_CDR)
 		static FILE *fp = NULL;
 		const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
 		static char line[LINE_LENGTH] = {0};
@@ -154,7 +151,6 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			fp = fopen(file, "r");
 			if(!fp) exit(0);
 		}
-#endif
 		//lq_read_csv();
 
 		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
@@ -165,9 +161,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				break;
 			}
 			
-#if defined(HAVE_CDR)
 			while (fgets (line, LINE_LENGTH, fp)) {
-				//usleep (100);
 				line_size = strlen(line);
 				for (p = &line[0], step = 0, sep_refcnt = 0;
 							*p != '\0' && *p != '\n'; ++ p, step ++) {
@@ -184,18 +178,8 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				}
 			}
 			/* break after end of file. */
+			fprintf (stdout, "Finish read %s, break down!\n", file);
 			break;
-#else	
-			lqe = malloc(lq_element_size);
-			BUG_ON(lqe == NULL);
-			memset(lqe, lq_element_size, 0);
-			
-			next_rand_(&sand);
-			
-			fetch_lq(sand, &lq);
-			oryx_lq_enqueue(lq, lqe);
-			usleep(1);
-#endif
 		}
 
 		oryx_task_deregistry_id(pthread_self());
