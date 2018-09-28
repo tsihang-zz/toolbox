@@ -13,6 +13,13 @@ struct lq_element_t {
 
 #define lq_element_size	(sizeof(struct lq_element_t))
 
+#define VLIB_ENQUEUE_HANDLER_EXITED	(1 << 0)
+typedef struct vlib_main_t {
+	volatile uint32_t ul_flags;
+} vlib_main_t;
+
+vlib_main_t vlib_main;
+
 static __oryx_always_inline__
 struct oryx_lq_ctx_t * fetch_lq(uint64_t sand, struct oryx_lq_ctx_t **lq) {
 	/* fetch an LQ */
@@ -24,16 +31,21 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 {
 		struct lq_element_t *lqe;
 		struct oryx_lq_ctx_t *lq = *(struct oryx_lq_ctx_t **)r;
+		vlib_main_t *vm = &vlib_main;
 
 		fprintf(stdout, "Starting thread %lu, %p\n", pthread_self(), lq);
 		
 		FOREVER {
 			if (quit) {
+				/* wait for enqueue handler exit. */
+				while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_EXITED)
+					break;
+				fprintf (stdout, "dequeue exiting ... ");
 				/* drunk out all elements before thread quit */					
 				while (NULL != (lqe = oryx_lq_dequeue(lq))){
 					free(lqe);
 				}
-
+				fprintf (stdout, " exited!\n");
 				break;
 			}
 			
@@ -54,10 +66,14 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		struct lq_element_t *lqe;
 		static uint32_t sand = 1315423911;
 		struct oryx_lq_ctx_t *lq;
+		vlib_main_t *vm = &vlib_main;
 		
 		FOREVER {
-			if (quit)
+			if (quit) {
+				fprintf (stdout, "enqueue exited!\n");
+				vm->ul_flags |= VLIB_ENQUEUE_HANDLER_EXITED;
 				break;
+			}
 	
 			lqe = malloc(lq_element_size);
 			BUG_ON(lqe == NULL);
@@ -77,7 +93,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 static struct oryx_task_t dequeue = {
 		.module 		= THIS,
 		.sc_alias		= "Dequeue Task0",
-		.fn_handler 	= dequeue_handler,
+		.fn_handler 		= dequeue_handler,
 		.lcore_mask		= 0x08,
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 1,
@@ -88,7 +104,7 @@ static struct oryx_task_t dequeue = {
 static struct oryx_task_t dequeue0 = {
 		.module 		= THIS,
 		.sc_alias		= "Dequeue Task0",
-		.fn_handler 	= dequeue_handler,
+		.fn_handler 		= dequeue_handler,
 		.lcore_mask		= 0x08,
 		.ul_prio		= INVALID_CORE,
 		.argc			= 1,
@@ -99,7 +115,7 @@ static struct oryx_task_t dequeue0 = {
 static struct oryx_task_t dequeue1 = {
 		.module 		= THIS,
 		.sc_alias		= "Dequeue Task1",
-		.fn_handler 	= dequeue_handler,
+		.fn_handler 		= dequeue_handler,
 		.lcore_mask		= 0x08,
 		.ul_prio		= INVALID_CORE,
 		.argc			= 1,
@@ -110,7 +126,7 @@ static struct oryx_task_t dequeue1 = {
 static struct oryx_task_t enqueue = {
 		.module 		= THIS,
 		.sc_alias		= "Enqueue Task",
-		.fn_handler 	= enqueue_handler,
+		.fn_handler 		= enqueue_handler,
 		.lcore_mask		= 0x04,
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
@@ -131,7 +147,7 @@ static void lq_terminal(void)
 
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		lq = lqset[i];
-		fprintf (stdout, "LQ[%d], nr_eq_refcnt_id %ld, nr_dq_refcnt_id %ld, buffered %lu(%d)\n",
+		fprintf (stdout, "LQ[%d], nr_eq_refcnt %ld, nr_dq_refcnt %ld, buffered %lu(%d)\n",
 			i, lq->nr_eq_refcnt, lq->nr_dq_refcnt, (lq->nr_eq_refcnt - lq->nr_dq_refcnt), lq->len);
 		oryx_lq_destroy(lq);
 	}
@@ -181,10 +197,10 @@ static void lq_runtime(void)
 		nr_dq_swap_bytes_cur		=	(dq * lqe_size) - nr_dq_swap_bytes_prev[i];
 		nr_dq_swap_elements_cur 	=	dq - nr_dq_swap_elements_prev[i];
 		
-		nr_eq_swap_bytes_prev[i]		=	(eq * lqe_size);
+		nr_eq_swap_bytes_prev[i]	=	(eq * lqe_size);
 		nr_eq_swap_elements_prev[i]	=	eq;
 		
-		nr_dq_swap_bytes_prev[i]		=	(dq * lqe_size);
+		nr_dq_swap_bytes_prev[i]	=	(dq * lqe_size);
 		nr_dq_swap_elements_prev[i]	=	dq;
 
 		fprintf (fp, "LQ[%d], eq %ld (pps %s, bps %s), dq %ld (pps %s, bps %s), buffered %lu(%d)\n",
@@ -227,13 +243,16 @@ int main (
 	
 	FOREVER {
 		if (quit) {
-			/* wait for dequeue finish. */
+			/* wait for handlers of enqueue and dequeue finish. */
 			sleep (3);
+			/* last runtime logging. */
+			lq_runtime();
 			lq_terminal();
 			break;
+		} else {
+			lq_runtime();
+			sleep (3);
 		}
-		lq_runtime();
-		sleep (3);
 	};
 	
 	return 0;
