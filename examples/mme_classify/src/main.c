@@ -58,7 +58,7 @@ static __oryx_always_inline__
 void lq_read_csv(void)
 {
 	static FILE *fp = NULL;
-	const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
+	const char *file = "/home/tsihang/DataExport.s1mmeSAMPLEMME_1538102100.csv";
 	static char line[LINE_LENGTH] = {0};
 	char *p;
 	int sep_refcnt = 0;
@@ -69,7 +69,10 @@ void lq_read_csv(void)
 	
 	if(!fp) {
 		fp = fopen(file, "r");
-		if(!fp) exit(0);
+		if(!fp) {
+            fprintf (stdout, "Cannot open %s \n");
+            exit(0);
+        }
 	}
 
 	while (fgets (line, LINE_LENGTH, fp)) {
