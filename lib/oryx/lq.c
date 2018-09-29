@@ -1,7 +1,7 @@
 #include "oryx.h"
 
-static void
-_wakeup (void *lq)
+static __oryx_always_inline__
+void _wakeup (void *lq)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "wakeup...\n");
@@ -10,8 +10,8 @@ _wakeup (void *lq)
 	do_mutex_unlock (&q->cond_lock);
 }
 
-static void
-_hangup (void *lq)
+static __oryx_always_inline__
+void _hangup (void *lq)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "Trying hangup %d...\n", lq_blocked_len(lq));
@@ -25,8 +25,8 @@ _hangup (void *lq)
 	}
 }
 
-static struct oryx_lq_ctx_t *
-list_queue_init (const char *fq_name,	uint32_t fq_cfg, struct oryx_lq_ctx_t *lq)
+static __oryx_always_inline__
+struct oryx_lq_ctx_t * list_queue_init (const char *fq_name,	uint32_t fq_cfg, struct oryx_lq_ctx_t *lq)
 {
     BUG_ON (lq == NULL);
 	
