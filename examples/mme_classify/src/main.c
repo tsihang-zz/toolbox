@@ -11,7 +11,6 @@ static int quit = 0;
 typedef struct vlib_mme_classify_main_t {
 	struct oryx_lq_ctx_t *lq;
 	uint32_t			unique_id;
-	time_t				local_time;
 }vlib_mme_classify_main_t;
 vlib_mme_classify_main_t vlib_mme_classify_main[MAX_LQ_NUM];
 
@@ -94,96 +93,88 @@ void lq_cdr_equeue(const char *value, size_t size, const char *mme_ip)
 }
 
 static __oryx_always_inline__
-void lq_read_csv(void)
-{
-	static FILE *fp = NULL;
-	const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
-	static char line[LINE_LENGTH] = {0};
-	char *p;
-	int sep_refcnt = 0;
-	char sep = ',';
-	size_t line_size = 0, step;
-	uint64_t dec = 0;
-	uint8_t a,b,c,d;
-	
-	if(!fp) {
-		fp = fopen(file, "r");
-		if(!fp) {
-            fprintf (stdout, "Cannot open %s \n", file);
-            exit(0);
-        }
-	}
-
-	while (fgets (line, LINE_LENGTH, fp)) {
-		line_size = strlen(line);
-		for (p = &line[0], step = 0, sep_refcnt = 0;
-					*p != '\0' && *p != '\n'; ++ p, step ++) {
-			if (*p == sep)
-				sep_refcnt ++;
-			if (sep_refcnt == 45) {
-				/* skip the last sep ',' */
-				++ p;
-				sscanf(p, "%d.%d.%d.%d", &a, &b, &c, &d);
-				fprintf (stdout, "%d bytes, mmeip %d.%d.%d.%d\n", line_size, a, b, c, d);
-				break;
-			}
-		}
-	}
-}
-
-static __oryx_always_inline__
-int judge_overtime(time_t now, time_t start)
+int is_overtime(time_t now, time_t start)
 {
 	return (now > (start +  MME_CSV_THRESHOLD * 60)) ? 1 : 0;
 }
 
 static __oryx_always_inline__
-void prepare_csv_file(vlib_mme_t *mme, time_t start)
+int is_overdisk(time_t now, time_t start)
 {
-	char name[128] = {0};
-	
-	if (mme->fp == NULL) {
-		sprintf (name, "%s/%s/DataExport.s1mme%s_%d_%d.csv", MME_CSV_HOME, mme->name, mme->name, start, start + (MME_CSV_THRESHOLD * 60));
-		mme->fp = fopen (name, "a+");
-		if (mme->fp == NULL) {
-			fprintf (stdout, "Cannot fopen file %s\n", name);
-			exit (0);
-		} else {
-			fprintf (mme->fp, "%s\n", MME_CSV_HEADER);
-		}
+	return 0;
+}
+
+static __oryx_always_inline__
+void flush_line(const FILE *fp, const char *val)
+{
+	fprintf(fp, "%s", val);
+	fflush(fp);
+}
+
+static __oryx_always_inline__
+void do_flush(vlib_mme_t *mme, struct lq_element_t *lqe)
+{
+	if (!mme->fp) {
+		mme->nr_miss ++;
+		return;
 	}
+	
+	flush_line(mme->fp, lqe->value);
+	mme->nr_refcnt ++;
+}
+
+static __oryx_always_inline__
+void do_csv_post(vlib_mme_t *mme, time_t new_ts)
+{
+	/* flush file before close it. */
+	fflush(mme->fp);
+	/* overtime or overdisk, close this file. */
+	fclose(mme->fp);
+	/* update local time. */
+	mme->local_time = new_ts;
+	/* reset csv file handler. */
+	mme->fp = NULL;
+}
+
+static __oryx_always_inline__
+void format_csv_file(char *name, time_t start, char *csv_file)
+{
+	sprintf (csv_file, "%s/%s/DataExport.s1mme%s_%d_%d.csv",
+		MME_CSV_HOME, name, name, start, start + (MME_CSV_THRESHOLD * 60));
 }
 
 static __oryx_always_inline__
 void do_csv_flush(vlib_mme_classify_main_t *vmc,
 			vlib_mme_t *mme, const struct lq_element_t *lqe)
 {
-	char name[128] = {0};
+	char file[128] = {0};
 	time_t ts = time(NULL);
-	
+
+	/* lock MME */
 	MME_LOCK(mme);
 
-	/* Prepare a new CSV file. */
-	prepare_csv_file(mme, ts);
+	/* Prepare a new CSV file. */	
+	if (mme->fp == NULL) {
+		format_csv_file(mme->name, ts, file);
+		mme->fp = fopen (file, "a+");
+		if (mme->fp == NULL) {
+			mme->nr_miss ++;
+			fprintf (stdout, "Cannot fopen file %s\n", file);
+			goto finish;
+		} else {
+			flush_line(mme->fp, MME_CSV_HEADER);
+		}
+	}
 
-	if (judge_overtime(ts, vmc->local_time)) {
-
-		/* flush and close previous file first */
-		fprintf(mme->fp, "%s", lqe->value);
-		fflush(mme->fp);
-		fclose(mme->fp);
+	/* write CDR to disk ASAP */
+	do_flush (mme, lqe);
 	
-		/* update local time. */
-		vmc->local_time = ts;
-		mme->fp = NULL;
-		goto finish;
-	}
-
-	if (mme->fp) {
-		fprintf(mme->fp, "%s", lqe->value);
-		fflush(mme->fp);
-	}
-
+	if (is_overtime(ts, mme->local_time))
+		do_csv_post(mme, ts);
+	
+	if (is_overdisk(0, 100))
+		do_csv_post(mme, ts);
+	
 finish:
 	MME_UNLOCK(mme);
 }
@@ -197,15 +188,15 @@ void do_classify(vlib_mme_classify_main_t *vmc, const struct lq_element_t *lqe)
 	vlib_mme_t		*mme;
 
 	/* 45 is the number of ',' in a CDR. */
-	if (lqe->valen <= 45)
+	if (lqe->valen <= 45) {
+		fprintf (stdout, "Invalid CDR with length %d from \"%s\" \n", lqe->valen, lqe->mme_ip);
 		goto finish;
+	}
 	
 	s = oryx_htable_lookup(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
 	if (s) {
 		mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
 		mme = mmekey->mme;
-		mme->nr_refcnt ++;
-		//fprintf (stdout, "(2)%s", lqe->value);
 		do_csv_flush(vmc, mme, lqe);
 	} else {
 		fprintf (stdout, "Cannot find a defined mmekey via IP \"%s\"\n", lqe->mme_ip);
@@ -262,7 +253,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		vlib_main_t *vm = &vlib_main;
 
 		static FILE *fp = NULL;
-		const char *file = "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv";
+		const char *file = MME_CSV_FILE;
 		static char line[LINE_LENGTH] = {0};
 		char *p;
 		int sep_refcnt = 0;
@@ -277,8 +268,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 	            exit(0);
         	}
 		}
-		//lq_read_csv();
-
+		
 		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
 		FOREVER {
 			if (quit) {
@@ -395,8 +385,8 @@ static void lq_runtime(void)
 	fprintf (fp, "Cost %lu us \n", nr_cost_us);
 	fprintf (fp, "\n");
 	fprintf (fp, "Statistics for each QUEUE\n");
-	fprintf (fp, "\n");
 	fflush(fp);
+	
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		vmc = &vlib_mme_classify_main[i];
 		lq = vmc->lq;
@@ -427,26 +417,21 @@ static void lq_runtime(void)
 
 	}
 
-#if 0
-	oryx_htable_foreach_elem(vm->mme_htable,
-								mme_print, fp, sizeof(FILE));
-#else
 	/** Statistics for each MME */
 	fprintf (fp, "\n\n");
 	fprintf (fp, "Statistics for each MME\n");
-	fprintf (fp, "%32s%24s\n", "MME_NAME", "REFCNT");
-	fprintf (fp, "%32s%24s\n", "--------", "------");
+	fprintf (fp, "%32s%24s%24s\n", "MME_NAME", "REFCNT", "MISS");
+	fprintf (fp, "%32s%24s%24s\n", "--------", "------", "----");
 	fflush(fp);
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		mme = &nr_global_mmes[i];
 		nr_total_refcnt += mme->nr_refcnt;
-		fprintf (fp, "%32s%24lu\n", mme->name, mme->nr_refcnt);
+		fprintf (fp, "%32s%24lu%24lu\n", mme->name, mme->nr_refcnt, mme->nr_miss);
 		fflush (fp);
 	}
 	fprintf (fp, "Total: %lu, Unclassified: %lu\n", nr_total_refcnt, nr_unclassified_refcnt);
 	fflush(fp);
-#endif
-	
+
 }
 
 static void mme_warehouse(const char *path)
@@ -528,6 +513,7 @@ static void load_dictionary(vlib_main_t *vm)
 					/* no such mme, alloc a new one */
 					if (mme == NULL) {
 						mme = &nr_global_mmes[vm->nr_mmes ++];
+						mme->local_time = time(NULL);
 						MME_LOCK_INIT(mme);
 						memcpy(&mme->name[0], &name[0], nlen);
 						mmekey->mme = mme;						
@@ -578,6 +564,8 @@ static void lq_env_init(vlib_main_t *vm)
 	int i;
 	uint32_t	lq_cfg = 0;
 	vlib_mme_classify_main_t *vmc;
+
+	epoch_time_sec = time(NULL);
 	
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_mme_key_hval, ht_mme_key_cmp, ht_mme_key_free, 0);	
@@ -585,7 +573,6 @@ static void lq_env_init(vlib_main_t *vm)
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		vmc = &vlib_mme_classify_main[i];
 		vmc->unique_id = i;
-		vmc->local_time	= time(NULL);
 		/* new queue */
 		oryx_lq_new("A new list queue", lq_cfg, (void **)&vmc->lq);
 		oryx_lq_dump(vmc->lq);
@@ -609,6 +596,28 @@ static void lq_env_init(vlib_main_t *vm)
 	
 }
 
+void tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
+                char __oryx_unused_param__**argv)
+{
+	int i;
+	vlib_main_t *vm = &vlib_main;
+	vlib_mme_t *mme;
+
+	time_t ts = time(NULL);
+	
+	for (i = 0; i < vm->nr_mmes; i ++) {
+		mme = &nr_global_mmes[i];
+		MME_LOCK(mme);
+		if (ts > (mme->local_time + MME_CSV_THRESHOLD * 60)) {
+			//do_csv_post(mme, ts);
+		}
+
+		MME_UNLOCK(mme);
+
+	}
+	epoch_time_sec = time(NULL);
+}
+
 int main (
         int     __oryx_unused_param__   argc,
         char    __oryx_unused_param__   ** argv
@@ -623,6 +632,11 @@ int main (
 
 	lq_env_init(vm);
 	oryx_task_registry(&enqueue);
+
+
+	struct oryx_timer_t *tmr = oryx_tmr_create (1, "CSV Prepare TMR", TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED,
+											  tmr_default_handler, 0, NULL, 60000);
+	oryx_tmr_start(tmr);
 	
 	oryx_task_launch();
 	FOREVER {

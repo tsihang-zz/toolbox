@@ -11,7 +11,9 @@ extern uint32_t	epoch_time_sec;
 typedef struct vlib_mme_t {
 	char name[32];
 	uint64_t	nr_refcnt;
+	uint64_t	nr_miss;
 	FILE	*fp;
+	time_t	local_time;
 	os_mutex_t lock;
 } vlib_mme_t;
 
@@ -39,7 +41,10 @@ typedef struct vlib_mme_key_t {
 		.ip		= NULL,\
 	}
 
-#define MME_CSV_HEADER\
+#define MME_CSV_FILE \
+	"/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv"
+
+#define MME_CSV_HEADER \
 	",,Event Start,Event Stop,Event Type,IMSI,IMEI,,,,,,,,eCell ID,,,,,,,,,,,,,,,,,,,,,,,,,,500173254,13211655,11F0820A,208,3782123473,10.110.16.216"
 
 extern void ht_mme_key_free (const ht_value_t __oryx_unused_param__ v);
