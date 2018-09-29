@@ -1,5 +1,5 @@
 #include "oryx.h"
-#include "mme_htable.h"
+#include "mme.h"
 
 #define HAVE_CDR
 #define MAX_LQ_NUM	4
@@ -10,7 +10,8 @@ static int quit = 0;
 
 typedef struct vlib_mme_classify_main_t {
 	struct oryx_lq_ctx_t *lq;
-	uint32_t unique_id;
+	uint32_t			unique_id;
+	time_t				local_time;
 }vlib_mme_classify_main_t;
 vlib_mme_classify_main_t vlib_mme_classify_main[MAX_LQ_NUM];
 
@@ -75,7 +76,7 @@ void lq_cdr_equeue(const char *value, size_t size, const char *mme_ip)
 
 	lqe = malloc(lq_element_size);
 	BUG_ON(lqe == NULL);
-	memset(lqe, lq_element_size, 0);	
+	memset(lqe, 0, lq_element_size);
 	
 #if defined(HAVE_CDR)
 	/* soft copy. */
@@ -131,23 +132,60 @@ void lq_read_csv(void)
 }
 
 static __oryx_always_inline__
-void do_csv_flush(vlib_mme_t *mme, const struct lq_element_t *lqe)
+int judge_overtime(time_t now, time_t start)
+{
+	return (now > (start +  MME_CSV_THRESHOLD * 60)) ? 1 : 0;
+}
+
+static __oryx_always_inline__
+void prepare_csv_file(vlib_mme_t *mme, time_t start)
 {
 	char name[128] = {0};
 	
 	if (mme->fp == NULL) {
-		sprintf (name, "%s/%s/%s", MME_CSV_HOME, mme->name, "DataExport.csv");
+		sprintf (name, "%s/%s/DataExport.s1mme%s_%d_%d.csv", MME_CSV_HOME, mme->name, mme->name, start, start + (MME_CSV_THRESHOLD * 60));
 		mme->fp = fopen (name, "a+");
 		if (mme->fp == NULL) {
 			fprintf (stdout, "Cannot fopen file %s\n", name);
 			exit (0);
+		} else {
+			fprintf (mme->fp, "%s\n", MME_CSV_HEADER);
 		}
+	}
+}
+
+static __oryx_always_inline__
+void do_csv_flush(vlib_mme_classify_main_t *vmc,
+			vlib_mme_t *mme, const struct lq_element_t *lqe)
+{
+	char name[128] = {0};
+	time_t ts = time(NULL);
+	
+	MME_LOCK(mme);
+
+	/* Prepare a new CSV file. */
+	prepare_csv_file(mme, ts);
+
+	if (judge_overtime(ts, vmc->local_time)) {
+
+		/* flush and close previous file first */
+		fprintf(mme->fp, "%s", lqe->value);
+		fflush(mme->fp);
+		fclose(mme->fp);
+	
+		/* update local time. */
+		vmc->local_time = ts;
+		mme->fp = NULL;
+		goto finish;
 	}
 
 	if (mme->fp) {
 		fprintf(mme->fp, "%s", lqe->value);
 		fflush(mme->fp);
 	}
+
+finish:
+	MME_UNLOCK(mme);
 }
 
 static __oryx_always_inline__
@@ -168,7 +206,7 @@ void do_classify(vlib_mme_classify_main_t *vmc, const struct lq_element_t *lqe)
 		mme = mmekey->mme;
 		mme->nr_refcnt ++;
 		//fprintf (stdout, "(2)%s", lqe->value);
-		do_csv_flush(mme, lqe);
+		do_csv_flush(vmc, mme, lqe);
 	} else {
 		fprintf (stdout, "Cannot find a defined mmekey via IP \"%s\"\n", lqe->mme_ip);
 		vm->nr_unclassified_refcnt[vmc->unique_id] ++;
@@ -186,7 +224,6 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 		struct oryx_lq_ctx_t *lq = vmc->lq;
 		vlib_main_t *vm = &vlib_main;
 		
-
 		/* wait for enqueue handler start. */
 		while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_STARTED)
 			break;
@@ -318,23 +355,6 @@ static void lq_terminal(void)
 	}
 }
 
-static void mme_print(ht_value_t  v,
-				uint32_t __oryx_unused_param__ s,
-				void __oryx_unused_param__*opaque,
-				int __oryx_unused_param__ opaque_size) {
-	vlib_mme_t *mme;
-	vlib_mme_key_t *mmekey = (vlib_mme_key_t *)container_of (v, vlib_mme_key_t, ip);
-	FILE *fp = (FILE *)opaque;
-
-	if (mmekey) {
-		mme = mmekey->mme;
-		fprintf (fp, "%16s%16s\n", "MME_NAME: ", mme->name);
-		fprintf (fp, "%16s%16lu\n", "REFCNT: ",   mme->nr_refcnt);
-	}
-
-	fflush(fp);
-}
-
 static void lq_runtime(void)
 {
 	int i;
@@ -429,14 +449,6 @@ static void lq_runtime(void)
 	
 }
 
-static vlib_mme_key_t *mmekey_alloc(void)
-{
-	vlib_mme_key_t *v = malloc(sizeof (vlib_mme_key_t));
-	BUG_ON(v == NULL);
-	memset (v, 0, sizeof (vlib_mme_key_t));
-	return v;
-}
-
 static void mme_warehouse(const char *path)
 {
 	int i;
@@ -451,31 +463,6 @@ static void mme_warehouse(const char *path)
 	}
 }
 
-/* find and alloc MME */
-static vlib_mme_t *mme_find(const char *name, size_t nlen)
-{
-	int i;
-	vlib_mme_t *mme;
-	vlib_main_t *vm = &vlib_main;
-	size_t s1, s2;
-	
-	BUG_ON(name == NULL || nlen != strlen(name));
-	s1 = nlen;
-	for (i = 0, s2 = 0; i < vm->nr_mmes; i ++) {
-		mme = &nr_global_mmes[i];
-		s2 = strlen(mme->name);
-		if (s1 == s2 &&
-			!strcmp(name, mme->name)) {
-			fprintf (stdout, "mme_find, %s\n", name);
-			goto finish;
-		}
-		
-		mme = NULL;
-	}
-
-finish:
-	return mme;
-}
 static void load_dictionary(vlib_main_t *vm)
 {
 	/* load dictionary */
@@ -541,6 +528,7 @@ static void load_dictionary(vlib_main_t *vm)
 					/* no such mme, alloc a new one */
 					if (mme == NULL) {
 						mme = &nr_global_mmes[vm->nr_mmes ++];
+						MME_LOCK_INIT(mme);
 						memcpy(&mme->name[0], &name[0], nlen);
 						mmekey->mme = mme;						
 					}
@@ -597,6 +585,7 @@ static void lq_env_init(vlib_main_t *vm)
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		vmc = &vlib_mme_classify_main[i];
 		vmc->unique_id = i;
+		vmc->local_time	= time(NULL);
 		/* new queue */
 		oryx_lq_new("A new list queue", lq_cfg, (void **)&vmc->lq);
 		oryx_lq_dump(vmc->lq);
