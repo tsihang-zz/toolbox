@@ -29,14 +29,14 @@ struct lq_element_t {
 };
 #define lq_element_size	(sizeof(struct lq_element_t))
 
-#define VLIB_ENQUEUE_HANDLER_EXITED		(1 << 0)
+#define VLIB_ENQUEUE_HANDLER_EXITED	(1 << 0)
 #define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
 typedef struct vlib_main_t {
-	int						argc;
-	char					**argv;
-	const char				*prgname;			/* Name for e.g. syslog. */
-	volatile uint32_t		ul_flags;
-	int						nr_mmes;
+	int			argc;
+	char			**argv;
+	const char		*prgname; /* Name for e.g. syslog. */
+	volatile uint32_t	ul_flags;
+	int			nr_mmes;
 	struct oryx_htable_t	*mme_htable;
 } vlib_main_t;
 
@@ -104,14 +104,14 @@ int is_overdisk(time_t now, time_t start)
 }
 
 static __oryx_always_inline__
-void flush_line(const FILE *fp, const char *val)
+void flush_line(FILE *fp, const char *val)
 {
 	fprintf(fp, "%s", val);
 	fflush(fp);
 }
 
 static __oryx_always_inline__
-void do_flush(vlib_mme_t *mme, struct lq_element_t *lqe)
+void do_flush(vlib_mme_t *mme, const struct lq_element_t *lqe)
 {
 	if (!mme->fp) {
 		mme->nr_miss ++;
@@ -144,7 +144,7 @@ static __oryx_always_inline__
 int do_csv_open(vlib_mme_t *mme, time_t start)
 {
 	memset (mme->fp_name, 0, 128);
-	sprintf (mme->fp_name, "%s/%s/DataExport.s1mme%s_%d_%d.csv",
+	sprintf (mme->fp_name, "%s/%s/DataExport.s1mme%s_%lu_%lu.csv",
 		MME_CSV_HOME, mme->name, mme->name, start, start + (MME_CSV_THRESHOLD * 60));
 
 	mme->fp = fopen (mme->fp_name, "a+");
@@ -283,14 +283,13 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		int sep_refcnt = 0;
 		char sep = ',';
 		size_t line_size = 0, step;
-		uint64_t dec = 0;
 		
-		if(!fp) {
+		if (!fp) {
 			fp = fopen(file, "r");
 			if(!fp) {
-	            fprintf (stdout, "Cannot open %s \n", file);
-	            exit(0);
-        	}
+	            		fprintf (stdout, "Cannot open %s \n", file);
+	            		exit(0);
+        		}
 		}
 		
 		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
@@ -311,7 +310,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 						/* skip the last sep ',' */
 						++ p;
 						lq_cdr_equeue(line, line_size, p);
-                        usleep(10000);
+                        			usleep(10000);
 						break;
 					}
 				}
@@ -632,7 +631,7 @@ static void lq_env_init(vlib_main_t *vm)
 	epoch_time_sec = time(NULL);
 	
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-							ht_mme_key_hval, ht_mme_key_cmp, ht_mme_key_free, 0);	
+			ht_mme_key_hval, ht_mme_key_cmp, ht_mme_key_free, 0);	
 
 	for (i = 0; i < MAX_LQ_NUM; i ++) {
 		vtc = &vlib_threadvar_main[i];
@@ -645,11 +644,11 @@ static void lq_env_init(vlib_main_t *vm)
 		sprintf (name, "Dequeue Task%d", i);
 		struct oryx_task_t *t = malloc (sizeof(struct oryx_task_t));
 		BUG_ON(t == NULL);
-		memset(t, sizeof (struct oryx_task_t), 0);
+		memset(t, 0, sizeof (struct oryx_task_t));
 		memcpy(t, &dequeue, sizeof (struct oryx_task_t));
 		t->lcore_mask = INVALID_CORE;
 		//t->lcore_mask = (1 << (i + ENQUEUE_LCORE_ID));
-        t->ul_prio = KERNEL_SCHED;
+        	t->ul_prio = KERNEL_SCHED;
 		t->argc = 1;
 		t->argv = vtc;
 		t->sc_alias = strdup(name);

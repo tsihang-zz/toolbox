@@ -4,7 +4,7 @@
 #define MAX_MME_NUM	1024
 
 #define MME_CSV_HOME	"./test"
-#define MME_CSV_THRESHOLD	1	/* miniutes */
+#define MME_CSV_THRESHOLD	1 /* miniutes */
 
 enum {
 	OVERTIME,
@@ -14,14 +14,14 @@ enum {
 extern uint32_t	epoch_time_sec;
 
 typedef struct vlib_mme_t {
-	char name[32];
+	char		name[32];
 	uint64_t	nr_refcnt;
 	uint64_t	nr_miss;
-	FILE	*fp;
-	char 	fp_name[128];
+	FILE		*fp;
+	char		fp_name[128];
 	uint32_t	ul_flags;
-	time_t	local_time;
-	os_mutex_t lock;
+	time_t		local_time;
+	os_mutex_t	lock;
 } vlib_mme_t;
 
 #define MME_LOCK(mme)\
@@ -31,15 +31,12 @@ typedef struct vlib_mme_t {
 #define MME_LOCK_INIT(q)\
 	do_mutex_init(&(mme)->lock)
 
-
-extern vlib_mme_t	nr_global_mmes[];
+extern vlib_mme_t nr_global_mmes[];
 
 typedef struct vlib_mme_key_t {
-	/* name of this MME. */
-	//char name[32];
 	/* IP address of this MME. */
-	char ip[32];
-	vlib_mme_t *mme;
+	char		ip[32];
+	vlib_mme_t	*mme;
 	uint64_t	nr_refcnt;	/* refcnt for this key (IP) */
 } vlib_mme_key_t;
 
