@@ -71,13 +71,13 @@ void dump_pkt(uint8_t *pkt, int len)
 static cdr_information(const char *buf, size_t buflen)
 {
 	struct cdr_hdr_t *h = (struct cdr_hdr_t *)buf;
-	fprintf(stdout, "%16s%12u\n", "scg.len:",		ntoh16(h->scg.len));
-	fprintf(stdout, "%16s%12u\n", "scg.msg_type:",	ntoh16(h->scg.msg_type));
-	fprintf(stdout, "%16s%12u\n", "scg.seq_id:",	ntoh16(h->scg.seq_id));
-	fprintf(stdout, "%16s%12u\n", "scg.offset:",	ntoh32(h->scg.offset));
-	fprintf(stdout, "%16s%12u\n", "total_len:",		ntoh16(h->total_len));
-	fprintf(stdout, "%16s%12u\n", "table_id:",		ntoh16(h->table_id));
-	fprintf(stdout, "%16s%12u\n", "start_time:",	ntoh64(h->start_time));
+	fprintf(stdout, "%16s%12u\n", "scg.len:",		__ntoh16__(h->scg.len));
+	fprintf(stdout, "%16s%12u\n", "scg.msg_type:",	__ntoh16__(h->scg.msg_type));
+	fprintf(stdout, "%16s%12u\n", "scg.seq_id:",	__ntoh16__(h->scg.seq_id));
+	fprintf(stdout, "%16s%12u\n", "scg.offset:",	__ntoh32__(h->scg.offset));
+	fprintf(stdout, "%16s%12u\n", "total_len:",		__ntoh16__(h->total_len));
+	fprintf(stdout, "%16s%12u\n", "table_id:",		__ntoh16__(h->table_id));
+	fprintf(stdout, "%16s%12u\n", "start_time:",	__ntoh64__(h->start_time));
 	fprintf(stdout, "%16s%12u\n", "device_id:",		(h->device_id));
 }
 

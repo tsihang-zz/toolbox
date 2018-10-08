@@ -75,6 +75,27 @@ finish:
 	return mme;
 }
 
+vlib_mme_t *mme_alloc(const char *name, size_t nlen)
+{
+	int i;
+	vlib_mme_t *mme;
+
+	for (i = 0; i < MAX_MME_NUM; i ++) {
+		mme = &nr_global_mmes[i];
+		if (mme->ul_flags & VLIB_MME_VALID)
+			continue;
+		else {
+			mme->local_time = time(NULL);
+			mme->ul_flags |= VLIB_MME_VALID;
+			MME_LOCK_INIT(mme);
+			memcpy(&mme->name[0], &name[0], nlen);
+			return mme;
+		}
+	}
+	
+	return NULL;
+}
+
 void mme_print(ht_value_t  v,
 		uint32_t __oryx_unused_param__ s,
 		void __oryx_unused_param__*opaque,

@@ -18,9 +18,9 @@ int DecodeEthernet0 (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t 
    ethh = p->ethh = (EthernetHdr *)pkt;
 
    oryx_logd("[%llu] p %p pkt %p ether type %04x",
-	   oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth), p, pkt, ntoh16(ethh->eth_type));
+	   oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth), p, pkt, __ntoh16__(ethh->eth_type));
 
-   switch (ntoh16(ethh->eth_type)) {
+   switch (__ntoh16__(ethh->eth_type)) {
 		   case ETHERNET_TYPE_IP:
 			   DecodeIPv40(tv, dtv, p, pkt + ETHERNET_HEADER_LEN,
 						  len - ETHERNET_HEADER_LEN, pq);
@@ -64,7 +64,7 @@ int DecodeEthernet0 (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t 
 		   default:	   		
 	#if defined(BUILD_DEBUG)
 		   		oryx_loge(-1, "p %p pkt %p ether_type %04x not supported", p,
-						   pkt, ntoh16(ethh->eth_type));
+						   pkt, __ntoh16__(ethh->eth_type));
 				dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
 	#endif				
 				ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_NOT_SUPPORTED);

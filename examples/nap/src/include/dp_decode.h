@@ -302,7 +302,7 @@ typedef struct packet_t_ {
     EthernetHdr *ethh;
 
 	MarvellDSAHdr *dsah;
-	/** ntoh32(this->dsah.dsa) */
+	/** __ntoh32__(this->dsah.dsa) */
 	uint32_t dsa;
 	uint16_t iphd_offset;
 

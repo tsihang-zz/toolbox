@@ -146,7 +146,7 @@ int appl_entry_format (struct appl_t *appl,
 			appl->ip_src_mask = ANY_IPADDR;
 		}else {
 			str2prefix_ipv4 (sip, &ip4);
-			appl->ip_src = ntoh32(ip4.prefix.s_addr);
+			appl->ip_src = __ntoh32__(ip4.prefix.s_addr);
 			appl->ip_src_mask = ip4.prefixlen;
 		}
 	}
@@ -156,7 +156,7 @@ int appl_entry_format (struct appl_t *appl,
 			appl->ip_dst_mask = ANY_IPADDR;
 		}else {
 			str2prefix_ipv4 (dip, &ip4);
-			appl->ip_dst = ntoh32(ip4.prefix.s_addr);
+			appl->ip_dst = __ntoh32__(ip4.prefix.s_addr);
 			appl->ip_dst_mask = ip4.prefixlen;
 		}
 	}

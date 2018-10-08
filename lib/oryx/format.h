@@ -1,5 +1,5 @@
-#ifndef FORMAT_H
-#define FORMAT_H
+#ifndef __FORMAT_H__
+#define __FORMAT_H__
 
 #define FMT_START				0
 #define DEFAULT_FMT_MSG_SIZE	1024

@@ -1,11 +1,8 @@
 #ifndef __IPC_H__
 #define __IPC_H__
 
-
 #define INIT_MUTEX_VAL	PTHREAD_MUTEX_INITIALIZER
 #define INIT_COND_VAL	PTHREAD_COND_INITIALIZER
-#define oryx_thread_mutex_t	pthread_mutex_t
-#define oryx_thread_cond_t	pthread_cond_t
 
 #define thread_region_lock(lock)	pthread_mutex_lock(lock)
 #define thread_region_unlock(lock)	pthread_mutex_unlock(lock)
@@ -17,12 +14,12 @@
 
 
 #define INIT_MUTEX(name)\
-    oryx_thread_mutex_t name = INIT_MUTEX_VAL;
+    os_mutex_t name = INIT_MUTEX_VAL;
 
 #define INIT_COND(name)\
-    oryx_thread_cond_t name = INIT_COND_VAL;
+    os_cond_t name = INIT_COND_VAL;
 
-typedef pthread_mutex_t	os_mutex_t;
+
 #define do_mutex_init(lock)\
 	pthread_mutex_init(lock, PTHREAD_MUTEX_DEFAULT)
 #define do_mutex_lock(lock)\
@@ -34,7 +31,7 @@ typedef pthread_mutex_t	os_mutex_t;
 #define do_mutex_destroy(lock)\
 	pthread_mutex_destroy(lock)
 
-typedef pthread_cond_t	os_cond_t;
+
 #define do_cond_init(cond)\
 	pthread_cond_init(cond, NULL)
 #define do_cond_signal(cond)\
@@ -44,8 +41,7 @@ typedef pthread_cond_t	os_cond_t;
 #define do_cond_wait(cond, m)\
 	thread_cond_wait(cond, m)
 
-/* rwlocks */
-typedef pthread_rwlock_t	os_rwlock_t;
+
 #define do_rwlock_init(rwl, rwlattr)\
 	pthread_rwlock_init(rwl, rwlattr)
 #define do_rwlock_lock_wr(rwl)\
@@ -61,8 +57,6 @@ typedef pthread_rwlock_t	os_rwlock_t;
 #define do_rwlock_destroy(rwl)\
 	pthread_rwlock_destroy(rwl)
 
-/* spinlocks */
-typedef pthread_spinlock_t	os_spinlock_t;
 #define do_spin_lock(spin)\
 	pthread_spin_lock(spin)
 #define do_spin_trylock(spin)\

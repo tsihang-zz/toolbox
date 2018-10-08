@@ -61,14 +61,14 @@ int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
 	if (unlikely(p->dsah == NULL))
 		return TM_ECODE_FAILED;
 
-	p->dsa = ntoh32(dsah->dsa);
+	p->dsa = __ntoh32__(dsah->dsa);
 
 	//PrintDSA("RX", p->dsa, QUA_RX);
 	//SET_PKT_RX_PORT(p, dsa_to_phy_map_list[DSA_PORT(p->dsa) % DIM(dsa_to_phy_map_list)].p);
 
-	oryx_logd("dsa %08x, ether_type %04x", p->dsa, ntoh16(dsaeth->eth_type));
+	oryx_logd("dsa %08x, ether_type %04x", p->dsa, __ntoh16__(dsaeth->eth_type));
 
-	switch (ntoh16(dsaeth->eth_type)) {
+	switch (__ntoh16__(dsaeth->eth_type)) {
 			case ETHERNET_TYPE_IP:
 				DecodeIPv40(tv, dtv, p, pkt + ETHERNET_DSA_HEADER_LEN,
 						   len - ETHERNET_DSA_HEADER_LEN, pq);
@@ -102,7 +102,7 @@ int DecodeMarvellDSA0(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv, packet_t
 			default:
 		#if defined(BUILD_DEBUG)
 				oryx_loge(-1, "p %p pkt %p dsa %08x ether_type %04x not supported", p,
-						   pkt, p->dsa, ntoh16(dsaeth->eth_type));
+						   pkt, p->dsa, __ntoh16__(dsaeth->eth_type));
 				dump_pkt(GET_PKT(p), GET_PKT_LEN(p));
 		#endif
 				ENGINE_SET_INVALID_EVENT(p, ETHERNET_PKT_NOT_SUPPORTED);

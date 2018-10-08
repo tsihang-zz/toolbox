@@ -164,8 +164,8 @@ void dp_dump_packet_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt)
 	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
 	oryx_logn ("%16s%s", "ip_src: ",		inet_ntop(AF_INET, &key->ip_src, s, 16));
 	oryx_logn ("%16s%s", "ip_dst: ",		inet_ntop(AF_INET, &key->ip_dst, s, 16));
-	oryx_logn ("%16s%04d", "port_src: ",	ntoh16(key->port_src));
-	oryx_logn ("%16s%04d", "port_dst: ",	ntoh16(key->port_dst));
+	oryx_logn ("%16s%04d", "port_src: ",	__ntoh16__(key->port_src));
+	oryx_logn ("%16s%04d", "port_dst: ",	__ntoh16__(key->port_dst));
 	oryx_logn ("%16s%08d", "protocol: ",	key->proto);
 	oryx_logn ("%16s%08u", "RSS: ", 		pkt->hash.rss);
 }
@@ -370,7 +370,7 @@ void dp_parse_http(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 	char *v = rte_pktmbuf_mtod_offset(pkt, char *, nroff);
 	struct http_ctx_t ctx;
 
-	if(ntoh16(k->port_src) == 80 || ntoh16(k->port_dst) == 80)
+	if(__ntoh16__(k->port_src) == 80 || __ntoh16__(k->port_dst) == 80)
 		return;
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_http);
 

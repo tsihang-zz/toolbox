@@ -1,5 +1,5 @@
-#ifndef CLUSTER_H
-#define CLUSTER_H
+#ifndef __CLUSTER_H__
+#define __CLUSTER_H__
 
 #define HAVE_NODE_QUEUE
 

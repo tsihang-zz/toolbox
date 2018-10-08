@@ -59,7 +59,7 @@ int geo_decode(const struct pcap_pkthdr *hdr, char *raw_pkt , int *is_udp_pkt , 
  	*  extract the first byte and make it the big byte and then extract
  	*  the next byte and make it the small byte.
  	*/
-	switch (ntoh16(ethh->eth_type)) 
+	switch (__ntoh16__(ethh->eth_type)) 
 	{
 		case 0x0800:	/* IPv4 */
 			iph = (struct ipv4hdr_t  *)&raw_pkt[p_offset];
@@ -399,7 +399,7 @@ static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
 	dump_pkt(packet, pcaphdr->len);
 
 	MarvellDSAEthernetHdr *dsaeth = packet;
-	uint32_t dsa = ntoh32(dsaeth->dsah.dsa);
+	uint32_t dsa = __ntoh32__(dsaeth->dsah.dsa);
 	PrintDSA("rx", dsa, 0 /* rx */);
 
 	geo_decode(pcaphdr, (char *)packet, &is_udp, &pl_off, &pl);

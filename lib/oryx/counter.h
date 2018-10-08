@@ -1,5 +1,5 @@
-#ifndef COUNTER_H
-#define COUNTER_H
+#ifndef __COUNTER_H__
+#define __COUNTER_H__
 
 typedef uint32_t counter_id;
 
