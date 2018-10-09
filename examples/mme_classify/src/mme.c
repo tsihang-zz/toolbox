@@ -4,12 +4,12 @@
 vlib_mme_t nr_global_mmes[MAX_MME_NUM];
 uint32_t	epoch_time_sec;
 
-void ht_mme_key_free (const ht_value_t __oryx_unused_param__ v)
+void mmekey_free (const ht_value_t __oryx_unused_param__ v)
 {
 	/** Never free here! */
 }
 
-ht_key_t ht_mme_key_hval (struct oryx_htable_t *ht,
+ht_key_t mmekey_hval (struct oryx_htable_t *ht,
 		const ht_value_t v, uint32_t s) 
 {
 	uint8_t *d = (uint8_t *)v;
@@ -28,7 +28,7 @@ ht_key_t ht_mme_key_hval (struct oryx_htable_t *ht,
      return hv;
 }
 
-int ht_mme_key_cmp (const ht_value_t v1, 
+int mmekey_cmp (const ht_value_t v1, 
 		uint32_t s1,
 		const ht_value_t v2,
 		uint32_t s2)
@@ -82,10 +82,16 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 
 	for (i = 0; i < MAX_MME_NUM; i ++) {
 		mme = &nr_global_mmes[i];
+		vlib_file_t *f = &mme->file;
 		if (mme->ul_flags & VLIB_MME_VALID)
 			continue;
 		else {
-			mme->local_time = time(NULL);
+			f->ul_flags		|= VLIB_FILE_NEW;
+			f->local_time	= time(NULL);
+			f->entries		= 0;
+			f->fp			= NULL;
+			memset ((void *)&f->fp_name[0], 0, 128);
+		
 			mme->ul_flags |= VLIB_MME_VALID;
 			MME_LOCK_INIT(mme);
 			memcpy(&mme->name[0], &name[0], nlen);

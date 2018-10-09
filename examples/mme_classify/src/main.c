@@ -142,7 +142,9 @@ int main (
 	vm->argv = argv;
 	vm->nr_threads = 4;
 	vm->mme_dictionary = "src/cfg/dictionary";
-	vm->classify_warehouse = "./test";
+	vm->classify_warehouse = "test";
+	vm->max_entries_per_file = 80000;
+	vm->classify_threshold = 1;
 
 	oryx_register_sighandler(SIGINT, lq_sigint);
 	oryx_register_sighandler(SIGTERM, lq_sigint);
