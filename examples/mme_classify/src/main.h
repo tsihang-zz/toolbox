@@ -20,6 +20,11 @@ typedef struct vlib_main_t {
 	int			max_entries_per_file;
 
 	struct oryx_htable_t	*mme_htable;
+
+	uint64_t nr_rx_entries;
+	uint64_t nr_rx_entries_without_imsi;
+	uint64_t nr_rx_entries_dispatched;
+
 } vlib_main_t;
 
 extern vlib_main_t vlib_main;

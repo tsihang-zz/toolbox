@@ -346,13 +346,14 @@ void classify_terminal(void)
 void classify_runtime(void)
 {
 	int i;
+	static uint64_t duration = 0;
 	static size_t lqe_size = lq_element_size;
 	static struct timeval start, end;
 	static uint64_t nr_eq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_eq_swap_elements_prev[MAX_LQ_NUM] = {0};
 	static uint64_t nr_dq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_dq_swap_elements_prev[MAX_LQ_NUM] = {0};
 	uint64_t	nr_eq_swap_bytes_cur[MAX_LQ_NUM] = {0}, nr_eq_swap_elements_cur[MAX_LQ_NUM] = {0};
 	uint64_t	nr_dq_swap_bytes_cur[MAX_LQ_NUM] = {0}, nr_dq_swap_elements_cur[MAX_LQ_NUM] = {0};	
-	uint64_t	nr_cost_us;
+	uint64_t	nr_cost_us = 0;
 	uint64_t	eq[MAX_LQ_NUM] = {0}, dq[MAX_LQ_NUM] = {0};
 	uint64_t	nr_eq_total_refcnt = 0, nr_dq_total_refcnt = 0;
 	uint64_t	nr_classified_refcnt = 0;
@@ -378,12 +379,13 @@ void classify_runtime(void)
 	}
 
 	gettimeofday(&end, NULL);
-	
 	/* cost before last time. */
 	nr_cost_us = tm_elapsed_us(&start, &end);
-	
 	gettimeofday(&start, NULL);
 
+	duration += (nr_cost_us / 1000000);
+
+	/** Statistics for each QUEUE */
 	for (i = 0; i < vm->nr_threads; i ++) {
 		vtc = &vlib_threadvar_main[i];
 		lq = vtc->lq;
@@ -409,8 +411,15 @@ void classify_runtime(void)
 		nr_dq_swap_elements_prev[i]	=	dq[i];
 	}
 
-	fprintf (fp, "Cost %lu us \n", nr_cost_us);
+	/** Statistics for each MME */
+	for (i = 0; i < vm->nr_mmes; i ++) {
+		mme = &nr_global_mmes[i];
+		nr_classified_refcnt += mme->nr_refcnt;
+	}
+
+	fprintf (fp, "Cost %lu us, duration %lu sec\n", nr_cost_us, (duration - epoch_time_sec));
 	fprintf (fp, "\n");
+	fflush(fp);
 	
 	fprintf (fp, "Classify configurations\n");
 	fprintf (fp, "\tdictionary: %s\n", vm->mme_dictionary);
@@ -418,10 +427,21 @@ void classify_runtime(void)
 	fprintf (fp, "\twarehouse : %s\n", vm->classify_warehouse);
 	fprintf (fp, "\tparallel  : %d thread(s)\n", vm->nr_threads);
 	fprintf (fp, "\n");
-	
-	fprintf (fp, "Statistics for %d QUEUE(s)\n", vm->nr_threads);
 	fflush(fp);
 
+	/* Overall classified ratio. */
+	fprintf (fp, "Statistics Summary\n");
+	fprintf (fp, "\tRx %lu, dispatched %lu (%.2f%%), no imsi %lu (%.2f%%)\n",
+			vm->nr_rx_entries,
+			vm->nr_rx_entries_dispatched, ratio_of(vm->nr_rx_entries_dispatched, vm->nr_rx_entries),
+			vm->nr_rx_entries_without_imsi, ratio_of(vm->nr_rx_entries_without_imsi, vm->nr_rx_entries));
+	fprintf (fp, "\tClassified %lu (%.2f%%), Unclassified: %lu (%.2f%%)\n",
+			nr_classified_refcnt, ratio_of(nr_classified_refcnt, nr_eq_total_refcnt),
+			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, nr_eq_total_refcnt));
+	fprintf (fp, "\n");
+	fflush(fp);
+	
+	fprintf (fp, "Statistics for %d QUEUE(s)\n", vm->nr_threads);
 	for (i = 0; i < vm->nr_threads; i ++) {
 		fprintf (fp, "\tLQ[%d], blocked %lu element(s)\n", i, eq[i] - dq[i]);
 		fprintf (fp, "\t\t enqueue %.2f%% %lu (pps %s, bps %s)\n",
@@ -433,15 +453,8 @@ void classify_runtime(void)
 	}
 	fflush(fp);
 	
-
-	/** Statistics for each MME */
-	for (i = 0; i < vm->nr_mmes; i ++) {
-		mme = &nr_global_mmes[i];
-		nr_classified_refcnt += mme->nr_refcnt;
-	}
 	fprintf (fp, "\n\n");
 	fprintf (fp, "Statistics for %d MME(s)\n", vm->nr_mmes);
-
 	fprintf (fp, "%32s%24s%24s\n", " ", "REFCNT", "MISS");
 	fprintf (fp, "%32s%24s%24s\n", " ", "------", "----");
 	fflush(fp);
@@ -469,12 +482,6 @@ void classify_runtime(void)
 
 	}
 
-	/* Overall classified ratio. */
-	fprintf (fp, "\nClassified: %lu (%.2f%%), Unclassified: %lu (%.2f%%)\n",
-			nr_classified_refcnt, ratio_of(nr_classified_refcnt, nr_eq_total_refcnt),
-			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, nr_eq_total_refcnt));
-	fflush(fp);
-
 	oryx_format_free(&fb);
 }
 
@@ -482,38 +489,70 @@ void do_dispatch(const char *value, size_t vlen)
 {
 	char *p;
 	int sep_refcnt = 0;
-	char sep = ',';
+	const char sep = ',';
 	size_t step;
 	static uint32_t lq_id = 0;
 	struct lq_element_t *lqe;
 	struct oryx_lq_ctx_t *lq;
-
+	char data[1024] = {0};
+	bool keep_cpy = 1, find_imsi = 0;
+	int dlen = 0;
+	vlib_main_t *vm = &vlib_main;
+	
 #if defined(HAVE_CLASSIFY_DEBUG)
 	write_one_line(fp_raw_csv_entries, value, 1);
 #endif
 
+	vm->nr_rx_entries ++;
+
 	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
-				*p != '\0' && *p != '\n'; ++ p, step ++) {
+				*p != '\0' && *p != '\n'; ++ p, step ++) {			
+
+		/* skip entries without IMSI */
+		if (!find_imsi && sep_refcnt == 5) {
+			if (*p == sep) {
+				vm->nr_rx_entries_without_imsi ++;
+				break;
+			}
+			else
+				find_imsi = 1;
+		}
+
+		/* skip last three columns */
+		if (sep_refcnt == 43)
+			keep_cpy = 0;
+
+		/* valid entry dispatch ASAP */
+		if (sep_refcnt == 45 && find_imsi)
+			goto dispatch;
+
+		/* soft copy */
+		if (keep_cpy)
+			data[dlen ++] = *p;
+
 		if (*p == sep)
 			sep_refcnt ++;
-		if (sep_refcnt == 45) {
-			/* skip the last sep ',' */
-			++ p;
-			/** fprintf (stdout, "vm->nr_threads %d, ip %s ===> %s",
-						vm->nr_threads, p, line); */
-			goto dispatch;
-		}
 	}
 	return;
 
 dispatch:
+
+	data[dlen - 1] = '\n';
+	/* its terminating null byte ('\0'). */
+	data[dlen] = '\0';
+	/*
+	fprintf (stdout, "no_imsi %d, len %d, strlen(data) %d,  %s, %s",
+		no_imsi, dlen, strlen(data), data, p);
+	*/
 	lqe = lqe_alloc();
 	if (!lqe)
 		return;
+
+	vm->nr_rx_entries_dispatched ++;
 	
 	/* soft copy. */
-	memcpy((void *)&lqe->value[0], value, vlen);
-	lqe->valen = vlen;
+	memcpy((void *)&lqe->value[0], data, dlen);
+	lqe->valen = dlen;
 	fmt_mme_ip(lqe->mme_ip, p);
 	lq_id = oryx_js_hash(lqe->mme_ip, strlen(lqe->mme_ip));
 	/* When round robbin used, CSV file must be locked while writing. */

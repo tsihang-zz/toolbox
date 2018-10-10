@@ -57,11 +57,13 @@ typedef struct vlib_mme_key_t {
 	}
 
 #define MME_CSV_HEADER \
-	",,Event Start,Event Stop,Event Type,IMSI,IMEI,,,,,,,,eCell ID,,,,,,,,,,,,,,,,,,,,,,,,,,MME UE S1AP ID,eNodeB UE S1AP ID,eNodeB CP IP Address,MME Code,M-TMSI,MME IP Address\n"
+	",,Event Start,Event Stop,Event Type,IMSI,IMEI,,,,,,,,eCell ID,,,,,,,,,,,,,,,,,,,,,,,,,,MME UE S1AP ID,eNodeB UE S1AP ID,eNodeB CP IP Address\n"
 
 static __oryx_always_inline__
 void write_one_line(FILE *fp, const char *val, bool flush)
 {
+	//fwrite(val , str_len , 1 , GET_OUTFILE_FD(index));
+	//fputs(val, fp);
 	fprintf(fp, "%s", val);
 	if (flush)	fflush(fp);
 }

@@ -110,7 +110,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				memset (line, 0, LINE_LENGTH);
 			}
 			/* break after end of file. */
-			fprintf (stdout, "Finish read %s, break down!\n", file);
+			fprintf (stdout, "Finish read %s, %d line(s), break down!\n", file, nr_lines);
 			break;
 		}
 
