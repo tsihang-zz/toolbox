@@ -20,6 +20,7 @@ struct lq_element_t {
 	struct lq_prefix_t lp;
 	/* used to find an unique MME. */
 	char mme_ip[32];
+	uint64_t event_start_time;
 	char value[LINE_LENGTH];
 	size_t valen;
 };
@@ -36,6 +37,7 @@ struct lq_element_t *lqe_alloc(void)
 	if(lqe) {
 		lqe->lp.lnext = lqe->lp.lprev = NULL;
 		lqe->valen = 0;
+		lqe->event_start_time = 0;
 		lqe->value[0] = 0;
 		memset((void *)&lqe->mme_ip[0], 0, 32);
 		memset((void *)&lqe->value[0], 0, LINE_LENGTH);

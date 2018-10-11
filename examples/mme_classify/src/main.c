@@ -42,7 +42,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				/* wait for enqueue handler exit. */
 				while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_EXITED)
 					break;
-				fprintf (stdout, "Thread(%p): dequeue exiting ... ", pthread_self());
+				fprintf (stdout, "Thread(%lu): dequeue exiting ... ", pthread_self());
 				/* drunk out all elements before thread quit */					
 				while (NULL != (lqe = oryx_lq_dequeue(lq))){
 					do_classify(vtc, lqe);
@@ -72,10 +72,74 @@ struct oryx_task_t dequeue = {
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
+static __oryx_always_inline__
+void update_event_start_time(char *value, size_t valen)
+{
+	char *p;
+	int sep_refcnt = 0;
+	const char sep = ',';
+	size_t step;
+	bool event_start_time_cpy = 0, find_imsi = 0;
+	char *ps = NULL, *pe = NULL;
+	char ntime[32] = {0};
+	struct timeval t;
+	uint64_t time;
+
+	gettimeofday(&t, NULL);
+	time = (t.tv_sec * 1000 + (t.tv_usec / 1000));
+	
+	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
+				*p != '\0' && *p != '\n'; ++ p, step ++) {			
+
+		/* skip entries without IMSI */
+		if (!find_imsi && sep_refcnt == 5) {
+			if (*p == sep) 
+				break;
+			else
+				find_imsi = 1;
+		}
+
+		/* skip first 2 seps and copy event_start_time */
+		if (sep_refcnt == 2) {
+			event_start_time_cpy = 1;
+		}
+
+		/* valid entry dispatch ASAP */
+		if (sep_refcnt == 45 && find_imsi)
+			goto update_time;
+
+		if (*p == sep)
+			sep_refcnt ++;
+
+		/* stop copy */
+		if (sep_refcnt == 3) {
+			event_start_time_cpy = 0;
+		}
+
+		/* soft copy.
+		 * Time stamp is 13 bytes-long */
+		if (event_start_time_cpy) {
+			if (ps == NULL)
+				ps = p;
+			pe = p;
+		}
+
+	}
+
+	/* Wrong CDR entry, go back to caller ASAP. */
+	return;
+
+update_time:
+
+	sprintf (ntime, "%lu", time);
+	strncpy (ps, ntime, (pe - ps + 1));
+	//fprintf (stdout, "(len %lu, %lu), %s", (pe - ps + 1), time, value);
+	return;
+}
+
 static
 void * enqueue_handler (void __oryx_unused_param__ *r)
 {
-		struct lq_element_t *lqe;
 		vlib_main_t *vm = &vlib_main;
 
 		static FILE *fp = NULL;
@@ -95,7 +159,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
 		FOREVER {
 			if (!running) {
-				fprintf (stdout, "Thread(%p): enqueue exited!\n", pthread_self());
+				fprintf (stdout, "Thread(%lu): enqueue exited!\n", pthread_self());
 				vm->ul_flags |= VLIB_ENQUEUE_HANDLER_EXITED;
 				break;
 			}
@@ -106,6 +170,9 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				/* skip first line. */
 				if (nr_lines == 1)
 					continue;
+				/* update event start time to make sure that
+				 * classify PRGRM. */
+				update_event_start_time(line, llen);
 				do_dispatch(line, llen);
 				memset (line, 0, LINE_LENGTH);
 			}

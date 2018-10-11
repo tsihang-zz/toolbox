@@ -24,13 +24,12 @@ typedef struct vlib_file_t {
 #define VLIB_MME_VALID	(1 << 0)
 typedef struct vlib_mme_t {
 	char		name[32];
-	vlib_file_t	file;
+	vlib_file_t	file;		/* Current file hold 0 ~ 5 minutes */
+	vlib_file_t filep;		/* Previous file hold -5 ~ 0 minutes */
+	vlib_file_t filen;		/* Next file hold 5 ~ 10 minutes */
 	uint64_t	nr_refcnt;
 	uint64_t	nr_miss;
 	uint64_t	nr_refcnt_bytes;
-	//FILE		*fp;
-	//char		fp_name[128];
-	//time_t	local_time;
 	uint32_t	ul_flags;	
 	os_mutex_t	lock;
 } vlib_mme_t;
@@ -69,10 +68,8 @@ void write_one_line(FILE *fp, const char *val, bool flush)
 }
 
 static __oryx_always_inline__
-void csv_close(vlib_mme_t *mme, int reason)
+void csv_close(vlib_file_t *f, int reason)
 {
-	vlib_file_t *f = &mme->file;
-
 	if(f->fp == NULL)
 		return;
 	
@@ -87,32 +84,39 @@ void csv_close(vlib_mme_t *mme, int reason)
 }
 
 static __oryx_always_inline__
-int cvs_new(vlib_mme_t *mme, time_t start, int threshold, const char *warehouse)
+void file_init(vlib_file_t *f)
 {
-	vlib_file_t *f = &mme->file;
+	fprintf (stdout, "Create new file %s\n", f->fp_name);
+	f->entries = 0;
+	f->ul_flags |= VLIB_FILE_NEW;
+}
+
+/* event_start_time <= TIME < event_end_time */
+static __oryx_always_inline__
+int cvs_new(vlib_mme_t *mme, time_t start, int threshold, const char *warehouse, vlib_file_t *f)
+{
+	//vlib_file_t *f = &mme->file;
 	
 	memset (f->fp_name, 0, 128);
 	sprintf (f->fp_name, "%s/%s/DataExport.s1mme%s_%lu_%lu.csv",
 		warehouse, mme->name, mme->name, start, start + (threshold * 60));
 
+	/* Create current file. */
 	f->fp = fopen (f->fp_name, "a+");
 	if (f->fp == NULL) {
 		fprintf (stdout, "Cannot fopen file %s\n", f->fp_name);
 	} else {
-		fprintf (stdout, "Create new file %s\n", f->fp_name);
 		/* update local time. */
-		f->entries = 0;
 		f->local_time = start;
-		f->ul_flags |= VLIB_FILE_NEW;
+		file_init(f);
 	}
 	
 	return f->fp ? 1 : 0;
 }
 
 static __oryx_always_inline__
-int cvs_empty(vlib_mme_t *mme)
+int cvs_empty(vlib_file_t *f)
 {
-	vlib_file_t *f = &mme->file;
 	FILE *fp;
 	int ch = EOF;
 	
@@ -126,16 +130,14 @@ int cvs_empty(vlib_mme_t *mme)
 }
 
 static __oryx_always_inline__
-int is_overtime(vlib_mme_t *mme, time_t now, int threshold)
+int is_overtime(vlib_file_t *f, time_t now, int threshold)
 {
-	vlib_file_t *f = &mme->file;
 	return (now > (f->local_time +  threshold * 60));
 }
 
 static __oryx_always_inline__
-int is_overdisk(vlib_mme_t *mme, int max_entries)
+int is_overdisk(vlib_file_t *f, int max_entries)
 {
-	vlib_file_t *f = &mme->file;
 	return ((int64_t)f->entries > (int64_t)max_entries);
 }
 

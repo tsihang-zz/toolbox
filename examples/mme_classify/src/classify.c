@@ -11,6 +11,9 @@ static FILE * fp_raw_csv_entries = NULL;
 
 vlib_threadvar_ctx_t vlib_threadvar_main[MAX_LQ_NUM];
 
+/* Store those unknown entries. */
+static vlib_mme_t *default_mme = NULL;
+
 static __oryx_always_inline__
 struct oryx_lq_ctx_t * fetch_lq(uint64_t lq_id, struct oryx_lq_ctx_t **lq) {
 	vlib_main_t *vm = &vlib_main;
@@ -44,7 +47,7 @@ void write_lqe_data(vlib_mme_t *mme, const char *value, size_t valen)
 	
 	write_one_line(f->fp, value, flush);
 	if (flush){
-		fprintf (stdout, "MME %s flushing ... %d entries\n", mme->name, f->entries);
+		fprintf (stdout, "MME %s flushing ... %lu entries\n", mme->name, f->entries);
 	}
 	
 	f->entries ++;
@@ -65,52 +68,6 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 	/* unlock MME */
 	MME_UNLOCK(mme);
 }
-
-int checkPath(char *, char *);  
-int is_dir_exist(char *);  
-void deal_dir(char *);  
-
-int is_dir_exist(char *name){  
-    DIR *d = opendir(name);  
-    return d == NULL ? 0 : 1;  
-}
-
-void deal_dir(char *name){
-	#define DIR_MODE 0777
-    if(!is_dir_exist(name)){
-		fprintf (stdout, "deal_dir %s\n", name);
-		mkdir(name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		#if 0
-        if(mkdir(name, DIR_MODE) == -1){  
-            perror("Error");  
-            exit(1);  
-        }
-		#endif
-    }  
-}  
-
-int mkdir0(char *spath){
-	char path[1024] = {0};
-    int i = 0;  
-    char c;  
-    char *originp = spath;  
-  
-    while(c) {
-        while((c = *spath++) != '/' && c != '\0'){  
-            i++;  
-        }  
-        if(i == 0){  
-            if(!is_dir_exist("/")){  
-                deal_dir("/");  
-            }  
-        }  
-        else{  
-            memcpy(path, originp, i);  
-            deal_dir(path);  
-        }  
-        i++;  
-    }  
-}  
 
 static void load_dictionary(vlib_main_t *vm)
 {
@@ -178,9 +135,7 @@ static void load_dictionary(vlib_main_t *vm)
 					/* find and alloc MME */
 					if ((mme = mme_find(name, nlen)) == NULL) {
 						mme = mme_alloc(name, nlen);
-						if(mme)
-							vm->nr_mmes ++;
-						
+						if(mme) vm->nr_mmes ++;
 					}
 					/* alloc MMEKEY */
 					mmekey = mmekey_alloc();
@@ -204,6 +159,12 @@ static void load_dictionary(vlib_main_t *vm)
 	
 	fclose (fp);
 
+	/* Prepare Default MME (the last one) */
+	default_mme = mme_alloc("default", strlen("default"));
+	if(default_mme) {
+		vm->nr_mmes ++;
+	}
+
 	const char *pdir = vm->classify_warehouse;
 	char subdir[256] = {0};
 	
@@ -215,8 +176,8 @@ static void load_dictionary(vlib_main_t *vm)
 	for (i = 0; i < vm->nr_mmes; i ++) {	
 		memset((void *)&subdir[0], 0, 256);
 		mme = &nr_global_mmes[i];
+
 		MME_LOCK(mme);
-		vlib_file_t *f = &mme->file;
 		sprintf (subdir, "%s/%s", pdir, mme->name);
 		fprintf (stdout, "mkdir %s (%s, %s)\n", subdir, pdir, mme->name);
 		mkdir(subdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -225,8 +186,20 @@ static void load_dictionary(vlib_main_t *vm)
 		 * At this stage, mme->fp is definable NULL.
 		 * To make sure that there is a valid file handler 
 		 * before writing CSV to disk. */
-		BUG_ON(f->fp != NULL);
-		cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse);
+
+		/* File for current stage */
+		BUG_ON(mme->file.fp != NULL);
+		cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
+
+#if 0
+		/* File for last stage */
+		BUG_ON(mme->filep.fp != NULL);
+		cvs_new(mme, (ts - vm->classify_threshold * 60), vm->classify_threshold, vm->classify_warehouse, &mme->filep);
+
+		/* File for next stage */
+		BUG_ON(mme->filen.fp != NULL);
+		cvs_new(mme, (ts + vm->classify_threshold * 60), vm->classify_threshold, vm->classify_warehouse, &mme->filen);
+#endif
 		MME_UNLOCK(mme);
 	}
 
@@ -269,8 +242,8 @@ static void load_dictionary(vlib_main_t *vm)
 
 }
 
-static
-void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
+#if 0
+static void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
 {
 		int i;
 		vlib_main_t *vm = &vlib_main;
@@ -314,7 +287,7 @@ void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
 				if (try_new_file) {
 					/* To make sure that the file has been closed successfully. */
 					BUG_ON(f->fp != NULL);
-					cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse);
+					cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
 				}
 
 				MME_UNLOCK(mme);
@@ -326,6 +299,59 @@ void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
 		oryx_task_deregistry_id(pthread_self());
 		return NULL;
 }
+#else
+static void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
+{
+		int i;
+		vlib_main_t *vm = &vlib_main;
+		vlib_mme_t *mme;
+		int try_new_file = 0;
+	
+		FOREVER {
+			if (!running) {
+				fprintf (stdout, "Thread(%lu): csv file prepare handler exited!\n", pthread_self());
+				break;
+			}
+			
+			time_t ts = time(NULL);
+			
+			for (i = 0; i < vm->nr_mmes; i ++) {
+				try_new_file = 0;
+				mme = &nr_global_mmes[i];
+				MME_LOCK(mme);
+
+				vlib_file_t *f = &mme->file;
+				
+				if (is_overtime(f, ts, vm->classify_threshold)) {
+					csv_close(f, OVERTIME);
+					try_new_file = 1;
+				}
+
+				/* Remove those empty and closed csv file */
+				if (f->fp == NULL &&
+						cvs_empty(f)){
+					fprintf (stdout, "Removing empty file %s\n", f->fp_name);
+					remove(f->fp_name);
+				}	
+						
+				/* Prepare a new CSV file. */	
+				if (try_new_file) {
+					/* To make sure that the file has been closed successfully. */
+					BUG_ON(f->fp != NULL);
+					cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
+				}
+
+				MME_UNLOCK(mme);
+			}
+
+			sleep (10);
+		}
+
+		oryx_task_deregistry_id(pthread_self());
+		return NULL;
+}
+
+#endif
 
 void classify_terminal(void)
 {
@@ -494,9 +520,9 @@ void do_dispatch(const char *value, size_t vlen)
 	static uint32_t lq_id = 0;
 	struct lq_element_t *lqe;
 	struct oryx_lq_ctx_t *lq;
-	char data[1024] = {0};
-	bool keep_cpy = 1, find_imsi = 0;
-	int dlen = 0;
+	char data[1024] = {0}, time[32] = {0};
+	bool keep_cpy = 1, event_start_time_cpy = 0, find_imsi = 0;
+	int dlen = 0, tlen = 0;
 	vlib_main_t *vm = &vlib_main;
 	
 #if defined(HAVE_CLASSIFY_DEBUG)
@@ -518,6 +544,11 @@ void do_dispatch(const char *value, size_t vlen)
 				find_imsi = 1;
 		}
 
+		/* skip first 2 seps and copy event_start_time */
+		if (sep_refcnt == 2) {
+			event_start_time_cpy = 1;
+		}
+
 		/* skip last three columns */
 		if (sep_refcnt == 43)
 			keep_cpy = 0;
@@ -532,6 +563,17 @@ void do_dispatch(const char *value, size_t vlen)
 
 		if (*p == sep)
 			sep_refcnt ++;
+
+		/* stop copy */
+		if (sep_refcnt == 3) {
+			event_start_time_cpy = 0;
+		}
+
+		/* soft copy.
+		 * Time stamp is 13 bytes-long */
+		if (event_start_time_cpy) {
+			time[tlen ++] = *p;
+		}
 	}
 	return;
 
@@ -549,11 +591,14 @@ dispatch:
 		return;
 
 	vm->nr_rx_entries_dispatched ++;
-	
+
 	/* soft copy. */
 	memcpy((void *)&lqe->value[0], data, dlen);
 	lqe->valen = dlen;
+	sscanf(time, "%lu", &lqe->event_start_time);
 	fmt_mme_ip(lqe->mme_ip, p);
+	//fprintf (stdout, "event_start_time %s(%lu)\n", time, lqe->event_start_time);
+	
 	lq_id = oryx_js_hash(lqe->mme_ip, strlen(lqe->mme_ip));
 	/* When round robbin used, CSV file must be locked while writing. */
 	//lq_id ++;
@@ -586,6 +631,7 @@ void do_classify(vlib_threadvar_ctx_t *vtc, const struct lq_element_t *lqe)
 		write_lqe(mme, lqe);
 	} else {
 		fprintf (stdout, "Cannot find a defined mmekey via IP \"%s\"\n", lqe->mme_ip);
+		write_lqe(default_mme, lqe);
 		vtc->nr_unclassified_refcnt ++;
 #if defined(HAVE_CLASSIFY_DEBUG)
 		/* debug ONLY */
