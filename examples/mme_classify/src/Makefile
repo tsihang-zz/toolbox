@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = mme_classify
 
 # all source are stored in SRCS-y
-SRCS-y := main.c classify.c mme.c 
+SRCS-y := main.c classify.c mme.c file.c 
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)

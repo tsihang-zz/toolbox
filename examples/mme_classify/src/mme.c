@@ -1,4 +1,6 @@
 #include "oryx.h"
+#include "file.h"
+#include "tg.h"
 #include "mme.h"
 
 vlib_mme_t nr_global_mmes[MAX_MME_NUM];
@@ -42,11 +44,11 @@ int mmekey_cmp (const ht_value_t v1,
 	return xret;
 }
 
-vlib_mme_key_t *mmekey_alloc(void)
+vlib_mmekey_t *mmekey_alloc(void)
 {
-	vlib_mme_key_t *v = malloc(sizeof (vlib_mme_key_t));
+	vlib_mmekey_t *v = malloc(sizeof (vlib_mmekey_t));
 	BUG_ON(v == NULL);
-	memset (v, 0, sizeof (vlib_mme_key_t));
+	memset (v, 0, sizeof (vlib_mmekey_t));
 	return v;
 }
 
@@ -86,12 +88,15 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 		if (mme->ul_flags & VLIB_MME_VALID)
 			continue;
 		else {
-			f->ul_flags		|= VLIB_FILE_NEW;
+			f->ul_flags		= ~0;
 			f->local_time	= time(NULL);
-			f->entries		= 0;
+			f->entries		= ~0;
 			f->fp			= NULL;
-			memset ((void *)&f->fp_name[0], 0, 128);
-		
+			memset ((void *)&f->fp_name[0], 0, name_length);
+
+			mme->file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+										fkey_hval, fkey_cmp, fkey_free, 0);	
+			
 			mme->ul_flags |= VLIB_MME_VALID;
 			MME_LOCK_INIT(mme);
 			memcpy(&mme->name[0], &name[0], nlen);
@@ -107,7 +112,7 @@ void mme_print(ht_value_t  v,
 		void __oryx_unused_param__*opaque,
 		int __oryx_unused_param__ opaque_size) {
 	vlib_mme_t *mme;
-	vlib_mme_key_t *mmekey = (vlib_mme_key_t *)container_of (v, vlib_mme_key_t, ip);
+	vlib_mmekey_t *mmekey = (vlib_mmekey_t *)container_of (v, vlib_mmekey_t, ip);
 	FILE *fp = (FILE *)opaque;
 
 	if (mmekey) {

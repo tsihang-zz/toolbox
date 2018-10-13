@@ -1,13 +1,13 @@
 #include "oryx.h"
+#include "file.h"
+#include "tg.h"
 #include "mme.h"
+#include "main.h"
 #include "classify.h"
 
 extern struct oryx_task_t dequeue;
 
-#if defined(HAVE_CLASSIFY_DEBUG)
-static FILE * fp_unclassified_csv_entries = NULL;
-static FILE * fp_raw_csv_entries = NULL;
-#endif
+uint64_t nr_fopen_times;
 
 vlib_threadvar_ctx_t vlib_threadvar_main[MAX_LQ_NUM];
 
@@ -23,48 +23,66 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t lq_id, struct oryx_lq_ctx_t **lq) {
 }
 
 static __oryx_always_inline__
-void write_lqe_data(vlib_mme_t *mme, const char *value, size_t valen)
+int write_lqe_data(vlib_file_t *f, const char *value, size_t valen)
 {
 	bool flush = 0;
+	size_t nr_wb;
 	
-	vlib_file_t *f = &mme->file;
-
-	if (!f->fp) {
-		mme->nr_miss ++;
-		return;
-	}
-
-	/* Write CSV header before writting an entry
-	 * when vlib_file_t is new. */
-	if (f->ul_flags & VLIB_FILE_NEW) {
-		write_one_line(f->fp, MME_CSV_HEADER, 1);
-		f->ul_flags &= ~VLIB_FILE_NEW;
-	}
-
 	/* flush to disk every 5000 entries. */
 	if (f->entries % 50000 == 0)
 		flush = 1;
-	
-	write_one_line(f->fp, value, flush);
-	if (flush){
-		fprintf (stdout, "MME %s flushing ... %lu entries\n", mme->name, f->entries);
-	}
-	
-	f->entries ++;
-	
-	mme->nr_refcnt ++;
-	mme->nr_refcnt_bytes += valen;
+	nr_wb = file_write(f, value, valen, flush);
+	return nr_wb == valen ? 0 : 1;
 }
 
 static __oryx_always_inline__
 void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 {
+	vlib_tm_grid_t vtg = {
+		.start = 0,
+		.end = 0
+	};
+	vlib_file_t *f, *fr;
+	vlib_main_t *vm = &vlib_main;
+	time_t tv_sec = LQE_EVENT_TIME(lqe);
+
+	if (calc_tm_grid(&vtg, vm->threshold, tv_sec))
+		return;
+	
 	/* lock MME */
 	MME_LOCK(mme);
 
-	/* write CDR to disk ASAP */
-	write_lqe_data (mme, (const char *)&lqe->value[0], lqe->valen);
+	f = &mme->file;
+	fr = &mme->filer;
 
+	/* for test */
+	if (!fr->fp || fr->local_time != vtg.start)
+		nr_fopen_times ++;
+	
+	mme_try_fopen(mme->pathr, mme->name, &vtg, fr);
+	if (!fr->fp)
+		goto finish;
+	
+	/* write raw. */
+	if (!write_lqe_data (fr, (const char *)&lqe->value[0], lqe->valen)) {
+		mme->nr_refcnt_r ++;
+		mme->nr_refcnt_bytes_r += lqe->valen;
+	}
+
+	/* Anyway write those CDR with IMSI */	
+	if (lqe->ul_flags & LQE_HAVE_IMSI) {
+		mme_try_fopen(mme->path, mme->name, &vtg, f);
+		if (!f->fp)
+			goto finish;
+		
+		/* write CDR to disk ASAP */
+		if (!write_lqe_data (fr, (const char *)&lqe->value[0], lqe->valen)) {
+			mme->nr_refcnt ++;
+			mme->nr_refcnt_bytes += lqe->valen;
+		}
+	}
+
+finish:
 	/* unlock MME */
 	MME_UNLOCK(mme);
 }
@@ -79,7 +97,7 @@ static void load_dictionary(vlib_main_t *vm)
 	int sep_refcnt = 0;
 	char sep = ',';
 	size_t step;
-	vlib_mme_key_t	*mmekey;
+	vlib_mmekey_t	*mmekey;
 	vlib_mme_t		*mme;
 	void *s;
 	char ip[32] = {0};
@@ -88,8 +106,8 @@ static void load_dictionary(vlib_main_t *vm)
 	int i;
 	
 	/* Overwrite MME dictionary. */
-	if (vm->mme_dictionary)
-		file = vm->mme_dictionary;
+	if (vm->dictionary)
+		file = vm->dictionary;
 	
 	fp = fopen(file, "r");
 	if(!fp) {
@@ -124,7 +142,7 @@ static void load_dictionary(vlib_main_t *vm)
 				/* find same mme */
 				s = oryx_htable_lookup(vm->mme_htable, ip, iplen);
 				if (s) {
-					mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
+					mmekey = (vlib_mmekey_t *) container_of (s, vlib_mmekey_t, ip);
 					if ((mme = mmekey->mme) != NULL) {
 						fprintf (stdout, "find same mme %s by %s\n", mme->name, mmekey->ip);
 					} else {
@@ -165,22 +183,21 @@ static void load_dictionary(vlib_main_t *vm)
 		vm->nr_mmes ++;
 	}
 
-	const char *pdir = vm->classify_warehouse;
-	char subdir[256] = {0};
-	
-	//mkdir0(pdir);
+	const char *pdir = vm->classdir;
+	const char *sdir = vm->savdir;
+		
 	mkdir(pdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	mkdir(sdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 
 	/* Prepare Classify CSV files for each MME. */
-	time_t ts = time(NULL);
 	for (i = 0; i < vm->nr_mmes; i ++) {	
-		memset((void *)&subdir[0], 0, 256);
 		mme = &nr_global_mmes[i];
 
 		MME_LOCK(mme);
-		sprintf (subdir, "%s/%s", pdir, mme->name);
-		fprintf (stdout, "mkdir %s (%s, %s)\n", subdir, pdir, mme->name);
-		mkdir(subdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		sprintf (mme->path, "%s/%s", pdir, mme->name);
+		sprintf (mme->pathr, "%s", sdir);
+		fprintf (stdout, "mkdir %s \n", mme->path);
+		mkdir(mme->path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 		
 		/* Prepare a new CSV file.
 		 * At this stage, mme->fp is definable NULL.
@@ -189,169 +206,10 @@ static void load_dictionary(vlib_main_t *vm)
 
 		/* File for current stage */
 		BUG_ON(mme->file.fp != NULL);
-		cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
-
-#if 0
-		/* File for last stage */
-		BUG_ON(mme->filep.fp != NULL);
-		cvs_new(mme, (ts - vm->classify_threshold * 60), vm->classify_threshold, vm->classify_warehouse, &mme->filep);
-
-		/* File for next stage */
-		BUG_ON(mme->filen.fp != NULL);
-		cvs_new(mme, (ts + vm->classify_threshold * 60), vm->classify_threshold, vm->classify_warehouse, &mme->filen);
-#endif
 		MME_UNLOCK(mme);
 	}
 
-#if defined(HAVE_CLASSIFY_DEBUG)
-	sprintf (subdir, "%s/DataExport.unclassified", pdir);
-	if (!fp_unclassified_csv_entries) {
-		fp_unclassified_csv_entries = fopen(subdir, "a+");
-		if (!fp_unclassified_csv_entries)
-			exit(0);
-	}
-	
-	sprintf (subdir, "%s/DataExport.raw", pdir);
-	if (!fp_raw_csv_entries) {
-		fp_raw_csv_entries = fopen(subdir, "a+");
-		if (!fp_raw_csv_entries)
-			exit(0);
-	}
-
-	s = oryx_htable_lookup(vm->mme_htable, "10.110.16.25", strlen("10.110.16.25"));
-	if (s) {
-		mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
-		mme = mmekey->mme;
-		fprintf (stdout, "find mmekey %s by %s\n", mme->name, mmekey->ip);
-	}
-	
-	s = oryx_htable_lookup(vm->mme_htable, "10.110.18.153", strlen("10.110.18.153"));
-	if (s) {
-		mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
-		mme = mmekey->mme;
-		fprintf (stdout, "find mmekey %s by %s\n", mme->name, mmekey->ip);
-	}
-	
-	s = oryx_htable_lookup(vm->mme_htable, "10.110.18.152", strlen("10.110.18.152"));
-	if (s) {
-		mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
-		mme = mmekey->mme;
-		fprintf (stdout, "find mmekey %s by %s\n", mme->name, mmekey->ip);
-	}
-#endif
-
 }
-
-#if 0
-static void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
-{
-		int i;
-		vlib_main_t *vm = &vlib_main;
-		vlib_mme_t *mme;
-		int try_new_file = 0;
-	
-		FOREVER {
-			if (!running) {
-				fprintf (stdout, "Thread(%lu): csv file prepare handler exited!\n", pthread_self());
-				break;
-			}
-			
-			time_t ts = time(NULL);
-			
-			for (i = 0; i < vm->nr_mmes; i ++) {
-				try_new_file = 0;
-				mme = &nr_global_mmes[i];
-
-				MME_LOCK(mme);
-				vlib_file_t *f = &mme->file;
-				
-				if (is_overtime(mme, ts, vm->classify_threshold)) {
-					csv_close(mme, OVERTIME);
-					try_new_file = 1;
-				}
-			#if 0
-				if (is_overdisk(mme, vm->max_entries_per_file)) {
-					csv_close(mme, OVERDISK);
-					try_new_file = 1;
-				}
-			#endif
-
-				/* Remove those empty and closed csv file */
-				if (f->fp == NULL &&
-						cvs_empty(mme)){
-					fprintf (stdout, "Removing empty file %s\n", f->fp_name);
-					remove(f->fp_name);
-				}	
-						
-				/* Prepare a new CSV file. */	
-				if (try_new_file) {
-					/* To make sure that the file has been closed successfully. */
-					BUG_ON(f->fp != NULL);
-					cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
-				}
-
-				MME_UNLOCK(mme);
-			}
-
-			sleep (10);
-		}
-
-		oryx_task_deregistry_id(pthread_self());
-		return NULL;
-}
-#else
-static void * csv_file_prepare_handler (void __oryx_unused_param__ *r)
-{
-		int i;
-		vlib_main_t *vm = &vlib_main;
-		vlib_mme_t *mme;
-		int try_new_file = 0;
-	
-		FOREVER {
-			if (!running) {
-				fprintf (stdout, "Thread(%lu): csv file prepare handler exited!\n", pthread_self());
-				break;
-			}
-			
-			time_t ts = time(NULL);
-			
-			for (i = 0; i < vm->nr_mmes; i ++) {
-				try_new_file = 0;
-				mme = &nr_global_mmes[i];
-				MME_LOCK(mme);
-
-				vlib_file_t *f = &mme->file;
-				
-				if (is_overtime(f, ts, vm->classify_threshold)) {
-					csv_close(f, OVERTIME);
-					try_new_file = 1;
-				}
-
-				/* Remove those empty and closed csv file */
-				if (f->fp == NULL &&
-						cvs_empty(f)){
-					fprintf (stdout, "Removing empty file %s\n", f->fp_name);
-					remove(f->fp_name);
-				}	
-						
-				/* Prepare a new CSV file. */	
-				if (try_new_file) {
-					/* To make sure that the file has been closed successfully. */
-					BUG_ON(f->fp != NULL);
-					cvs_new(mme, ts, vm->classify_threshold, vm->classify_warehouse, &mme->file);
-				}
-
-				MME_UNLOCK(mme);
-			}
-
-			sleep (10);
-		}
-
-		oryx_task_deregistry_id(pthread_self());
-		return NULL;
-}
-
-#endif
 
 void classify_terminal(void)
 {
@@ -447,10 +305,10 @@ void classify_runtime(void)
 	fprintf (fp, "\n");
 	fflush(fp);
 	
-	fprintf (fp, "Classify configurations\n");
-	fprintf (fp, "\tdictionary: %s\n", vm->mme_dictionary);
-	fprintf (fp, "\tthreshold : %d minute(s)\n", vm->classify_threshold);
-	fprintf (fp, "\twarehouse : %s\n", vm->classify_warehouse);
+	fprintf (fp, "Classify Configurations\n");
+	fprintf (fp, "\tdictionary: %s\n", vm->dictionary);
+	fprintf (fp, "\tthreshold : %d minute(s)\n", vm->threshold);
+	fprintf (fp, "\twarehouse : %s\n", vm->classdir);
 	fprintf (fp, "\tparallel  : %d thread(s)\n", vm->nr_threads);
 	fprintf (fp, "\n");
 	fflush(fp);
@@ -464,10 +322,11 @@ void classify_runtime(void)
 	fprintf (fp, "\tClassified %lu (%.2f%%), Unclassified: %lu (%.2f%%)\n",
 			nr_classified_refcnt, ratio_of(nr_classified_refcnt, nr_eq_total_refcnt),
 			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, nr_eq_total_refcnt));
+	fprintf (fp, "\tOpened %lu handler(s), %lu\n", nr_handlers, nr_fopen_times);
 	fprintf (fp, "\n");
 	fflush(fp);
 	
-	fprintf (fp, "Statistics for %d QUEUE(s)\n", vm->nr_threads);
+	fprintf (fp, "Statistics for %d thread(s)\n", vm->nr_threads);
 	for (i = 0; i < vm->nr_threads; i ++) {
 		fprintf (fp, "\tLQ[%d], blocked %lu element(s)\n", i, eq[i] - dq[i]);
 		fprintf (fp, "\t\t enqueue %.2f%% %lu (pps %s, bps %s)\n",
@@ -481,8 +340,8 @@ void classify_runtime(void)
 	
 	fprintf (fp, "\n\n");
 	fprintf (fp, "Statistics for %d MME(s)\n", vm->nr_mmes);
-	fprintf (fp, "%32s%24s%24s\n", " ", "REFCNT", "MISS");
-	fprintf (fp, "%32s%24s%24s\n", " ", "------", "----");
+	fprintf (fp, "%24s%32s\n", " ", "REFCNT");
+	fprintf (fp, "%24s%32s\n", " ", "------");
 	fflush(fp);
 
 	for (i = 0; i < vm->nr_mmes; i ++) {
@@ -490,22 +349,17 @@ void classify_runtime(void)
 		mme = &nr_global_mmes[i];
 
 		/* format MME name */	
-		oryx_format(&fb, "%32s", mme->name);
+		oryx_format(&fb, "%24s", mme->name);
 
 		/* format MME refcnt */
-		sprintf (fmtstring, "%lu(%.2f%%)",
-				mme->nr_refcnt, ratio_of(mme->nr_refcnt, nr_eq_total_refcnt));
-		oryx_format(&fb, "%24s", fmtstring);
-
-		/* format MME miss refcnt */
-		sprintf (fmtstring, "%lu(%.2f%%)",
-				mme->nr_miss, ratio_of(mme->nr_miss, nr_eq_total_refcnt));
-		oryx_format(&fb, "%24s", fmtstring);
+		sprintf (fmtstring, "%lu(%lu, %.2f%%)",
+				mme->nr_refcnt_r, mme->nr_refcnt, ratio_of(mme->nr_refcnt, mme->nr_refcnt_r));
+		oryx_format(&fb, "%32s", fmtstring);
 
 		/* flush to file */
 		oryx_format(&fb, "%s", "\n");
-		write_one_line(fp, FMT_DATA(fb), 1);
-
+		fprintf(fp, FMT_DATA(fb), FMT_DATA_LENGTH(fb));
+		fflush(fp);
 	}
 
 	oryx_format_free(&fb);
@@ -525,10 +379,6 @@ void do_dispatch(const char *value, size_t vlen)
 	int dlen = 0, tlen = 0;
 	vlib_main_t *vm = &vlib_main;
 	
-#if defined(HAVE_CLASSIFY_DEBUG)
-	write_one_line(fp_raw_csv_entries, value, 1);
-#endif
-
 	vm->nr_rx_entries ++;
 
 	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
@@ -538,7 +388,7 @@ void do_dispatch(const char *value, size_t vlen)
 		if (!find_imsi && sep_refcnt == 5) {
 			if (*p == sep) {
 				vm->nr_rx_entries_without_imsi ++;
-				break;
+				//break;
 			}
 			else
 				find_imsi = 1;
@@ -554,7 +404,7 @@ void do_dispatch(const char *value, size_t vlen)
 			keep_cpy = 0;
 
 		/* valid entry dispatch ASAP */
-		if (sep_refcnt == 45 && find_imsi)
+		if (sep_refcnt == 45)
 			goto dispatch;
 
 		/* soft copy */
@@ -594,23 +444,27 @@ dispatch:
 
 	/* soft copy. */
 	memcpy((void *)&lqe->value[0], data, dlen);
+	if(find_imsi)
+		lqe->ul_flags |= LQE_HAVE_IMSI;
 	lqe->valen = dlen;
+	lqe->rawlen = vlen;
 	sscanf(time, "%lu", &lqe->event_start_time);
 	fmt_mme_ip(lqe->mme_ip, p);
 	//fprintf (stdout, "event_start_time %s(%lu)\n", time, lqe->event_start_time);
-	
-	lq_id = oryx_js_hash(lqe->mme_ip, strlen(lqe->mme_ip));
+
 	/* When round robbin used, CSV file must be locked while writing. */
-	//lq_id ++;
+	lq_id ++;
+	if (vm->dispatch_mode == HASH)
+		lq_id = oryx_js_hash(lqe->mme_ip, strlen(lqe->mme_ip));
 	fetch_lq(lq_id, &lq);
 	oryx_lq_enqueue(lq, lqe);
 }
 
-void do_classify(vlib_threadvar_ctx_t *vtc, const struct lq_element_t *lqe)
+void do_classify(vlib_threadvar_ctx_t *vtc, struct lq_element_t *lqe)
 {
 	vlib_main_t *vm = &vlib_main;
 	void *s;
-	vlib_mme_key_t *mmekey;
+	vlib_mmekey_t *mmekey;
 	vlib_mme_t		*mme;
 
 	/* 45 is the number of ',' in a CDR. */
@@ -626,7 +480,7 @@ void do_classify(vlib_threadvar_ctx_t *vtc, const struct lq_element_t *lqe)
 	
 	s = oryx_htable_lookup(vm->mme_htable, (const void *)&lqe->mme_ip[0], strlen((const char *)&lqe->mme_ip[0]));
 	if (s) {
-		mmekey = (vlib_mme_key_t *) container_of (s, vlib_mme_key_t, ip);
+		mmekey = (vlib_mmekey_t *) container_of (s, vlib_mmekey_t, ip);
 		mme = mmekey->mme;
 		write_lqe(mme, lqe);
 	} else {
@@ -649,17 +503,6 @@ void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ ar
 	//fprintf (stdout, "%s running ...\n", tmr->sc_alias);
 	classify_runtime();
 }
-
-struct oryx_task_t prepare = {
-		.module 		= THIS,
-		.sc_alias		= "CSV File Prepare Task",
-		.fn_handler 	= csv_file_prepare_handler,
-		.lcore_mask 	= INVALID_CORE,
-		.ul_prio		= KERNEL_SCHED,
-		.argc			= 0,
-		.argv			= NULL,
-		.ul_flags		= 0,	/** Can not be recyclable. */
-};
 
 void classify_env_init(vlib_main_t *vm)
 {
@@ -693,8 +536,6 @@ void classify_env_init(vlib_main_t *vm)
 		t->sc_alias = strdup(name);
 		oryx_task_registry(t);
 	}
-
-	oryx_task_registry(&prepare);
 	
 	load_dictionary(vm);
 

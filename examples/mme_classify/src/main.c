@@ -1,6 +1,10 @@
 #include "oryx.h"
+#include "file.h"
+#include "tg.h"
+#include "mme.h"
 #include "main.h"
 #include "classify.h"
+
 
 #define MME_CSV_FILE \
 	"/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv"
@@ -94,7 +98,7 @@ void update_event_start_time(char *value, size_t valen)
 		/* skip entries without IMSI */
 		if (!find_imsi && sep_refcnt == 5) {
 			if (*p == sep) 
-				break;
+				continue;
 			else
 				find_imsi = 1;
 		}
@@ -105,7 +109,8 @@ void update_event_start_time(char *value, size_t valen)
 		}
 
 		/* valid entry dispatch ASAP */
-		if (sep_refcnt == 45 && find_imsi)
+		//if (sep_refcnt == 45 && find_imsi)
+		if (sep_refcnt == 45)
 			goto update_time;
 
 		if (*p == sep)
@@ -127,7 +132,8 @@ void update_event_start_time(char *value, size_t valen)
 	}
 
 	/* Wrong CDR entry, go back to caller ASAP. */
-	return;
+	//fprintf (stdout, "not update time\n");
+	//return;
 
 update_time:
 
@@ -175,6 +181,8 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				update_event_start_time(line, llen);
 				do_dispatch(line, llen);
 				memset (line, 0, LINE_LENGTH);
+				if(nr_lines % 50000 == 0)
+					usleep(100000);
 			}
 			/* break after end of file. */
 			fprintf (stdout, "Finish read %s, %d line(s), break down!\n", file, nr_lines);
@@ -207,11 +215,13 @@ int main (
 	
 	vm->argc = argc;
 	vm->argv = argv;
-	vm->nr_threads = 4;
-	vm->mme_dictionary = "src/cfg/dictionary";
-	vm->classify_warehouse = "test";
+	vm->nr_threads = 1;
+	vm->dictionary = "src/cfg/dictionary";
+	vm->classdir = "/home/tsihang/vbx_share/class/formated";
+	vm->savdir = "/home/tsihang/vbx_share/class/sav";
 	vm->max_entries_per_file = 80000;
-	vm->classify_threshold = 1;
+	vm->threshold = 5;
+	vm->dispatch_mode = HASH;
 
 	oryx_register_sighandler(SIGINT, lq_sigint);
 	oryx_register_sighandler(SIGTERM, lq_sigint);
