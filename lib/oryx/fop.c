@@ -349,10 +349,10 @@ __oryx_always_extern__
 int do_system(const char *cmd)
 {
     if (likely(cmd)) {
-	    __oryx_noreturn__(system(cmd));
+	    return system(cmd);
     }
 
-	return 0;
+	return -1;
 }
 
 __oryx_always_extern__

@@ -48,6 +48,8 @@ struct oryx_lq_ctx_t {
 };
 //}__attribute__((__packed__));
 
+#define lq_nr_eq(lq)		((lq)->nr_eq_refcnt)
+#define lq_nr_dq(lq)		((lq)->nr_dq_refcnt)
 #define lq_blocked_len(lq)	((lq)->len)
 #define lq_type_blocked(lq)	((lq)->ul_flags & LQ_TYPE_PASSIVE)
 

@@ -129,12 +129,41 @@ ORYX_DECLARE(
 	int oryx_htable_add(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
 ORYX_DECLARE(
 	int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
-ORYX_DECLARE(
-	void *oryx_htable_lookup(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen));
+
 ORYX_DECLARE(
 	int oryx_htable_foreach_elem(struct oryx_htable_t *ht,
 				void (*handler)(ht_value_t, uint32_t, void *, int),
 				void *opaque, int opaque_size));
+
+static __oryx_always_inline__
+void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32_t datalen)
+{
+	BUG_ON ((ht == NULL) || (data == NULL));
+
+    ht_key_t hash = ht->hash_fn(ht, data, datalen);
+
+	HTABLE_LOCK(ht);
+
+    if (ht->array[hash] == NULL) {
+		HTABLE_UNLOCK(ht);
+        return NULL;
+    }
+
+    struct oryx_hbucket_t *hb = ht->array[hash];
+    do {
+		/** fprintf (stdout, "%s. %s\n", (char *)data, (char *)hashbucket->data); */
+        if (ht->cmp_fn(hb->data, hb->ul_d_size, data, datalen) == 0) {
+			HTABLE_UNLOCK(ht);
+            return hb->data;
+        }
+
+        hb = hb->next;
+    } while (hb != NULL);
+
+	HTABLE_UNLOCK(ht);
+	
+    return NULL;
+}
 
 
 #endif

@@ -1,13 +1,5 @@
 
 #include "oryx.h"
-
-#define HTABLE_LOCK(ht)\
-	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
-		do_mutex_lock((ht)->os_lock);
-
-#define HTABLE_UNLOCK(ht)\
-	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
-		do_mutex_unlock((ht)->os_lock);
 	
 static __oryx_always_inline__
 void func_free (const ht_value_t v)
@@ -227,35 +219,6 @@ int oryx_htable_del(struct oryx_htable_t *ht, ht_value_t data, uint32_t datalen)
 	HTABLE_UNLOCK(ht);
 
     return -1;
-}
-
-void *oryx_htable_lookup(struct oryx_htable_t *ht, const ht_value_t data, uint32_t datalen)
-{
-	BUG_ON ((ht == NULL) || (data == NULL));
-
-    ht_key_t hash = ht->hash_fn(ht, data, datalen);
-
-	HTABLE_LOCK(ht);
-
-    if (ht->array[hash] == NULL) {
-		HTABLE_UNLOCK(ht);
-        return NULL;
-    }
-
-    struct oryx_hbucket_t *hb = ht->array[hash];
-    do {
-		/** fprintf (stdout, "%s. %s\n", (char *)data, (char *)hashbucket->data); */
-        if (ht->cmp_fn(hb->data, hb->ul_d_size, data, datalen) == 0) {
-			HTABLE_UNLOCK(ht);
-            return hb->data;
-        }
-
-        hb = hb->next;
-    } while (hb != NULL);
-
-	HTABLE_UNLOCK(ht);
-	
-    return NULL;
 }
 
 int oryx_htable_foreach_elem(struct oryx_htable_t *ht,

@@ -18,6 +18,8 @@ typedef struct vlib_main_t {
 	const char *dictionary;
 	const char *classdir;
 	const char *savdir;
+	const char *inotifydir;
+	
 	int			max_entries_per_file;
 
 	struct oryx_htable_t	*mme_htable;
@@ -26,12 +28,25 @@ typedef struct vlib_main_t {
 
 	uint64_t nr_rx_entries;
 	uint64_t nr_rx_entries_without_imsi;
+	uint64_t nr_rx_entries_undispatched;
 	uint64_t nr_rx_entries_dispatched;
+
+	uint64_t nr_rx_files;
+
+	uint64_t nr_thread_eq_ticks;
+	uint64_t nr_thread_dq_ticks;
 
 } vlib_main_t;
 
 extern vlib_main_t vlib_main;
 extern int running;
+
+#define MME_CSV_PREFIX	"DataExport.s1mme"
+
+#include "fmgr.h"
+#include "tg.h"
+#include "mme.h"
+#include "classify.h"
 
 #endif
 

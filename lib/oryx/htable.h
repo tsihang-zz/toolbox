@@ -44,6 +44,14 @@ struct oryx_htable_t {
 										 */
 };
 
+#define HTABLE_LOCK(ht)\
+	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
+		do_mutex_lock((ht)->os_lock);
+
+#define HTABLE_UNLOCK(ht)\
+	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
+		do_mutex_unlock((ht)->os_lock);
+
 #define htable_active_slots(ht)\
 	((ht)->array_size)
 	

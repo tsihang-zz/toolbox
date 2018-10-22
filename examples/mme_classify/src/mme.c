@@ -1,9 +1,10 @@
 #include "oryx.h"
-#include "file.h"
-#include "tg.h"
-#include "mme.h"
+#include "main.h"
 
 vlib_mme_t nr_global_mmes[MAX_MME_NUM];
+/* Store those unknown entries. */
+vlib_mme_t *default_mme = NULL;
+
 uint32_t	epoch_time_sec;
 
 void mmekey_free (const ht_value_t __oryx_unused_param__ v)
@@ -92,12 +93,9 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 			f->local_time	= time(NULL);
 			f->entries		= ~0;
 			f->fp			= NULL;
-			memset ((void *)&f->fp_name[0], 0, name_length);
-
-			mme->file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-										fkey_hval, fkey_cmp, fkey_free, 0);	
-			
+			memset ((void *)&f->abs_fname[0], 0, name_length);			
 			mme->ul_flags |= VLIB_MME_VALID;
+			mme->lq_id = 0;
 			MME_LOCK_INIT(mme);
 			memcpy(&mme->name[0], &name[0], nlen);
 			return mme;

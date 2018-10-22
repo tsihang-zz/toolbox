@@ -29,8 +29,6 @@ int calc_tm_grid(vlib_tm_grid_t *vtg, int interval, const time_t tv_sec)
 	const int block_size = interval * 60;
 	struct tm tm, tm0;
 	time_t t0 = 0, ts = 0, tv = tv_sec;
-
-	if (!vtg) return -1;
 	
 	memset (&tm0, 0, sizeof(struct tm));
 	

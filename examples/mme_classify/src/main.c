@@ -1,24 +1,14 @@
 #include "oryx.h"
-#include "file.h"
-#include "tg.h"
-#include "mme.h"
 #include "main.h"
-#include "classify.h"
+#include "cfg.h"
 
 
 #define MME_CSV_FILE \
-	"/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1538102100.csv"
-#define ENQUEUE_LCORE_ID 0
+	"/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1540090678.csv"
 
 int running = 1;
 
-vlib_main_t vlib_main = {
-	.argc		=	0,
-	.argv		=	NULL,
-	.prgname	=	"mme_classify",
-	.nr_mmes	=	0,
-	.mme_htable	=	NULL,
-};
+extern struct oryx_task_t enqueue;
 
 static void lq_sigint(int sig)
 {
@@ -27,182 +17,126 @@ static void lq_sigint(int sig)
 }
 
 static
-void * dequeue_handler (void __oryx_unused_param__ *r)
+void * new_file_handler (void __oryx_unused_param__ *r)
 {
-		struct lq_element_t *lqe;
-		vlib_threadvar_ctx_t *vtc = (vlib_threadvar_ctx_t *)r;
-		struct oryx_lq_ctx_t *lq = vtc->lq;
-		vlib_main_t *vm = &vlib_main;
-		
-		/* wait for enqueue handler start. */
-		while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_STARTED)
-			break;
+		FILE		*fp0,
+					*fp1;
+		char		line[lqe_valen] = {0},
+					fn[256] = {0};
+		uint64_t	nr_rb = 0,
+					nr_wb = 0;
+		time_t		t = time(NULL);
+		static int	times = 0;
+		vlib_main_t	*vm = &vlib_main;
 
-		fprintf(stdout, "Starting dequeue handler(%lu): vtc=%p, lq=%p\n", pthread_self(), vtc, lq);		
 		FOREVER {
-			lqe = NULL;
 			
-			if (!running) {
-				/* wait for enqueue handler exit. */
-				while (vm->ul_flags & VLIB_ENQUEUE_HANDLER_EXITED)
-					break;
-				fprintf (stdout, "Thread(%lu): dequeue exiting ... ", pthread_self());
-				/* drunk out all elements before thread quit */					
-				while (NULL != (lqe = oryx_lq_dequeue(lq))){
-					do_classify(vtc, lqe);
-				}
-				fprintf (stdout, " exited!\n");
+			nr_rb = nr_wb = 0;
+			sprintf (fn, "%s/%s%s_%lu.csv",
+				vm->inotifydir, MME_CSV_PREFIX, "SAMPLEMME", t);
+			//t += 300;
+
+			fp0 = fopen(MME_CSV_FILE, "r");
+			if(!fp0) {
+				fprintf (stdout, "Cannot open %s \n", MME_CSV_FILE);
 				break;
 			}
-			
-			lqe = oryx_lq_dequeue(lq);
-			if (lqe != NULL) {
-				do_classify(vtc, lqe);
-			}
-		}
 
+			fp1 = fopen(fn, "a+");
+			if(!fp1) {
+				fprintf (stdout, "Cannot open %s \n", fn);
+				break;
+			}
+
+			fprintf (stdout, "writing %s ......", fn);
+			while (fgets (line, lqe_valen, fp0)) {
+				nr_rb += strlen(line);
+				nr_wb += fwrite(line, 1, strlen(line), fp1);
+			}
+
+			fclose(fp0);
+			fclose(fp1);
+			
+			if (nr_rb == nr_wb) {
+				fprintf (stdout, "done!\n");
+			}
+
+			if (times ++ >= 10)
+			break;
+		}
+		
 		oryx_task_deregistry_id(pthread_self());
 		return NULL;
 }
 
-struct oryx_task_t dequeue = {
+struct oryx_task_t newfile = {
 		.module 		= THIS,
-		.sc_alias		= "Dequeue Task0",
-		.fn_handler 	= dequeue_handler,
-		.lcore_mask		= 0x08,
-		.ul_prio		= KERNEL_SCHED,
-		.argc			= 1,
-		.argv			= NULL,
-		.ul_flags		= 0,	/** Can not be recyclable. */
-};
-
-static __oryx_always_inline__
-void update_event_start_time(char *value, size_t valen)
-{
-	char *p;
-	int sep_refcnt = 0;
-	const char sep = ',';
-	size_t step;
-	bool event_start_time_cpy = 0, find_imsi = 0;
-	char *ps = NULL, *pe = NULL;
-	char ntime[32] = {0};
-	struct timeval t;
-	uint64_t time;
-
-	gettimeofday(&t, NULL);
-	time = (t.tv_sec * 1000 + (t.tv_usec / 1000));
-	
-	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
-				*p != '\0' && *p != '\n'; ++ p, step ++) {			
-
-		/* skip entries without IMSI */
-		if (!find_imsi && sep_refcnt == 5) {
-			if (*p == sep) 
-				continue;
-			else
-				find_imsi = 1;
-		}
-
-		/* skip first 2 seps and copy event_start_time */
-		if (sep_refcnt == 2) {
-			event_start_time_cpy = 1;
-		}
-
-		/* valid entry dispatch ASAP */
-		//if (sep_refcnt == 45 && find_imsi)
-		if (sep_refcnt == 45)
-			goto update_time;
-
-		if (*p == sep)
-			sep_refcnt ++;
-
-		/* stop copy */
-		if (sep_refcnt == 3) {
-			event_start_time_cpy = 0;
-		}
-
-		/* soft copy.
-		 * Time stamp is 13 bytes-long */
-		if (event_start_time_cpy) {
-			if (ps == NULL)
-				ps = p;
-			pe = p;
-		}
-
-	}
-
-	/* Wrong CDR entry, go back to caller ASAP. */
-	//fprintf (stdout, "not update time\n");
-	//return;
-
-update_time:
-
-	sprintf (ntime, "%lu", time);
-	strncpy (ps, ntime, (pe - ps + 1));
-	//fprintf (stdout, "(len %lu, %lu), %s", (pe - ps + 1), time, value);
-	return;
-}
-
-static
-void * enqueue_handler (void __oryx_unused_param__ *r)
-{
-		vlib_main_t *vm = &vlib_main;
-
-		static FILE *fp = NULL;
-		const char *file = MME_CSV_FILE;
-		static char line[LINE_LENGTH] = {0};
-		int nr_lines = 0;
-		size_t llen = 0;
-		
-		if (!fp) {
-			fp = fopen(file, "r");
-			if(!fp) {
-        		fprintf (stdout, "Cannot open %s \n", file);
-        		exit(0);
-        	}
-		}
-		
-		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
-		FOREVER {
-			if (!running) {
-				fprintf (stdout, "Thread(%lu): enqueue exited!\n", pthread_self());
-				vm->ul_flags |= VLIB_ENQUEUE_HANDLER_EXITED;
-				break;
-			}
-			
-			while (fgets (line, LINE_LENGTH, fp)) {
-				llen = strlen(line);
-				nr_lines ++;
-				/* skip first line. */
-				if (nr_lines == 1)
-					continue;
-				/* update event start time to make sure that
-				 * classify PRGRM. */
-				update_event_start_time(line, llen);
-				do_dispatch(line, llen);
-				memset (line, 0, LINE_LENGTH);
-				if(nr_lines % 50000 == 0)
-					usleep(100000);
-			}
-			/* break after end of file. */
-			fprintf (stdout, "Finish read %s, %d line(s), break down!\n", file, nr_lines);
-			break;
-		}
-
-		oryx_task_deregistry_id(pthread_self());
-		return NULL;
-}
-
-struct oryx_task_t enqueue = {
-		.module 		= THIS,
-		.sc_alias		= "Enqueue Task",
-		.fn_handler 	= enqueue_handler,
-		.lcore_mask		= (1 << ENQUEUE_LCORE_ID),
+		.sc_alias		= "New File Task",
+		.fn_handler 	= new_file_handler,
+		.lcore_mask		= INVALID_CORE,//(1 << ENQUEUE_LCORE_ID),
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
+
+static int do_timeout_check(void *argv, char *pathname, char *filename)
+{
+	int 		err,
+				n = 0,
+				timeout_sec = *(int *)argv;
+	struct stat buf;
+	char		*p,
+				move[256] = {0},
+				newpath[256] = {0},
+				mmename[32] = {0};
+	time_t		now = time(NULL);	
+	vlib_main_t *vm = &vlib_main;
+
+	/* Not a CSV file */
+	if(!strstr(filename, ".csv"))
+		return 0;
+
+	err = stat(pathname, &buf);
+	if(err) {
+		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
+		return 0;
+	}
+	/* file without any modifications in 60 seconds will be timeout and removed. */
+	if(now < (buf.st_mtime + timeout_sec)) {
+		fprintf(stdout, ".");
+		return 0;
+	}
+
+	/* find MME name by the given string */
+	for(p = (filename + strlen(MME_CSV_PREFIX)); *p != '_'; ++ p) {
+		mmename[n ++] = *p;
+	}
+
+#if 0
+	if(!mme_find(mmename, n)) {
+		fprintf(stdout, "Cannot find mme named \"%s\"\n", mmename);
+		return 0;
+	}
+#endif
+	
+	sprintf (newpath, "%s/%s/%s", vm->classdir, mmename, filename);
+
+	sprintf(move, "mv %s %s", pathname, newpath);
+	err = do_system(move);
+	if(err) {
+		fprintf (stdout, "mv %s\n", oryx_safe_strerror(errno));
+	} else {
+		fprintf (stdout, "* timeout %s\n", move);
+	}
+
+#if defined(HAVE_LOCAL_TEST)
+	//remove(newpath);
+	//fprintf (stdout, "* remove %s\n", newpath);
+#endif
+
+	return 0;
+}
 
 int main (
         int     __oryx_unused_param__   argc,
@@ -210,35 +144,59 @@ int main (
 )
 
 {
-	vlib_main_t *vm = &vlib_main;
-	oryx_initialize();
-	
-	vm->argc = argc;
-	vm->argv = argv;
-	vm->nr_threads = 1;
-	vm->dictionary = "src/cfg/dictionary";
-	vm->classdir = "/home/tsihang/vbx_share/class/formated";
-	vm->savdir = "/home/tsihang/vbx_share/class/sav";
-	vm->max_entries_per_file = 80000;
-	vm->threshold = 5;
-	vm->dispatch_mode = HASH;
-
 	oryx_register_sighandler(SIGINT, lq_sigint);
 	oryx_register_sighandler(SIGTERM, lq_sigint);
-
-	classify_env_init(vm);
-	oryx_task_registry(&enqueue);
-	oryx_task_launch();
-	FOREVER {
-		sleep (1);
-		if (!running) {
-			/* wait for handlers of enqueue and dequeue finish. */
-			sleep (3);
-			classify_runtime();
-			break;
-		}
-	};
+	
+	pid_t pid;
+	pid = fork();
+	if (pid < 0)
+		return -1;
+	
+	if (pid == 0) {
 		
-	classify_terminal();
+		fprintf (stdout, "Children\n");
+		vlib_main_t *vm = &vlib_main;
+		oryx_initialize();
+		
+		vm->argc = argc;
+		vm->argv = argv;
+
+		oryx_task_registry(&enqueue);
+		//oryx_task_registry(&lserver);
+		//oryx_task_registry(&lclient);
+#if defined(HAVE_LOCAL_TEST)
+		//oryx_task_registry(&newfile);
+#endif
+		classify_env_init(vm);
+		oryx_task_launch();
+		
+		FOREVER {
+			sleep (1);
+			if (!running) {
+				/* wait for handlers of enqueue and dequeue finish. */
+				sleep (3);
+				classify_runtime();
+				break;
+			}
+		};
+			
+		classify_terminal();
+	}else {
+		FOREVER {
+			if (!running) {
+				int status;
+				kill(pid, SIGKILL);
+				waitpid(pid, &status, WNOHANG);
+				fprintf (stdout, "the state is %d\n",status);
+				break;
+			}
+			int timeout_sec = 10;
+			fprintf (stdout, "Checking path \"%s\" files for timeout\n", classify_home);
+			foreach_directory_file (classify_home,
+						do_timeout_check, (void *)&timeout_sec, 0);	
+			sleep (10);
+		}
+	}
+	
 	return 0;
 }
