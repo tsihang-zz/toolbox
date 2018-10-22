@@ -706,8 +706,10 @@ void classify_one_file(const char *fname)
 	nr_lines += nr_local_lines;	
 	
 	/* break after end of file. */
-	fprintf (stdout, "Finish read %s, %lu/%lu line(s) , cost %lu !\n",
-			oldpath, nr_local_lines, nr_lines, tm_elapsed_us(&start, &end));
+	char pps_str[20];
+	fprintf (stdout, "Finish read %s, %lu/%lu entry(ies) , cost %lu usec, (pps %s)\n",
+			oldpath, nr_local_lines, nr_lines, tm_elapsed_us(&start, &end),
+			oryx_fmt_speed(fmt_pps(tm_elapsed_us(&start, &end), nr_local_lines), pps_str, 0, 0));
 	
 	sprintf (newpath, "%s/%s", vm->savdir, strstr(fname, MME_CSV_PREFIX));
 	rename(oldpath, newpath);

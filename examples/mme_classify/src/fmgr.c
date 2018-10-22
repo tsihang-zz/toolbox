@@ -231,6 +231,7 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 		return 0;
 	}
 
+#if 0
 	/* find MME name by the given string */
 	for(p = (filename + strlen(MME_CSV_PREFIX)); *p != '_'; ++ p) {
 		mmename[n ++] = *p;
@@ -240,6 +241,7 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 		fprintf(stdout, "Cannot find mme named \"%s\" skip\n", mmename);
 		return 0;
 	}
+#endif
 
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
 	if (s) {
