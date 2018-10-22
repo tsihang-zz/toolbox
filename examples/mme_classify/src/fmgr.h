@@ -19,8 +19,9 @@ struct fq_element_t {
 typedef struct vlib_file_t {
 #define	name_length	256
 	FILE		*fp;
-	char		fname[name_length];
-	char		abs_fname[name_length];
+	int			fd;
+	char		fname[name_length],
+				abs_fname[name_length];
 	uint64_t	entries;
 	time_t		local_time;
 	uint32_t	ul_flags;
@@ -177,6 +178,7 @@ int file_open(const char *path,
 		f->local_time = start;
 		f->entries = 0;
 		f->ul_flags |= VLIB_FILE_OPENED;
+		INIT_LIST_HEAD(&f->fnode);
 		if (file_empty0(f))
 			f->ul_flags |= (VLIB_FILE_NEW | VLIB_FILE_FLUSH);
 	}

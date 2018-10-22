@@ -8,11 +8,12 @@ vlib_main_t vlib_main = {
 	.prgname	=	"mme_classify",
 	.nr_mmes	=	0,
 	.mme_htable	=	NULL,
-	.nr_threads =	3,
+	.nr_threads =	1,
 	.dictionary =	"/vsu/data2/zidian/classifyMme",
 	.classdir   =	"/vsu1/db/cdr_csv/event_GEO_LTE/formated",
 	.savdir     =	"/vsu1/db/cdr_csv/event_GEO_LTE/sav",
 	.inotifydir =	"/vsu/db/cdr_csv/event_GEO_LTE",
+	//.inotifydir	=	"/data",
 	.threshold  =	5,
 	.dispatch_mode        = HASH,
 	.max_entries_per_file = 80000,
@@ -184,6 +185,7 @@ static void load_dictionary(vlib_main_t *vm)
 					if(!mmekey)
 						break;
 
+					mme->ip_str[mme->nr_ip ++] = strdup(ip);
 					mmekey->mme = mme;
 					memcpy(&mmekey->ip[0], &ip[0], iplen);
 					
@@ -209,8 +211,13 @@ static void load_dictionary(vlib_main_t *vm)
 
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		mme = &nr_global_mmes[i];
-		fprintf (stdout, "MME (%s, %p):\n", mme->name, mme);
-		fprintf (stdout, "\tbind to thread %lu\n", mme->lq_id);
+		fprintf(stdout, "MME (%s, %p):\n", mme->name, mme);
+		fprintf(stdout, "\tbind to thread %lu\n", mme->lq_id);
+		fprintf(stdout, "\t(", mme->nr_ip);
+		int j = 0;
+		for (j = 0; j < mme->nr_ip; j ++)
+			fprintf(stdout, "\"%s\"", mme->ip_str[j]);
+		fprintf(stdout, ")\n");
 	}
 
 	const char *pdir = vm->classdir;
@@ -344,10 +351,14 @@ void classify_runtime(void)
 		fprintf (fp, "\tLQ[%d], blocked %lu element(s)\n", i, eq[i] - dq[i]);
 		fprintf (fp, "\t\t enqueue %.2f%% %lu (pps %s, bps %s)\n",
 			ratio_of(eq[i], nr_eq_total_refcnt),
-			eq[i], oryx_fmt_speed(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur[i]), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur[i]), bps_str, 0, 0));
+			eq[i],
+			oryx_fmt_speed(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur[i]), pps_str, 0, 0),
+			oryx_fmt_speed(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur[i]), bps_str, 0, 0));
 		fprintf (fp, "\t\t dequeue %.2f%% %lu (pps %s, bps %s)\n",
 			ratio_of(dq[i], nr_eq_total_refcnt),
-			dq[i], oryx_fmt_speed(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur[i]), pps_str, 0, 0), oryx_fmt_speed(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur[i]), bps_str, 0, 0));
+			dq[i],
+			oryx_fmt_speed(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur[i]), pps_str, 0, 0),
+			oryx_fmt_speed(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur[i]), bps_str, 0, 0));
 	}
 	fflush(fp);
 	
@@ -399,20 +410,20 @@ void classify_runtime(void)
 	
 	/* Overall classified ratio. */
 	fprintf (fp, "Statistics Summary\n");
-	fprintf (fp, "\tnr_rx_files %lu, nr_classified_files %lu\n",
+	fprintf (fp, "\trx_files %lu, +classified_files %lu\n",
 		vm->nr_rx_files, nr_classified_files);
-	fprintf (fp, "\tRx %lu, dispatched %lu (%.2f%%), -imsi %lu (%.2f%%)\n",
+	fprintf (fp, "\tRx %lu, +dispatched %lu (%.2f%%), -imsi %lu (%.2f%%)\n",
 			vm->nr_rx_entries,
 			vm->nr_rx_entries_dispatched, ratio_of(vm->nr_rx_entries_dispatched, vm->nr_rx_entries),
 			vm->nr_rx_entries_without_imsi, ratio_of(vm->nr_rx_entries_without_imsi, vm->nr_rx_entries));
-	fprintf (fp, "\t+WR %lu (%.2f%%), +W %lu (%.2f%%), Unclassified: %lu (%.2f%%)\n",
+	fprintf (fp, "\t+WR %lu (%.2f%%), +W %lu (%.2f%%), -classified: %lu (%.2f%%)\n",
 			nr_classified_refcnt_r, ratio_of(nr_classified_refcnt_r, vm->nr_rx_entries),
 			nr_classified_refcnt,	ratio_of(nr_classified_refcnt, vm->nr_rx_entries),
 			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, vm->nr_rx_entries));
 	fprintf (fp, "\tDebug\n");
 	fprintf (fp, "\t\t%lu opened handler(s), fopen times (f %lu, fr %lu, fe %lu)\n",
 		nr_handlers, nr_fopen_times, nr_fopen_times_r, nr_fopen_times_error);
-	fprintf (fp, "\t\tundispatched %lu, +w miss %lu, +w error %lu\n",
+	fprintf (fp, "\t\t-dispatched %lu, +w miss %lu, +w error %lu\n",
 		vm->nr_rx_entries_undispatched, nr_missed_refcnt, nr_error_refcnt);
 	fprintf (fp, "\t\teq_ticks %lu, dq_ticks %lu\n", vm->nr_thread_eq_ticks, vm->nr_thread_dq_ticks);
 	fprintf (fp, "\t\tinotify (%lu/%lu) %s\n", lq_nr_dq(fmgr_q), lq_nr_eq(fmgr_q), inotify_file);
@@ -435,9 +446,9 @@ void do_dispatch(const char *value, size_t vlen)
 	bool keep_cpy = 1, event_start_time_cpy = 0, find_imsi = 0;
 	int tlen = 0;
 	vlib_main_t *vm = &vlib_main;
-	
-	vm->nr_rx_entries ++;
 
+	vm->nr_rx_entries ++;
+	
 	lqe = lqe_alloc();
 	if (!lqe) {
 		vm->nr_rx_entries_undispatched ++;
@@ -655,65 +666,54 @@ void classify_env_init(vlib_main_t *vm)
 }
 
 static __oryx_always_inline__
-void classify_one_file(const char *fname)
+void classify_one_file(const char *oldpath)
 {
-	FILE *fp = NULL;
-	static char line[lqe_valen] = {0};
-	static uint64_t nr_lines = 0;
-	uint64_t nr_local_lines = 0;
-	static int nr_files = 0;
-	size_t llen = 0;
-	vlib_main_t *vm = &vlib_main;
-	char oldpath[128] = {0};
-	char newpath[128] = {0};
-	struct timeval start, end;
+	FILE				*fp = NULL;
+	uint64_t			nr_local_lines = 0;
+	size_t				llen = 0;
+	vlib_main_t			*vm = &vlib_main;
+	char				line[lqe_valen] = {0},
+						pps_str[20];
+	struct timeval		start,
+						end;
 
 	gettimeofday(&start, NULL);
-	memset(inotify_file, 0, BUFSIZ);
-	sprintf(inotify_file, "%s", fname);
 	
-	sprintf(oldpath, "%s", fname);
+	memset(inotify_file, 0, BUFSIZ);
+	sprintf(inotify_file, "%s", oldpath);
+	
 	if (!fp) {
 		fp = fopen(oldpath, "r");
 		if(!fp) {
-			fprintf (stdout, "Cannot open %s \n", fname);
+			fprintf (stdout, "Cannot open %s \n", oldpath);
 			return;
 		}
 	}
-
 	vm->nr_rx_files ++;
-	
+
 	fprintf (stdout, "reading %s\n", oldpath);
+	
+	/* skip first lines, this line is a CSV header. */
+	fgets(line, lqe_valen, fp);
+	memset(line, 0, lqe_valen);
+
+	/* A loop read the part of lines. */
 	while (fgets (line, lqe_valen, fp)) {
+		nr_local_lines ++;	
 		llen = strlen(line);
-		nr_local_lines ++;
-		/* skip first line. */
-		if (nr_local_lines == 1)
-			continue;
-		/* update event start time to make sure that
-		 * classify PRGRM. */
-#if defined(HAVE_LOCAL_TEST)
-		//update_event_start_time(line, llen);
 		//do_dispatch(line, llen);
-#endif
 		do_classify_online(line, llen);
 		memset (line, 0, lqe_valen);
 	}
 	fclose(fp);
 	
 	gettimeofday(&end, NULL);
-
-	nr_lines += nr_local_lines;	
-	
-	/* break after end of file. */
-	char pps_str[20];
 	fprintf (stdout, "Finish read %s, %lu/%lu entry(ies) , cost %lu usec, (pps %s)\n",
-			oldpath, nr_local_lines, nr_lines, tm_elapsed_us(&start, &end),
+			oldpath, nr_local_lines, vm->nr_rx_entries, tm_elapsed_us(&start, &end),
 			oryx_fmt_speed(fmt_pps(tm_elapsed_us(&start, &end), nr_local_lines), pps_str, 0, 0));
-	
-	sprintf (newpath, "%s/%s", vm->savdir, strstr(fname, MME_CSV_PREFIX));
-	rename(oldpath, newpath);
-	fprintf (stdout, "* rename %s -> %s\n", oldpath, newpath);
+
+	inotify_remove_file(oldpath);
+
 }
 
 static
@@ -744,7 +744,6 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			}
 
 			vm->nr_thread_eq_ticks ++;
-			usleep(1000);
 		}
 		oryx_task_deregistry_id(pthread_self());
 		return NULL;
@@ -754,7 +753,7 @@ struct oryx_task_t enqueue = {
 		.module 		= THIS,
 		.sc_alias		= "Enqueue Task",
 		.fn_handler 	= enqueue_handler,
-		.lcore_mask		= (1 << ENQUEUE_LCORE_ID),
+		.lcore_mask		= INVALID_CORE,
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,

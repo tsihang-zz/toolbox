@@ -13,6 +13,10 @@ typedef struct vlib_mme_t {
 	vlib_file_t filer;		/* Raw CSV file */
 	struct list_head fhead;	/* Opened file handlers for this mme. */
 
+
+	char		*ip_str[32];
+	int			nr_ip;
+
 	/* total entries for this MME,
 	 * may equal with. */
 	uint64_t	nr_rx_entries;

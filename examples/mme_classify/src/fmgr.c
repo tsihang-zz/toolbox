@@ -14,10 +14,12 @@ uint64_t nr_fopen_times = 0;
 uint64_t nr_fopen_times_r = 0;
 uint64_t nr_fopen_times_error = 0;
 
-#define FKEY_ADDED	(1 << 0)
+#define FKEY_DOING_CLASSIFICATION	(1 << 0)
+#define FKEY_REMOVED	(1 << 1)
 typedef struct vlib_fkey_t {
 	char name[128];
 	uint32_t ul_flags;
+	time_t rm_time;
 }vlib_fkey_t;
 
 
@@ -184,7 +186,7 @@ static void * inotify_handler (void __oryx_unused_param__ *r)
 						key = fkey_alloc();
 						if (key) {
 							memcpy(key->name, name, strlen(name));
-							key->ul_flags |= FKEY_ADDED;
+							key->ul_flags |= FKEY_DOING_CLASSIFICATION;
 							BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 						}
 					}
@@ -219,6 +221,8 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	/* Not a CSV file */
 	if(!strstr(filename, ".csv"))
 		return 0;
+	if(!strstr(filename, "s1mmeSAMPLEMME"))
+		return 0;
 
 	err = stat(pathname, &buf);
 	if(err) {
@@ -227,10 +231,10 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	}
 	/* file without any modifications in 60 seconds will be timeout and removed. */
 	if(now < (buf.st_mtime + timeout_sec)) {
-		fprintf(stdout, ".");
+		fprintf(stdout, "*");
 		return 0;
 	}
-
+	
 #if 0
 	/* find MME name by the given string */
 	for(p = (filename + strlen(MME_CSV_PREFIX)); *p != '_'; ++ p) {
@@ -246,14 +250,30 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
 	if (s) {
 		key = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
-		if (key != NULL) {
-			/* To make sure that we cannot process files duplicated. */
-			fprintf (stdout, "[FID] %s\n", key->name);
-			//BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
+		BUG_ON(key == NULL);
+	
+		if(key->ul_flags & FKEY_DOING_CLASSIFICATION)
 			return 0;
+		if(key->ul_flags & FKEY_REMOVED) {
+			/* If this file removed successfully,
+			 * then delete it from hash table. */
+			if (!oryx_path_exsit(pathname))	{
+				fprintf(stdout, "delete hash table %s\n", key->name);
+				BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
+			}
 		} else {
-			fprintf (stdout, "Cannot assign a file for %s! exiting ...\n", key->name);
-			exit (0);
+			/* classification finished. remove this file to backup. */
+			sprintf (newpath, "%s/%s", vm->savdir, filename);
+
+			sprintf(move, "mv %s %s", pathname, newpath);
+			err = do_system(move);
+			if(err) {
+				fprintf (stdout, "mv %s\n", oryx_safe_strerror(errno));
+			} else {
+				fprintf (stdout, "\n(*)mv %s -> %s\n", pathname, newpath);
+				key->ul_flags |= FKEY_REMOVED;
+				key->rm_time = time(NULL);
+			}
 		}
 	} else {
 		struct fq_element_t *fqe = fqe_alloc();
@@ -265,7 +285,7 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 			key = fkey_alloc();
 			if (key) {
 				memcpy(key->name, filename, strlen(filename));
-				key->ul_flags |= FKEY_ADDED;
+				key->ul_flags |= FKEY_DOING_CLASSIFICATION;
 				BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 			}
 		}
@@ -274,18 +294,47 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	return 0;
 }
 
+void inotify_remove_file(const char *oldpath)
+{
+	vlib_main_t	*vm = &vlib_main;
+	vlib_fkey_t *key;	/* search hash table first */
+	char	*f,
+			newpath[128] = {0};
+
+	f = strstr(oldpath, MME_CSV_PREFIX);
+	if(!f) {
+		fprintf(stdout, "Invalid %s\n", f);
+		return;
+	}
+
+	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	if (!s) {
+		fprintf(stdout, "Cannot find %s in hash table\n", f);
+		return;
+	}
+	
+	key = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
+	if (key != NULL) {
+		/* To make sure that we cannot process files duplicated. */
+		key->ul_flags &= ~FKEY_DOING_CLASSIFICATION;
+	} else {
+		fprintf (stdout, "Cannot assign a file for %s! exiting ...\n", key->name);
+		exit (0);
+	}
+}
+
 static void * inotify_handler0 (void __oryx_unused_param__ *r)
 {
-	const char *path = inotify_dir;
-	const int timeout_sec = 10;
+	const int timeout_sec = 15;
 
 
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								fkey_hval, fkey_cmp, fkey_free, 0);
 
 	FOREVER {
-		foreach_directory_file (path,
+		foreach_directory_file (inotify_dir,
 					do_timeout_check, (void *)&timeout_sec, 0);
+		/* aging entries in table. */
 		sleep(1);
 	}
 	

@@ -3,6 +3,8 @@
 #include "cfg.h"
 
 uint64_t rx_pkts, rx_bytes;
+
+#if 0
 static struct timeval start, end;
 
 static
@@ -85,5 +87,5 @@ struct oryx_task_t lserver = {
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
-		
+#endif
 

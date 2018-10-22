@@ -127,7 +127,7 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	if(err) {
 		fprintf (stdout, "mv %s\n", oryx_safe_strerror(errno));
 	} else {
-		fprintf (stdout, "* timeout %s\n", move);
+		fprintf (stdout, "\n(*)timeout %s\n", move);
 	}
 
 #if defined(HAVE_LOCAL_TEST)
@@ -190,10 +190,9 @@ int main (
 				fprintf (stdout, "the state is %d\n",status);
 				break;
 			}
-			int timeout_sec = 10;
-			fprintf (stdout, "Checking path \"%s\" files for timeout\n", classify_home);
+			int timeout_sec = 300;
 			foreach_directory_file (classify_home,
-						do_timeout_check, (void *)&timeout_sec, 0);	
+						do_timeout_check, (void *)&timeout_sec, 0);
 			sleep (10);
 		}
 	}

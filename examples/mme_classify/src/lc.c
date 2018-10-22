@@ -5,6 +5,7 @@
 int fd;
 uint64_t tx_pkts, tx_bytes;
 
+#if 0
 int sendto_ls(const void *buf, size_t buflen)
 {
 	ssize_t tx_bytes0 = 0;
@@ -132,6 +133,5 @@ struct oryx_task_t lclient = {
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
-		
-
+#endif
 

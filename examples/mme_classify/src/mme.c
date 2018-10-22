@@ -96,6 +96,7 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 			memset ((void *)&f->abs_fname[0], 0, name_length);			
 			mme->ul_flags |= VLIB_MME_VALID;
 			mme->lq_id = 0;
+			INIT_LIST_HEAD(&mme->fhead);
 			MME_LOCK_INIT(mme);
 			memcpy(&mme->name[0], &name[0], nlen);
 			return mme;
