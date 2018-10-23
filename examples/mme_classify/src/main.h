@@ -1,6 +1,11 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#define VLIB_MAX_LQ_NUM	8
+
+#define ENQUEUE_LCORE_ID 0
+#define DEQUEUE_LCORE_ID 1
+
 #define VLIB_ENQUEUE_HANDLER_EXITED		(1 << 0)
 #define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
 
@@ -38,8 +43,22 @@ typedef struct vlib_main_t {
 	uint64_t nr_thread_dq_ticks;
 
 } vlib_main_t;
-
 extern vlib_main_t vlib_main;
+
+typedef struct vlib_threadvar_t {
+	struct oryx_lq_ctx_t *lq;
+	uint32_t			unique_id;
+	uint64_t			nr_unclassified_refcnt;
+} vlib_threadvar_t;
+extern vlib_threadvar_t vlib_tv_main[];
+
+static __oryx_always_inline__
+vlib_threadvar_t *vlib_alloc_tv(void)
+{
+	vlib_main_t *vm = &vlib_main;
+	return &vlib_tv_main[vm->nr_mmes % vm->nr_threads];
+}
+
 extern int running;
 
 #define MME_CSV_PREFIX	"DataExport.s1mme"

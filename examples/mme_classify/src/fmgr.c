@@ -6,6 +6,7 @@ struct oryx_lq_ctx_t *fmgr_q = NULL;
 static struct oryx_htable_t *file_hash_tab = NULL; 
 
 char *inotify_home = "/vsu/db/cdr_csv/event_GEO_LTE";
+const char *classify_home = "/root/classify_home";
 char inotify_file[BUFSIZ];
 
 uint64_t nr_classified_files = 0;
@@ -132,7 +133,7 @@ static void * inotify_handler (void __oryx_unused_param__ *r)
 	buf[BUFSIZ - 1] = 0;
 
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								fkey_hval, fkey_cmp, fkey_free, 0);
+								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
 
 	FOREVER {		
 		nread = 0;
@@ -298,6 +299,61 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	return 0;
 }
 
+static int do_timeout_check0 (void *argv, char *pathname, char *filename)
+{
+	int 		err,
+				n = 0,
+				timeout_sec = *(int *)argv;
+	struct stat buf;
+	char		*p,
+				move[256] = {0},
+				newpath[256] = {0},
+				mmename[32] = {0};
+	time_t		now = time(NULL);	
+	vlib_main_t *vm = &vlib_main;
+
+	/* Not a CSV file */
+	if(!strstr(filename, ".csv"))
+		return 0;
+	if(!strstr(filename, MME_CSV_PREFIX))
+		return 0;
+
+	err = stat(pathname, &buf);
+	if(err) {
+		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
+		return 0;
+	}
+	/* file without any modifications in 60 seconds will be timeout and removed. */
+	if(now < (buf.st_mtime + timeout_sec)) {
+		fprintf(stdout, ".");
+		return 0;
+	}
+
+	/* find MME name by the given string */
+	for(p = (filename + strlen(MME_CSV_PREFIX)); *p != '_'; ++ p) {
+		mmename[n ++] = *p;
+	}
+
+#if 0
+	if(!mme_find(mmename, n)) {
+		fprintf(stdout, "Cannot find mme named \"%s\"\n", mmename);
+		return 0;
+	}
+#endif
+	
+	sprintf (newpath, "%s/%s/%s", vm->classdir, mmename, filename);
+
+	sprintf(move, "mv %s %s", pathname, newpath);
+	err = do_system(move);
+	if(err) {
+		fprintf (stdout, "mv %s\n", oryx_safe_strerror(errno));
+	} else {
+		fprintf (stdout, "\n(*)timeout %s\n", move);
+	}
+
+	return 0;
+}
+
 void inotify_remove_file(const char *oldpath)
 {
 	vlib_main_t	*vm = &vlib_main;
@@ -329,15 +385,20 @@ void inotify_remove_file(const char *oldpath)
 
 static void * inotify_handler0 (void __oryx_unused_param__ *r)
 {
-	const int timeout_sec = 60;
-
-
+	int timeout_sec = 10;
+	int timeout_sec0 = 300;
+	int try_scan_dir = 0;
+	
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								fkey_hval, fkey_cmp, fkey_free, 0);
+								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
 
 	FOREVER {
 		foreach_directory_file (inotify_home,
-					do_timeout_check, (void *)&timeout_sec, 0);
+					do_timeout_check, (void *)&timeout_sec, try_scan_dir);
+
+		foreach_directory_file (classify_home,
+					do_timeout_check0, (void *)&timeout_sec0, try_scan_dir);
+
 		/* aging entries in table. */
 		sleep(1);
 	}

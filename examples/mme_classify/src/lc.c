@@ -22,7 +22,7 @@ int sendto_ls(const void *buf, size_t buflen)
 }
 
 static __oryx_always_inline__
-int classify_one_file(const char *fname,
+int classify_offline(const char *fname,
 	ssize_t (*proc)(const void *buf, size_t buflen))
 {
 	FILE			*fp = NULL;
@@ -75,10 +75,7 @@ int classify_one_file(const char *fname,
 	sprintf (newpath, "%s/%s", vm->savdir, fname);
 	rename(oldpath, newpath);
 	fprintf (stdout, "* rename %s -> %s\n", oldpath, newpath);
-#if defined(HAVE_LOCAL_TEST)
-	remove(newpath);	
-	fprintf (stdout, "* remove %s\n", newpath);
-#endif
+
 	return 0;
 }
 
@@ -110,7 +107,7 @@ void * local_client (void __oryx_unused_param__ *v)
 		}
 		
 		while (1) {
-			if (classify_one_file("/data/DataExport.s1mmeSAMPLEMME_1540090678.csv",
+			if (classify_offline("/data/DataExport.s1mmeSAMPLEMME_1540090678.csv",
 				sendto_ls) < 0)
 				break;
 			sleep(1000);

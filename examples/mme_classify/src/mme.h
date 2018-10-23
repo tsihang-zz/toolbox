@@ -19,6 +19,8 @@ typedef struct vlib_mme_t {
 	uint32_t			ul_flags,
 						lq_id;
 
+	vlib_threadvar_t	*tv;
+
 	os_mutex_t			lock;
 
 

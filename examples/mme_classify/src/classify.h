@@ -1,20 +1,6 @@
 #ifndef CLASSIFY_H
 #define CLASSIFY_H
 
-#define HAVE_LOCAL_TEST
-#define MAX_LQ_NUM	8
-#define ENQUEUE_LCORE_ID 0
-#define DEQUEUE_LCORE_ID 1
-
-typedef struct vlib_threadvar_ctx_t {
-	struct oryx_lq_ctx_t *lq;
-	uint32_t			unique_id;
-	uint64_t			nr_unclassified_refcnt;
-}vlib_threadvar_ctx_t;
-
-extern vlib_threadvar_ctx_t vlib_threadvar_main[];
-extern const char *classify_home;
-
 #define LQE_HAVE_IMSI	(1 << 0)
 struct lq_element_t {
 #define lqe_valen	256
@@ -92,13 +78,11 @@ try_new_file:
 
 	file_open(classify_home, mme->name, vtg->start, vtg->end, f);
 	if (f->ul_flags & VLIB_FILE_NEW) {
-		fprintf(stdout, "Write CSV head to %s\n", f->abs_fname);
+		fprintf(stdout, "Write CSV head to %s\n", f->filepath);
 		/* Write CSV header before writting an entry
 		 * when vlib_file_t is new. */
 		file_write(f, MME_CSV_HEADER, strlen(MME_CSV_HEADER));
 		f->ul_flags &= ~VLIB_FILE_NEW;
-		nr_classified_files ++;
-
 		/* add this file to head of file list.
 		 * You know, we can image that a */
 		oryx_list_add(&f->fnode, &mme->fhead);
@@ -114,7 +98,7 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 	const vlib_tm_grid_t	*vtg = &lqe->vtg;
 
 	/* lock MME */
-	MME_LOCK(mme);
+	//MME_LOCK(mme);
 
 	f  = &mme->file;
 
@@ -126,7 +110,6 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 	if (!(lqe->ul_flags & LQE_HAVE_IMSI))
 		mme->nr_rx_entries_noimsi ++;
 	else {
-		/* Open files on RAMDISK */
 		mme_try_fopen(mme, vtg, f);
 		if (!f->fp) {
 			mme->nr_refcnt_miss ++;
@@ -146,7 +129,7 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 
 finish:
 	/* unlock MME */
-	MME_UNLOCK(mme);
+	//MME_UNLOCK(mme);
 	return;
 }
 

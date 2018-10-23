@@ -8,20 +8,19 @@ vlib_main_t vlib_main = {
 	.prgname	=	"mme_classify",
 	.nr_mmes	=	0,
 	.mme_htable	=	NULL,
-	.nr_threads =	1,
+	.nr_threads =	0,
 	.dictionary =	"/vsu/data2/zidian/classifyMme",
 	.classdir   =	"/vsu1/db/cdr_csv/event_GEO_LTE/formated",
 	.savdir     =	"/vsu1/db/cdr_csv/event_GEO_LTE/sav",
 	.inotifydir =	"/vsu/db/cdr_csv/event_GEO_LTE",
+	//.inotifydir = "/data",
 	.threshold  =	5,
 	.dispatch_mode        = HASH,
 	.max_entries_per_file = 80000,
 
 };
 
-const char *classify_home = "/root/classify_home";
-
-vlib_threadvar_ctx_t vlib_threadvar_main[MAX_LQ_NUM];
+vlib_threadvar_t vlib_tv_main[VLIB_MAX_LQ_NUM];
 
 static __oryx_always_inline__
 void update_event_start_time(char *value, size_t valen)
@@ -94,7 +93,7 @@ static __oryx_always_inline__
 struct oryx_lq_ctx_t * fetch_lq(uint64_t lq_id, struct oryx_lq_ctx_t **lq) {
 	vlib_main_t *vm = &vlib_main;
 	/* fetch an LQ */
-	vlib_threadvar_ctx_t *vtc = &vlib_threadvar_main[lq_id % vm->nr_threads];
+	vlib_threadvar_t *vtc = &vlib_tv_main[lq_id % vm->nr_threads];
 	(*lq) = vtc->lq;
 }
 
@@ -180,7 +179,10 @@ static void load_dictionary(vlib_main_t *vm)
 						mme = mme_alloc(name, nlen);
 						if(mme){
 							/* bind a thread for this MME */
-							mme->lq_id = (vm->nr_mmes % vm->nr_threads);
+							if(vm->nr_threads){
+								mme->lq_id = (vm->nr_mmes % vm->nr_threads);
+								mme->tv = vlib_alloc_tv();
+							}
 							vm->nr_mmes ++;
 						} else {
 							fprintf (stdout, "Cannot alloc MME %s\n", name);
@@ -212,7 +214,10 @@ static void load_dictionary(vlib_main_t *vm)
 	/* Prepare Default MME (the last one) */
 	default_mme = mme_alloc("default", strlen("default"));
 	if(default_mme) {
-		default_mme->lq_id = (vm->nr_mmes % vm->nr_threads);
+		if(vm->nr_threads){
+			default_mme->lq_id = (vm->nr_mmes % vm->nr_threads);
+			default_mme->tv = vlib_alloc_tv();
+		}
 		vm->nr_mmes ++;
 	}
 
@@ -221,7 +226,8 @@ static void load_dictionary(vlib_main_t *vm)
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		mme = &nr_global_mmes[i];
 		fprintf(stdout, "MME (%s, %p):\n", mme->name, mme);
-		fprintf(stdout, "\tbind to thread %u\n", mme->lq_id);
+		if(mme->tv)
+			fprintf(stdout, "\tbind to tv %u\n", mme->tv->unique_id);
 		fprintf(stdout, "\t(");
 		int j = 0;
 		for (j = 0; j < mme->nr_ip; j ++)
@@ -258,11 +264,11 @@ void classify_terminal(void)
 {
 	int i;
 	struct oryx_lq_ctx_t *lq;
-	vlib_threadvar_ctx_t *vtc;
+	vlib_threadvar_t *vtc;
 	vlib_main_t *vm = &vlib_main;
 
 	for (i = 0; i < vm->nr_threads; i ++) {
-		vtc = &vlib_threadvar_main[i];
+		vtc = &vlib_tv_main[i];
 		lq = vtc->lq;
 		fprintf (stdout, "LQ[%d], nr_eq_refcnt %ld, nr_dq_refcnt %ld, buffered %lu(%d)\n",
 			i, lq->nr_eq_refcnt, lq->nr_dq_refcnt, (lq->nr_eq_refcnt - lq->nr_dq_refcnt), lq->len);
@@ -274,22 +280,22 @@ void classify_runtime(void)
 {
 	int i;
 	static uint64_t				duration = 0,
-								nr_eq_swap_bytes_prev[MAX_LQ_NUM]		= {0},
-								nr_eq_swap_elements_prev[MAX_LQ_NUM]	= {0},
-								nr_dq_swap_bytes_prev[MAX_LQ_NUM]		= {0},
-								nr_dq_swap_elements_prev[MAX_LQ_NUM]	= {0},
+								nr_eq_swap_bytes_prev[VLIB_MAX_LQ_NUM]		= {0},
+								nr_eq_swap_elements_prev[VLIB_MAX_LQ_NUM]	= {0},
+								nr_dq_swap_bytes_prev[VLIB_MAX_LQ_NUM]		= {0},
+								nr_dq_swap_elements_prev[VLIB_MAX_LQ_NUM]	= {0},
 								nr_rx_entries_prev = 0;
 	
 	static size_t				lqe_size = lq_element_size;
 	static struct timeval		start,
 								end;
 
-	uint64_t					nr_eq_swap_bytes_cur[MAX_LQ_NUM]		= {0},
-								nr_eq_swap_elements_cur[MAX_LQ_NUM]		= {0},
-								nr_dq_swap_bytes_cur[MAX_LQ_NUM]		= {0},
-								nr_dq_swap_elements_cur[MAX_LQ_NUM]		= {0},
-								eq[MAX_LQ_NUM] = {0},
-								dq[MAX_LQ_NUM] = {0},
+	uint64_t					nr_eq_swap_bytes_cur[VLIB_MAX_LQ_NUM]		= {0},
+								nr_eq_swap_elements_cur[VLIB_MAX_LQ_NUM]		= {0},
+								nr_dq_swap_bytes_cur[VLIB_MAX_LQ_NUM]		= {0},
+								nr_dq_swap_elements_cur[VLIB_MAX_LQ_NUM]		= {0},
+								eq[VLIB_MAX_LQ_NUM] = {0},
+								dq[VLIB_MAX_LQ_NUM] = {0},
 								nr_eq_total_refcnt = 0,
 								nr_dq_total_refcnt = 0,
 								nr_classified_refcnt	= 0,
@@ -308,7 +314,7 @@ void classify_runtime(void)
 							pps_str1[20],
 							cat_null[128] = "cat /dev/null > ";
 	struct oryx_lq_ctx_t *lq;
-	vlib_threadvar_ctx_t *vtc;
+	vlib_threadvar_t *vtc;
 	vlib_mme_t *mme;
 	vlib_main_t *vm = &vlib_main;
 	static oryx_file_t *fp;
@@ -334,7 +340,7 @@ void classify_runtime(void)
 
 	/** Statistics for each QUEUE */
 	for (i = 0; i < vm->nr_threads; i ++) {
-		vtc = &vlib_threadvar_main[i];
+		vtc = &vlib_tv_main[i];
 		lq = vtc->lq;
 
 		nr_unclassified_refcnt += vtc->nr_unclassified_refcnt;
@@ -548,16 +554,24 @@ static __oryx_always_inline__
 void do_dispatch(const char *value, size_t vlen)
 {
 	struct lq_element_t *lqe;
+	vlib_threadvar_t *tv;
+	vlib_mme_t *mme;
 	vlib_main_t *vm = &vlib_main;
 	struct oryx_lq_ctx_t *lq;
 
+	if(!vm->nr_threads)
+		return;
+	
 	lqe = lqe_alloc();
 	if(!lqe) {
 		vm->nr_rx_entries_undispatched ++;
 	} else {
 		if(!baker_entry(value, vlen, lqe)){
-			fetch_lq(lqe->mme->lq_id, &lq);
-			oryx_lq_enqueue(lq, lqe);
+			//fetch_lq(lqe->mme->lq_id, &lq);
+			//oryx_lq_enqueue(lq, lqe);
+			mme = lqe->mme;
+			tv  = mme->tv;
+			oryx_lq_enqueue(tv->lq, lqe);
 			vm->nr_rx_entries_dispatched ++;
 		}
 	}
@@ -566,11 +580,21 @@ void do_dispatch(const char *value, size_t vlen)
 static __oryx_always_inline__
 void do_classify(const char *value, size_t vlen)
 {
-	struct lq_element_t *lqe, lqe0;
 	vlib_main_t *vm = &vlib_main;
+	struct lq_element_t *lqe,
+						lqe0 = {
+							.mme	= NULL,
+							.lp		= {NULL, NULL},
+							.vtg	= {0, 0},
+							.mme_ip = {0},
+							.value	= {0},
+							.valen	= 0,
+							.rawlen = 0,
+							.ul_flags = 0
+						};
+	
 
 	lqe = &lqe0;
-	memset (lqe, 0, sizeof (struct lq_element_t));
 	
 	if(!baker_entry(value, vlen, lqe)){
 		vm->nr_rx_entries_dispatched ++;
@@ -612,7 +636,7 @@ static
 void * dequeue_handler (void __oryx_unused_param__ *r)
 {
 		struct lq_element_t *lqe;
-		vlib_threadvar_ctx_t *vtc = (vlib_threadvar_ctx_t *)r;
+		vlib_threadvar_t *vtc = (vlib_threadvar_t *)r;
 		struct oryx_lq_ctx_t *lq = vtc->lq;
 		vlib_main_t *vm = &vlib_main;
 		
@@ -665,16 +689,22 @@ void classify_env_init(vlib_main_t *vm)
 {
 	int i;
 	uint32_t	lq_cfg = 0;
-	vlib_threadvar_ctx_t *vtc;
+	vlib_threadvar_t *vtc;
 
 	epoch_time_sec = time(NULL);
 	inotify_home = vm->inotifydir;
+
+	if(!strcmp(inotify_home, classify_home)) {
+		fprintf(stdout, "inotify home cannot be same with classify home");
+		exit(0);
+	}
 	
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								mmekey_hval, mmekey_cmp, mmekey_free, 0);	
+								mmekey_hval, mmekey_cmp, mmekey_free, 0/* HTABLE_SYNCHRONIZED is unused,
+																		* because the table is no need to update.*/);	
 
 	for (i = 0; i < vm->nr_threads; i ++) {
-		vtc = &vlib_threadvar_main[i];
+		vtc = &vlib_tv_main[i];
 		vtc->unique_id = i;
 		/* new queue */
 		oryx_lq_new("A new list queue", lq_cfg, (void **)&vtc->lq);
@@ -722,7 +752,7 @@ void classify_offline(const char *oldpath)
 						pps_str1[20];
 	struct timeval		start,
 						end;
-	
+
 	memset(inotify_file, 0, BUFSIZ);
 	sprintf(inotify_file, "%s", oldpath);
 	
@@ -767,7 +797,7 @@ void classify_offline(const char *oldpath)
 	fprintf(stdout, "\nClassify Result\n");
 	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
 	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm->nr_rx_entries, tv_usec);
-	fprintf(stdout, "%3s%12s%s/s, avg pps %s/s\n",	" ", "Speed: ",
+	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
 		oryx_fmt_speed(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
 		oryx_fmt_speed(fmt_pps(vm->nr_cost_usec, vm->nr_rx_entries), pps_str1, 0, 0));
 	
@@ -812,7 +842,7 @@ struct oryx_task_t enqueue = {
 		.module 		= THIS,
 		.sc_alias		= "Enqueue Task",
 		.fn_handler 	= enqueue_handler,
-		.lcore_mask		= INVALID_CORE,
+		.lcore_mask		= (1 << 2),//INVALID_CORE,
 		.ul_prio		= KERNEL_SCHED,
 		.argc			= 0,
 		.argv			= NULL,
