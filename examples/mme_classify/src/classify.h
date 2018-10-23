@@ -20,14 +20,14 @@ struct lq_element_t {
 #define lqe_valen	256
 	struct lq_prefix_t		lp;
 	/* used to find an unique MME. */
-	char					mme_ip[32];
-	vlib_mme_t				*mme;
+	char					mme_ip[32],
+							value[lqe_valen];
+	size_t					valen,
+							rawlen;
+
 	uint32_t				ul_flags;
-	char					value[lqe_valen];
-	size_t					valen;
-	size_t					rawlen;
+	vlib_mme_t				*mme;
 	vlib_tm_grid_t			vtg;
-	FILE					*fp;
 };
 
 #define LQE_VALUE(lqe) \
@@ -92,7 +92,7 @@ try_new_file:
 
 	file_open(classify_home, mme->name, vtg->start, vtg->end, f);
 	if (f->ul_flags & VLIB_FILE_NEW) {
-		fprintf (stdout, "Write CSV head to %s\n", f->abs_fname);
+		fprintf(stdout, "Write CSV head to %s\n", f->abs_fname);
 		/* Write CSV header before writting an entry
 		 * when vlib_file_t is new. */
 		file_write(f, MME_CSV_HEADER, strlen(MME_CSV_HEADER));
@@ -109,9 +109,9 @@ try_new_file:
 static __oryx_always_inline__
 void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 {
-	vlib_file_t 	*f;
-	const vlib_tm_grid_t *vtg = &lqe->vtg;
-	size_t			valen = LQE_VALEN(lqe);
+	vlib_file_t 			*f;
+	size_t					valen = LQE_VALEN(lqe);
+	const vlib_tm_grid_t	*vtg = &lqe->vtg;
 
 	/* lock MME */
 	MME_LOCK(mme);
@@ -148,131 +148,6 @@ finish:
 	/* unlock MME */
 	MME_UNLOCK(mme);
 	return;
-}
-
-static __oryx_always_inline__
-void write_lqe0(vlib_mme_t *mme, const struct lq_element_t *lqe)
-{
-	vlib_file_t		*f;
-	const vlib_tm_grid_t *vtg = &lqe->vtg;
-	size_t			valen = LQE_VALEN(lqe);
-
-	/* lock MME */
-	MME_LOCK(mme);
-
-	f  = &mme->file;
-
-	if (!(lqe->ul_flags & LQE_HAVE_IMSI))
-		mme->nr_rx_entries_noimsi ++;
-	else {
-		{
-			/* write CDR to disk ASAP */
-			if (!write_lqe_data (f, (const char *)&lqe->value[0], valen)) {
-				mme->nr_refcnt ++;
-				mme->nr_refcnt_bytes += valen;
-			} else {
-				mme->nr_refcnt_error ++;
-				mme->nr_refcnt_error_bytes += valen;
-			}
-		}
-	}
-
-finish:
-	/* unlock MME */
-	MME_UNLOCK(mme);
-	return;
-}
-
-static __oryx_always_inline__
-void do_classify_online(const char *value, size_t vlen)
-{
-	char		*p,
-				time[32] = {0};
-	const char	sep = ',';
-	int			sep_refcnt = 0;
-	size_t		step, tlen = 0;
-	time_t		tv_usec = 0;
-	bool		keep_cpy				= 1,
-				event_start_time_cpy	= 0,
-				find_imsi				= 0;
-	struct lq_element_t *lqe, lqe0;
-	struct oryx_lq_ctx_t *lq;
-	
-	vlib_main_t *vm = &vlib_main;
-
-	lqe = &lqe0;
-	memset (lqe, 0, sizeof (struct lq_element_t));
-	
-	vm->nr_rx_entries ++;
-
-	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
-				*p != '\0' && *p != '\n'; ++ p, step ++) {			
-
-		/* skip entries without IMSI */
-		if (!find_imsi && sep_refcnt == 5) {
-			if (*p == sep) {
-				vm->nr_rx_entries_without_imsi ++;
-				//break;
-			}
-			else
-				find_imsi = 1;
-		}
-
-		/* skip first 2 seps and copy event_start_time */
-		if (sep_refcnt == 2) {
-			event_start_time_cpy = 1;
-		}
-
-		/* skip last three columns */
-		if (sep_refcnt == 43)
-			keep_cpy = 0;
-
-		/* valid entry dispatch ASAP */
-		if (sep_refcnt == 45)
-			goto dispatch;
-
-		/* soft copy */
-		if (keep_cpy) {
-			lqe->value[lqe->valen ++] = *p;
-		}
-
-		if (*p == sep)
-			sep_refcnt ++;
-
-		/* stop copy */
-		if (sep_refcnt == 3) {
-			event_start_time_cpy = 0;
-		}
-
-		/* soft copy.
-		 * Time stamp is 13 bytes-long */
-		if (event_start_time_cpy) {
-			time[tlen ++] = *p;
-		}
-	}
-
-	vm->nr_rx_entries_undispatched ++;
-	return;
-
-dispatch:
- 
-	lqe->value[lqe->valen - 1] = '\n';
-	lqe->value[lqe->valen] = '\0';
-
-	if(find_imsi) {
-
-	}
-
-	lqe->ul_flags	= find_imsi ? LQE_HAVE_IMSI : 0;
-	lqe->rawlen		= vlen;
-	sscanf(time, "%lu", &tv_usec);	
-	calc_tm_grid(&lqe->vtg, vm->threshold, tv_usec/1000);
-	
-	fmt_mme_ip(lqe->mme_ip, p);
-	lqe->mme = mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
-
-	write_lqe(lqe->mme, lqe);
-	vm->nr_rx_entries_dispatched ++;
 }
 
 extern void classify_env_init(vlib_main_t *vm);

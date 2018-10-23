@@ -96,6 +96,8 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	/* Not a CSV file */
 	if(!strstr(filename, ".csv"))
 		return 0;
+	if(!strstr(filename, MME_CSV_PREFIX))
+		return 0;
 
 	err = stat(pathname, &buf);
 	if(err) {

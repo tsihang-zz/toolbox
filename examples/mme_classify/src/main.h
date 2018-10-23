@@ -32,6 +32,7 @@ typedef struct vlib_main_t {
 	uint64_t nr_rx_entries_dispatched;
 
 	uint64_t nr_rx_files;
+	uint64_t nr_cost_usec;
 
 	uint64_t nr_thread_eq_ticks;
 	uint64_t nr_thread_dq_ticks;

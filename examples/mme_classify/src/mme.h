@@ -8,45 +8,39 @@ extern uint32_t	epoch_time_sec;
 
 #define VLIB_MME_VALID	(1 << 0)
 typedef struct vlib_mme_t {
-	char		name[32];
-	vlib_file_t	file;		/* Current file hold 0 ~ 5 minutes */
-	vlib_file_t filer;		/* Raw CSV file */
-	struct list_head fhead;	/* Opened file handlers for this mme. */
+#define path_length	128
+	char				path[path_length],
+						pathr[path_length],
+						name[32],
+						*ip_str[32];
+	int					nr_ip;
+	vlib_file_t			file,		/* Current file hold 0 ~ 5 minutes */
+						filer;		/* Raw CSV file */
+	uint32_t			ul_flags,
+						lq_id;
+
+	os_mutex_t			lock;
 
 
-	char		*ip_str[32];
-	int			nr_ip;
+	struct list_head 	fhead;	/* Opened file handlers for this mme. */
 
 	/* total entries for this MME,
 	 * may equal with. */
-	uint64_t	nr_rx_entries;
-	uint64_t	nr_rx_entries_noimsi;
+	uint64_t	nr_rx_entries,
+				nr_rx_entries_noimsi,
+				nr_refcnt,				/* statistics of RIGHT write for each MME with IMSI */
+				nr_refcnt_bytes,
+				nr_refcnt_miss,			/* statistics of miss writing, cause -> fopen error*/
+				nr_refcnt_miss_bytes,
+				nr_refcnt_error,		/* statistics of error writing. */
+				nr_refcnt_error_bytes,
+				nr_refcnt_r,			/* statistics of RAW RIGHT writing for each MME with or without IMSI */
+				nr_refcnt_bytes_r,
+				nr_refcnt_miss_r,
+				nr_refcnt_miss_bytes_r,
+				nr_refcnt_error_r,
+				nr_refcnt_error_bytes_r;
 
-	/* statistics of RIGHT write for each MME with IMSI */
-	uint64_t	nr_refcnt;
-	uint64_t	nr_refcnt_bytes;
-	/* statistics of miss writing, cause -> fopen error*/
-	uint64_t	nr_refcnt_miss;
-	uint64_t	nr_refcnt_miss_bytes;
-	/* statistics of error writing. */
-	uint64_t	nr_refcnt_error;
-	uint64_t	nr_refcnt_error_bytes;	
-
-	/* statistics of RAW RIGHT writing for each MME with or without IMSI */
-	uint64_t	nr_refcnt_r;
-	uint64_t	nr_refcnt_bytes_r;
-	uint64_t	nr_refcnt_miss_r;
-	uint64_t	nr_refcnt_miss_bytes_r;
-	uint64_t	nr_refcnt_error_r;
-	uint64_t	nr_refcnt_error_bytes_r;
-	
-	uint32_t	ul_flags;
-	os_mutex_t	lock;
-#define path_length	128
-	char		path[path_length];
-	char		pathr[path_length];
-
-	uint32_t	lq_id;
 } vlib_mme_t;
 
 #define MME_LOCK(mme)\
@@ -62,8 +56,7 @@ typedef struct vlib_mme_t {
 extern vlib_mme_t nr_global_mmes[];
 
 typedef struct vlib_mmekey_t {
-	/* IP address of this MME. */
-	char		ip[32];
+	char		ip[32];		/* IP address of this MME. */
 	vlib_mme_t	*mme;
 	uint64_t	nr_refcnt;	/* refcnt for this key (IP) */
 } vlib_mmekey_t;

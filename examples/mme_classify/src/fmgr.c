@@ -5,7 +5,7 @@
 struct oryx_lq_ctx_t *fmgr_q = NULL;
 static struct oryx_htable_t *file_hash_tab = NULL; 
 
-char *inotify_dir = "/vsu/db/cdr_csv/event_GEO_LTE";
+char *inotify_home = "/vsu/db/cdr_csv/event_GEO_LTE";
 char inotify_file[BUFSIZ];
 
 uint64_t nr_classified_files = 0;
@@ -17,12 +17,12 @@ uint64_t nr_fopen_times_error = 0;
 #define FKEY_DOING_CLASSIFICATION	(1 << 0)
 #define FKEY_REMOVED	(1 << 1)
 typedef struct vlib_fkey_t {
-	char name[128];
-	uint32_t ul_flags;
-	time_t rm_time;
+	char		name[128];
+	uint32_t	ul_flags;
+	time_t		rm_time;
 }vlib_fkey_t;
 
-
+#if 0
 struct event_mask {  
     int        flag;  
     const char *name;  
@@ -53,6 +53,7 @@ struct event_mask event_masks[] = {
 	   {IN_Q_OVERFLOW	 , "IN_Q_OVERFLOW"}    ,	
 	   {IN_UNMOUNT		 , "IN_UNMOUNT"}	   ,	
 }; 
+#endif
 
 static void fkey_free (const ht_value_t __oryx_unused_param__ v)
 {
@@ -106,7 +107,7 @@ int skip_event(struct inotify_event *event)
 
 static void * inotify_handler (void __oryx_unused_param__ *r)
 {
-	const char *path = inotify_dir;
+	const char *path = inotify_home;
 	int fd;
 	int wd;
 	int len;
@@ -212,6 +213,7 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 	struct stat buf;
 	vlib_fkey_t *key;	/* search hash table first */
 	char		*p,
+				echo[1024]	= {0},
 				move[256] = {0},
 				newpath[256] = {0},
 				mmename[32] = {0};
@@ -273,6 +275,8 @@ static int do_timeout_check(void *argv, char *pathname, char *filename)
 				fprintf (stdout, "\n(*)mv %s -> %s\n", pathname, newpath);
 				key->ul_flags |= FKEY_REMOVED;
 				key->rm_time = time(NULL);
+				sprintf(echo, "echo `date`: %s >> %s/classify_result.log", newpath, classify_home);
+				do_system(echo);
 			}
 		}
 	} else {
@@ -325,14 +329,14 @@ void inotify_remove_file(const char *oldpath)
 
 static void * inotify_handler0 (void __oryx_unused_param__ *r)
 {
-	const int timeout_sec = 15;
+	const int timeout_sec = 60;
 
 
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								fkey_hval, fkey_cmp, fkey_free, 0);
 
 	FOREVER {
-		foreach_directory_file (inotify_dir,
+		foreach_directory_file (inotify_home,
 					do_timeout_check, (void *)&timeout_sec, 0);
 		/* aging entries in table. */
 		sleep(1);

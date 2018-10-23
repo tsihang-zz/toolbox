@@ -242,7 +242,7 @@ struct fq_element_t *fqe_alloc(void)
 
 extern struct oryx_task_t inotify;
 extern struct oryx_lq_ctx_t *fmgr_q;
-extern char *inotify_dir;
+extern char *inotify_home;
 extern char inotify_file[];
 
 #endif

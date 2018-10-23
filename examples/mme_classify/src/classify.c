@@ -13,14 +13,13 @@ vlib_main_t vlib_main = {
 	.classdir   =	"/vsu1/db/cdr_csv/event_GEO_LTE/formated",
 	.savdir     =	"/vsu1/db/cdr_csv/event_GEO_LTE/sav",
 	.inotifydir =	"/vsu/db/cdr_csv/event_GEO_LTE",
-	//.inotifydir	=	"/data",
 	.threshold  =	5,
 	.dispatch_mode        = HASH,
 	.max_entries_per_file = 80000,
 
 };
 
-const char *classify_home = "/data";
+const char *classify_home = "/root/classify_home";
 
 vlib_threadvar_ctx_t vlib_threadvar_main[MAX_LQ_NUM];
 
@@ -102,22 +101,30 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t lq_id, struct oryx_lq_ctx_t **lq) {
 static void load_dictionary(vlib_main_t *vm)
 {
 #define mme_dict_length	256
-	/* load dictionary */
+
+	char		*p,
+				sep = ',',
+				ip[32] = {0},
+				name[32] = {0},
+				line[mme_dict_length] = {0};
+
+	void		*s;
 	FILE *fp;
-	const char *file = "src/cfg/dictionary";
-	char line[mme_dict_length] = {0};
-	char *p;
-	int sep_refcnt = 0;
-	char sep = ',';
-	size_t step;
+	
+	const char	*file = "src/cfg/dictionary",
+				*pdir = vm->classdir,
+				*sdir = vm->savdir;
+	
+	size_t		step,
+				nlen,
+				iplen;
+
+	int			i,
+				sep_refcnt = 0;
+
 	vlib_mmekey_t	*mmekey;
 	vlib_mme_t		*mme;
-	void *s;
-	char ip[32] = {0};
-	char name[32] = {0};
-	size_t nlen, iplen;
-	int i;
-	
+
 	/* Overwrite MME dictionary. */
 	if (vm->dictionary)
 		file = vm->dictionary;
@@ -209,20 +216,19 @@ static void load_dictionary(vlib_main_t *vm)
 		vm->nr_mmes ++;
 	}
 
+	mkdir(classify_home, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		mme = &nr_global_mmes[i];
 		fprintf(stdout, "MME (%s, %p):\n", mme->name, mme);
-		fprintf(stdout, "\tbind to thread %lu\n", mme->lq_id);
-		fprintf(stdout, "\t(", mme->nr_ip);
+		fprintf(stdout, "\tbind to thread %u\n", mme->lq_id);
+		fprintf(stdout, "\t(");
 		int j = 0;
 		for (j = 0; j < mme->nr_ip; j ++)
 			fprintf(stdout, "\"%s\"", mme->ip_str[j]);
 		fprintf(stdout, ")\n");
 	}
 
-	const char *pdir = vm->classdir;
-	const char *sdir = vm->savdir;
-		
 	mkdir(pdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	mkdir(sdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 
@@ -267,30 +273,46 @@ void classify_terminal(void)
 void classify_runtime(void)
 {
 	int i;
-	static uint64_t duration = 0;
-	static size_t lqe_size = lq_element_size;
-	static struct timeval start, end;
-	static uint64_t nr_eq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_eq_swap_elements_prev[MAX_LQ_NUM] = {0};
-	static uint64_t nr_dq_swap_bytes_prev[MAX_LQ_NUM] = {0}, nr_dq_swap_elements_prev[MAX_LQ_NUM] = {0};
-	uint64_t	nr_eq_swap_bytes_cur[MAX_LQ_NUM] = {0}, nr_eq_swap_elements_cur[MAX_LQ_NUM] = {0};
-	uint64_t	nr_dq_swap_bytes_cur[MAX_LQ_NUM] = {0}, nr_dq_swap_elements_cur[MAX_LQ_NUM] = {0};	
-	uint64_t	nr_cost_us = 0;
-	uint64_t	eq[MAX_LQ_NUM] = {0}, dq[MAX_LQ_NUM] = {0};
-	uint64_t	nr_eq_total_refcnt = 0, nr_dq_total_refcnt = 0;
-	uint64_t	nr_classified_refcnt = 0, nr_classified_refcnt_r = 0, nr_rx_entries = 0;
-	uint64_t	nr_missed_refcnt = 0, nr_error_refcnt = 0;
-	uint64_t	nr_unclassified_refcnt = 0;
+	static uint64_t				duration = 0,
+								nr_eq_swap_bytes_prev[MAX_LQ_NUM]		= {0},
+								nr_eq_swap_elements_prev[MAX_LQ_NUM]	= {0},
+								nr_dq_swap_bytes_prev[MAX_LQ_NUM]		= {0},
+								nr_dq_swap_elements_prev[MAX_LQ_NUM]	= {0},
+								nr_rx_entries_prev = 0;
+	
+	static size_t				lqe_size = lq_element_size;
+	static struct timeval		start,
+								end;
+
+	uint64_t					nr_eq_swap_bytes_cur[MAX_LQ_NUM]		= {0},
+								nr_eq_swap_elements_cur[MAX_LQ_NUM]		= {0},
+								nr_dq_swap_bytes_cur[MAX_LQ_NUM]		= {0},
+								nr_dq_swap_elements_cur[MAX_LQ_NUM]		= {0},
+								eq[MAX_LQ_NUM] = {0},
+								dq[MAX_LQ_NUM] = {0},
+								nr_eq_total_refcnt = 0,
+								nr_dq_total_refcnt = 0,
+								nr_classified_refcnt	= 0,
+								nr_classified_refcnt_r	= 0,
+								nr_missed_refcnt		= 0,
+								nr_error_refcnt			= 0,
+								nr_unclassified_refcnt	= 0,
+								nr_cost_us = 0,
+								nr_rx_entries = 0;
+
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 
-	char fmtstring[128] = {0};
-	char pps_str[20], bps_str[20];
+	char					fmtstring[128] = {0},
+							pps_str[20],
+							bps_str[20],
+							pps_str1[20],
+							cat_null[128] = "cat /dev/null > ";
 	struct oryx_lq_ctx_t *lq;
 	vlib_threadvar_ctx_t *vtc;
 	vlib_mme_t *mme;
 	vlib_main_t *vm = &vlib_main;
 	static oryx_file_t *fp;
 	const char *lq_runtime_file = "/var/run/classify_runtime_summary.txt";
-	char cat_null[128] = "cat /dev/null > ";
 
 	strcat(cat_null, lq_runtime_file);
 	system(cat_null);
@@ -305,6 +327,9 @@ void classify_runtime(void)
 	nr_cost_us = tm_elapsed_us(&start, &end);
 	gettimeofday(&start, NULL);
 
+	nr_rx_entries = vm->nr_rx_entries - nr_rx_entries_prev;
+	nr_rx_entries_prev = vm->nr_rx_entries;
+	
 	duration += (nr_cost_us / 1000000);
 
 	/** Statistics for each QUEUE */
@@ -400,7 +425,6 @@ void classify_runtime(void)
 		fprintf(fp, FMT_DATA(fb), FMT_DATA_LENGTH(fb));
 		fflush(fp);
 
-		nr_rx_entries += mme->nr_rx_entries;
 		nr_classified_refcnt += mme->nr_refcnt;
 		nr_classified_refcnt_r += mme->nr_refcnt_r;
 	}
@@ -422,38 +446,33 @@ void classify_runtime(void)
 			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, vm->nr_rx_entries));
 	fprintf (fp, "\tDebug\n");
 	fprintf (fp, "\t\t%lu opened handler(s), fopen times (f %lu, fr %lu, fe %lu)\n",
-		nr_handlers, nr_fopen_times, nr_fopen_times_r, nr_fopen_times_error);
+				nr_handlers, nr_fopen_times, nr_fopen_times_r, nr_fopen_times_error);
 	fprintf (fp, "\t\t-dispatched %lu, +w miss %lu, +w error %lu\n",
-		vm->nr_rx_entries_undispatched, nr_missed_refcnt, nr_error_refcnt);
+				vm->nr_rx_entries_undispatched, nr_missed_refcnt, nr_error_refcnt);
 	fprintf (fp, "\t\teq_ticks %lu, dq_ticks %lu\n", vm->nr_thread_eq_ticks, vm->nr_thread_dq_ticks);
-	fprintf (fp, "\t\tinotify (%lu/%lu) %s\n", lq_nr_dq(fmgr_q), lq_nr_eq(fmgr_q), inotify_file);
+	fprintf (fp, "\t\tinotify (%lu/%lu, pps %s/s) %s\n", lq_nr_dq(fmgr_q), lq_nr_eq(fmgr_q),
+					oryx_fmt_speed(fmt_pps(nr_cost_us, nr_rx_entries), pps_str1, 0, 0), inotify_file);
 	fprintf (fp, "\n");
 	fflush(fp);
 	
 }
 
 static __oryx_always_inline__
-void do_dispatch(const char *value, size_t vlen)
+int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 {
-	char *p;
-	int sep_refcnt = 0;
-	const char sep = ',';
-	size_t step;
-	time_t tv_usec;
-	struct lq_element_t *lqe;
-	struct oryx_lq_ctx_t *lq;
-	char time[32] = {0};
-	bool keep_cpy = 1, event_start_time_cpy = 0, find_imsi = 0;
-	int tlen = 0;
+	char		*p,
+				time[32] = {0};
+	const char	sep = ',';
+	int 		sep_refcnt = 0;
+	size_t		step, tlen = 0;
+	time_t		tv_usec = 0;
+	bool		keep_cpy				= 1,
+				event_start_time_cpy	= 0,
+				find_imsi				= 0;
+	
 	vlib_main_t *vm = &vlib_main;
 
 	vm->nr_rx_entries ++;
-	
-	lqe = lqe_alloc();
-	if (!lqe) {
-		vm->nr_rx_entries_undispatched ++;
-		return;
-	}
 
 	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
 				*p != '\0' && *p != '\n'; ++ p, step ++) {			
@@ -502,40 +521,61 @@ void do_dispatch(const char *value, size_t vlen)
 	}
 
 	vm->nr_rx_entries_undispatched ++;
-	free(lqe);
-	return;
+	return -1;
 
 dispatch:
 
+	fmt_mme_ip(lqe->mme_ip, p);
 	sscanf(time, "%lu", &tv_usec);	
 
-	lqe->value[lqe->valen - 1] = '\n';
-	lqe->value[lqe->valen] = '\0';	
-	/* soft copy. */
-	lqe->ul_flags	= find_imsi ? LQE_HAVE_IMSI : 0;
-	lqe->rawlen		= vlen;
+	lqe->value[lqe->valen]		= '\0';
+	lqe->value[lqe->valen - 1]	= '\n';
+	lqe->ul_flags				= find_imsi ? LQE_HAVE_IMSI : 0;
+	lqe->rawlen 				= vlen;
+	lqe->mme					= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
 	calc_tm_grid(&lqe->vtg, vm->threshold, tv_usec/1000);
-	fmt_mme_ip(lqe->mme_ip, p);
-	lqe->mme = mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
 
-	fetch_lq(lqe->mme->lq_id, &lq);
-	oryx_lq_enqueue(lq, lqe);
-	vm->nr_rx_entries_dispatched ++;
+	return 0;
 }
 
 static __oryx_always_inline__
-void do_classify(vlib_threadvar_ctx_t *vtc, struct lq_element_t *lqe)
+void do_classify_final(struct lq_element_t *lqe)
 {
-	/* 45 is the number of ',' in a CDR. */
-	if (lqe->valen <= 45) {
-		fprintf (stdout, "Invalid CDR with length %lu from \"%s\" \n", lqe->valen, (const char *)&lqe->mme_ip[0]);
-		vtc->nr_unclassified_refcnt ++;
-		goto finish;
-	}
-
 	write_lqe(lqe->mme, lqe);
-finish:
-	free((const void *)lqe);
+}
+
+static __oryx_always_inline__
+void do_dispatch(const char *value, size_t vlen)
+{
+	struct lq_element_t *lqe;
+	vlib_main_t *vm = &vlib_main;
+	struct oryx_lq_ctx_t *lq;
+
+	lqe = lqe_alloc();
+	if(!lqe) {
+		vm->nr_rx_entries_undispatched ++;
+	} else {
+		if(!baker_entry(value, vlen, lqe)){
+			fetch_lq(lqe->mme->lq_id, &lq);
+			oryx_lq_enqueue(lq, lqe);
+			vm->nr_rx_entries_dispatched ++;
+		}
+	}
+}
+
+static __oryx_always_inline__
+void do_classify(const char *value, size_t vlen)
+{
+	struct lq_element_t *lqe, lqe0;
+	vlib_main_t *vm = &vlib_main;
+
+	lqe = &lqe0;
+	memset (lqe, 0, sizeof (struct lq_element_t));
+	
+	if(!baker_entry(value, vlen, lqe)){
+		vm->nr_rx_entries_dispatched ++;
+		do_classify_final(lqe);
+	}
 }
 
 void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
@@ -543,14 +583,14 @@ void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ ar
 {
 	int i;
 	vlib_mme_t *mme;
-	vlib_file_t *f, *fr;
 	vlib_main_t *vm = &vlib_main;
 	static uint64_t nr_sec;
 
 	if ((nr_sec ++ % 5) == 0) {
 		for (i = 0; i < vm->nr_mmes; i ++) {
 			mme = &nr_global_mmes[i];
-
+#if 0
+			vlib_file_t *f, *fr;
 			MME_LOCK(mme);
 
 			f  = &mme->file;
@@ -561,6 +601,7 @@ void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ ar
 				fflush (fr->fp);
 			
 			MME_UNLOCK(mme);
+#endif
 		}
 	}
 
@@ -590,7 +631,8 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				fprintf (stdout, "dequeue exiting ... ");
 				/* drunk out all elements before thread quit */					
 				while (NULL != (lqe = oryx_lq_dequeue(lq))){
-					do_classify(vtc, lqe);
+					do_classify_final(lqe);
+					free((const void *)lqe);
 				}
 				fprintf (stdout, " exited!\n");
 				break;
@@ -598,7 +640,8 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 			
 			lqe = oryx_lq_dequeue(lq);
 			if (lqe != NULL) {
-				do_classify(vtc, lqe);
+				do_classify_final(lqe);
+				free((const void *)lqe);
 			}
 			vm->nr_thread_dq_ticks ++;
 		}
@@ -625,7 +668,7 @@ void classify_env_init(vlib_main_t *vm)
 	vlib_threadvar_ctx_t *vtc;
 
 	epoch_time_sec = time(NULL);
-	inotify_dir = vm->inotifydir;
+	inotify_home = vm->inotifydir;
 	
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								mmekey_hval, mmekey_cmp, mmekey_free, 0);	
@@ -666,18 +709,19 @@ void classify_env_init(vlib_main_t *vm)
 }
 
 static __oryx_always_inline__
-void classify_one_file(const char *oldpath)
+void classify_offline(const char *oldpath)
 {
 	FILE				*fp = NULL;
-	uint64_t			nr_local_lines = 0;
+	uint64_t			nr_local_lines = 0,
+						tv_usec0 = 0,
+						tv_usec = 0;
 	size_t				llen = 0;
 	vlib_main_t			*vm = &vlib_main;
-	char				line[lqe_valen] = {0},
-						pps_str[20];
+	char				line[lqe_valen]		= {0},
+						pps_str0[20],
+						pps_str1[20];
 	struct timeval		start,
 						end;
-
-	gettimeofday(&start, NULL);
 	
 	memset(inotify_file, 0, BUFSIZ);
 	sprintf(inotify_file, "%s", oldpath);
@@ -691,27 +735,42 @@ void classify_one_file(const char *oldpath)
 	}
 	vm->nr_rx_files ++;
 
-	fprintf (stdout, "reading %s\n", oldpath);
+	fprintf (stdout, "\nReading %s\n", oldpath);
 	
 	/* skip first lines, this line is a CSV header. */
-	fgets(line, lqe_valen, fp);
-	memset(line, 0, lqe_valen);
+	if(!fgets(line, lqe_valen, fp)) {
+		fprintf(stdout, "Empty file\n");
+		fclose(fp);
+		return;
+	}
+
+	gettimeofday(&start, NULL); 
 
 	/* A loop read the part of lines. */
-	while (fgets (line, lqe_valen, fp)) {
+	FOREVER {
+		memset (line, 0, lqe_valen);
+	
+		if(!fgets (line, lqe_valen, fp))
+			break;
 		nr_local_lines ++;	
 		llen = strlen(line);
-		//do_dispatch(line, llen);
-		do_classify_online(line, llen);
-		memset (line, 0, lqe_valen);
-	}
-	fclose(fp);
-	
-	gettimeofday(&end, NULL);
-	fprintf (stdout, "Finish read %s, %lu/%lu entry(ies) , cost %lu usec, (pps %s)\n",
-			oldpath, nr_local_lines, vm->nr_rx_entries, tm_elapsed_us(&start, &end),
-			oryx_fmt_speed(fmt_pps(tm_elapsed_us(&start, &end), nr_local_lines), pps_str, 0, 0));
 
+		//do_dispatch(line, llen);
+		do_classify(line, llen);
+	}
+
+	gettimeofday(&end, NULL);	
+	tv_usec = tm_elapsed_us(&start, &end);
+	vm->nr_cost_usec += tv_usec;
+		
+	fclose(fp);
+	fprintf(stdout, "\nClassify Result\n");
+	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
+	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm->nr_rx_entries, tv_usec);
+	fprintf(stdout, "%3s%12s%s/s, avg pps %s/s\n",	" ", "Speed: ",
+		oryx_fmt_speed(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
+		oryx_fmt_speed(fmt_pps(vm->nr_cost_usec, vm->nr_rx_entries), pps_str1, 0, 0));
+	
 	inotify_remove_file(oldpath);
 
 }
@@ -730,7 +789,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 
 				/* drunk out all elements before thread quit */					
 				while (NULL != (fqe = oryx_lq_dequeue(fmgr_q))){
-					classify_one_file(fqe->name);
+					classify_offline(fqe->name);
 					free(fqe);
 				}
 				fprintf (stdout, " exited!\n");
@@ -739,7 +798,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			
 			fqe = oryx_lq_dequeue(fmgr_q);
 			if (fqe != NULL) {
-				classify_one_file(fqe->name);
+				classify_offline(fqe->name);
 				free(fqe);
 			}
 
