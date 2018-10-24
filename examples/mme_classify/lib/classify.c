@@ -97,6 +97,13 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t lq_id, struct oryx_lq_ctx_t **lq) {
 	(*lq) = vtc->lq;
 }
 
+static __oryx_always_inline__
+vlib_threadvar_t *vlib_alloc_tv(void)
+{
+	vlib_main_t *vm = &vlib_main;
+	return &vlib_tv_main[vm->nr_mmes % vm->nr_threads];
+}
+
 static void load_dictionary(vlib_main_t *vm)
 {
 #define mme_dict_length	256
@@ -659,8 +666,6 @@ void do_dispatch(const char *value, size_t vlen)
 		vm->nr_rx_entries_undispatched ++;
 	} else {
 		if(!baker_entry(value, vlen, lqe)){
-			//fetch_lq(lqe->mme->lq_id, &lq);
-			//oryx_lq_enqueue(lq, lqe);
 			mme = lqe->mme;
 			tv  = mme->tv;
 			oryx_lq_enqueue(tv->lq, lqe);
