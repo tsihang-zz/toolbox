@@ -41,14 +41,14 @@ int classify_offline(const char *fname,
 	if (!fp) {
 		fp = fopen(oldpath, "r");
 		if(!fp) {
-			fprintf (stdout, "Cannot open %s \n", fname);
+			fprintf(stdout, "Cannot open %s \n", fname);
 			return -1;
 		}
 	}
 
 	vm->nr_rx_files ++;
 	
-	fprintf (stdout, "reading %s\n", oldpath);
+	fprintf(stdout, "reading %s\n", oldpath);
 	while (fgets (line, lqe_valen, fp)) {
 		llen = strlen(line);
 		nr_local_lines ++;
@@ -68,12 +68,12 @@ int classify_offline(const char *fname,
 	nr_lines += nr_local_lines;	
 	
 	/* break after end of file. */
-	fprintf (stdout, "Finish read %s, %lu/%lu line(s) , cost %lu !\n",
+	fprintf(stdout, "Finish read %s, %lu/%lu line(s) , cost %lu !\n",
 			oldpath, nr_local_lines, nr_lines, tm_elapsed_us(&start, &end));
 	
 	sprintf (newpath, "%s/%s", vm->savdir, fname);
 	rename(oldpath, newpath);
-	fprintf (stdout, "* rename %s -> %s\n", oldpath, newpath);
+	fprintf(stdout, "* rename %s -> %s\n", oldpath, newpath);
 
 	return 0;
 }

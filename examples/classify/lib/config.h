@@ -1,5 +1,5 @@
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef CLASSIFY_CONFIG_H
+#define CLASSIFY_CONFIG_H
 
 #define VLIB_MAX_LQ_NUM	8
 
@@ -62,11 +62,14 @@ vlib_threadvar_t *vlib_alloc_tv(void)
 extern int running;
 
 #define MME_CSV_PREFIX	"DataExport.s1mme"
+#define MME_CSV_HEADER \
+	",,Event Start,Event Stop,Event Type,IMSI,IMEI,,,,,,,,eCell ID,,,,,,,,,,,,,,,,,,,,,,,,,,MME UE S1AP ID,eNodeB UE S1AP ID,eNodeB CP IP Address\n"
+
 
 #include "fmgr.h"
+#include "lqe.h"
 #include "tg.h"
 #include "mme.h"
-#include "classify.h"
 
 #endif
 

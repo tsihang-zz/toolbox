@@ -18,11 +18,11 @@ static
 void * new_file_handler (void __oryx_unused_param__ *r)
 {
 		FILE		*fp0,
-				*fp1;
+					*fp1;
 		char		line[lqe_valen] = {0},
-				fn[256] = {0};
+					fn[256] = {0};
 		uint64_t	nr_rb = 0,
-				nr_wb = 0;
+					nr_wb = 0;
 		time_t		t = time(NULL);
 		static int	times = 0;
 		vlib_main_t	*vm = &vlib_main;
@@ -78,8 +78,42 @@ struct oryx_task_t newfile = {
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
+#if 0
+int main (
+        int     __oryx_unused_param__   argc,
+        char    __oryx_unused_param__   ** argv
+)
+{
+	vlib_main_t *vm = &vlib_main;
 
-int main0 (
+	oryx_register_sighandler(SIGINT, lq_sigint);
+	oryx_register_sighandler(SIGTERM, lq_sigint);
+
+	oryx_initialize();
+	
+	vm->argc = argc;
+	vm->argv = argv;
+
+	oryx_task_registry(&enqueue);
+	classify_env_init(vm);
+	oryx_task_launch();
+	
+	FOREVER {
+		sleep (1);
+		if (!running) {
+			/* wait for handlers of enqueue and dequeue finish. */
+			sleep (3);
+			classify_runtime();
+			break;
+		}
+	};
+		
+	classify_terminal();
+
+	return 0;
+}
+#else
+int main (
         int     __oryx_unused_param__   argc,
         char    __oryx_unused_param__   ** argv
 )
@@ -117,37 +151,4 @@ int main0 (
 	return 0;
 }
 
-int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
-)
-{
-	vlib_main_t *vm = &vlib_main;
-
-	oryx_register_sighandler(SIGINT, lq_sigint);
-	oryx_register_sighandler(SIGTERM, lq_sigint);
-
-	oryx_initialize();
-	
-	vm->argc = argc;
-	vm->argv = argv;
-
-	oryx_task_registry(&enqueue);
-	classify_env_init(vm);
-	oryx_task_launch();
-	
-	FOREVER {
-		sleep (1);
-		if (!running) {
-			/* wait for handlers of enqueue and dequeue finish. */
-			sleep (3);
-			classify_runtime();
-			break;
-		}
-	};
-		
-	classify_terminal();
-
-	return 0;
-}
-
+#endif

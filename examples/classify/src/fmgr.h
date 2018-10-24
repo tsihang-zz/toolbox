@@ -33,8 +33,7 @@ typedef struct vlib_file_t {
 	struct list_head fnode;
 
 #if defined(HAVE_F_CACHE)
-
-#define file_cache_size	(8192 * 256)
+#define file_cache_size	(8192 * 256)
 	char		*cache;
 	size_t		offset;
 #endif
