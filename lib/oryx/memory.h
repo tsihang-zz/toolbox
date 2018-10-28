@@ -71,10 +71,10 @@ ORYX_DECLARE(
 	void MEM_UninitMemory(void *mem_handle)
 );
 ORYX_DECLARE(
-	void * MEM_GetShareMem(key_t key , int size)
+	void * oryx_shm_get(key_t key , int size)
 );
 ORYX_DECLARE(
-	int MEM_UnlinkShareMem(void *mem)
+	int oryx_shm_destroy(void *mem)
 );
 
 #endif

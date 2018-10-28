@@ -252,7 +252,7 @@ void oryx_l4_port_generate (char *port_src, char *port_dst)
 	strcpy (port_dst, bb);
 }
 
-char * oryx_fmt_speed (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
+char * oryx_fmt_program_counter (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
 {
 	uint64_t _1KB = 1LL << 10;
 	uint64_t _1MB = 1LL << 20;
@@ -553,18 +553,18 @@ foreach_directory_file (char *dir_name,
  * Like strncpy but does not 0 fill the buffer and always null 
  * terminates.
  *
- * @param bufsize is the size of the destination buffer.
+ * @param VLIB_BUFSIZE is the size of the destination buffer.
  *
  * @return index of the terminating byte.
  **/
 size_t
-strlcpy(char *d, const char *s, size_t bufsize)
+strlcpy(char *d, const char *s, size_t VLIB_BUFSIZE)
 {
 	size_t len = strlen(s);
 	size_t ret = len;
-	if (bufsize > 0) {
-		if (len >= bufsize)
-			len = bufsize-1;
+	if (VLIB_BUFSIZE > 0) {
+		if (len >= VLIB_BUFSIZE)
+			len = VLIB_BUFSIZE-1;
 		memcpy(d, s, len);
 		d[len] = 0;
 	}
@@ -577,19 +577,19 @@ strlcpy(char *d, const char *s, size_t bufsize)
  * Like strncat() but does not 0 fill the buffer and always null 
  * terminates.
  *
- * @param bufsize length of the buffer, which should be one more than
+ * @param VLIB_BUFSIZE length of the buffer, which should be one more than
  * the maximum resulting string length.
  **/
 size_t
-strlcat(char *d, const char *s, size_t bufsize)
+strlcat(char *d, const char *s, size_t VLIB_BUFSIZE)
 {
 	size_t len1 = strlen(d);
 	size_t len2 = strlen(s);
 	size_t ret = len1 + len2;
 
-	if (len1 < bufsize - 1) {
-		if (len2 >= bufsize - len1)
-			len2 = bufsize - len1 - 1;
+	if (len1 < VLIB_BUFSIZE - 1) {
+		if (len2 >= VLIB_BUFSIZE - len1)
+			len2 = VLIB_BUFSIZE - len1 - 1;
 		memcpy(d+len1, s, len2);
 		d[len1+len2] = 0;
 	}

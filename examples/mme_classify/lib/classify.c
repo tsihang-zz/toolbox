@@ -2,7 +2,7 @@
 #include "config.h"
 //#include "libcommfunc.h"
 
-vlib_main_t vlib_main = {
+static vlib_main_t vlib_main_template = {
 	.argc		=	0,
 	.argv		=	NULL,
 	.prgname	=	"mme_classify",
@@ -17,10 +17,14 @@ vlib_main_t vlib_main = {
 	.threshold  =	5,
 	.dispatch_mode        = HASH,
 	.max_entries_per_file = 80000,
-
 };
-
+	
+uint32_t	epoch_time_sec;
 vlib_threadvar_t vlib_tv_main[VLIB_MAX_LQ_NUM];
+char 	*inotify_home = "/vsu/db/cdr_csv/event_GEO_LTE",
+		inotify_file[BUFSIZ];
+const char *classify_home = "/root/classify_home";
+
 
 static __oryx_always_inline__
 void update_event_start_time(char *value, size_t valen)
@@ -102,6 +106,14 @@ vlib_threadvar_t *vlib_alloc_tv(void)
 {
 	vlib_main_t *vm = &vlib_main;
 	return &vlib_tv_main[vm->nr_mmes % vm->nr_threads];
+}
+
+static __oryx_always_inline__
+vlib_file_t **vlib_alloc_file(void)
+{
+	vlib_main_t *vm = &vlib_main;
+	const int nr_blocks = (24 * 60) / vm->threshold;
+	return (vlib_file_t **)malloc(sizeof(vlib_file_t) * nr_blocks);
 }
 
 static void load_dictionary(vlib_main_t *vm)
@@ -189,6 +201,7 @@ static void load_dictionary(vlib_main_t *vm)
 							if(vm->nr_threads){
 								mme->lq_id = (vm->nr_mmes % vm->nr_threads);
 								mme->tv = vlib_alloc_tv();
+								//mme->farray = vlib_alloc_file();
 							}
 							vm->nr_mmes ++;
 						} else {
@@ -224,6 +237,7 @@ static void load_dictionary(vlib_main_t *vm)
 		if(vm->nr_threads){
 			default_mme->lq_id = (vm->nr_mmes % vm->nr_threads);
 			default_mme->tv = vlib_alloc_tv();
+			//default_mme->farray = vlib_alloc_file();
 		}
 		vm->nr_mmes ++;
 	}
@@ -340,8 +354,13 @@ void classify_runtime(void)
 	nr_cost_us = tm_elapsed_us(&start, &end);
 	gettimeofday(&start, NULL);
 
-	nr_rx_entries = vm->nr_rx_entries - nr_rx_entries_prev;
-	nr_rx_entries_prev = vm->nr_rx_entries;
+	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
+	uint64_t vm_nr_rx_entries_without_imsi = ATOMIC64_READ(&vm->nr_rx_entries_without_imsi);
+	uint64_t vm_nr_rx_entries_undispatched = ATOMIC64_READ(&vm->nr_rx_entries_undispatched);
+	uint64_t vm_nr_rx_entries_dispatched = ATOMIC64_READ(&vm->nr_rx_entries_dispatched);
+
+	nr_rx_entries = vm_nr_rx_entries - nr_rx_entries_prev;
+	nr_rx_entries_prev = vm_nr_rx_entries;
 	
 	duration += (nr_cost_us / 1000000);
 
@@ -390,13 +409,13 @@ void classify_runtime(void)
 		fprintf (fp, "\t\t enqueue %.2f%% %lu (pps %s, bps %s)\n",
 			ratio_of(eq[i], nr_eq_total_refcnt),
 			eq[i],
-			oryx_fmt_speed(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur[i]), pps_str, 0, 0),
-			oryx_fmt_speed(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur[i]), bps_str, 0, 0));
+			oryx_fmt_program_counter(fmt_pps(nr_cost_us, nr_eq_swap_elements_cur[i]), pps_str, 0, 0),
+			oryx_fmt_program_counter(fmt_bps(nr_cost_us, nr_eq_swap_bytes_cur[i]), bps_str, 0, 0));
 		fprintf (fp, "\t\t dequeue %.2f%% %lu (pps %s, bps %s)\n",
 			ratio_of(dq[i], nr_eq_total_refcnt),
 			dq[i],
-			oryx_fmt_speed(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur[i]), pps_str, 0, 0),
-			oryx_fmt_speed(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur[i]), bps_str, 0, 0));
+			oryx_fmt_program_counter(fmt_pps(nr_cost_us, nr_dq_swap_elements_cur[i]), pps_str, 0, 0),
+			oryx_fmt_program_counter(fmt_bps(nr_cost_us, nr_dq_swap_bytes_cur[i]), bps_str, 0, 0));
 	}
 	fflush(fp);
 	
@@ -407,30 +426,45 @@ void classify_runtime(void)
 	fprintf (fp, "%24s%64s%32s%32s\n", " ", "---------------------------------", "-----------", "--------------");
 	fflush(fp);
 
+
+	uint64_t	mme_nr_rx_entries,
+				mme_nr_rx_entries_noimsi,
+				mme_nr_refcnt,
+				mme_nr_refcnt_r,
+				mme_nr_refcnt_miss,
+				mme_nr_refcnt_error;
+				
 	/** Statistics for each MME */
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		oryx_format_reset(&fb);
 		mme = &nr_global_mmes[i];
 
-		nr_missed_refcnt += mme->nr_refcnt_miss;
-		nr_error_refcnt  += mme->nr_refcnt_error;
+		mme_nr_rx_entries = ATOMIC64_READ(&mme->nr_rx_entries);
+		mme_nr_refcnt = ATOMIC64_READ(&mme->nr_refcnt);
+		mme_nr_refcnt_r = ATOMIC64_READ(&mme->nr_refcnt_r);
+		mme_nr_refcnt_miss = ATOMIC64_READ(&mme->nr_refcnt_miss);
+		mme_nr_refcnt_error = ATOMIC64_READ(&mme->nr_refcnt_error);
+		mme_nr_rx_entries_noimsi = ATOMIC64_READ(&mme->nr_rx_entries_noimsi);
+
+		nr_missed_refcnt += mme_nr_refcnt_miss;
+		nr_error_refcnt  += mme_nr_refcnt_error;
 		
 		/* format MME name */	
 		oryx_format(&fb, "%24s", mme->name);
 
 		/* format MME refcnt */
 		sprintf (fmtstring, "%lu (%.2f%%), %lu (%.2f%%)",
-				mme->nr_rx_entries, ratio_of(mme->nr_rx_entries, vm->nr_rx_entries),
-				mme->nr_rx_entries_noimsi, ratio_of(mme->nr_rx_entries_noimsi, mme->nr_rx_entries));
+				mme_nr_rx_entries, ratio_of(mme_nr_rx_entries, vm_nr_rx_entries),
+				mme_nr_rx_entries_noimsi, ratio_of(mme_nr_rx_entries_noimsi, mme_nr_rx_entries));
 		oryx_format(&fb, "%64s", fmtstring);
 
 		sprintf (fmtstring, "%lu (%.2f%%)",
-				mme->nr_refcnt_r, ratio_of(mme->nr_refcnt_r, mme->nr_rx_entries));
+				mme_nr_refcnt_r, ratio_of(mme_nr_refcnt_r, mme_nr_rx_entries));
 		oryx_format(&fb, "%32s", fmtstring);
 
-		int delta = ((mme->nr_rx_entries - mme->nr_rx_entries_noimsi) - mme->nr_refcnt);
+		int delta = ((mme_nr_rx_entries - mme_nr_rx_entries_noimsi) - mme_nr_refcnt);
 		sprintf (fmtstring, "%lu (%.2f%%) %u",
-				mme->nr_refcnt, ratio_of(mme->nr_refcnt, mme->nr_rx_entries), delta);
+				mme_nr_refcnt, ratio_of(mme_nr_refcnt, mme_nr_rx_entries), delta);
 		oryx_format(&fb, "%32s", fmtstring);
 
 		/* flush to file */
@@ -438,8 +472,8 @@ void classify_runtime(void)
 		fprintf(fp, FMT_DATA(fb), FMT_DATA_LENGTH(fb));
 		fflush(fp);
 
-		nr_classified_refcnt += mme->nr_refcnt;
-		nr_classified_refcnt_r += mme->nr_refcnt_r;
+		nr_classified_refcnt += mme_nr_refcnt;
+		nr_classified_refcnt_r += mme_nr_refcnt_r;
 	}
 	oryx_format_free(&fb);
 	fprintf (fp, "\n\n");
@@ -448,23 +482,23 @@ void classify_runtime(void)
 	/* Overall classified ratio. */
 	fprintf (fp, "Statistics Summary\n");
 	fprintf (fp, "\trx_files %lu, +classified_files %lu\n",
-		vm->nr_rx_files, nr_classified_files);
+		ATOMIC64_READ(&vm->nr_rx_files), nr_classified_files);
 	fprintf (fp, "\tRx %lu, +dispatched %lu (%.2f%%), -imsi %lu (%.2f%%)\n",
-			vm->nr_rx_entries,
-			vm->nr_rx_entries_dispatched, ratio_of(vm->nr_rx_entries_dispatched, vm->nr_rx_entries),
-			vm->nr_rx_entries_without_imsi, ratio_of(vm->nr_rx_entries_without_imsi, vm->nr_rx_entries));
+			vm_nr_rx_entries,
+			vm_nr_rx_entries_dispatched, ratio_of(vm_nr_rx_entries_dispatched, vm_nr_rx_entries),
+			vm_nr_rx_entries_without_imsi, ratio_of(vm_nr_rx_entries_without_imsi, vm_nr_rx_entries));
 	fprintf (fp, "\t+WR %lu (%.2f%%), +W %lu (%.2f%%), -classified: %lu (%.2f%%)\n",
-			nr_classified_refcnt_r, ratio_of(nr_classified_refcnt_r, vm->nr_rx_entries),
-			nr_classified_refcnt,	ratio_of(nr_classified_refcnt, vm->nr_rx_entries),
-			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, vm->nr_rx_entries));
+			nr_classified_refcnt_r, ratio_of(nr_classified_refcnt_r, vm_nr_rx_entries),
+			nr_classified_refcnt,	ratio_of(nr_classified_refcnt, vm_nr_rx_entries),
+			nr_unclassified_refcnt, ratio_of(nr_unclassified_refcnt, vm_nr_rx_entries));
 	fprintf (fp, "\tDebug\n");
 	fprintf (fp, "\t\t%lu opened handler(s), fopen times (f %lu, fr %lu, fe %lu)\n",
 				nr_handlers, nr_fopen_times, nr_fopen_times_r, nr_fopen_times_error);
 	fprintf (fp, "\t\t-dispatched %lu, +w miss %lu, +w error %lu\n",
-				vm->nr_rx_entries_undispatched, nr_missed_refcnt, nr_error_refcnt);
+				vm_nr_rx_entries_undispatched, nr_missed_refcnt, nr_error_refcnt);
 	fprintf (fp, "\t\teq_ticks %lu, dq_ticks %lu\n", vm->nr_thread_eq_ticks, vm->nr_thread_dq_ticks);
 	fprintf (fp, "\t\tinotify (%lu/%lu, pps %s/s) %s\n", lq_nr_dq(fmgr_q), lq_nr_eq(fmgr_q),
-					oryx_fmt_speed(fmt_pps(nr_cost_us, nr_rx_entries), pps_str1, 0, 0), inotify_file);
+					oryx_fmt_program_counter(fmt_pps(nr_cost_us, nr_rx_entries), pps_str1, 0, 0), inotify_file);
 	fprintf (fp, "\n");
 	fflush(fp);
 	
@@ -482,10 +516,6 @@ int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 	bool		keep_cpy				= 1,
 				event_start_time_cpy	= 0,
 				find_imsi				= 0;
-	
-	vlib_main_t *vm = &vlib_main;
-
-	vm->nr_rx_entries ++;
 
 	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
 				*p != '\0' && *p != '\n'; ++ p, step ++) {			
@@ -493,8 +523,7 @@ int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 		/* skip entries without IMSI */
 		if (!find_imsi && sep_refcnt == 5) {
 			if (*p == sep) {
-				vm->nr_rx_entries_without_imsi ++;
-				//break;
+				break;
 			}
 			else
 				find_imsi = 1;
@@ -533,21 +562,19 @@ int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 		}
 	}
 
-	vm->nr_rx_entries_undispatched ++;
 	return -1;
 
 dispatch:
 
 	fmt_mme_ip(lqe->mme_ip, p);
-	sscanf(time, "%lu", &tv_usec);	
+	sscanf(time, "%lu", &tv_usec);
 
 	lqe->value[lqe->valen]		= '\0';
 	lqe->value[lqe->valen - 1]	= '\n';
 	lqe->ul_flags				= find_imsi ? LQE_HAVE_IMSI : 0;
 	lqe->rawlen 				= vlen;
-	lqe->mme					= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
-	calc_tm_grid(&lqe->vtg, vm->threshold, tv_usec/1000);
-
+	lqe->tv_sec 				= tv_usec/1000;
+	
 	return 0;
 }
 
@@ -556,20 +583,14 @@ int write_lqe_data(vlib_file_t *f, const char *value, size_t valen)
 {
 	size_t nr_wb;
 
-#if 0
-	/* flush to disk every 5000 entries. */
-	if (f->entries % 50000 == 0)
-		f->ul_flags = VLIB_FILE_FLUSH;
-#endif
 #if defined(HAVE_F_CACHE)
+	/* call fwrite to flush them all */
 	if(f->offset + valen > file_cache_size) {
-		/* call fwrite to flush them all */
 		fwrite(f->cache, sizeof(char), f->offset, f->fp);
 		f->offset = 0;
-	} else {
-		memcpy(f->cache + f->offset, value, valen);
-		f->offset += valen;
 	}
+	memcpy(f->cache + f->offset, value, valen);
+	f->offset += valen;
 	nr_wb = valen;
 #else
 	nr_wb = file_write(f, value, valen);
@@ -589,16 +610,16 @@ void  mme_try_fopen(vlib_mme_t *mme,
 		if (f->local_time != vtg->start) {
 			/* close previous file before open a new one. */
 			file_close(f);
+			fprintf(stdout, "file closed\n");
 			goto try_new_file;
 		}
 	}
-	
 	BUG_ON(f->fp == NULL);
 	return;
 	
 try_new_file:
 
-	file_open(classify_home, mme->name, vtg->start, vtg->end, f);
+	file_open(classify_home, mme->name, vtg, f);
 }
 
 static __oryx_always_inline__
@@ -611,28 +632,27 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 
 	/* lock MME */
 	//MME_LOCK(mme);
-	f  = &mme->file;
+	//f  = &mme->file;
+	f 	=  &mme->farray[vtg->block];
 	
-	mme->nr_rx_entries ++;
-	mme->nr_refcnt_r ++;
-	mme->nr_refcnt_bytes_r += valen;
+	ATOMIC64_INC(&mme->nr_rx_entries);
+	ATOMIC64_INC(&mme->nr_refcnt_r);
+	ATOMIC64_ADD(&mme->nr_refcnt_bytes_r, valen);	
 
-	if (!(lqe->ul_flags & LQE_HAVE_IMSI))
-		mme->nr_rx_entries_noimsi ++;
-	else {
+	{
 		mme_try_fopen(mme, vtg, f);
 		if (!f->fp) {
-			mme->nr_refcnt_miss ++;
-			mme->nr_refcnt_miss_bytes += valen;
+			ATOMIC64_INC(&mme->nr_refcnt_miss);
+			ATOMIC64_ADD(&mme->nr_refcnt_miss_bytes, valen);
 			goto finish;
 		} else {
 			/* write CDR to disk ASAP */
 			if (!write_lqe_data (f, (const char *)&lqe->value[0], valen)) {
-				mme->nr_refcnt ++;
-				mme->nr_refcnt_bytes += valen;
+				ATOMIC64_INC(&mme->nr_refcnt);
+				ATOMIC64_ADD(&mme->nr_refcnt_bytes, valen);
 			} else {
-				mme->nr_refcnt_error ++;
-				mme->nr_refcnt_error_bytes += valen;
+				ATOMIC64_INC(&mme->nr_refcnt_error);
+				ATOMIC64_ADD(&mme->nr_refcnt_error_bytes, valen);
 			}
 		}
 	}
@@ -658,18 +678,26 @@ void do_dispatch(const char *value, size_t vlen)
 	vlib_main_t *vm = &vlib_main;
 	struct oryx_lq_ctx_t *lq;
 
+	ATOMIC64_INC(&vm->nr_rx_entries);
+
 	if(!vm->nr_threads)
 		return;
 	
 	lqe = lqe_alloc();
 	if(!lqe) {
-		vm->nr_rx_entries_undispatched ++;
+		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
 	} else {
-		if(!baker_entry(value, vlen, lqe)){
+		if(!baker_entry(value, vlen, lqe)) {
+			lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
+			calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
 			mme = lqe->mme;
 			tv  = mme->tv;
 			oryx_lq_enqueue(tv->lq, lqe);
-			vm->nr_rx_entries_dispatched ++;
+			ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
+		} else {
+			ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
+			if(!(lqe->ul_flags & LQE_HAVE_IMSI))		
+				ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
 		}
 	}
 }
@@ -689,44 +717,21 @@ void do_classify(const char *value, size_t vlen)
 							.rawlen = 0,
 							.ul_flags = 0
 						};
-	
 
 	lqe = &lqe0;
+
+	ATOMIC64_INC(&vm->nr_rx_entries);
 	
 	if(!baker_entry(value, vlen, lqe)){
-		vm->nr_rx_entries_dispatched ++;
+		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
+		calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
 		do_classify_final(lqe);
+		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);		
+	}else{
+		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
+		if(!(lqe->ul_flags & LQE_HAVE_IMSI))		
+			ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
 	}
-}
-
-void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-                char __oryx_unused_param__**argv)
-{
-	int i;
-	vlib_mme_t *mme;
-	vlib_main_t *vm = &vlib_main;
-	static uint64_t nr_sec;
-
-	if ((nr_sec ++ % 5) == 0) {
-		for (i = 0; i < vm->nr_mmes; i ++) {
-			mme = &nr_global_mmes[i];
-#if 0
-			vlib_file_t *f, *fr;
-			MME_LOCK(mme);
-
-			f  = &mme->file;
-			fr = &mme->filer;
-			if (f->ul_flags & VLIB_MME_VALID)
-				fflush (f->fp);
-			if (fr->ul_flags & VLIB_MME_VALID)
-				fflush (fr->fp);
-			
-			MME_UNLOCK(mme);
-#endif
-		}
-	}
-
-	classify_runtime();
 }
 
 static
@@ -744,6 +749,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 		fprintf(stdout, "Starting dequeue handler(%lu): vtc=%p, lq=%p\n", pthread_self(), vtc, lq);		
 		FOREVER {
 			lqe = NULL;
+			vm->nr_thread_dq_ticks ++;
 			
 			if (!running) {
 				/* wait for enqueue handler exit. */
@@ -764,7 +770,6 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				do_classify_final(lqe);
 				free((const void *)lqe);
 			}
-			vm->nr_thread_dq_ticks ++;
 		}
 
 		oryx_task_deregistry_id(pthread_self());
@@ -788,18 +793,6 @@ void classify_env_init(vlib_main_t *vm)
 	uint32_t	lq_cfg = 0;
 	vlib_threadvar_t *vtc;
 
-	epoch_time_sec = time(NULL);
-	inotify_home = vm->inotifydir;
-
-	if(!strcmp(inotify_home, classify_home)) {
-		fprintf(stdout, "inotify home cannot be same with classify home");
-		exit(0);
-	}
-	
-	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								mmekey_hval, mmekey_cmp, mmekey_free, 0/* HTABLE_SYNCHRONIZED is unused,
-																		* because the table is no need to update.*/);	
-
 	for (i = 0; i < vm->nr_threads; i ++) {
 		vtc = &vlib_tv_main[i];
 		vtc->unique_id = i;
@@ -822,23 +815,15 @@ void classify_env_init(vlib_main_t *vm)
 		oryx_task_registry(t);
 	}
 
-	oryx_lq_new("A FMGR queue", 0, (void **)&fmgr_q);
-	oryx_lq_dump(fmgr_q);
-
-	oryx_task_registry(&inotify);
-	
 	load_dictionary(vm);
-	
-	struct oryx_timer_t *tmr = oryx_tmr_create (1, "Classify Runtime TMR", TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED,
-											  classify_tmr_handler, 0, NULL, 1000);
-	oryx_tmr_start(tmr);
 
 }
 
-void classify_offline(const char *oldpath)
+void *classify_offline(const char *oldpath)
 {
 	FILE				*fp = NULL;
 	uint64_t			nr_local_lines = 0,
+						nr_local_size = 0,
 						tv_usec0 = 0,
 						tv_usec = 0;
 	size_t				llen = 0;
@@ -848,15 +833,14 @@ void classify_offline(const char *oldpath)
 						pps_str1[20];
 	struct timeval		start,
 						end;
-	
-	if (!fp) {
-		fp = fopen(oldpath, "r");
-		if(!fp) {
-			fprintf (stdout, "Cannot open %s \n", oldpath);
-			return;
-		}
+
+	fp = fopen(oldpath, "r");
+	if(!fp) {
+		fprintf (stdout, "Cannot open %s \n", oldpath);
+		return NULL;
 	}
-	vm->nr_rx_files ++;
+
+	ATOMIC64_INC(&vm->nr_rx_files);
 
 	fprintf (stdout, "\nReading %s\n", oldpath);
 	
@@ -864,7 +848,7 @@ void classify_offline(const char *oldpath)
 	if(!fgets(line, lqe_valen, fp)) {
 		fprintf(stdout, "Empty file\n");
 		fclose(fp);
-		return;
+		return NULL;
 	}
 
 	gettimeofday(&start, NULL); 
@@ -872,29 +856,40 @@ void classify_offline(const char *oldpath)
 	/* A loop read the part of lines. */
 	FOREVER {
 		memset (line, 0, lqe_valen);
-	
-		if(!fgets (line, lqe_valen, fp))
+		if(!fgets (line, lqe_valen, fp) || !running)
 			break;
-		nr_local_lines ++;	
-		llen = strlen(line);
+		
+		llen = strlen(line);		
+		nr_local_lines ++;
+		nr_local_size += llen;
 
 		//do_dispatch(line, llen);
 		do_classify(line, llen);
 	}
-
+	fclose(fp);
+	
 	gettimeofday(&end, NULL);	
 	tv_usec = tm_elapsed_us(&start, &end);
 	vm->nr_cost_usec += tv_usec;
-		
-	fclose(fp);
+
+	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
+	
 	fprintf(stdout, "\nClassify Result\n");
 	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
-	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm->nr_rx_entries, tv_usec);
+	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm_nr_rx_entries, tv_usec);
 	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
-		oryx_fmt_speed(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
-		oryx_fmt_speed(fmt_pps(vm->nr_cost_usec, vm->nr_rx_entries), pps_str1, 0, 0));
-	
-	//fmgr_remove(oldpath);
+		oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
+		oryx_fmt_program_counter(fmt_pps(vm->nr_cost_usec, vm_nr_rx_entries), pps_str1, 0, 0));
+
+	const vlib_fkey_t fkey = {
+		.name = " ",
+		.ul_flags = 0,
+		.nr_size = nr_local_size,
+		.nr_entries = nr_local_lines,
+	};
+	fmgr_move(oldpath, &fkey);
+
+	return NULL;
 
 }
 
@@ -906,6 +901,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 		
 		vm->ul_flags |= VLIB_ENQUEUE_HANDLER_STARTED;
 		FOREVER {
+			vm->nr_thread_eq_ticks ++;
 			if (!running) {
 				fprintf (stdout, "Thread(%lu): enqueue exited!\n", pthread_self());
 				vm->ul_flags |= VLIB_ENQUEUE_HANDLER_EXITED;
@@ -922,14 +918,17 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 			}
 			
 			fqe = oryx_lq_dequeue(fmgr_q);
-			if (fqe != NULL) {
-				memset(inotify_file, 0, BUFSIZ);
-				sprintf(inotify_file, "%s", fqe->name);				
-				classify_offline(fqe->name);
+			if (fqe == NULL)
+				continue;
+			if(!oryx_path_exsit(fqe->name)){
 				free(fqe);
-			}
+				continue;
+			}					
 
-			vm->nr_thread_eq_ticks ++;
+			memset(inotify_file, 0, BUFSIZ);
+			sprintf(inotify_file, "%s", fqe->name);				
+			classify_offline(fqe->name);
+			free(fqe);
 		}
 		oryx_task_deregistry_id(pthread_self());
 		return NULL;

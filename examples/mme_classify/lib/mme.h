@@ -1,12 +1,8 @@
 #ifndef MME_H
 #define MME_H
 
-#define MAX_MME_NUM	1024
-
-extern uint32_t	epoch_time_sec;
-
-
 #define VLIB_MME_VALID	(1 << 0)
+
 typedef struct vlib_mme_t {
 #define path_length	128
 	char				path[path_length],
@@ -14,8 +10,8 @@ typedef struct vlib_mme_t {
 						name[32],
 						*ip_str[32];
 	int					nr_ip;
-	vlib_file_t			file,		/* Current file hold 0 ~ 5 minutes */
-						filer;		/* Raw CSV file */
+	vlib_file_t			file,			/* Current file hold 0 ~ 5 minutes */
+						farray[288];	/* (24 * 60) / vm->threshold */
 	uint32_t			ul_flags,
 						lq_id;
 
@@ -28,7 +24,7 @@ typedef struct vlib_mme_t {
 
 	/* total entries for this MME,
 	 * may equal with. */
-	uint64_t	nr_rx_entries,
+	ATOMIC64_T	nr_rx_entries,
 				nr_rx_entries_noimsi,
 				nr_refcnt,				/* statistics of RIGHT write for each MME with IMSI */
 				nr_refcnt_bytes,

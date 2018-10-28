@@ -1,17 +1,37 @@
 #ifndef CLASSIFY_CONFIG_H
 #define CLASSIFY_CONFIG_H
 
+//#define VLIB_MODE_PROCESS
+
+//#define VLIB_ATOMIC_COUNTER
+#define VLIB_MAX_LQ_NUM		8
+#define VLIB_MAX_MME_NUM	1024
+
+#define VLIB_ENQUEUE_HANDLER_EXITED		(1 << 0)
+#define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
+#define	VLIB_INIT_DONE					(1 << 2)
+
+#define	VLIB_FIFO_NAME			"/tmp/FIFO.domain"
+#define VLIB_BUFSIZE			1024
+
+#if defined(VLIB_ATOMIC_COUNTER)
+#define ATOMIC64_T		atomic64_t
+#define ATOMIC64_INC(v)	atomic64_inc((v))
+#define ATOMIC64_ADD(v,i) atomic64_add((v), (i))
+#define ATOMIC64_READ(v)	atomic64_read((v))
+#else
+#define ATOMIC64_T	uint64_t
+#define ATOMIC64_INC(v)	((*(v)) += 1)
+#define ATOMIC64_ADD(v,i)((*(v)) += i)
+#define ATOMIC64_READ(v)	(*(v))
+#endif
+
 #define MME_CSV_PREFIX	"DataExport.s1mme"
 #define MME_CSV_HEADER \
 	",,Event Start,Event Stop,Event Type,IMSI,IMEI,,,,,,,,eCell ID,,,,,,,,,,,,,,,,,,,,,,,,,,MME UE S1AP ID,eNodeB UE S1AP ID,eNodeB CP IP Address\n"
 
-#define VLIB_MAX_LQ_NUM	8
-
 #define ENQUEUE_LCORE_ID 0
 #define DEQUEUE_LCORE_ID 1
-
-#define VLIB_ENQUEUE_HANDLER_EXITED		(1 << 0)
-#define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
 
 #if defined(HAVE_TM_DEFINED) 
 struct tm {
@@ -30,6 +50,7 @@ struct tm {
 typedef struct vlib_tm_grid_t {
 	time_t start;
 	time_t end;
+	int block;
 }vlib_tm_grid_t;
 
 #define LQE_HAVE_IMSI	(1 << 0)
@@ -41,6 +62,8 @@ struct lq_element_t {
 							value[lqe_valen];
 	size_t					valen,
 							rawlen;
+
+	time_t					tv_sec;
 
 	uint32_t				ul_flags;
 	void					*mme;
@@ -54,6 +77,7 @@ struct lq_element_t {
 	
 #define lq_element_size	(sizeof(struct lq_element_t))
 
+#define VLIB_MAIN_SHMKEY	0x12345
 typedef struct vlib_main_t {
 	int			argc;
 	char			**argv;
@@ -76,12 +100,12 @@ typedef struct vlib_main_t {
 
 	enum {RR, HASH}dispatch_mode;
 
-	uint64_t nr_rx_entries;
-	uint64_t nr_rx_entries_without_imsi;
-	uint64_t nr_rx_entries_undispatched;
-	uint64_t nr_rx_entries_dispatched;
+	ATOMIC64_T nr_rx_entries;
+	ATOMIC64_T nr_rx_entries_without_imsi;
+	ATOMIC64_T nr_rx_entries_undispatched;
+	ATOMIC64_T nr_rx_entries_dispatched;
 
-	uint64_t nr_rx_files;
+	ATOMIC64_T nr_rx_files;
 	uint64_t nr_cost_usec;
 
 	uint64_t nr_thread_eq_ticks;
@@ -102,10 +126,21 @@ int calc_tm_grid(vlib_tm_grid_t *vtg, int interval, const time_t tv_sec)
 {
 	int nr_blocks = (24 * 60) / interval;
 	const int block_size = interval * 60;
-	struct tm tm, tm0;
-	time_t t0 = 0, ts = 0, tv = tv_sec;
+	struct tm	tm,
+				tm0 = {
+					.tm_sec	=	0,
+					.tm_min	=	0,
+					.tm_hour=	0,
+					.tm_mday=	0,
+					.tm_mon	=	0,
+					.tm_year=	0,
+					.tm_wday=	0,
+					.tm_yday=	0,
+					.tm_isdst=	0,};
 	
-	memset (&tm0, 0, sizeof(struct tm));
+	time_t	t0 = 0,
+			ts = 0,
+			tv = tv_sec;
 	
 	/* reset VTG to -1 */
 	vtg->start = vtg->end = ~0;
@@ -123,6 +158,7 @@ int calc_tm_grid(vlib_tm_grid_t *vtg, int interval, const time_t tv_sec)
 	
 	vtg->start = ts + block_size * nr_blocks;
 	vtg->end   = vtg->start + block_size;
+	vtg->block = nr_blocks;
 	
 	return 0;
 }
@@ -146,8 +182,12 @@ struct lq_element_t *lqe_alloc(void)
 }
 
 extern int running;
+extern uint32_t	epoch_time_sec;
 extern vlib_main_t vlib_main;
 extern vlib_threadvar_t vlib_tv_main[];
+extern char *inotify_home;
+extern const char *classify_home;
+extern char inotify_file[];
 
 #include "fmgr.h"
 #include "mme.h"

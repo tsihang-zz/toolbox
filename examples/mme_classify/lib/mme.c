@@ -1,11 +1,9 @@
 #include "oryx.h"
 #include "config.h"
 
-vlib_mme_t nr_global_mmes[MAX_MME_NUM];
+vlib_mme_t nr_global_mmes[VLIB_MAX_MME_NUM];
 /* Store those unknown entries. */
 vlib_mme_t *default_mme = NULL;
-
-uint32_t	epoch_time_sec;
 
 void mmekey_free (const ht_value_t __oryx_unused_param__ v)
 {
@@ -62,12 +60,11 @@ vlib_mme_t *mme_find(const char *name, size_t nlen)
 	
 	BUG_ON(name == NULL || nlen != strlen(name));
 	s1 = nlen;
-	for (i = 0, s2 = 0; i < MAX_MME_NUM; i ++) {
+	for (i = 0, s2 = 0; i < VLIB_MAX_MME_NUM; i ++) {
 		mme = &nr_global_mmes[i];
 		s2 = strlen(mme->name);
 		if (s1 == s2 &&
 			!strcmp(name, mme->name)) {
-			fprintf(stdout, "mme_find, %s\n", name);
 			goto finish;
 		}
 		
@@ -83,13 +80,15 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 	int i;
 	vlib_mme_t *mme;
 
-	for (i = 0; i < MAX_MME_NUM; i ++) {
+	for (i = 0; i < VLIB_MAX_MME_NUM; i ++) {
 		mme = &nr_global_mmes[i];
-		vlib_file_t *f = &mme->file;
 		if (mme->ul_flags & VLIB_MME_VALID)
 			continue;
 		else {
-			file_reset(f);
+			int j;
+			for (j = 0; j < 288; j ++)
+				file_reset(&mme->farray[j]);
+			file_reset(&mme->file);
 			mme->ul_flags |= VLIB_MME_VALID;
 			mme->lq_id = 0;
 			mme->tv = 0;

@@ -2,30 +2,14 @@
 #include "config.h"
 #include <sys/inotify.h>
 
-#if defined(HAVE_F_CACHE)
-char fmgr_cache[file_cache_size];
-#endif
-
 struct oryx_lq_ctx_t *fmgr_q = NULL;
 static struct oryx_htable_t *file_hash_tab = NULL; 
-
-char *inotify_home = "/vsu/db/cdr_csv/event_GEO_LTE";
-const char *classify_home = "/root/classify_home";
-char inotify_file[BUFSIZ];
 
 uint64_t nr_classified_files = 0;
 uint64_t nr_handlers = 0;
 uint64_t nr_fopen_times = 0;
 uint64_t nr_fopen_times_r = 0;
 uint64_t nr_fopen_times_error = 0;
-
-#define FKEY_DOING_CLASSIFICATION	(1 << 0)
-#define FKEY_REMOVED	(1 << 1)
-typedef struct vlib_fkey_t {
-	char		name[128];
-	uint32_t	ul_flags;
-	time_t		rm_time;
-}vlib_fkey_t;
 
 #if 0
 struct event_mask {  
@@ -261,14 +245,7 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 	
 		if(key->ul_flags & FKEY_DOING_CLASSIFICATION)
 			return 0;
-		if(key->ul_flags & FKEY_REMOVED) {
-			/* If this file removed successfully,
-			 * then delete it from hash table. */
-			if (!oryx_path_exsit(pathname))	{
-				fprintf(stdout, "delete hash table %s\n", key->name);
-				BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
-			}
-		} else {
+		else {
 			/* classification finished. remove this file to backup. */
 			sprintf (newpath, "%s/%s", vm->savdir, filename);
 
@@ -277,26 +254,34 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 			if(err) {
 				fprintf(stdout, "mv %s\n", oryx_safe_strerror(errno));
 			} else {
+				char buf[20] = {0};
 				fprintf(stdout, "\n(*)mv %s -> %s\n", pathname, newpath);
-				key->ul_flags |= FKEY_REMOVED;
-				key->rm_time = time(NULL);
-				sprintf(echo, "echo `date`: %s >> %s/classify_result.log", newpath, classify_home);
+				sprintf(echo, "echo `date`: %s \\(%lu entries, %s\\) >> %s/classify_result.log",
+						newpath, key->nr_entries,
+						oryx_fmt_program_counter(key->nr_size, buf, 0, 0),
+						classify_home);
+				fprintf(stdout, "%s\n", echo);
 				do_system(echo);
+				/* If this file removed successfully,
+				 * then delete it from hash table. */
+				if (!oryx_path_exsit(pathname))	{
+					fprintf(stdout, "removing %s from hash table\n", key->name);
+					BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
+				}				
 			}
 		}
 	} else {
 		struct fq_element_t *fqe = fqe_alloc();
 		if (fqe) {
-			strcpy(fqe->name, pathname);
-			oryx_lq_enqueue(fmgr_q, fqe);
-
 			/* Tring to add a file to hash table by fkey. */
 			key = fkey_alloc();
 			if (key) {
 				memcpy(key->name, filename, strlen(filename));
 				key->ul_flags |= FKEY_DOING_CLASSIFICATION;
 				BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
-			}
+			}			
+			strcpy(fqe->name, pathname);
+			oryx_lq_enqueue(fmgr_q, fqe);
 		}
 	}
 
@@ -315,6 +300,10 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 				mmename[32] = {0};
 	time_t		now = time(NULL);	
 	vlib_main_t *vm = &vlib_main;
+	int nr_blocks = (24 * 60) / vm->threshold;
+
+	uint64_t start;
+	vlib_tm_grid_t vtg;
 
 	/* Not a CSV file */
 	if(!strstr(filename, ".csv"))
@@ -327,6 +316,7 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
 		return 0;
 	}
+
 	/* file without any modifications in 60 seconds will be timeout and removed. */
 	if(now < (buf.st_mtime + timeout_sec)) {
 		fprintf(stdout, ".");
@@ -338,12 +328,24 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 		mmename[n ++] = *p;
 	}
 
-#if 0
-	if(!mme_find(mmename, n)) {
+	vlib_mme_t *mme = mme_find(mmename, n);
+	if(!mme) {
 		fprintf(stdout, "Cannot find mme named \"%s\"\n", mmename);
 		return 0;
 	}
-#endif
+
+	/* Try to close file */
+	char	stime[16] = {0},
+			etime[16] = {0};
+	
+	for(n = 0, p += 1; *p != '_'; ++ p)
+		stime[n ++] = *p;
+	for(n = 0, p += 1; *p != '.'; ++ p)
+		etime[n ++] = *p;
+	
+	sscanf(stime, "%lu", &start);
+	calc_tm_grid(&vtg, vm->threshold, start);
+	file_close(&mme->farray[vtg.block % nr_blocks]);
 	
 	sprintf (newpath, "%s/%s/%s", vm->classdir, mmename, filename);
 
@@ -358,7 +360,7 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 	return 0;
 }
 
-void fmgr_remove(const char *oldpath)
+void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 {
 	vlib_main_t	*vm = &vlib_main;
 	vlib_fkey_t *key;	/* search hash table first */
@@ -381,16 +383,18 @@ void fmgr_remove(const char *oldpath)
 	if (key != NULL) {
 		/* To make sure that we cannot process files duplicated. */
 		key->ul_flags &= ~FKEY_DOING_CLASSIFICATION;
+		key->nr_entries = vf->nr_entries;
+		key->nr_size = vf->nr_size;
 	} else {
 		fprintf(stdout, "Cannot assign a file for %s! exiting ...\n", key->name);
-		exit (0);
+		exit(0);
 	}
 }
 
 static void * fmgr_handler0 (void __oryx_unused_param__ *r)
 {
-	int timeout_sec = 10;
-	int timeout_sec0 = 300;
+	int timeout_sec = 10;	/* time before mv raw file to savdir */
+	int timeout_sec0 = 120;
 	int try_scan_dir = 0;
 	
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 

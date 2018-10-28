@@ -39,34 +39,15 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(error This application can only operate in a linuxapp environment, \
+$(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
+else
+
+DIRS-y += oryx lib src
 endif
 
-# library name
-LIB = libmme.a
+include $(RTE_SDK)/mk/rte.extsubdir.mk
 
-LIBABIVER := 1
-
-# all source are stored in SRC-Y
-SRCS-y :=\
-   mme.c fmgr.c classify.c 
-
-#CFLAGS += $(WERROR_FLAGS)
-CFLAGS := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS += -Wmissing-declarations -Wpointer-arith
-CFLAGS += -Wcast-align -Wnested-externs
-CFLAGS += -Wformat-nonliteral -Wformat-security
-CFLAGS += -Wundef -Wwrite-strings
-#CFLAGS += -Wold-style-definition -Wcast-qual
-
-CFLAGS += -g -O3 --std=gnu99 
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
-
-CFLAGS += -I$(SRCDIR)\
-	-I$(SRCDIR)/../oryx
-
-
-
-include $(RTE_SDK)/mk/rte.extlib.mk
+clean:
+	@rm -fr src/$(RTE_TARGET)
+	@rm -fr oryx/$(RTE_TARGET)

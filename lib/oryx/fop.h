@@ -36,7 +36,7 @@ ORYX_DECLARE(
 	int oryx_file_read_write (oryx_file_t *fp, 
 			struct oryx_file_rw_context_t *frw_ctx));
 ORYX_DECLARE(
-	char * oryx_fmt_speed (uint64_t , char *, int , int));
+	char * oryx_fmt_program_counter (uint64_t , char *, int , int));
 ORYX_DECLARE(
 	void oryx_register_sighandler(int signal, void (*handler)(int)));
 ORYX_DECLARE(
@@ -75,12 +75,12 @@ ORYX_DECLARE(
 
 #ifndef HAVE_STRLCPY
 ORYX_DECLARE(
-	size_t strlcpy(char *d, const char *s, size_t bufsize));
+	size_t strlcpy(char *d, const char *s, size_t VLIB_BUFSIZE));
 #endif
 
 #ifndef HAVE_STRLCAT
 ORYX_DECLARE(
-	size_t strlcat(char *d, const char *s, size_t bufsize));
+	size_t strlcat(char *d, const char *s, size_t VLIB_BUFSIZE));
 #endif
 
 #endif

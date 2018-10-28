@@ -9,9 +9,13 @@ extern uint64_t nr_fopen_times;
 extern uint64_t nr_fopen_times_r;
 extern uint64_t nr_fopen_times_error;
 
-#if defined(HAVE_F_CACHE)
-extern char fmgr_cache[];
-#endif
+#define FKEY_DOING_CLASSIFICATION	(1 << 0)
+typedef struct vlib_fkey_t {
+	char		name[128];
+	uint32_t	ul_flags;
+	uint64_t	nr_size;
+	uint64_t	nr_entries;
+}vlib_fkey_t;
 
 struct fq_element_t {
 #define fq_name_length	128
@@ -25,7 +29,6 @@ struct fq_element_t {
 typedef struct vlib_file_t {
 #define	name_length	256
 	FILE		*fp;
-	int			fd;
 	char		filepath[name_length];
 	uint64_t	entries;
 	time_t		local_time;
@@ -33,7 +36,6 @@ typedef struct vlib_file_t {
 	struct list_head fnode;
 
 #if defined(HAVE_F_CACHE)
-
 #define file_cache_size	(8192 * 256)
 	char		*cache;
 	size_t		offset;
@@ -106,7 +108,9 @@ void file_reset(vlib_file_t *f)
 {
 	f->ul_flags 	= ~0;
 	f->local_time	= ~0;
-	f->entries		= ~0;
+#if defined(HAVE_F_CACHE)
+	f->offset		= ~0;
+#endif
 	f->fp			= NULL;
 	memset ((void *)&f->filepath[0], 0, name_length);
 }
@@ -146,14 +150,6 @@ size_t file_write(vlib_file_t *f, const char *val, size_t valen)
 	size_t nr_wb;
 
 	nr_wb = fwrite(val, sizeof(char), valen, f->fp);
-#if 0
-	/* flush flag is */
-	if (f->ul_flags & VLIB_FILE_FLUSH) {
-		fflush(f->fp);
-		f->ul_flags &= ~VLIB_FILE_FLUSH;
-	}
-#endif
-
 	return nr_wb;
 }
 
@@ -162,6 +158,8 @@ void file_close(vlib_file_t *f)
 {
 	if(f->fp == NULL)
 		return;
+
+	fprintf(stdout, "\nclosing %s\n", f->filepath);
 
 #if defined(HAVE_F_CACHE)
 	file_write(f, f->cache, f->offset);
@@ -177,11 +175,11 @@ void file_close(vlib_file_t *f)
 /* event_start_time <= TIME < event_end_time */
 static __oryx_always_inline__
 int file_open(const char *class_path,
-	const char *mme_name, time_t start, time_t end, vlib_file_t *f)
+	const char *mme_name, vlib_tm_grid_t *vtg, vlib_file_t *f)
 {
 	memset(f->filepath, 0, name_length);
 
-	sprintf(f->filepath, "%s/%s%s_%lu_%lu.csv", class_path, MME_CSV_PREFIX, mme_name, start, end);
+	sprintf(f->filepath, "%s/%s%s_%lu_%lu.csv", class_path, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
 
 	/* Open an exist file with appended mode.
 	 * this mode is atomic, so there is no need to call a userspace lock. */
@@ -194,12 +192,11 @@ int file_open(const char *class_path,
 		nr_handlers ++;		
 		nr_fopen_times ++;
 		/* update local time. */
-		f->local_time = start;
-		f->entries = 0;
+		f->local_time = vtg->start;
 		
 #if defined(HAVE_F_CACHE)
 		f->offset = 0;
-		f->cache = &fmgr_cache[0];
+		f->cache = malloc(file_cache_size);
 		BUG_ON(f->cache == NULL);
 #endif
 		f->ul_flags |= VLIB_FILE_OPENED;
@@ -273,9 +270,7 @@ struct fq_element_t *fqe_alloc(void)
 
 extern struct oryx_task_t inotify;
 extern struct oryx_lq_ctx_t *fmgr_q;
-extern char *inotify_home;
-extern const char *classify_home;
-extern char inotify_file[];
+
 
 #endif
 

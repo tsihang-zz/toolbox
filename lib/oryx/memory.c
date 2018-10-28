@@ -136,7 +136,7 @@ void MEM_UninitMemory(void *mem_handle)
 	free(mem_handle);
 }
 
-void * MEM_GetShareMem(key_t key , int size)
+void * oryx_shm_get(key_t key , int size)
 {	
 	void	*mem = NULL;
 	int		shm_id;
@@ -163,7 +163,7 @@ void * MEM_GetShareMem(key_t key , int size)
 	return mem;
 }
 
-int MEM_UnlinkShareMem(void *mem)
+int oryx_shm_destroy(void *mem)
 {
 	if (shmdt(mem) == -1) {
 		oryx_loge(-1,
@@ -172,4 +172,5 @@ int MEM_UnlinkShareMem(void *mem)
 	}
 	return 0;
 }
+
 
