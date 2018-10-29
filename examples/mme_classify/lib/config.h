@@ -77,7 +77,7 @@ struct lq_element_t {
 	
 #define lq_element_size	(sizeof(struct lq_element_t))
 
-#define VLIB_MAIN_SHMKEY	0x12345
+#define VLIB_MAIN_SHMKEY	0x1234567
 typedef struct vlib_main_t {
 	int			argc;
 	char			**argv;
@@ -110,6 +110,12 @@ typedef struct vlib_main_t {
 
 	uint64_t nr_thread_eq_ticks;
 	uint64_t nr_thread_dq_ticks;
+
+	uint64_t	tx_pkts,
+			rx_pkts,
+			tx_bytes,
+			rx_bytes;
+
 
 } vlib_main_t;
 

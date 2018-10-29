@@ -1,5 +1,5 @@
 #include "oryx.h"
-#include "config.h"
+#include "unix_domain_config.h"
 
 int running = 1;
 
@@ -18,11 +18,15 @@ int main(
 	oryx_register_sighandler(SIGINT,	sigint_handler);
 	oryx_register_sighandler(SIGTERM,	sigint_handler);
 
-	vlib_main_t *vm = oryx_shm_get(VLIB_MAIN_SHM_KEY, sizeof(vlib_main_t));
+	vlib_unix_domain_t *vm = oryx_shm_get(VLIB_UNIX_DOMAIN_SHMKEY, sizeof(vlib_unix_domain_t));
 	if(!vm) {
 		return 0;
 	}
 
+	oryx_task_registry(&unix_domain_detector);
+	unix_domain_detector.argv = vm;
+	unix_domain_detector.argc = 1;
+	
 	oryx_task_registry(&unix_domain_client);
 	unix_domain_client.argv = vm;
 	unix_domain_client.argc = 1;

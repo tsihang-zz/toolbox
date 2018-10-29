@@ -511,22 +511,25 @@ int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 				time[32] = {0};
 	const char	sep = ',';
 	int 		sep_refcnt = 0;
-	size_t		step, tlen = 0;
+	size_t		tlen = 0;
 	time_t		tv_usec = 0;
-	bool		keep_cpy				= 1,
-				event_start_time_cpy	= 0,
-				find_imsi				= 0;
+	bool		keep_cpy				= true,
+				event_start_time_cpy	= false,
+				find_imsi				= false;
 
-	for (p = (const char *)&value[0], step = 0, sep_refcnt = 0;
-				*p != '\0' && *p != '\n'; ++ p, step ++) {			
+	for (p = (const char *)&value[0], sep_refcnt = 0;
+				*p != '\0' && *p != '\n'; ++ p) {			
 
 		/* skip entries without IMSI */
-		if (!find_imsi && sep_refcnt == 5) {
+		if (sep_refcnt == 5 && !find_imsi) {
 			if (*p == sep) {
-				break;
+				find_imsi = 0;
+				//break;
 			}
-			else
+			else {
 				find_imsi = 1;
+				//fprintf(stdout, "%s\n", p);
+			}
 		}
 
 		/* skip first 2 seps and copy event_start_time */
@@ -563,7 +566,6 @@ int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
 	}
 
 	return -1;
-
 dispatch:
 
 	fmt_mme_ip(lqe->mme_ip, p);
@@ -571,10 +573,11 @@ dispatch:
 
 	lqe->value[lqe->valen]		= '\0';
 	lqe->value[lqe->valen - 1]	= '\n';
-	lqe->ul_flags				= find_imsi ? LQE_HAVE_IMSI : 0;
 	lqe->rawlen 				= vlen;
 	lqe->tv_sec 				= tv_usec/1000;
-	
+	if(find_imsi) lqe->ul_flags |= LQE_HAVE_IMSI;
+	//else fprintf(stdout, "%s", lqe->value);
+
 	return 0;
 }
 
@@ -626,7 +629,7 @@ static __oryx_always_inline__
 void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 {
 	vlib_file_t 			*f;
-	
+	vlib_main_t				*vm = &vlib_main;
 	size_t					valen = LQE_VALEN(lqe);
 	const vlib_tm_grid_t	*vtg = &lqe->vtg;
 
@@ -639,7 +642,11 @@ void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
 	ATOMIC64_INC(&mme->nr_refcnt_r);
 	ATOMIC64_ADD(&mme->nr_refcnt_bytes_r, valen);	
 
-	{
+	if(!(lqe->ul_flags & LQE_HAVE_IMSI)) {
+		ATOMIC64_INC(&mme->nr_rx_entries_noimsi);
+		ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
+		goto finish;
+	} else {
 		mme_try_fopen(mme, vtg, f);
 		if (!f->fp) {
 			ATOMIC64_INC(&mme->nr_refcnt_miss);
@@ -695,9 +702,7 @@ void do_dispatch(const char *value, size_t vlen)
 			oryx_lq_enqueue(tv->lq, lqe);
 			ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
 		} else {
-			ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
-			if(!(lqe->ul_flags & LQE_HAVE_IMSI))		
-				ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
+			ATOMIC64_INC(&vm->nr_rx_entries_undispatched);			
 		}
 	}
 }
@@ -722,15 +727,13 @@ void do_classify(const char *value, size_t vlen)
 
 	ATOMIC64_INC(&vm->nr_rx_entries);
 	
-	if(!baker_entry(value, vlen, lqe)){
+	if(!baker_entry(value, vlen, lqe)) {
 		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
 		calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
 		do_classify_final(lqe);
-		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);		
-	}else{
-		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
-		if(!(lqe->ul_flags & LQE_HAVE_IMSI))		
-			ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
+		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
+	} else {
+		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);			
 	}
 }
 
@@ -853,16 +856,23 @@ void *classify_offline(const char *oldpath)
 
 	gettimeofday(&start, NULL); 
 
+	//const char *entry = ",,1540456948977,1538102098324,11,232011830178601,867246032451460,,,,,,,,1022472,,,,,,,,,,,,,,,,,,,,,,,,,,363333789,13759948,611A820A,200,3716589318,10.110.18.88";
+	//const char *entry = ",,1540456948977,1538102098324,11,,867246032451460,,,,,,,,1022472,,,,,,,,,,,,,,,,,,,,,,,,,,363333789,13759948,611A820A,200,3716589318,10.110.18.88";
 	/* A loop read the part of lines. */
 	FOREVER {
-		memset (line, 0, lqe_valen);
-		if(!fgets (line, lqe_valen, fp) || !running)
+
+		if(!running)
 			break;
 		
+		memset (line, 0, lqe_valen);
+
+		if(!fgets (line, lqe_valen, fp) || !running)
+			break;
+
 		llen = strlen(line);		
 		nr_local_lines ++;
 		nr_local_size += llen;
-
+		
 		//do_dispatch(line, llen);
 		do_classify(line, llen);
 	}

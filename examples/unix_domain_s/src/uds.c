@@ -1,9 +1,7 @@
 #include "oryx.h"
-#include "config.h"
+#include "unix_domain_config.h"
 
-uint64_t tx_pkts, tx_bytes, rx_pkts, rx_bytes;
 static FILE *fp;
-
 
 static __oryx_always_inline__
 int baker_entry(const char *value, size_t vlen)
@@ -75,7 +73,7 @@ void * unix_domain_server_handler (void __oryx_unused_param__ *v)
     struct sockaddr_un saddr;
 	uint64_t nr_cost_usec;
 	char buf[VLIB_BUFSIZE] = {0};
-	vlib_main_t *vm = (vlib_main_t *)v;
+	vlib_unix_domain_t *vm = (vlib_unix_domain_t *)v;
 
 	fp = fopen("./unix_domain.txt", "a+");
 	if(!fp) goto quit;
@@ -140,6 +138,7 @@ void * unix_domain_server_handler (void __oryx_unused_param__ *v)
 	}
 	
 quit:
+	vm->ul_flags &= ~VLIB_UD_SERVER_STARTED;
 	if (fd0 > 0)close(fd0);
 	if (fd > 0) close(fd);
 	if(oryx_path_exsit(VLIB_UNIX_DOMAIN))unlink(VLIB_UNIX_DOMAIN);

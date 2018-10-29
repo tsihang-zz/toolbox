@@ -228,7 +228,7 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 	
 #if 0
 	/* find MME name by the given string */
-	for(p = (filename + strlen(MME_CSV_PREFIX)); *p != '_'; ++ p) {
+	for(p = (filename + strlen(MME_CSV_PREFIX) + 1); *p != '_'; ++ p) {
 		mmename[n ++] = *p;
 	}
 
@@ -394,7 +394,7 @@ void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 static void * fmgr_handler0 (void __oryx_unused_param__ *r)
 {
 	int timeout_sec = 10;	/* time before mv raw file to savdir */
-	int timeout_sec0 = 120;
+	int timeout_sec0 = 300;
 	int try_scan_dir = 0;
 	
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
