@@ -856,8 +856,85 @@ void *classify_offline(const char *oldpath)
 
 	gettimeofday(&start, NULL); 
 
-	//const char *entry = ",,1540456948977,1538102098324,11,232011830178601,867246032451460,,,,,,,,1022472,,,,,,,,,,,,,,,,,,,,,,,,,,363333789,13759948,611A820A,200,3716589318,10.110.18.88";
-	//const char *entry = ",,1540456948977,1538102098324,11,,867246032451460,,,,,,,,1022472,,,,,,,,,,,,,,,,,,,,,,,,,,363333789,13759948,611A820A,200,3716589318,10.110.18.88";
+	/* A loop read the part of lines. */
+	FOREVER {
+
+		if(!running)
+			break;
+		
+		memset (line, 0, lqe_valen);
+
+		if(!fgets (line, lqe_valen, fp) || !running)
+			break;
+
+		llen = strlen(line);		
+		nr_local_lines ++;
+		nr_local_size += llen;
+		
+		//do_dispatch(line, llen);
+		do_classify(line, llen);
+	}
+	fclose(fp);
+	
+	gettimeofday(&end, NULL);	
+	tv_usec = tm_elapsed_us(&start, &end);
+	vm->nr_cost_usec += tv_usec;
+
+	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
+	
+	fprintf(stdout, "\nClassify Result\n");
+	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
+	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm_nr_rx_entries, tv_usec);
+	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
+		oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
+		oryx_fmt_program_counter(fmt_pps(vm->nr_cost_usec, vm_nr_rx_entries), pps_str1, 0, 0));
+
+	const vlib_fkey_t fkey = {
+		.name = " ",
+		.ul_flags = 0,
+		.nr_size = nr_local_size,
+		.nr_entries = nr_local_lines,
+	};
+	fmgr_move(oldpath, &fkey);
+
+	return NULL;
+
+}
+
+void *classify_offline_app(const char *oldpath)
+{
+	FILE				*fp = NULL;
+	uint64_t			nr_local_lines = 0,
+						nr_local_size = 0,
+						tv_usec0 = 0,
+						tv_usec = 0;
+	size_t				llen = 0;
+	vlib_main_t			*vm = &vlib_main;
+	char				line[lqe_valen]		= {0},
+						pps_str0[20],
+						pps_str1[20];
+	struct timeval		start,
+						end;
+
+	fp = fopen(oldpath, "r");
+	if(!fp) {
+		fprintf (stdout, "Cannot open %s \n", oldpath);
+		return NULL;
+	}
+
+	ATOMIC64_INC(&vm->nr_rx_files);
+
+	fprintf (stdout, "\nReading %s\n", oldpath);
+	
+	/* skip first lines, this line is a CSV header. */
+	if(!fgets(line, lqe_valen, fp)) {
+		fprintf(stdout, "Empty file\n");
+		fclose(fp);
+		return NULL;
+	}
+
+	gettimeofday(&start, NULL); 
+
 	/* A loop read the part of lines. */
 	FOREVER {
 

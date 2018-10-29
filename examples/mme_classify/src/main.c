@@ -250,7 +250,7 @@ int main (
 	classify_env_init(vm);
 
 	struct oryx_timer_t *tmr = oryx_tmr_create (1, "Classify Runtime TMR", TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED,
-											  classify_tmr_handler, 0, NULL, 1000);
+											  classify_tmr_handler, 0, NULL, 3000);
 	oryx_tmr_start(tmr);
 	
 	oryx_task_launch();
