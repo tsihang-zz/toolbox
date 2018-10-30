@@ -15,6 +15,7 @@ typedef struct vlib_fkey_t {
 	uint32_t	ul_flags;
 	uint64_t	nr_size;
 	uint64_t	nr_entries;
+	uint64_t	tv_usec;
 }vlib_fkey_t;
 
 struct fq_element_t {

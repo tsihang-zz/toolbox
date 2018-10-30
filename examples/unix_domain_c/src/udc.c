@@ -66,7 +66,7 @@ quit:
 static
 void * unix_domain_detector_handler (void __oryx_unused_param__ *v)
 {
-    int r;
+    int err;
 	static uint64_t errors = 0;
     static struct sockaddr_un saddr;
 	vlib_unix_domain_t *vm = (vlib_unix_domain_t *)v;
@@ -86,7 +86,7 @@ void * unix_domain_detector_handler (void __oryx_unused_param__ *v)
 			
 			saddr.sun_family	=	AF_UNIX;
 			strcpy(saddr.sun_path, VLIB_UNIX_DOMAIN);
-			while ((r = connect(unix_domain_sock, (struct sockaddr*)&saddr, sizeof(saddr))) < 0) {
+			while ((err = connect(unix_domain_sock, (struct sockaddr*)&saddr, sizeof(saddr))) < 0) {
 				fprintf(stdout, "connect: %s\n", oryx_safe_strerror(errno));
 				sleep(3);
 				connected_times ++;
@@ -114,7 +114,6 @@ quit:
 static
 void * unix_domain_client_handler (void __oryx_unused_param__ *v)
 {
-    int r;
 	static uint64_t errors = 0;
     static struct sockaddr_un saddr;
 	static char buf[VLIB_BUFSIZE] = ",,1540456948977,1538102098324,11,232011830178601,867246032451460,,,,,,,,1022472,,,,,,,,,,,,,,,,,,,,,,,,,,363333789,13759948,611A820A,200,3716589318,10.110.18.88";

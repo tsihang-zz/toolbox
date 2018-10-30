@@ -63,7 +63,13 @@ int main (
 		}
 		memset(inotify_file, 0, BUFSIZ);
 		sprintf(inotify_file, "%s", argv[1]);
-		classify_offline(argv[1]);
+		const vlib_fkey_t fkey = {
+			.name = " ",
+			.ul_flags = 0,
+			.nr_size = 0,
+			.nr_entries = 0,
+		};
+		classify_offline(inotify_file, &fkey);
 		sleep(3);
 		break;
 	};

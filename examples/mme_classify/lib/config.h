@@ -1,7 +1,7 @@
 #ifndef CLASSIFY_CONFIG_H
 #define CLASSIFY_CONFIG_H
 
-//#define VLIB_MODE_PROCESS
+#define VLIB_MODE_PROCESS
 
 //#define VLIB_ATOMIC_COUNTER
 #define VLIB_MAX_LQ_NUM		8

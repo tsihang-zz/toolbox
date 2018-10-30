@@ -67,7 +67,7 @@ void * unix_domain_server_handler (void __oryx_unused_param__ *v)
 {
     int fd0 = -1,
 		fd = -1,
-		r,
+		err,
 		len;
     struct sockaddr_un caddr;
     struct sockaddr_un saddr;
@@ -87,14 +87,14 @@ void * unix_domain_server_handler (void __oryx_unused_param__ *v)
     saddr.sun_family = AF_UNIX;
     strncpy(saddr.sun_path, VLIB_UNIX_DOMAIN, sizeof(saddr.sun_path) - 1);
 
-    r = bind(fd0, (struct sockaddr*)&saddr, sizeof(saddr));
-    if(r < 0) {
+    err = bind(fd0, (struct sockaddr*)&saddr, sizeof(saddr));
+    if(err < 0) {
 		fprintf(stdout, "bind: %s\n", oryx_safe_strerror(errno));
         goto quit;
     }
 	
-    r = listen(fd0, 1);
-    if(r < 0) {
+    err = listen(fd0, 1);
+    if(err < 0) {
 		fprintf(stdout, "listen: %s\n", oryx_safe_strerror(errno));
         goto quit;
     }

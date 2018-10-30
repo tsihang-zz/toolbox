@@ -202,7 +202,6 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 	struct stat buf;
 	vlib_fkey_t *key;	/* search hash table first */
 	char		*p,
-				echo[1024]	= {0},
 				move[256] = {0},
 				newpath[256] = {0},
 				mmename[32] = {0};
@@ -254,14 +253,7 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 			if(err) {
 				fprintf(stdout, "mv %s\n", oryx_safe_strerror(errno));
 			} else {
-				char buf[20] = {0};
 				fprintf(stdout, "\n(*)mv %s -> %s\n", pathname, newpath);
-				sprintf(echo, "echo `date`: %s \\(%lu entries, %s\\) >> %s/classify_result.log",
-						newpath, key->nr_entries,
-						oryx_fmt_program_counter(key->nr_size, buf, 0, 0),
-						classify_home);
-				fprintf(stdout, "%s\n", echo);
-				do_system(echo);
 				/* If this file removed successfully,
 				 * then delete it from hash table. */
 				if (!oryx_path_exsit(pathname))	{

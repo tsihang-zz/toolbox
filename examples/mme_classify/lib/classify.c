@@ -822,7 +822,7 @@ void classify_env_init(vlib_main_t *vm)
 
 }
 
-void *classify_offline(const char *oldpath)
+void *classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 {
 	FILE				*fp = NULL;
 	uint64_t			nr_local_lines = 0,
@@ -831,9 +831,12 @@ void *classify_offline(const char *oldpath)
 						tv_usec = 0;
 	size_t				llen = 0;
 	vlib_main_t			*vm = &vlib_main;
-	char				line[lqe_valen]		= {0},
+	char				line[lqe_valen]	= {0},
 						pps_str0[20],
-						pps_str1[20];
+						pps_str1[20],
+						echo[1024] = {0},
+						file_size_buf[20] = {0},
+						newpath[256] = {0};	
 	struct timeval		start,
 						end;
 
@@ -889,13 +892,20 @@ void *classify_offline(const char *oldpath)
 		oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
 		oryx_fmt_program_counter(fmt_pps(vm->nr_cost_usec, vm_nr_rx_entries), pps_str1, 0, 0));
 
-	const vlib_fkey_t fkey = {
-		.name = " ",
-		.ul_flags = 0,
-		.nr_size = nr_local_size,
-		.nr_entries = nr_local_lines,
-	};
-	fmgr_move(oldpath, &fkey);
+	fkey->nr_entries	= nr_local_lines;
+	fkey->nr_size		= nr_local_size;
+	fkey->tv_usec		= tv_usec;
+	
+	sprintf(newpath, "%s/%s", vm->savdir, strstr(oldpath, MME_CSV_PREFIX));
+	sprintf(echo, "echo `date`: %s \\(%lu entries, %s, cost %lu usec, %s/s\\) >> %s/classify_result.log",
+			newpath,
+			fkey->nr_entries,
+			oryx_fmt_program_counter(fkey->nr_size, file_size_buf, 0, 0),
+			fkey->tv_usec,
+			oryx_fmt_program_counter(fmt_pps(fkey->tv_usec, fkey->nr_entries), pps_str0, 0, 0),
+			classify_home);
+	fprintf(stdout, "%s\n", echo);
+	do_system(echo);
 
 	return NULL;
 
@@ -997,7 +1007,14 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				while (NULL != (fqe = oryx_lq_dequeue(fmgr_q))){
 					memset(inotify_file, 0, BUFSIZ);
 					sprintf(inotify_file, "%s", fqe->name);
-					classify_offline(fqe->name);
+					const vlib_fkey_t fkey = {
+						.name = " ",
+						.ul_flags = 0,
+						.nr_size = 0,
+						.nr_entries = 0,
+					};
+					classify_offline(fqe->name, &fkey); 	
+					fmgr_move(fqe->name, &fkey);
 					free(fqe);
 				}
 				fprintf (stdout, " exited!\n");
@@ -1014,7 +1031,15 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 
 			memset(inotify_file, 0, BUFSIZ);
 			sprintf(inotify_file, "%s", fqe->name);				
-			classify_offline(fqe->name);
+			const vlib_fkey_t fkey = {
+				.name = " ",
+				.ul_flags = 0,
+				.nr_size = 0,
+				.nr_entries = 0,
+			};
+			classify_offline(fqe->name, &fkey);		
+			fmgr_move(fqe->name, &fkey);
+
 			free(fqe);
 		}
 		oryx_task_deregistry_id(pthread_self());

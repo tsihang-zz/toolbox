@@ -194,33 +194,24 @@ static void shmsync(void)
 	memcpy(vm, &vlib_main, sizeof(vlib_main));
 	fprintf(stdout, "%s\n", vm->prgname);
 }
-static void *classify_start(void *argv)
-{
-	struct fq_element_t *fqe = (struct fq_element_t *)argv;
-	memset(inotify_file, 0, BUFSIZ);
-	sprintf(inotify_file, "%s", fqe->name);
 
-	const char *oldpath = fqe->name;
-	fprintf(stdout, "Thread(%x) starting classify %s\n", pthread_self(), oldpath);		
-	FOREVER {
-		classify_offline(oldpath);
-		break;
-	}
-
-	free(fqe);
-	
-	return NULL;
-
-}
 int main (
         int     __oryx_unused_param__   argc,
         char    __oryx_unused_param__   ** argv
 )
 {
 	vlib_main_t *vm = &vlib_main;
-	const char *do_classify_bin = "/usr/local/PreStat/do_classify";
-	char do_classify_cmd[256] = " ";
-		
+	struct fq_element_t *fqe = NULL;
+	int		status,
+			pid;
+	
+#if defined(VLIB_MODE_PROCESS)
+#define MAX_MAIN_PROCESSES	4
+	pid_t pids[MAX_MAIN_PROCESSES];
+	struct fq_element_t *fqes[MAX_MAIN_PROCESSES] = {NULL};
+	vlib_fkey_t fkeys[MAX_MAIN_PROCESSES];
+	int i;
+#endif
 	//create_new_file(MME_CSV_FILE);
 	//exit(0);
 
@@ -255,7 +246,6 @@ int main (
 	
 	oryx_task_launch();
 
-	struct fq_element_t *fqe = NULL;
 	FOREVER {
 		if (!running) {
 			/* wait for handlers of enqueue and dequeue finish. */
@@ -263,7 +253,67 @@ int main (
 			classify_runtime();
 			break;
 		}
+
 		
+#if defined(VLIB_MODE_PROCESS)
+		int lq_len = oryx_lq_length(fmgr_q);
+		if (lq_len == 0) {
+			continue;
+		}
+		
+		if(lq_len > MAX_MAIN_PROCESSES)
+			lq_len = MAX_MAIN_PROCESSES;
+		
+		for (i = 0; i < lq_len; i ++) {
+			/* keep fqe for this process. */
+			fqes[i] = oryx_lq_dequeue(fmgr_q);
+			pids[i] = -1;
+			pids[i] = fork();
+			if (pids[i] == 0)
+				break;
+			else if (pids[i] < 0) {
+				fprintf(stdout, "%s\n", oryx_safe_strerror(errno));
+				exit(-1);
+			}		
+		}
+		
+		for (i = 0; i < lq_len; i ++) {
+			if (pids[i] == 0) {
+				fprintf(stdout, "Children %d -> %s\n", getpid(), fqes[i]->name);
+				classify_offline(fqes[i]->name, &fkeys[i]);				
+				fprintf(stdout, "%s, %lu entries, exit\n", fqes[i]->name, fkeys[i].nr_entries);
+				return 0;
+			}
+		}
+		
+		/* Father wait for children */
+		for (i = 0; i < lq_len; i ++) {
+			if (!running)
+				break;
+			
+			pid = waitpid(pids[i], &status, WUNTRACED | WCONTINUED);
+            if (pid == -1) {
+               fprintf(stdout, "%s\n", oryx_safe_strerror(errno));
+               exit(EXIT_FAILURE);
+			}
+			
+			if (WIFEXITED(status)) {
+				printf("%d exited, status=%d\n", pid, WEXITSTATUS(status));
+			} else if (WIFSIGNALED(status)) {
+				printf("%d killed by signal %d\n", pid, WTERMSIG(status));
+			} else if (WIFSTOPPED(status)) {
+				printf("%d stopped by signal %d\n", pid, WSTOPSIG(status));
+			} else if (WIFCONTINUED(status)) {
+				printf("%d continued\n", pid);
+			}
+		}
+		
+		for (i = 0; i < lq_len; i ++) {
+			fmgr_move(fqes[i]->name, &fkeys[i]);
+			free(fqes[i]);
+		}
+
+#else
 		fqe = oryx_lq_dequeue(fmgr_q);
 		if (fqe == NULL)
 			continue;
@@ -271,15 +321,19 @@ int main (
 			free(fqe);
 			continue;
 		}
-		
-#if 0
-		pthread_t pid = pthread_create(&pid, NULL, classify_start, fqe);
-		pthread_detach(pid);
-#else
+
 		memset(inotify_file, 0, BUFSIZ);
 		sprintf(inotify_file, "%s", fqe->name);
 		free(fqe);
-		classify_offline(inotify_file);
+
+		const vlib_fkey_t fkey = {
+			.name = " ",
+			.ul_flags = 0,
+			.nr_size = 0,
+			.nr_entries = 0,
+		};
+		classify_offline(inotify_file, &fkey);		
+		fmgr_move(inotify_file, &fkey);
 #endif
 	}
 		
