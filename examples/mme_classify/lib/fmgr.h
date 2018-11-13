@@ -9,7 +9,6 @@ extern uint64_t nr_fopen_times;
 extern uint64_t nr_fopen_times_r;
 extern uint64_t nr_fopen_times_error;
 
-#define FKEY_DOING_CLASSIFICATION	(1 << 0)
 typedef struct vlib_fkey_t {
 	char		name[128];
 	uint32_t	ul_flags;
@@ -175,12 +174,16 @@ void file_close(vlib_file_t *f)
 
 /* event_start_time <= TIME < event_end_time */
 static __oryx_always_inline__
-int file_open(const char *class_path,
+int file_open(const char *home,
 	const char *mme_name, vlib_tm_grid_t *vtg, vlib_file_t *f)
 {
 	memset(f->filepath, 0, name_length);
 
-	sprintf(f->filepath, "%s/%s%s_%lu_%lu.csv", class_path, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
+#if defined(HAVE_CLASSIFY_HOME)
+	sprintf(f->filepath, "%s/%s%s_%lu_%lu.csv", home, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
+#else
+	sprintf(f->filepath, "%s/%s/%s%s_%lu_%lu.csv", home, mme_name, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
+#endif
 
 	/* Open an exist file with appended mode.
 	 * this mode is atomic, so there is no need to call a userspace lock. */
@@ -272,6 +275,7 @@ struct fq_element_t *fqe_alloc(void)
 extern struct oryx_task_t inotify;
 extern struct oryx_lq_ctx_t *fmgr_q;
 
+extern void fmgr_move(const char *oldpath, const vlib_fkey_t *vf);
 
 #endif
 

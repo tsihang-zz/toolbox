@@ -30,11 +30,12 @@ static void sigint_handler(int sig) {
 	running = 0;
 }
 
-static void waitpid_handler(int num) {   
+static void sigchld_handler(int num) {   
     int status;   
-    pid_t pid = waitpid(-1, &status, WNOHANG);   
-    if (WIFEXITED(status)) {   
-        printf("The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
+    pid_t pid = waitpid(-1, &status, 0);   
+    if (WIFEXITED(status)) {
+		if(WEXITSTATUS(status) != 0)
+        	printf("The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
     }   
 }
 
@@ -109,90 +110,72 @@ update_time:
 	return;
 }
 
-void create_new_file (const char *file_template)
+static void create_new_file (const char *file_template)
 {
-                FILE            *fp0,
-                                        *fp1;
-                char            line[lqe_valen] = {0},
-                                        fn[256] = {0};
-                uint64_t        nr_rb = 0,
-                                        nr_wb = 0;
-                time_t          t = time(NULL);
-                static int      times = 0;
-                vlib_main_t     *vm = &vlib_main;
+    FILE            *fp0,
+                     *fp1;
+    char            line[lqe_valen] = {0},
+                            fn[256] = {0};
+    uint64_t        nr_rb = 0,
+                    nr_wb = 0;
+    time_t          t = time(NULL);
+    vlib_main_t     *vm = &vlib_main;
 
-                FOREVER {
+    FOREVER {
 
-                        nr_rb = nr_wb = 0;
-                        sprintf (fn, "%s/%s%s_%lu.csv",
-                                vm->inotifydir, MME_CSV_PREFIX, "SAMPLEMME", t);
-                        t += 300;
+            nr_rb = nr_wb = 0;
+            sprintf (fn, "%s/%s%s_%lu.csv",
+                    vm->inotifydir, MME_CSV_PREFIX, "SAMPLEMME", t);
+            t += 300;
 
-                        fp0 = fopen(file_template, "r");
-                        if(!fp0) {
-                                fprintf (stdout, "Cannot open %s \n", file_template);
-                                break;
-                        }
+            fp0 = fopen(file_template, "r");
+            if(!fp0) {
+                    fprintf (stdout, "Cannot open %s \n", file_template);
+                    break;
+            }
 
-                        fp1 = fopen(fn, "a+");
-                        if(!fp1) {
-                                fprintf (stdout, "Cannot open %s \n", fn);
-                                break;
-                        }
+            fp1 = fopen(fn, "a+");
+            if(!fp1) {
+                    fprintf (stdout, "Cannot open %s \n", fn);
+                    break;
+            }
 
-                        fprintf (stdout, "writing %s ......", fn);
-                        while (fgets (line, lqe_valen, fp0)) {
-								size_t s = strlen(line);
-                                nr_rb += s;
-								update_event_start_time(line, s);
-                                nr_wb += fwrite(line, 1, strlen(line), fp1);
-                        }
+            fprintf (stdout, "writing %s ......", fn);
+            while (fgets (line, lqe_valen, fp0)) {
+					size_t s = strlen(line);
+                    nr_rb += s;
+					update_event_start_time(line, s);
+                    nr_wb += fwrite(line, 1, strlen(line), fp1);
+            }
 
-                        fclose(fp0);
-                        fclose(fp1);
+            fclose(fp0);
+            fclose(fp1);
 
-                        if (nr_rb == nr_wb) {
-                                fprintf (stdout, "done!\n");
-                        }
-						break;
-                }
+            if (nr_rb == nr_wb) {
+                    fprintf (stdout, "done!\n");
+            }
+			break;
+    }
 
-                return NULL;
 }
 
-void classify_tmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-                char __oryx_unused_param__**argv)
-{
-	int i, j;
-	vlib_mme_t *mme;
-	vlib_file_t *f;
-	vlib_main_t *vm = &vlib_main;
-	static uint64_t nr_sec;
-	const int nr_blocks = (24 * 60) / vm->threshold;
-	vlib_tm_grid_t vtg;
-	time_t tv_sec = time(NULL);
+#define linesize 256
 
-	calc_tm_grid(&vtg, vm->threshold, tv_sec);
+static int get_prgname(pid_t pid, char *task_name) {
+	 char pidpath[1024];
+	 char buf[linesize];
 
-	if ((nr_sec ++ % 5) == 0) {
-		for (i = 0; i < vm->nr_mmes; i ++) {
-			mme = &nr_global_mmes[i];
-			for (j = 0; j < nr_blocks; j ++) {
-				f = &mme->farray[j];
-				
-			}
-		}
-	}
-
-	classify_runtime();
-}
-
-static void shmsync(void)
-{
-	/* This will synced to do_classify thro shared memory. */
-	vlib_main_t *vm = oryx_shm_get(VLIB_MAIN_SHMKEY, sizeof(vlib_main));
-	memcpy(vm, &vlib_main, sizeof(vlib_main));
-	fprintf(stdout, "%s\n", vm->prgname);
+	 sprintf(pidpath, "/proc/%d/status", pid);
+	 FILE* fp = fopen(pidpath, "r");
+	 if(fp == NULL) {
+	 	fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
+		return -1;
+	 } else {
+	     if (fgets(buf, linesize - 1, fp) != NULL)
+		     sscanf(buf, "%*s %s", task_name);
+	     fclose(fp);
+		 return 0;
+	 }
 }
 
 int main (
@@ -201,24 +184,16 @@ int main (
 )
 {
 	vlib_main_t *vm = &vlib_main;
-	struct fq_element_t *fqe = NULL;
-	int		status,
-			pid;
-	
-#if defined(VLIB_MODE_PROCESS)
-#define MAX_MAIN_PROCESSES	4
-	pid_t pids[MAX_MAIN_PROCESSES];
-	struct fq_element_t *fqes[MAX_MAIN_PROCESSES] = {NULL};
-	vlib_fkey_t fkeys[MAX_MAIN_PROCESSES];
-	int i;
-#endif
-	//create_new_file(MME_CSV_FILE);
-	//exit(0);
+	struct fq_element_t *fqe = NULL;	
+	char logzomb[1024] = {0};
+	char prgname[32] = {0};
+	const char *zombie = "./zombie.txt";
 
 	oryx_initialize();
 	oryx_register_sighandler(SIGINT,	sigint_handler);
 	oryx_register_sighandler(SIGTERM,	sigint_handler);
-	oryx_register_sighandler(SIGTERM,	waitpid_handler);
+	//oryx_register_sighandler(SIGCHLD,	sigchld_handler);
+	signal(SIGCHLD,	SIG_IGN);
 
 	vm->argc = argc;
 	vm->argv = argv;
@@ -238,82 +213,22 @@ int main (
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								mmekey_hval, mmekey_cmp, mmekey_free, 0/* HTABLE_SYNCHRONIZED is unused,
 																		* because the table is no need to update.*/);
-	classify_env_init(vm);
-
-	struct oryx_timer_t *tmr = oryx_tmr_create (1, "Classify Runtime TMR", TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED,
-											  classify_tmr_handler, 0, NULL, 3000);
-	oryx_tmr_start(tmr);
-	
+	classify_initialization(vm);
 	oryx_task_launch();
 
 	FOREVER {
+		sleep (3);
+		
 		if (!running) {
-			/* wait for handlers of enqueue and dequeue finish. */
-			sleep (3);
-			classify_runtime();
 			break;
 		}
+		
+		if (oryx_path_exsit(zombie))
+			remove(zombie);
 
-		
-#if defined(VLIB_MODE_PROCESS)
-		int lq_len = oryx_lq_length(fmgr_q);
-		if (lq_len == 0) {
-			continue;
-		}
-		
-		if(lq_len > MAX_MAIN_PROCESSES)
-			lq_len = MAX_MAIN_PROCESSES;
-		
-		for (i = 0; i < lq_len; i ++) {
-			/* keep fqe for this process. */
-			fqes[i] = oryx_lq_dequeue(fmgr_q);
-			pids[i] = -1;
-			pids[i] = fork();
-			if (pids[i] == 0)
-				break;
-			else if (pids[i] < 0) {
-				fprintf(stdout, "%s\n", oryx_safe_strerror(errno));
-				exit(-1);
-			}		
-		}
-		
-		for (i = 0; i < lq_len; i ++) {
-			if (pids[i] == 0) {
-				fprintf(stdout, "Children %d -> %s\n", getpid(), fqes[i]->name);
-				classify_offline(fqes[i]->name, &fkeys[i]);				
-				fprintf(stdout, "%s, %lu entries, exit\n", fqes[i]->name, fkeys[i].nr_entries);
-				return 0;
-			}
-		}
-		
-		/* Father wait for children */
-		for (i = 0; i < lq_len; i ++) {
-			if (!running)
-				break;
-			
-			pid = waitpid(pids[i], &status, WUNTRACED | WCONTINUED);
-            if (pid == -1) {
-               fprintf(stdout, "%s\n", oryx_safe_strerror(errno));
-               exit(EXIT_FAILURE);
-			}
-			
-			if (WIFEXITED(status)) {
-				printf("%d exited, status=%d\n", pid, WEXITSTATUS(status));
-			} else if (WIFSIGNALED(status)) {
-				printf("%d killed by signal %d\n", pid, WTERMSIG(status));
-			} else if (WIFSTOPPED(status)) {
-				printf("%d stopped by signal %d\n", pid, WSTOPSIG(status));
-			} else if (WIFCONTINUED(status)) {
-				printf("%d continued\n", pid);
-			}
-		}
-		
-		for (i = 0; i < lq_len; i ++) {
-			fmgr_move(fqes[i]->name, &fkeys[i]);
-			free(fqes[i]);
-		}
-
-#else
+		get_prgname(getpid(), prgname);
+		sprintf(logzomb, "ps -ef | grep %s | grep -v grep | grep defunct | awk '{print$2}' >> %s", prgname, zombie);
+		do_system(logzomb);
 		fqe = oryx_lq_dequeue(fmgr_q);
 		if (fqe == NULL)
 			continue;
@@ -322,19 +237,26 @@ int main (
 			continue;
 		}
 
-		memset(inotify_file, 0, BUFSIZ);
-		sprintf(inotify_file, "%s", fqe->name);
-		free(fqe);
-
-		const vlib_fkey_t fkey = {
+		vlib_fkey_t fkey = {
 			.name = " ",
 			.ul_flags = 0,
 			.nr_size = 0,
 			.nr_entries = 0,
 		};
-		classify_offline(inotify_file, &fkey);		
-		fmgr_move(inotify_file, &fkey);
-#endif
+		
+		pid_t p = fork();
+		if (p < 0) {
+			fprintf(stdout, "fork: %s\n", oryx_safe_strerror(errno));
+			free(fqe);
+			continue;
+		} else if (p == 0) {
+			fprintf(stdout, "Children %d -> %s\n", getpid(), fqe->name);
+			classify_offline(fqe->name, &fkey); 			
+			fprintf(stdout, "Children %d -> %s, %lu entries, exit\n", getpid(), fqe->name, fkey.nr_entries);
+			exit(0);
+		}
+		
+		free(fqe);
 	}
 		
 	classify_terminal();

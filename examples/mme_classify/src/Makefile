@@ -55,8 +55,7 @@ CFLAGS += -I$(SRCDIR)\
 	-I$(SRCDIR)/../oryx\
 	-I$(SRCDIR)/../lib
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lyaml -lpcap
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt -lpcap
 
 LDLIBS += -L$(subst src,lib,$(RTE_OUTPUT))/lib
 LDLIBS += -lmme

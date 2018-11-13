@@ -58,6 +58,11 @@ void kfree(void *p)
     p = NULL;
 }
 
+typedef struct vlib_shm_t {
+	int		shmid;
+	void	**addr;
+} vlib_shm_t;
+
 ORYX_DECLARE(
 	int MEM_InitMemory(void **mem_handle)
 );
@@ -71,10 +76,13 @@ ORYX_DECLARE(
 	void MEM_UninitMemory(void *mem_handle)
 );
 ORYX_DECLARE(
-	void * oryx_shm_get(key_t key , int size)
+	int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
 );
 ORYX_DECLARE(
-	int oryx_shm_destroy(void *mem)
+	int oryx_shm_detach(vlib_shm_t *shm)
+);
+ORYX_DECLARE(
+	int oryx_shm_destroy(vlib_shm_t *shm)
 );
 
 #endif

@@ -16,12 +16,8 @@
 #define RLOCK_UNLOCK(r)\
 		do_mutex_unlock(&(r)->m)
 
+
 #define DEFAULT_RING_ELEMENTS	(1 << 1024)
-
-#define	ring_element_next(ring,rw)	(((rw) + 1) % (ring)->max_elements)
-
-#define ring_key_data(key,factor)\
-	((key) << 16 | factor)
 
 struct oryx_ring_data_t {
 	uint32_t	pad0: 16;
@@ -29,25 +25,23 @@ struct oryx_ring_data_t {
 	void	*v;
 };
 
-/** ul_flags in oryx_ring_t */
-
-#define	RING_SHARED				(1 << 0)	/* A shared ring is a ring that
-											 * used to communication among progresses.
-											 */
 struct oryx_ring_t {
-	const char			*ring_name;
+	const char			*name;
 	int					max_elements;
 	key_t					key;			/* for different progress. */
 
-	volatile uint32_t			wp;
-	volatile uint32_t			rp;
+	volatile uint64_t			wp,
+								rp;
 	struct oryx_ring_data_t		*data;
 
 	uint32_t			ul_flags;
-	uint32_t			ul_rp_times;
-	uint32_t			ul_wp_times;
+	uint64_t			nr_times_r,
+						nr_times_w,
+						nr_times_f;	/* full times */
+
 	os_mutex_t			m;
 };
+#define	ring_element_next(r,rw)	(((rw) + 1) % (r)->max_elements)
 
 static __oryx_always_inline__
 int oryx_ring_get(struct oryx_ring_t *ring, void **data, uint16_t *data_size)
@@ -72,7 +66,7 @@ int oryx_ring_get(struct oryx_ring_t *ring, void **data, uint16_t *data_size)
 	(*data)			= ring->data[rp].v;
 	(*data_size)	= ring->data[rp].s;
 	ring->rp		= ring_element_next(ring, ring->rp);
-	ring->ul_rp_times ++;
+	ring->nr_times_r ++;
 
 	RLOCK_UNLOCK(ring);
 
@@ -93,13 +87,14 @@ int oryx_ring_put(struct oryx_ring_t *ring, void *data, uint16_t data_size)
 	wp = ring->wp;
 	if(ring_element_next(ring, wp) == ring->rp) {
 		RLOCK_UNLOCK(ring); 
+		ring->nr_times_f ++;
 		return -1;
 	}
 
 	ring->data[wp].v	= data;
 	ring->data[wp].s	= data_size;
 	ring->wp			= ring_element_next(ring, ring->wp);
-	ring->ul_wp_times ++;
+	ring->nr_times_w ++;
 
 	RLOCK_UNLOCK(ring);
 	

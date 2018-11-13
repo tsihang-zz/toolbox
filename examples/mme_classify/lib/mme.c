@@ -17,14 +17,21 @@ ht_key_t mmekey_hval (struct oryx_htable_t *ht,
 	uint32_t i;
 	uint32_t hv = 0;
 
+#if 0
      for (i = 0; i < s; i++) {
          if (i == 0)      hv += (((uint32_t)*d++));
          else if (i == 1) hv += (((uint32_t)*d++) * s);
          else             hv *= (((uint32_t)*d++) * i) + s + i;
      }
 
-     hv *= s;
+     hv *= s;	 
      hv %= ht->array_size;
+#else
+	for (i = 0; i < s; i++) {
+		hv += *d;
+	}
+	hv %= ht->array_size;
+#endif
      
      return hv;
 }

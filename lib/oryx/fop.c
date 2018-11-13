@@ -138,7 +138,7 @@ void oryx_file_clear(const char *f) {
 	char cat_null[128] = "cat /dev/null > ";
 
 	strcat(cat_null, f);
-	system(cat_null);
+	do_system(cat_null);
 }
 
 __oryx_always_extern__

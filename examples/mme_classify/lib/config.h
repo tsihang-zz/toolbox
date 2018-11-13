@@ -1,7 +1,8 @@
 #ifndef CLASSIFY_CONFIG_H
 #define CLASSIFY_CONFIG_H
 
-#define VLIB_MODE_PROCESS
+//#define HAVE_CLASSIFY_HOME
+#define HAVE_SANTA_CPY2
 
 //#define VLIB_ATOMIC_COUNTER
 #define VLIB_MAX_LQ_NUM		8
@@ -60,7 +61,8 @@ struct lq_element_t {
 	/* used to find an unique MME. */
 	char					mme_ip[32],
 							value[lqe_valen];
-	size_t					valen,
+	size_t					iplen,
+							valen,
 							rawlen;
 
 	time_t					tv_sec;
@@ -197,6 +199,8 @@ extern char inotify_file[];
 
 #include "fmgr.h"
 #include "mme.h"
+#include "classify.h"
+
 
 #endif
 

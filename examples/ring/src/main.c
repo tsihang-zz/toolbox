@@ -2,19 +2,19 @@
 
 #define RING_ELEMENTS	1024
 
-#define shmdata_size 1024
+#define RING_DATA_SIZE 1024
 
 struct oryx_ring_t *my_ring;
 
 static __oryx_always_inline__
-void * shmring_rp (void *r)
+void * ring_rp (void *r)
 {
 	void		*data;
 	uint16_t	data_size = 0;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		if (oryx_shmring_get(ring, &data, &data_size) != 0)
+		if (oryx_ring_get(ring, &data, &data_size) != 0)
 			continue;
 		if (data) {
 			free(data);
@@ -26,7 +26,7 @@ void * shmring_rp (void *r)
 }
 
 static __oryx_always_inline__
-void * shmring_wp (void *r)
+void * ring_wp (void *r)
 {
 	uint32_t	times = 0;
 	int			sleeps = 0;
@@ -34,11 +34,11 @@ void * shmring_wp (void *r)
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		if (NULL == (data = malloc(shmdata_size)))
+		if (NULL == (data = malloc(RING_DATA_SIZE)))
 			continue;
 
-		oryx_pattern_generate(data, shmdata_size);
-		if (oryx_shmring_put(ring, data, shmdata_size) != 0) {
+		oryx_pattern_generate(data, RING_DATA_SIZE);
+		if (oryx_ring_put(ring, data, RING_DATA_SIZE) != 0) {
 			free(data);
 			continue;
 		}

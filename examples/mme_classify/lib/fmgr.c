@@ -94,7 +94,8 @@ int skip_event(struct inotify_event *event)
 	return (!event->len || !strncmp(event->name, ".", 1) || !strncmp(event->name, "..", 2));
 }
 
-static void * fmgr_handler (void __oryx_unused_param__ *r)
+static __oryx_always_inline__
+void * fmgr_handler (void __oryx_unused_param__ *r)
 {
 	const char *path = inotify_home;
 	int fd;
@@ -176,7 +177,6 @@ static void * fmgr_handler (void __oryx_unused_param__ *r)
 						key = fkey_alloc();
 						if (key) {
 							memcpy(key->name, name, strlen(name));
-							key->ul_flags |= FKEY_DOING_CLASSIFICATION;
 							BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 						}
 					}
@@ -194,84 +194,62 @@ finish:
 	return NULL;
 }
 
-static int fmgr_timedout(void *argv, char *pathname, char *filename)
+static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 {
 	int			err,
-				n = 0,
-				timeout_sec = *(int *)argv;
+				n = 0;
 	struct stat buf;
+				//timeout_sec = *(int *)argv;
+	vlib_tm_grid_t *vtg = (vlib_tm_grid_t *)argv;	
 	vlib_fkey_t *key;	/* search hash table first */
 	char		*p,
-				move[256] = {0},
-				newpath[256] = {0},
-				mmename[32] = {0};
-	time_t		now = time(NULL);	
-	vlib_main_t	*vm = &vlib_main;
-
+				stime[16] = {0};
+	uint64_t	start;				
+	
 	/* Not a CSV file */
-	if(!strstr(filename, ".csv"))
+	if(!strstr(filename, ".csv")) {
 		return 0;
-	if(!strstr(filename, "s1mmeSAMPLEMME"))
+	}
+	if(!strstr(filename, "s1mmeSAMPLEMME")) {
 		return 0;
-
+	}
+	
+	p = strstr(filename, "_");
+	for(n = 0, p += 1; *p != '.'; ++ p)
+		stime[n ++] = *p;
+	sscanf(stime, "%lu", &start);
+	
+	if((int64_t)vtg->start <= (int64_t)start) {
+		fprintf(stdout, "#");
+		return 0;
+	}
+	
 	err = stat(pathname, &buf);
 	if(err) {
 		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
 		return 0;
 	}
-	/* file without any modifications in 60 seconds will be timeout and removed. */
-	if(now < (buf.st_mtime + timeout_sec)) {
-		fprintf(stdout, "*");
-		return 0;
-	}
 	
-#if 0
-	/* find MME name by the given string */
-	for(p = (filename + strlen(MME_CSV_PREFIX) + 1); *p != '_'; ++ p) {
-		mmename[n ++] = *p;
-	}
-
-	if(!mme_find(mmename, n)) {
-		fprintf(stdout, "Cannot find mme named \"%s\" skip\n", mmename);
+	/* file without any modifications in 60 seconds will be timeout and removed. */
+	if(time(NULL) < (buf.st_mtime + 3)) {
+		fprintf(stdout, "@");
 		return 0;
 	}
-#endif
 
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
 	if (s) {
-		key = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
-		BUG_ON(key == NULL);
-	
-		if(key->ul_flags & FKEY_DOING_CLASSIFICATION)
-			return 0;
-		else {
-			/* classification finished. remove this file to backup. */
-			sprintf (newpath, "%s/%s", vm->savdir, filename);
-
-			sprintf(move, "mv %s %s", pathname, newpath);
-			err = do_system(move);
-			if(err) {
-				fprintf(stdout, "mv %s\n", oryx_safe_strerror(errno));
-			} else {
-				fprintf(stdout, "\n(*)mv %s -> %s\n", pathname, newpath);
-				/* If this file removed successfully,
-				 * then delete it from hash table. */
-				if (!oryx_path_exsit(pathname))	{
-					fprintf(stdout, "removing %s from hash table\n", key->name);
-					BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
-				}				
-			}
-		}
+		return 0;
 	} else {
 		struct fq_element_t *fqe = fqe_alloc();
 		if (fqe) {
+			fprintf(stdout, "fqe: %s\n", filename);
 			/* Tring to add a file to hash table by fkey. */
 			key = fkey_alloc();
 			if (key) {
 				memcpy(key->name, filename, strlen(filename));
-				key->ul_flags |= FKEY_DOING_CLASSIFICATION;
 				BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
-			}			
+			}
+			/* enqueue abslute pathname */
 			strcpy(fqe->name, pathname);
 			oryx_lq_enqueue(fmgr_q, fqe);
 		}
@@ -280,22 +258,21 @@ static int fmgr_timedout(void *argv, char *pathname, char *filename)
 	return 0;
 }
 
-static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
+static int fmgr_classify_timedout (void *argv, char *pathname, char *filename)
 {
 	int 		err,
-				n = 0,
-				timeout_sec = *(int *)argv;
-	struct stat buf;
+				n = 0;
+	struct stat buf;	
 	char		*p,
 				move[256] = {0},
 				newpath[256] = {0},
 				mmename[32] = {0};
-	time_t		now = time(NULL);	
+
 	vlib_main_t *vm = &vlib_main;
 	int nr_blocks = (24 * 60) / vm->threshold;
 
 	uint64_t start;
-	vlib_tm_grid_t vtg;
+	vlib_tm_grid_t vtg, *vtg0 = (vlib_tm_grid_t *)argv;
 
 	/* Not a CSV file */
 	if(!strstr(filename, ".csv"))
@@ -308,9 +285,9 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
 		return 0;
 	}
-
+	
 	/* file without any modifications in 60 seconds will be timeout and removed. */
-	if(now < (buf.st_mtime + timeout_sec)) {
+	if(time(NULL) < (buf.st_mtime + 300)) {
 		fprintf(stdout, ".");
 		return 0;
 	}
@@ -326,7 +303,6 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 		return 0;
 	}
 
-	/* Try to close file */
 	char	stime[16] = {0},
 			etime[16] = {0};
 	
@@ -337,28 +313,32 @@ static int fmgr_timedout0 (void *argv, char *pathname, char *filename)
 	
 	sscanf(stime, "%lu", &start);
 	calc_tm_grid(&vtg, vm->threshold, start);
-	file_close(&mme->farray[vtg.block % nr_blocks]);
-	
-	sprintf (newpath, "%s/%s/%s", vm->classdir, mmename, filename);
 
+#if 0
+	if((int64_t)vtg0->start <= (int64_t)(vtg.start + vm->threshold * 60)) {
+		fprintf(stdout, ".");
+		return 0;
+	}
+#endif
+
+	file_close(&mme->farray[vtg.block % nr_blocks]);
+
+	sprintf (newpath, "%s/%s/", vm->classdir, mmename);
 	sprintf(move, "mv %s %s", pathname, newpath);
+	fprintf(stdout, "\n(*)timeout %s\n", move);
 	err = do_system(move);
 	if (err) {
-		fprintf(stdout, "mv %s\n", oryx_safe_strerror(errno));
-	} else {
-		fprintf(stdout, "\n(*)timeout %s\n", move);
+		fprintf(stdout, "\nmv: %s\n", oryx_safe_strerror(errno));
 	}
-
+	
 	return 0;
 }
 
 void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 {
-	vlib_main_t	*vm = &vlib_main;
-	vlib_fkey_t *key;	/* search hash table first */
-	char	*f,
-			newpath[128] = {0};
-
+	vlib_fkey_t *fkey;	/* search hash table first */
+	char	*f;
+	
 	f = strstr(oldpath, MME_CSV_PREFIX);
 	if (!f) {
 		fprintf(stdout, "Invalid %s\n", f);
@@ -371,34 +351,86 @@ void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 		return;
 	}
 	
-	key = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
-	if (key != NULL) {
+	fkey = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
+	if (fkey != NULL) {
 		/* To make sure that we cannot process files duplicated. */
-		key->ul_flags &= ~FKEY_DOING_CLASSIFICATION;
-		key->nr_entries = vf->nr_entries;
-		key->nr_size = vf->nr_size;
+		fkey->nr_entries = vf->nr_entries;
+		fkey->nr_size = vf->nr_size;
 	} else {
-		fprintf(stdout, "Cannot assign a file for %s! exiting ...\n", key->name);
+		fprintf(stdout, "Cannot assign a file for %s! exiting ...\n", fkey->name);
 		exit(0);
 	}
 }
 
+void fmgr_remove(const char *oldpath)
+{
+	vlib_fkey_t *fkey;	/* search hash table first */
+	char	*f;
+	int err;
+	
+	f = strstr(oldpath, MME_CSV_PREFIX);
+	if (!f) {
+		fprintf(stdout, "Invalid %s\n", f);
+		return;
+	}
+
+	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	if(!s) {		
+		BUG_ON(s == NULL);
+	} else {
+		err = oryx_htable_del(file_hash_tab, f, strlen(f));
+		if (err) {
+			fprintf(stdout, "Cannot delete file %s from hash table\n", f);
+		} else {
+			fprintf(stdout, "Delete file %s from hash table\n", f);
+		}
+	}
+}
+
+static void fmgr_ht_handler(ht_value_t v,
+				uint32_t s,
+				void *opaque,
+				int __oryx_unused_param__ opaque_size) {
+	char pathname[256] = {0};
+	
+	vlib_fkey_t *fkey = (vlib_fkey_t *)v;
+	fprintf(stdout, "==== %s\n", fkey->name);
+	sprintf(pathname, "%s/%s", inotify_home, fkey->name);
+   /* If this file removed successfully,
+	* then delete it from hash table. */
+   if (!oryx_path_exsit(pathname)) {
+   }
+}
+
 static void * fmgr_handler0 (void __oryx_unused_param__ *r)
 {
-	int timeout_sec = 10;	/* time before mv raw file to savdir */
-	int timeout_sec0 = 300;
 	int try_scan_dir = 0;
-	
+	vlib_main_t *vm = &vlib_main;
+
+	vlib_tm_grid_t vtg = {
+		.start = 0,
+		.end = 0,
+		.block = 0,
+	};
+		
 	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
 
 	FOREVER {
+		calc_tm_grid(&vtg, vm->threshold, time(NULL));
+	
 		foreach_directory_file (inotify_home,
-					fmgr_timedout, (void *)&timeout_sec, try_scan_dir);
+					fmgr_inotify_timedout, (void *)&vtg, try_scan_dir);
 
+#if defined(HAVE_CLASSIFY_HOME)
 		foreach_directory_file (classify_home,
-					fmgr_timedout0, (void *)&timeout_sec0, try_scan_dir);
+					fmgr_classify_timedout, (void *)&vtg, try_scan_dir);
+#endif
 
+#if 0
+		int refcount = oryx_htable_foreach_elem(file_hash_tab,
+					fmgr_ht_handler, NULL, 0);
+#endif
 		/* aging entries in table. */
 		sleep(1);
 	}

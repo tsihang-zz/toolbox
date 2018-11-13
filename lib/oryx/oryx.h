@@ -71,8 +71,6 @@
 
 #if defined(HAVE_PCAP)
 #include <pcap.h>
-#include <pcap/pcap.h>
-#include <pcap/bpf.h>
 #endif
 
 #if defined(HAVE_PCRE)

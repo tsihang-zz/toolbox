@@ -15,17 +15,17 @@ uint16_t ring_key (const char *v, uint32_t s)
 	 return hv;
 }
 
-int oryx_ring_create(const char *ring_name,
-		int nb_max_elements, uint32_t flags, struct oryx_ring_t **ring)
+int oryx_ring_create(const char *name,
+		int nr_elements, uint32_t flags, struct oryx_ring_t **ring)
 {
-	BUG_ON(ring_name == NULL);
+	BUG_ON(name == NULL);
 	BUG_ON(ring == NULL);
 
 	struct oryx_ring_t	*r;
-	key_t				key = ring_key(ring_name, strlen(ring_name));
+	key_t				key = ring_key(name, strlen(name));
 
-	if (nb_max_elements == 0)
-		nb_max_elements = DEAFULT_RING_ELEMENTS;
+	if (nr_elements == 0)
+		nr_elements = DEAFULT_RING_ELEMENTS;
 
 	{
 		r = malloc(sizeof(struct oryx_ring_t));
@@ -33,19 +33,19 @@ int oryx_ring_create(const char *ring_name,
 			return -1;
 		memset(r, 0, sizeof(struct oryx_ring_t));
 
-		r->data = malloc(sizeof(struct oryx_ring_data_t) * nb_max_elements);
+		r->data = malloc(sizeof(struct oryx_ring_data_t) * nr_elements);
 		if (unlikely(!r->data)) {
 			free(r);
 			return -1;
 		}
-		memset(r->data, 0, sizeof(struct oryx_ring_data_t) * nb_max_elements);
+		memset(r->data, 0, sizeof(struct oryx_ring_data_t) * nr_elements);
 	}
 	
 	r->rp			= 0;
-	r->wp			= nb_max_elements;
-	r->max_elements = nb_max_elements;
+	r->wp			= nr_elements;
+	r->max_elements = nr_elements;
 	r->ul_flags		= flags;
-	r->ring_name	= ring_name;
+	r->name	= name;
 	r->key			= key;
 	RLOCK_INIT(r);
 	
@@ -55,12 +55,12 @@ int oryx_ring_create(const char *ring_name,
 
 void oryx_ring_dump(struct oryx_ring_t *ring)
 {
-	fprintf (stdout, "%16s%32s\n", "ring_name: ",	ring->ring_name);
+	fprintf (stdout, "%16s%32s\n", "name: ",		ring->name);
 	fprintf (stdout, "%16s%32d\n", "nb_data: ",		ring->max_elements);
-	fprintf (stdout, "%16s%32d\n", "rp_times: ",		ring->ul_rp_times);
-	fprintf (stdout, "%16s%32d\n", "wp_times: ",		ring->ul_wp_times);
-	fprintf (stdout, "%16s%32d\n", "rp: ",			ring->rp);
-	fprintf (stdout, "%16s%32d\n", "wp: ",			ring->wp);
+	fprintf (stdout, "%16s%32lu\n", "rp_times: ",	ring->nr_times_r);
+	fprintf (stdout, "%16s%32lu\n", "wp_times: ",	ring->nr_times_w);
+	fprintf (stdout, "%16s%32lu\n", "rp: ",			ring->rp);
+	fprintf (stdout, "%16s%32lu\n", "wp: ",			ring->wp);
 }
 
 

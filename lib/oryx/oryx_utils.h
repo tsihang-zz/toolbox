@@ -12,8 +12,6 @@
 #include "mpool.h"
 #include "ethtool.h"
 #include "mdx.h"
-#include "conf.h"
-#include "conf-yaml-loader.h"
 
 
 #define u8_tolower(c) tolower((uint8_t)(c))

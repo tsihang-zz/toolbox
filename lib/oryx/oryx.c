@@ -52,10 +52,6 @@ oryx_status_t oryx_initialize(void)
 	oryx_tmr_initialize();
 	oryx_format(&fb, "%s", "oryx_tmr_initialize, ");
 	
-	/* Initialize the configuration module. */
-	ConfInit();
-	oryx_format(&fb, "%s", "ConfInit, ");
-
 	//mpm_table_setup();
 	//oryx_format(&fb, "%s", "mpm_table_setup");
 

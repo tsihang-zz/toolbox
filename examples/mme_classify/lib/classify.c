@@ -2,7 +2,8 @@
 #include "config.h"
 //#include "libcommfunc.h"
 
-static vlib_main_t vlib_main_template = {
+static __oryx_unused_param__
+vlib_main_t vlib_main_template = {
 	.argc		=	0,
 	.argv		=	NULL,
 	.prgname	=	"mme_classify",
@@ -24,7 +25,7 @@ vlib_threadvar_t vlib_tv_main[VLIB_MAX_LQ_NUM];
 char 	*inotify_home = "/vsu/db/cdr_csv/event_GEO_LTE",
 		inotify_file[BUFSIZ];
 const char *classify_home = "/root/classify_home";
-
+const char *formated_home = "/vsu1/db/cdr_csv/event_GEO_LTE/formated";
 
 static __oryx_always_inline__
 void update_event_start_time(char *value, size_t valen)
@@ -297,10 +298,258 @@ void classify_terminal(void)
 	}
 }
 
-void classify_runtime(void)
+static __oryx_always_inline__
+int baker_entry(const char *value, size_t valen, struct lq_element_t *lqe)
+{
+	char		*p,
+				*s,
+				time[32] = {0};
+	const char	sep = ',';
+	int 		sep_refcnt = 0;
+	size_t		tlen = 0;
+	time_t		tv_usec = 0;
+	bool		keep_cpy				= true,
+				event_start_time_cpy	= false,
+				find_imsi				= false;
+
+	for (p = (const char *)&value[0], sep_refcnt = 0;
+				*p != '\0' && *p != '\n'; ++ p) {			
+
+		/* skip entries without IMSI */
+		if (sep_refcnt == 5 && !find_imsi) {
+			if (*p == sep) {
+				find_imsi = 0;
+				//break;
+			}
+			else {
+				find_imsi = 1;
+				//fprintf(stdout, "%s\n", p);
+			}
+		}
+
+		/* skip first 2 seps and copy event_start_time */
+		if (sep_refcnt == 2) {
+			event_start_time_cpy = 1;
+		}
+
+		/* skip last three columns */
+		if (sep_refcnt == 43)
+			keep_cpy = 0;
+
+		/* valid entry dispatch ASAP */
+		if (sep_refcnt == 45)
+			goto dispatch;
+
+		/* soft copy */
+		if (keep_cpy) {
+			lqe->value[lqe->valen ++] = *p;
+		}
+
+		if (*p == sep)
+			sep_refcnt ++;
+
+		/* stop copy */
+		if (sep_refcnt == 3) {
+			event_start_time_cpy = 0;
+		}
+
+		/* soft copy.
+		 * Time stamp is 13 bytes-long */
+		if (event_start_time_cpy) {
+			time[tlen ++] = *p;
+		}
+	}
+
+	return -1;
+dispatch:
+
+	//fmt_mme_ip(lqe->mme_ip, p);
+	for (p, s = &lqe->mme_ip[0]; *p != '\0' && *p != '\n'; ++ p, ++ s) {
+		*s = *p;
+		lqe->iplen ++;
+	}
+	sscanf(time, "%lu", &tv_usec);
+
+	lqe->value[lqe->valen]		= '\0';
+	lqe->value[lqe->valen - 1]	= '\n';
+	lqe->rawlen 				= valen;
+	lqe->tv_sec 				= tv_usec/1000;
+	if(find_imsi) lqe->ul_flags |= LQE_HAVE_IMSI;
+	//else fprintf(stdout, "%s", lqe->value);
+
+	return 0;
+}
+
+static __oryx_always_inline__
+int write_lqe_data(vlib_file_t *f, const char *value, size_t valen)
+{
+	size_t nr_wb;
+
+#if defined(HAVE_F_CACHE)
+	/* call fwrite to flush them all */
+	if(f->offset + valen > file_cache_size) {
+		fwrite(f->cache, sizeof(char), f->offset, f->fp);
+		f->offset = 0;
+	}
+	memcpy(f->cache + f->offset, value, valen);
+	f->offset += valen;
+	nr_wb = valen;
+#else
+	nr_wb = file_write(f, value, valen);
+#endif
+	return nr_wb == valen ? 0 : 1;
+}
+
+
+static __oryx_always_inline__
+void  mme_try_fopen(vlib_mme_t *mme,
+		const vlib_tm_grid_t *vtg, vlib_file_t *f)
+{
+	char *home = NULL;
+	
+	if (f->fp == NULL) {
+		goto try_new_file;
+	} else {
+		/* check current file is valid for use. */
+		if (f->local_time != vtg->start) {
+			/* close previous file before open a new one. */
+			file_close(f);
+			fprintf(stdout, "file closed\n");
+			goto try_new_file;
+		}
+	}
+	BUG_ON(f->fp == NULL);
+	return;
+	
+try_new_file:
+
+#if defined(HAVE_CLASSIFY_HOME)
+	home = classify_home;
+#else
+	home = formated_home;
+#endif
+	file_open(home, mme->name, vtg, f);
+}
+
+static __oryx_always_inline__
+void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
+{
+	vlib_file_t 			*f;
+	vlib_main_t				*vm = &vlib_main;
+	size_t					valen = LQE_VALEN(lqe);
+	const vlib_tm_grid_t	*vtg = &lqe->vtg;
+
+	/* lock MME */
+	//MME_LOCK(mme);
+	//f  = &mme->file;
+	f 	=  &mme->farray[vtg->block];
+	
+	ATOMIC64_INC(&mme->nr_rx_entries);
+	ATOMIC64_INC(&mme->nr_refcnt_r);
+	ATOMIC64_ADD(&mme->nr_refcnt_bytes_r, valen);	
+
+	if(!(lqe->ul_flags & LQE_HAVE_IMSI)) {
+		ATOMIC64_INC(&mme->nr_rx_entries_noimsi);
+		ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
+		goto finish;
+	} else {
+		mme_try_fopen(mme, vtg, f);
+		if (!f->fp) {
+			ATOMIC64_INC(&mme->nr_refcnt_miss);
+			ATOMIC64_ADD(&mme->nr_refcnt_miss_bytes, valen);
+			goto finish;
+		} else {
+			/* write CDR to disk ASAP */
+			if (!write_lqe_data (f, (const char *)&lqe->value[0], valen)) {
+				ATOMIC64_INC(&mme->nr_refcnt);
+				ATOMIC64_ADD(&mme->nr_refcnt_bytes, valen);
+			} else {
+				ATOMIC64_INC(&mme->nr_refcnt_error);
+				ATOMIC64_ADD(&mme->nr_refcnt_error_bytes, valen);
+			}
+		}
+	}
+
+finish:
+	/* unlock MME */
+	//MME_UNLOCK(mme);
+	return;
+}
+
+static __oryx_always_inline__
+void do_classify_final(struct lq_element_t *lqe)
+{
+	write_lqe(lqe->mme, lqe);
+}
+
+static __oryx_always_inline__
+void do_dispatch(const char *value, size_t vlen)
+{
+	struct lq_element_t *lqe;
+	vlib_threadvar_t *tv;
+	vlib_mme_t *mme;
+	vlib_main_t *vm = &vlib_main;
+	struct oryx_lq_ctx_t *lq;
+
+	ATOMIC64_INC(&vm->nr_rx_entries);
+
+	if(!vm->nr_threads)
+		return;
+	
+	lqe = lqe_alloc();
+	if(!lqe) {
+		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
+	} else {
+		if(!baker_entry(value, vlen, lqe)) {
+			lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
+			calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
+			mme = lqe->mme;
+			tv  = mme->tv;
+			oryx_lq_enqueue(tv->lq, lqe);
+			ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
+		} else {
+			ATOMIC64_INC(&vm->nr_rx_entries_undispatched);			
+		}
+	}
+}
+
+static __oryx_always_inline__
+void do_classify(const char *value, size_t valen)
+{
+	vlib_main_t *vm = &vlib_main;
+	struct lq_element_t *lqe,
+						lqe0 = {
+							.mme	= NULL,
+							.lp		= {NULL, NULL},
+							.vtg	= {0, 0},
+							.mme_ip = {0},
+							.value	= {0},
+							.valen	= 0,
+							.rawlen = 0,
+							.ul_flags = 0
+						};
+
+	lqe = &lqe0;
+
+	ATOMIC64_INC(&vm->nr_rx_entries);
+	
+	if(!baker_entry(value, valen, lqe)) {
+		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, lqe->iplen);
+		calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
+		do_classify_final(lqe);
+		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
+	} else {
+		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
+	}
+}
+
+static void classify_tmr_handler (
+				struct oryx_timer_t __oryx_unused_param__ *tmr,
+				int __oryx_unused_param__ argc, 
+                char __oryx_unused_param__**argv)
 {
 	int i;
-	static uint64_t				duration = 0,
+	static uint64_t 			duration = 0,
 								nr_eq_swap_bytes_prev[VLIB_MAX_LQ_NUM]		= {0},
 								nr_eq_swap_elements_prev[VLIB_MAX_LQ_NUM]	= {0},
 								nr_dq_swap_bytes_prev[VLIB_MAX_LQ_NUM]		= {0},
@@ -322,7 +571,7 @@ void classify_runtime(void)
 								nr_classified_refcnt	= 0,
 								nr_classified_refcnt_r	= 0,
 								nr_missed_refcnt		= 0,
-								nr_error_refcnt			= 0,
+								nr_error_refcnt 		= 0,
 								nr_unclassified_refcnt	= 0,
 								nr_cost_us = 0,
 								nr_rx_entries = 0;
@@ -333,7 +582,7 @@ void classify_runtime(void)
 							pps_str[20],
 							bps_str[20],
 							pps_str1[20],
-							cat_null[128] = "cat /dev/null > ";
+							clearfile[128] = "cat /dev/null > ";
 	struct oryx_lq_ctx_t *lq;
 	vlib_threadvar_t *vtc;
 	vlib_mme_t *mme;
@@ -341,8 +590,8 @@ void classify_runtime(void)
 	static oryx_file_t *fp;
 	const char *lq_runtime_file = "/var/run/classify_runtime_summary.txt";
 
-	strcat(cat_null, lq_runtime_file);
-	system(cat_null);
+	strcat(clearfile, lq_runtime_file);
+	do_system(clearfile);
 
 	if(!fp) {
 		fp = fopen(lq_runtime_file, "a+");
@@ -504,238 +753,6 @@ void classify_runtime(void)
 	
 }
 
-static __oryx_always_inline__
-int baker_entry(const char *value, size_t vlen, struct lq_element_t *lqe)
-{
-	char		*p,
-				time[32] = {0};
-	const char	sep = ',';
-	int 		sep_refcnt = 0;
-	size_t		tlen = 0;
-	time_t		tv_usec = 0;
-	bool		keep_cpy				= true,
-				event_start_time_cpy	= false,
-				find_imsi				= false;
-
-	for (p = (const char *)&value[0], sep_refcnt = 0;
-				*p != '\0' && *p != '\n'; ++ p) {			
-
-		/* skip entries without IMSI */
-		if (sep_refcnt == 5 && !find_imsi) {
-			if (*p == sep) {
-				find_imsi = 0;
-				//break;
-			}
-			else {
-				find_imsi = 1;
-				//fprintf(stdout, "%s\n", p);
-			}
-		}
-
-		/* skip first 2 seps and copy event_start_time */
-		if (sep_refcnt == 2) {
-			event_start_time_cpy = 1;
-		}
-
-		/* skip last three columns */
-		if (sep_refcnt == 43)
-			keep_cpy = 0;
-
-		/* valid entry dispatch ASAP */
-		if (sep_refcnt == 45)
-			goto dispatch;
-
-		/* soft copy */
-		if (keep_cpy) {
-			lqe->value[lqe->valen ++] = *p;
-		}
-
-		if (*p == sep)
-			sep_refcnt ++;
-
-		/* stop copy */
-		if (sep_refcnt == 3) {
-			event_start_time_cpy = 0;
-		}
-
-		/* soft copy.
-		 * Time stamp is 13 bytes-long */
-		if (event_start_time_cpy) {
-			time[tlen ++] = *p;
-		}
-	}
-
-	return -1;
-dispatch:
-
-	fmt_mme_ip(lqe->mme_ip, p);
-	sscanf(time, "%lu", &tv_usec);
-
-	lqe->value[lqe->valen]		= '\0';
-	lqe->value[lqe->valen - 1]	= '\n';
-	lqe->rawlen 				= vlen;
-	lqe->tv_sec 				= tv_usec/1000;
-	if(find_imsi) lqe->ul_flags |= LQE_HAVE_IMSI;
-	//else fprintf(stdout, "%s", lqe->value);
-
-	return 0;
-}
-
-static __oryx_always_inline__
-int write_lqe_data(vlib_file_t *f, const char *value, size_t valen)
-{
-	size_t nr_wb;
-
-#if defined(HAVE_F_CACHE)
-	/* call fwrite to flush them all */
-	if(f->offset + valen > file_cache_size) {
-		fwrite(f->cache, sizeof(char), f->offset, f->fp);
-		f->offset = 0;
-	}
-	memcpy(f->cache + f->offset, value, valen);
-	f->offset += valen;
-	nr_wb = valen;
-#else
-	nr_wb = file_write(f, value, valen);
-#endif
-	return nr_wb == valen ? 0 : 1;
-}
-
-
-static __oryx_always_inline__
-void  mme_try_fopen(vlib_mme_t *mme,
-		const vlib_tm_grid_t *vtg, vlib_file_t *f)
-{		
-	if (f->fp == NULL) {
-		goto try_new_file;
-	} else {
-		/* check current file is valid for use. */
-		if (f->local_time != vtg->start) {
-			/* close previous file before open a new one. */
-			file_close(f);
-			fprintf(stdout, "file closed\n");
-			goto try_new_file;
-		}
-	}
-	BUG_ON(f->fp == NULL);
-	return;
-	
-try_new_file:
-
-	file_open(classify_home, mme->name, vtg, f);
-}
-
-static __oryx_always_inline__
-void write_lqe(vlib_mme_t *mme, const struct lq_element_t *lqe)
-{
-	vlib_file_t 			*f;
-	vlib_main_t				*vm = &vlib_main;
-	size_t					valen = LQE_VALEN(lqe);
-	const vlib_tm_grid_t	*vtg = &lqe->vtg;
-
-	/* lock MME */
-	//MME_LOCK(mme);
-	//f  = &mme->file;
-	f 	=  &mme->farray[vtg->block];
-	
-	ATOMIC64_INC(&mme->nr_rx_entries);
-	ATOMIC64_INC(&mme->nr_refcnt_r);
-	ATOMIC64_ADD(&mme->nr_refcnt_bytes_r, valen);	
-
-	if(!(lqe->ul_flags & LQE_HAVE_IMSI)) {
-		ATOMIC64_INC(&mme->nr_rx_entries_noimsi);
-		ATOMIC64_INC(&vm->nr_rx_entries_without_imsi);
-		goto finish;
-	} else {
-		mme_try_fopen(mme, vtg, f);
-		if (!f->fp) {
-			ATOMIC64_INC(&mme->nr_refcnt_miss);
-			ATOMIC64_ADD(&mme->nr_refcnt_miss_bytes, valen);
-			goto finish;
-		} else {
-			/* write CDR to disk ASAP */
-			if (!write_lqe_data (f, (const char *)&lqe->value[0], valen)) {
-				ATOMIC64_INC(&mme->nr_refcnt);
-				ATOMIC64_ADD(&mme->nr_refcnt_bytes, valen);
-			} else {
-				ATOMIC64_INC(&mme->nr_refcnt_error);
-				ATOMIC64_ADD(&mme->nr_refcnt_error_bytes, valen);
-			}
-		}
-	}
-
-finish:
-	/* unlock MME */
-	//MME_UNLOCK(mme);
-	return;
-}
-
-static __oryx_always_inline__
-void do_classify_final(struct lq_element_t *lqe)
-{
-	write_lqe(lqe->mme, lqe);
-}
-
-static __oryx_always_inline__
-void do_dispatch(const char *value, size_t vlen)
-{
-	struct lq_element_t *lqe;
-	vlib_threadvar_t *tv;
-	vlib_mme_t *mme;
-	vlib_main_t *vm = &vlib_main;
-	struct oryx_lq_ctx_t *lq;
-
-	ATOMIC64_INC(&vm->nr_rx_entries);
-
-	if(!vm->nr_threads)
-		return;
-	
-	lqe = lqe_alloc();
-	if(!lqe) {
-		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
-	} else {
-		if(!baker_entry(value, vlen, lqe)) {
-			lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
-			calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
-			mme = lqe->mme;
-			tv  = mme->tv;
-			oryx_lq_enqueue(tv->lq, lqe);
-			ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
-		} else {
-			ATOMIC64_INC(&vm->nr_rx_entries_undispatched);			
-		}
-	}
-}
-
-static __oryx_always_inline__
-void do_classify(const char *value, size_t vlen)
-{
-	vlib_main_t *vm = &vlib_main;
-	struct lq_element_t *lqe,
-						lqe0 = {
-							.mme	= NULL,
-							.lp		= {NULL, NULL},
-							.vtg	= {0, 0},
-							.mme_ip = {0},
-							.value	= {0},
-							.valen	= 0,
-							.rawlen = 0,
-							.ul_flags = 0
-						};
-
-	lqe = &lqe0;
-
-	ATOMIC64_INC(&vm->nr_rx_entries);
-	
-	if(!baker_entry(value, vlen, lqe)) {
-		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
-		calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
-		do_classify_final(lqe);
-		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);
-	} else {
-		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);			
-	}
-}
 
 static
 void * dequeue_handler (void __oryx_unused_param__ *r)
@@ -762,7 +779,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 				/* drunk out all elements before thread quit */					
 				while (NULL != (lqe = oryx_lq_dequeue(lq))){
 					do_classify_final(lqe);
-					free((const void *)lqe);
+					free(lqe);
 				}
 				fprintf (stdout, " exited!\n");
 				break;
@@ -771,7 +788,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 			lqe = oryx_lq_dequeue(lq);
 			if (lqe != NULL) {
 				do_classify_final(lqe);
-				free((const void *)lqe);
+				free(lqe);
 			}
 		}
 
@@ -790,7 +807,7 @@ static struct oryx_task_t dequeue = {
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
-void classify_env_init(vlib_main_t *vm)
+void classify_initialization(vlib_main_t *vm)
 {
 	int i;
 	uint32_t	lq_cfg = 0;
@@ -820,14 +837,22 @@ void classify_env_init(vlib_main_t *vm)
 
 	load_dictionary(vm);
 
+#if 0
+	oryx_tmr_start(oryx_tmr_create (1,
+						"Classify Runtime TMR",
+						TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED,
+						classify_tmr_handler,
+						0,
+						NULL,
+						3000));
+#endif
 }
 
-void *classify_offline(const char *oldpath, vlib_fkey_t *fkey)
+int classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 {
 	FILE				*fp = NULL;
 	uint64_t			nr_local_lines = 0,
 						nr_local_size = 0,
-						tv_usec0 = 0,
 						tv_usec = 0;
 	size_t				llen = 0;
 	vlib_main_t			*vm = &vlib_main;
@@ -835,38 +860,36 @@ void *classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 						pps_str0[20],
 						pps_str1[20],
 						echo[1024] = {0},
-						file_size_buf[20] = {0},
-						newpath[256] = {0};	
+						file_size_buf[20] = {0};
 	struct timeval		start,
 						end;
+	int err;
 
 	fp = fopen(oldpath, "r");
 	if(!fp) {
-		fprintf (stdout, "Cannot open %s \n", oldpath);
-		return NULL;
+		fprintf (stdout, "fopen: %s \n", oryx_safe_strerror(errno));
+		return -1;
 	}
 
 	ATOMIC64_INC(&vm->nr_rx_files);
 
 	fprintf (stdout, "\nReading %s\n", oldpath);
-	
+
+	err = gettimeofday(&start, NULL);
+	if(err) {
+		fprintf(stdout, "gettimeofday: %s\n", oryx_safe_strerror(errno));
+	}
+
 	/* skip first lines, this line is a CSV header. */
 	if(!fgets(line, lqe_valen, fp)) {
 		fprintf(stdout, "Empty file\n");
 		fclose(fp);
-		return NULL;
+		goto finish;
 	}
-
-	gettimeofday(&start, NULL); 
 
 	/* A loop read the part of lines. */
 	FOREVER {
-
-		if(!running)
-			break;
-		
 		memset (line, 0, lqe_valen);
-
 		if(!fgets (line, lqe_valen, fp) || !running)
 			break;
 
@@ -878,7 +901,9 @@ void *classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 		do_classify(line, llen);
 	}
 	fclose(fp);
-	
+
+finish:	
+
 	gettimeofday(&end, NULL);	
 	tv_usec = tm_elapsed_us(&start, &end);
 	vm->nr_cost_usec += tv_usec;
@@ -895,99 +920,54 @@ void *classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 	fkey->nr_entries	= nr_local_lines;
 	fkey->nr_size		= nr_local_size;
 	fkey->tv_usec		= tv_usec;
-	
-	sprintf(newpath, "%s/%s", vm->savdir, strstr(oldpath, MME_CSV_PREFIX));
-	sprintf(echo, "echo `date`: %s \\(%lu entries, %s, cost %lu usec, %s/s\\) >> %s/classify_result.log",
-			newpath,
+
+	sprintf(echo, "echo %lu: %s \\(%lu entries, %s, cost %lu usec, %s/s\\) >> %s/classify_result.log",
+			time(NULL),
+			oldpath,
 			fkey->nr_entries,
 			oryx_fmt_program_counter(fkey->nr_size, file_size_buf, 0, 0),
 			fkey->tv_usec,
 			oryx_fmt_program_counter(fmt_pps(fkey->tv_usec, fkey->nr_entries), pps_str0, 0, 0),
 			classify_home);
-	fprintf(stdout, "%s\n", echo);
-	do_system(echo);
-
-	return NULL;
-
-}
-
-void *classify_offline_app(const char *oldpath)
-{
-	FILE				*fp = NULL;
-	uint64_t			nr_local_lines = 0,
-						nr_local_size = 0,
-						tv_usec0 = 0,
-						tv_usec = 0;
-	size_t				llen = 0;
-	vlib_main_t			*vm = &vlib_main;
-	char				line[lqe_valen]		= {0},
-						pps_str0[20],
-						pps_str1[20];
-	struct timeval		start,
-						end;
-
-	fp = fopen(oldpath, "r");
-	if(!fp) {
-		fprintf (stdout, "Cannot open %s \n", oldpath);
-		return NULL;
+	fprintf(stdout, "\n(*)done, %s\n", echo);
+	err = do_system(echo);
+	if(err) {
+		fprintf(stdout, "\necho: %s\n", oryx_safe_strerror(errno));
 	}
 
-	ATOMIC64_INC(&vm->nr_rx_files);
+	/* clean up all file handlers */
 
-	fprintf (stdout, "\nReading %s\n", oldpath);
-	
-	/* skip first lines, this line is a CSV header. */
-	if(!fgets(line, lqe_valen, fp)) {
-		fprintf(stdout, "Empty file\n");
-		fclose(fp);
-		return NULL;
+#if 0	
+#if defined(HAVE_SANTA_CPY2)
+	err = remove(oldpath);
+	if(err) {
+		fprintf(stdout, "\nrm %s\n", oldpath, oryx_safe_strerror(errno));
 	}
+#else
+	char	newpath[256] = {0},
+			move[256] = {0};
 
-	gettimeofday(&start, NULL); 
-
-	/* A loop read the part of lines. */
-	FOREVER {
-
-		if(!running)
-			break;
-		
-		memset (line, 0, lqe_valen);
-
-		if(!fgets (line, lqe_valen, fp) || !running)
-			break;
-
-		llen = strlen(line);		
-		nr_local_lines ++;
-		nr_local_size += llen;
-		
-		//do_dispatch(line, llen);
-		do_classify(line, llen);
+	sprintf(newpath, "%s/", vm->savdir);
+	sprintf(move, "mv %s %s", oldpath, newpath);
+	fprintf(stdout, "\n(*)done, %s\n", move);
+	err = do_system(move);
+	if(err) {
+		fprintf(stdout, "\nmv: %s\n", oryx_safe_strerror(errno));
 	}
-	fclose(fp);
-	
-	gettimeofday(&end, NULL);	
-	tv_usec = tm_elapsed_us(&start, &end);
-	vm->nr_cost_usec += tv_usec;
+#endif
+#else
+	char	newpath[256] = {0},
+			move[256] = {0};
 
-	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
-	
-	fprintf(stdout, "\nClassify Result\n");
-	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
-	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_lines, vm_nr_rx_entries, tv_usec);
-	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
-		oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_lines), pps_str0, 0, 0),
-		oryx_fmt_program_counter(fmt_pps(vm->nr_cost_usec, vm_nr_rx_entries), pps_str1, 0, 0));
-
-	const vlib_fkey_t fkey = {
-		.name = " ",
-		.ul_flags = 0,
-		.nr_size = nr_local_size,
-		.nr_entries = nr_local_lines,
-	};
-	fmgr_move(oldpath, &fkey);
-
-	return NULL;
-
+	sprintf(newpath, "%s/", vm->savdir);
+	sprintf(move, "mv %s %s", oldpath, newpath);
+	fprintf(stdout, "\n(*)done, %s\n", move);
+	err = do_system(move);
+	if(err) {
+		fprintf(stdout, "\nmv: %s\n", oryx_safe_strerror(errno));
+	}
+#endif
+	return 0;
 }
 
 static
@@ -1007,7 +987,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 				while (NULL != (fqe = oryx_lq_dequeue(fmgr_q))){
 					memset(inotify_file, 0, BUFSIZ);
 					sprintf(inotify_file, "%s", fqe->name);
-					const vlib_fkey_t fkey = {
+					vlib_fkey_t fkey = {
 						.name = " ",
 						.ul_flags = 0,
 						.nr_size = 0,
@@ -1031,7 +1011,7 @@ void * enqueue_handler (void __oryx_unused_param__ *r)
 
 			memset(inotify_file, 0, BUFSIZ);
 			sprintf(inotify_file, "%s", fqe->name);				
-			const vlib_fkey_t fkey = {
+			vlib_fkey_t fkey = {
 				.name = " ",
 				.ul_flags = 0,
 				.nr_size = 0,
@@ -1057,39 +1037,3 @@ struct oryx_task_t enqueue = {
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
-int classify_init (int nr_threads, int nr_threshold,
-			const char *dictionary,
-			const char *classdir,
-			const char *rawdir)
-
-{
-	vlib_main_t *vm = &vlib_main;
-	oryx_initialize();
-
-	fprintf(stdout, "Trying init classify module\n");
-	vm->nr_threads	= nr_threads;
-	vm->dictionary	= dictionary;
-	vm->classdir	= classdir;
-	vm->savdir		= rawdir;
-	vm->threshold	= nr_threshold;
-	vm->dispatch_mode		 = HASH;
-	vm->max_entries_per_file = 100000;
-	fprintf(stdout, "	nr_threads %d, nr_threshold %d, flush_entries %d, mme_dict %s, classdir %s, savdir %s\n",
-		vm->nr_threads, vm->threshold, 
-		vm->max_entries_per_file, vm->dictionary, vm->classdir, vm->savdir);
-
-	classify_env_init(vm);
-	//oryx_task_registry(&enqueue);
-	oryx_task_launch();
-	FOREVER {
-		sleep (3);
-		if (!running) {
-			/* wait for handlers of enqueue and dequeue finish. */
-			sleep (3);
-			classify_runtime();
-			break;
-		}
-	}
-	classify_terminal();
-	return 0;
-}

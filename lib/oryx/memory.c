@@ -136,40 +136,71 @@ void MEM_UninitMemory(void *mem_handle)
 	free(mem_handle);
 }
 
-void * oryx_shm_get(key_t key , int size)
+int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
 {	
-	void	*mem = NULL;
-	int		shm_id;
-
+	int		shmid;
+	void	*mem;
 	/* There is a shared memory with the KEY. */
-	shm_id = shmget(key, size, 0640); 	
-	if (shm_id != -1) {
-		/* map this share memory to current address space of current progress. */
-		mem = (void*)shmat(shm_id, NULL, 0);
-		if (mem != (void *)-1)
-			return mem;
+	shmid = shmget(key, size, 0640); 	
+	if (shmid == -1) {
+		fprintf(stdout, "shmget(%d): %s\n", key, oryx_safe_strerror(errno));
+	}
+	else {
+		/* attache this shared memory to current address space of current progress. */
+		mem = (void*)shmat(shmid, NULL, 0);
+		if (mem == (void *)-1) {
+			fprintf(stdout, "shmat0: %s\n", oryx_safe_strerror(errno));
+			return -1;
+		} else {
+			shm->shmid = shmid;
+			*(shm->addr) = mem;
+			return 0;
+		}
 	}
 
+	fprintf(stdout, "Create new partion.\n");
 	/* Create shared memory with the given KEY. */
-	shm_id = shmget(key, size, (0640|IPC_CREAT|IPC_EXCL)); 
-	if (shm_id == -1) {
-		oryx_panic(-1,
-			"shmget: %s", oryx_safe_strerror(errno));
+	shmid = shmget(key, size, (0640|IPC_CREAT|IPC_EXCL)); 
+	if (shmid == -1) {
+		fprintf(stdout, "shmget1: %s\n", oryx_safe_strerror(errno));
+		return -1;
 	} else {
-		mem =(void *)shmat(shm_id, NULL, 0);
-		if (mem != (void *)-1)
-			memset(mem , 0 , size);
+		mem = (void *)shmat(shmid, NULL, 0);
+		if (mem == (void *)-1) {
+			fprintf(stdout, "shmat1: %s\n", oryx_safe_strerror(errno));
+			return -1;
+		} else {
+			memset(shm->addr , 0 , size);
+			*(shm->addr) = mem;
+			shm->shmid = shmid;
+		}
 	}
-	return mem;
+	return 0;
 }
 
-int oryx_shm_destroy(void *mem)
+int oryx_shm_detach(vlib_shm_t *shm)
 {
-	if (shmdt(mem) == -1) {
+	/* detach shm memory from the calling process. */
+	if (shmdt(*shm->addr) == -1) {
 		oryx_loge(-1,
 			"shmdt: %s", oryx_safe_strerror(errno));
 		return -1;
 	}
+	return 0;
+}
+
+int oryx_shm_destroy(vlib_shm_t *shm)
+{
+	/* 
+	 * command "ipcs -m"	   : show current shm by users. */
+	/* command "ipcrm -m shmid": delete shared memroy forever. */
+	char ipcrm[256] = {0};
+
+	sprintf(ipcrm, "ipcrm -m %d", shm->shmid);
+	fprintf(stdout, "%s\n", ipcrm);
+	do_system(ipcrm);
+	
+	/* rm the shm memory forever */
 	return 0;
 }
 
