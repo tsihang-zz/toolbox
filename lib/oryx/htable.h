@@ -24,8 +24,8 @@ struct oryx_htable_t {
 	uint32_t			ul_flags;
 
 	os_mutex_t			*os_lock;
-	oryx_status_t		(*ht_lock_fn)(os_mutex_t *lock);
-	oryx_status_t		(*ht_unlock_fn)(os_mutex_t *lock);
+	int		(*ht_lock_fn)(os_mutex_t *lock);
+	int		(*ht_unlock_fn)(os_mutex_t *lock);
 
 	ht_key_t (*hash_fn)(struct oryx_htable_t *,
 						const ht_value_t,

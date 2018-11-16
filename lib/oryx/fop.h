@@ -40,13 +40,11 @@ ORYX_DECLARE(
 ORYX_DECLARE(
 	void oryx_register_sighandler(int signal, void (*handler)(int)));
 ORYX_DECLARE(
-	int oryx_pattern_generate (char *pattern, size_t l));
+	int oryx_pattern_generate (char *p, size_t l));
 ORYX_DECLARE(
-	void oryx_l4_port_generate (char *port_src, char *port_dst));
+	void oryx_l4_port_generate (char *sp, char *dp));
 ORYX_DECLARE(
 	void oryx_ipaddr_generate (char *ipv4));
-ORYX_DECLARE(
-	int isalldigit(const char *str));
 ORYX_DECLARE(
 	const char *draw_color(color_t color));
 ORYX_DECLARE(
@@ -56,17 +54,13 @@ ORYX_DECLARE(
 ORYX_DECLARE(
 	int do_system(const char *cmd));
 ORYX_DECLARE(
-	uint64_t tm_elapsed_us (struct  timeval *start, struct  timeval *end));
+	uint64_t oryx_elapsed_us (struct  timeval *start, struct  timeval *end));
 ORYX_DECLARE(
 	void fmt_time(uint64_t ts, const char *fmt, char *date, size_t len));
 ORYX_DECLARE(
 	void memcpy_tolower (u8 *d, u8 *s, u16 len));
 ORYX_DECLARE(
-	int path_is_absolute(const char *path));
-ORYX_DECLARE(
-	int path_is_relative(const char *path));
-ORYX_DECLARE(
-	int foreach_directory_file (char *dir_name,
+	int oryx_foreach_directory_file (char *dir_name,
 			int (*f) (void *arg, char * path_name,
 			char * file_name), void *arg,
 			int scan_dirs));

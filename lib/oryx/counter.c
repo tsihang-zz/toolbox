@@ -38,7 +38,7 @@ static counter_id register_qualified_counter (const char *name,
         return(temp->id);
 
     /* if we reach this point we don't have a counter registered by this name */
-    if ( (c = malloc(sizeof(struct counter_t))) == NULL)
+    if ((c = malloc(sizeof(struct counter_t))) == NULL)
 		oryx_panic(-1,
 			"malloc: %s", oryx_safe_strerror(errno));
 	

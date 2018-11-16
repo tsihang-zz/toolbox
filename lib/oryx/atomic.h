@@ -270,7 +270,7 @@ unsigned long __ffs(unsigned long word)
 	return num;
 }
 
-oryx_status_t oryx_atomic_initialize(void);
+int oryx_atomic_initialize(void);
 
 /**
  *  \brief wrapper for OS/compiler specific atomic compare and swap (CAS)

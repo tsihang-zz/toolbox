@@ -600,7 +600,7 @@ static void classify_tmr_handler (
 
 	gettimeofday(&end, NULL);
 	/* cost before last time. */
-	nr_cost_us = tm_elapsed_us(&start, &end);
+	nr_cost_us = oryx_elapsed_us(&start, &end);
 	gettimeofday(&start, NULL);
 
 	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
@@ -905,7 +905,7 @@ int classify_offline(const char *oldpath, vlib_fkey_t *fkey)
 finish:	
 
 	gettimeofday(&end, NULL);	
-	tv_usec = tm_elapsed_us(&start, &end);
+	tv_usec = oryx_elapsed_us(&start, &end);
 	vm->nr_cost_usec += tv_usec;
 
 	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);

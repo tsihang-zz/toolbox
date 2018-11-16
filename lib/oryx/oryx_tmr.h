@@ -3,7 +3,7 @@
 
 #include "tmr.h"
 
-ORYX_DECLARE(oryx_status_t oryx_tmr_initialize (void));
+ORYX_DECLARE(int oryx_tmr_initialize (void));
 ORYX_DECLARE(void oryx_tmr_start (struct oryx_timer_t *tmr));
 ORYX_DECLARE(void oryx_tmr_stop (struct oryx_timer_t *tmr));
 ORYX_DECLARE(struct oryx_timer_t *oryx_tmr_create (int module,

@@ -3,7 +3,7 @@
 #define PTHREAD_MUTEX_DEFAULT	NULL
 #define PTHREAD_COND_DEFAULT	NULL
 
-oryx_status_t oryx_thread_mutex_create(os_mutex_t **m)
+int oryx_thread_mutex_create(os_mutex_t **m)
 {
 	(*m) = NULL;
 
@@ -18,7 +18,7 @@ oryx_status_t oryx_thread_mutex_create(os_mutex_t **m)
 	return 0;
 }
 
-oryx_status_t oryx_thread_cond_create(os_cond_t **c)
+int oryx_thread_cond_create(os_cond_t **c)
 {
 	(*c) = NULL;
 
@@ -33,7 +33,7 @@ oryx_status_t oryx_thread_cond_create(os_cond_t **c)
 	return 0;
 }
 
-oryx_status_t oryx_thread_mutex_destroy(os_mutex_t *m) 
+int oryx_thread_mutex_destroy(os_mutex_t *m) 
 {	
 	int retval = thread_destroy_lock(m);
 	kfree (m);

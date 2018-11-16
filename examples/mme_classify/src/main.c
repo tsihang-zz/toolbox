@@ -178,6 +178,26 @@ static int get_prgname(pid_t pid, char *task_name) {
 	 }
 }
 
+
+static __oryx_always_inline__
+bool is_number(const char *value, size_t valen)
+{
+	char *p;
+
+	if(!valen) return false;
+	
+	for (p = (const char *)&value[0];
+				*p != '\0' && *p != '\n'; ++ p) {
+		if(*p != '+' && *p != '-' 
+					&& (*p < '0' || *p > '9')
+					&& (*p < 'A' || *p > 'F')
+					&& (*p < 'a' || *p > 'f'))
+			return false;
+	}
+	return true;
+}
+
+
 int main (
         int     __oryx_unused_param__   argc,
         char    __oryx_unused_param__   ** argv
@@ -189,6 +209,20 @@ int main (
 	char prgname[32] = {0};
 	const char *zombie = "./zombie.txt";
 
+	char *s;
+
+	s = "-9f";
+	fprintf(stdout, "%s is %s\n", s, is_number(s, strlen(s)) ? "number" : "not number");
+
+	time_t tv = time(NULL);
+	struct tm *utc = gmtime(&tv);
+	struct tm *cst = localtime(&tv);
+	fprintf(stdout, "%s\n", ctime(&tv));
+	fprintf(stdout, "CST %d-%d-%d %d-%d-%d\n", 1900 + cst->tm_year, cst->tm_mon + 1, cst->tm_mday,
+		cst->tm_hour, cst->tm_min, cst->tm_sec);
+	fprintf(stdout, "UTC %d-%d-%d %d-%d-%d\n", 1900 + utc->tm_year, utc->tm_mon + 1, utc->tm_mday,
+		utc->tm_hour, utc->tm_min, utc->tm_sec);
+	
 	oryx_initialize();
 	oryx_register_sighandler(SIGINT,	sigint_handler);
 	oryx_register_sighandler(SIGTERM,	sigint_handler);
@@ -260,7 +294,6 @@ int main (
 	}
 		
 	classify_terminal();
-
 	return 0;
 }
 

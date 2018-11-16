@@ -249,7 +249,7 @@ void oryx_tmr_destroy (struct oryx_timer_t *tmr)
     do_mutex_unlock(lock);
 }
 
-oryx_status_t oryx_tmr_initialize(void) 
+int oryx_tmr_initialize(void) 
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 

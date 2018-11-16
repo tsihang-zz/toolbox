@@ -198,13 +198,11 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 {
 	int			err,
 				n = 0;
-	struct stat buf;
 				//timeout_sec = *(int *)argv;
 	vlib_tm_grid_t *vtg = (vlib_tm_grid_t *)argv;	
 	vlib_fkey_t *key;	/* search hash table first */
 	char		*p,
 				stime[16] = {0};
-	uint64_t	start;				
 	
 	/* Not a CSV file */
 	if(!strstr(filename, ".csv")) {
@@ -213,17 +211,20 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 	if(!strstr(filename, "s1mmeSAMPLEMME")) {
 		return 0;
 	}
-	
+
+	/* We are going to wait for current TM grid out. */
+	uint64_t	start;				
 	p = strstr(filename, "_");
 	for(n = 0, p += 1; *p != '.'; ++ p)
 		stime[n ++] = *p;
 	sscanf(stime, "%lu", &start);
-	
 	if((int64_t)vtg->start <= (int64_t)start) {
 		fprintf(stdout, "#");
 		return 0;
 	}
-	
+
+#if 0
+	struct stat buf;
 	err = stat(pathname, &buf);
 	if(err) {
 		fprintf(stdout, "stat %s\n", oryx_safe_strerror(errno));
@@ -231,11 +232,11 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 	}
 	
 	/* file without any modifications in 60 seconds will be timeout and removed. */
-	if(time(NULL) < (buf.st_mtime + 3)) {
+	if(time(NULL) < (buf.st_mtime + 5)) {
 		fprintf(stdout, "@");
 		return 0;
 	}
-
+#endif
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
 	if (s) {
 		return 0;
@@ -419,11 +420,11 @@ static void * fmgr_handler0 (void __oryx_unused_param__ *r)
 	FOREVER {
 		calc_tm_grid(&vtg, vm->threshold, time(NULL));
 	
-		foreach_directory_file (inotify_home,
+		oryx_foreach_directory_file (inotify_home,
 					fmgr_inotify_timedout, (void *)&vtg, try_scan_dir);
 
 #if defined(HAVE_CLASSIFY_HOME)
-		foreach_directory_file (classify_home,
+		oryx_foreach_directory_file (classify_home,
 					fmgr_classify_timedout, (void *)&vtg, try_scan_dir);
 #endif
 
@@ -433,6 +434,7 @@ static void * fmgr_handler0 (void __oryx_unused_param__ *r)
 #endif
 		/* aging entries in table. */
 		sleep(1);
+		fprintf(stdout, ".");
 	}
 	
 	oryx_task_deregistry_id(pthread_self());

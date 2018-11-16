@@ -25,7 +25,7 @@ static void oryx_system(void)
  
 }
 
-oryx_status_t oryx_initialize(void) 
+int oryx_initialize(void) 
 {
 	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
 	struct timeval start, end;
@@ -58,7 +58,7 @@ oryx_status_t oryx_initialize(void)
 	gettimeofday(&end, NULL);
 
 	oryx_format(&fb, "oryx cost %lu, initialized success", 
-		tm_elapsed_us(&start, &end));
+		oryx_elapsed_us(&start, &end));
 
 	fprintf (stdout, "%s", fb.fmt_data);
 	oryx_system();

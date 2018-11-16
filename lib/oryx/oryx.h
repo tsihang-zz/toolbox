@@ -230,7 +230,6 @@ typedef float f32;
 typedef unsigned long long u64;
 typedef unsigned long uword;
 typedef void *			oryx_os_shm_t;         /**< native SHM */
-typedef oryx_int32_t	oryx_status_t;
 typedef pthread_t		oryx_os_thread_t;
 typedef void *			oryx_os_dso_handle_t;
 typedef uint32_t 			key32_t;
@@ -614,7 +613,7 @@ struct oryx_cfg_t *oryx_cfg_get(void) {
 #include "oryx_counters.h"
 #include "oryx_socket.h"
 
-extern oryx_status_t oryx_initialize(void);
+extern int oryx_initialize(void);
 
 #endif	/* ORYX_H */
 

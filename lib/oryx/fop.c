@@ -54,7 +54,7 @@ int oryx_path_exsit (const char *path)
 __oryx_always_extern__
 int oryx_path_remove (const char *path)
 {
-	oryx_status_t s = 0;
+	int s = 0;
 
 	ASSERT (path);
 	
@@ -71,7 +71,7 @@ int oryx_mkdir (const char *dir, oryx_dir_t **d)
 {
 
 	char cmd[256] = {0};
-	oryx_status_t s = 0;
+	int s = 0;
 
 	ASSERT (dir);
 	
@@ -95,7 +95,7 @@ int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode)
 {
 
 	char cmd[256] = {0};
-	oryx_status_t s = 0;
+	int s = 0;
 
 	ASSERT (file);
 	
@@ -122,7 +122,7 @@ __oryx_always_extern__
 int oryx_file_close (oryx_file_t *fp)
 {
 
-	oryx_status_t s = 0;
+	int s = 0;
 
 	ASSERT (fp);
 	
@@ -205,11 +205,18 @@ int oryx_pattern_generate (char *pattern, size_t l)
 __oryx_always_extern__
 void oryx_ipaddr_generate (char *ipv4)
 {
+	int		a = 0,
+			b = 0,
+			c = 0,
+			d = 0;
 	uint32_t rand = __os_rand;
-	int a = 0, b = 0, c = 0, d = 0;
-	char aa[4], bb[4], cc[4], dd[4];
+	char	aa[4],
+			bb[4],
+			cc[4],
+			dd[4],
+			maskp[4];
+	
 	uint8_t mask;
-	char maskp[4];
 	
 	a = next_rand_ (&rand) % 256;
 	b = next_rand_ (&rand) % 256;
@@ -236,11 +243,12 @@ void oryx_ipaddr_generate (char *ipv4)
 }
 
 __oryx_always_extern__
-void oryx_l4_port_generate (char *port_src, char *port_dst)
+void oryx_l4_port_generate (char *sp, char *dp)
 {
 	uint32_t rand = __os_rand;
 	uint16_t psrc, pdst;
-	char aa[5], bb[5];
+	char	aa[5],
+			bb[5];
 	
 	psrc = next_rand_ (&rand) % 65535;
 	pdst = next_rand_ (&rand) % 65535;
@@ -248,8 +256,8 @@ void oryx_l4_port_generate (char *port_src, char *port_dst)
 	___builtin_itoa (psrc, aa, 10);
 	___builtin_itoa (pdst, bb, 10);
 
-	strcpy (port_src, aa);
-	strcpy (port_dst, bb);
+	strcpy (sp, aa);
+	strcpy (dp, bb);
 }
 
 char * oryx_fmt_program_counter (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
@@ -314,22 +322,7 @@ void oryx_register_sighandler(int signal, void (*handler)(int))
 }
 
 __oryx_always_extern__
-int isalldigit(const char *str)
-{
-    int i;
-	
-    if (!str) return 0;
-
-	for (i = 0; i < (int)strlen(str); i++) {
-        if (!isdigit(str[i]))
-            return 0;
-    }
-	
-    return 1;
-}
-
-__oryx_always_extern__
-uint64_t tm_elapsed_us (struct  timeval *start, struct  timeval *end)
+uint64_t oryx_elapsed_us (struct  timeval *start, struct  timeval *end)
 {
 	return (1000000 * (end->tv_sec - start->tv_sec) + end->tv_usec - start->tv_usec);
 }
@@ -457,47 +450,9 @@ const char *draw_color(color_t color)
 	return colors[color % COLORS];
 }
 
-/**
- *  \brief Check if a path is absolute
- *
- *  \param path string with the path
- *
- *  \retval 1 absolute
- *  \retval 0 not absolute
- */
-int path_is_absolute(const char *path)
-{
-    if (strlen(path) > 1 && path[0] == '/') {
-        return 1;
-    }
-
-#if (defined OS_WIN32 || defined __CYGWIN__)
-    if (strlen(path) > 2) {
-        if (isalpha((unsigned char)path[0]) && path[1] == ':') {
-            return 1;
-        }
-    }
-#endif
-
-    return 0;
-}
-
-/**
- *  \brief Check if a path is relative
- *
- *  \param path string with the path
- *
- *  \retval 1 relative
- *  \retval 0 not relative
- */
-int path_is_relative(const char *path)
-{
-    return path_is_absolute(path) ? 0 : 1;
-}
-
 
 int
-foreach_directory_file (char *dir_name,
+oryx_foreach_directory_file (char *dir_name,
 			int (*f) (void *arg, char * path_name,
 			char * file_name), void *arg,
 			int scan_dirs)
