@@ -6,7 +6,12 @@
  * defined by the previous call to rte_openlog_stream().
  */
 static int
-___format(struct oryx_fmt_buff_t *fb, const char *format, va_list ap)
+___format
+(
+	IN struct oryx_fmt_buff_t *fb,
+	IN const char *format,
+	IN va_list ap
+)
 {
 	int ret;
 	ret = vsnprintf(fb->fmt_data + fb->fmt_doffs, 
@@ -15,7 +20,13 @@ ___format(struct oryx_fmt_buff_t *fb, const char *format, va_list ap)
 	return ret;
 }
 
-void oryx_format(struct oryx_fmt_buff_t *fb, const char *fmt, ...)
+void
+oryx_format
+(
+	IN struct oryx_fmt_buff_t *fb,
+	IN const char *fmt,
+	...
+)
 {
 	va_list ap;
 
@@ -46,7 +57,11 @@ void oryx_format(struct oryx_fmt_buff_t *fb, const char *fmt, ...)
 
 }
 
-void oryx_format_free(struct oryx_fmt_buff_t *fb)
+void
+oryx_format_free
+(
+	IN struct oryx_fmt_buff_t *fb
+)
 {
 	if(fb->fmt_data)
 		free(fb->fmt_data);
@@ -54,7 +69,11 @@ void oryx_format_free(struct oryx_fmt_buff_t *fb)
 	fb->fmt_buff_size = fb->fmt_doffs = 0;
 }
 
-void oryx_format_reset(struct oryx_fmt_buff_t *fb)
+void
+oryx_format_reset
+(
+	IN struct oryx_fmt_buff_t *fb
+)
 {
 	if(fb->fmt_data) {
 		memset (fb->fmt_data, 0, fb->fmt_doffs);

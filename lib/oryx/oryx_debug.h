@@ -1,9 +1,24 @@
-#ifndef ORYX_DEBUG_H
-#define ORYX_DEBUG_H
+#ifndef __ORYX_DEBUG_H__
+#define __ORYX_DEBUG_H__
 
 #include "debug.h"
 
-ORYX_DECLARE(void oryx_log_initialize(void));
+ORYX_DECLARE (
+	void oryx_logging_out (
+		IN const int log_level,
+		IN const char *file,
+		IN const unsigned int line,
+		IN const char *function,
+		IN const int error_code,
+		IN const char *message
+	)
+);
+
+ORYX_DECLARE (
+	void oryx_log_initialize (
+		void
+	)
+);
 
 /**
  * Change the stream that will be used by the logging system.
@@ -18,7 +33,11 @@ ORYX_DECLARE(void oryx_log_initialize(void));
  *   - 0 on success.
  *   - Negative on error.
  */
-ORYX_DECLARE(int oryx_openlog_stream(FILE *f));
+ORYX_DECLARE (
+	int oryx_openlog_stream (
+		IN FILE *f
+	)
+);
 
 /**
  * Set the global log level.
@@ -29,12 +48,20 @@ ORYX_DECLARE(int oryx_openlog_stream(FILE *f));
  * @param level
  *   Log level. A value between ORYX_LOG_EMERGENCY (1) and ORYX_LOG_DEBUG (8).
  */
-ORYX_DECLARE(void oryx_log_set_global_level(uint32_t level));
+ORYX_DECLARE (
+	void oryx_log_set_global_level (
+		IN uint32_t level
+	)
+);
 
 /**
  * Deprecated, replaced by oryx_log_set_global_level().
  */
-ORYX_DECLARE(void oryx_set_log_level(uint32_t level));
+ORYX_DECLARE (
+	void oryx_set_log_level (
+		IN uint32_t level
+	)
+);
 
 /**
  * Get the global log level.
@@ -42,12 +69,20 @@ ORYX_DECLARE(void oryx_set_log_level(uint32_t level));
  * @return
  *   The current global log level.
  */
-ORYX_DECLARE(uint32_t oryx_log_get_global_level(void));
+ORYX_DECLARE (
+	uint32_t oryx_log_get_global_level (
+		void
+	)
+);
 
 /**
  * Deprecated, replaced by oryx_log_get_global_level().
  */
-ORYX_DECLARE(uint32_t oryx_get_log_level(void));
+ORYX_DECLARE (
+	uint32_t oryx_get_log_level (
+		void
+	)
+);
 
 /**
  * Enable or disable the log type.
@@ -57,12 +92,21 @@ ORYX_DECLARE(uint32_t oryx_get_log_level(void));
  * @param enable
  *   True for enable; false for disable.
  */
-ORYX_DECLARE(void oryx_set_log_type(uint32_t type, int enable));
+ORYX_DECLARE (
+	void oryx_set_log_type(
+		IN uint32_t type,
+		IN int enable
+	)
+);
 
 /**
  * Get the global log type.
  */
-ORYX_DECLARE(uint32_t oryx_get_log_type(void));
+ORYX_DECLARE (
+	uint32_t oryx_get_log_type (
+		void
+	)
+);
 
 /**
  * Set the log level for a given type.
@@ -74,7 +118,12 @@ ORYX_DECLARE(uint32_t oryx_get_log_type(void));
  * @return
  *   0 on success, a negative value if level is invalid.
  */
-ORYX_DECLARE(int oryx_log_set_level_regexp(const char *pattern, uint32_t level));
+ORYX_DECLARE (
+	int oryx_log_set_level_regexp (
+		IN const char *pattern,
+		IN uint32_t level
+	)
+);
 
 /**
  * Set the log level for a given type.
@@ -86,9 +135,24 @@ ORYX_DECLARE(int oryx_log_set_level_regexp(const char *pattern, uint32_t level))
  * @return
  *   0 on success, a negative value if logtype or level is invalid.
  */
-ORYX_DECLARE(int oryx_log_set_level(uint32_t logtype, uint32_t level));
-ORYX_DECLARE(const char *loglevel_format(uint32_t level));
-ORYX_DECLARE(int loglevel_unformat(const char *level_str));
+ORYX_DECLARE (
+	int oryx_log_set_level (
+		IN uint32_t type,
+		IN uint32_t level
+	)
+);
+
+ORYX_DECLARE (
+	const char *loglevel_format (
+		IN uint32_t level
+	)
+);
+
+ORYX_DECLARE (
+	int loglevel_unformat (
+		IN const char *level_str
+	)
+);
 
 
 /**
@@ -103,7 +167,11 @@ ORYX_DECLARE(int loglevel_unformat(const char *level_str));
  * @return
  *   The loglevel of the message being processed.
  */
-ORYX_DECLARE(int oryx_log_cur_msg_loglevel(void));
+ORYX_DECLARE (
+	int oryx_log_cur_msg_loglevel (
+		void
+	)
+);
 
 /**
  * Get the current logtype for the message being processed.
@@ -117,7 +185,11 @@ ORYX_DECLARE(int oryx_log_cur_msg_loglevel(void));
  * @return
  *   The logtype of the message being processed.
  */
-ORYX_DECLARE(int oryx_log_cur_msg_logtype(void));
+ORYX_DECLARE (
+	int oryx_log_cur_msg_logtype (
+		void
+	)
+);
 
 /**
  * Register a dynamic log type
@@ -131,7 +203,11 @@ ORYX_DECLARE(int oryx_log_cur_msg_logtype(void));
  *   - >0: success, the returned value is the log type identifier.
  *   - (-ENONEM): cannot allocate memory.
  */
-ORYX_DECLARE(int oryx_log_register(const char *name));
+ORYX_DECLARE (
+	int oryx_log_register (
+		IN const char *name
+	)
+);
 
 /**
  * Dump log information.
@@ -141,7 +217,20 @@ ORYX_DECLARE(int oryx_log_register(const char *name));
  * @param f
  *   The output stream where the dump should be sent.
  */
-ORYX_DECLARE(void oryx_log_dump(FILE *f));
+ORYX_DECLARE (
+	void oryx_log_dump (
+		IN FILE *f
+	)
+);
+
+ORYX_DECLARE (
+	void oryx_panic (
+		IN int exit_code,
+		IN const char *format,
+		...
+	)
+);
+
 
 /**
  * Generates a log message.
@@ -166,7 +255,12 @@ ORYX_DECLARE(void oryx_log_dump(FILE *f));
  *   - 0: Success.
  *   - Negative on error.
  */
-int oryx_log(uint32_t level, uint32_t logtype, const char *format, ...)
+int oryx_log (
+	IN uint32_t level,
+	IN uint32_t logtype,
+	IN const char *format,
+	...
+)
 #ifdef __GNUC__
 #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
 	__attribute__((cold))
@@ -200,7 +294,12 @@ int oryx_log(uint32_t level, uint32_t logtype, const char *format, ...)
  *   - 0: Success.
  *   - Negative on error.
  */
-int oryx_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
+int oryx_vlog (
+	IN uint32_t level,
+	IN uint32_t logtype,
+	IN const char *format,
+	IN va_list ap
+)
 	__attribute__((format(printf,3,0)));
 
 /**
@@ -443,9 +542,5 @@ extern uint32_t oryx_log_global_log_level;
 
 
 #endif
-ORYX_DECLARE(void oryx_panic(int exit_code, const char *format, ...));
-ORYX_DECLARE(const char *oryx_safe_strerror(int en));
-
-
 
 #endif

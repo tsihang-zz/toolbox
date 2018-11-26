@@ -187,7 +187,7 @@ static void dp_register_perf_counters(decode_threadvar_ctx_t *dtv, threadvar_ctx
 	}
 
 	oryx_counter_get_array_range(1, 
-		atomic_read(&tv->perf_private_ctx0.curr_id), &tv->perf_private_ctx0);
+		atomic_read(tv->perf_private_ctx0.curr_id), &tv->perf_private_ctx0);
 
     return;
 }
@@ -248,7 +248,7 @@ void dp_start(vlib_main_t *vm)
 		dtv = &g_dtv[i];
 		sprintf (thrgp_name, "dp[%u] hd-thread", i);
 		tv->thread_group_name = strdup(thrgp_name);
-		SC_ATOMIC_INIT(tv->flags);
+		atomic_init(tv->flags);
 		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 		dp_register_perf_counters(dtv, tv);
 	}

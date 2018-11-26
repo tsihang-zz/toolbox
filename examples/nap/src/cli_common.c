@@ -333,7 +333,7 @@ DEFUN(show_dp_stats,
 	oryx_format_free(&fb);
 
 	gettimeofday(&end, NULL);
-	vty_out(vty, ", cost %lu us%s", tm_elapsed_us(&start, &end), VTY_NEWLINE);
+	vty_out(vty, ", cost %lu us%s", oryx_elapsed_us(&start, &end), VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }

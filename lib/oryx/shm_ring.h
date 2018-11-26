@@ -20,8 +20,8 @@ struct oryx_shmring_t {
 	volatile uint64_t	wp,
 						rp;
 	
-	uint64_t			nr_times_r,
-						nr_times_w,
+	uint64_t			nr_times_rd,
+						nr_times_wr,
 						nr_times_f;	/* full times */
 
 	vlib_shmring_data_t buffer[NR_SHMRING_ELEMENTS];
@@ -32,7 +32,12 @@ struct oryx_shmring_t {
 #define	shmring_element_next(r,rw)	(((rw) + 1) % (r)->max_elements)
 
 static __oryx_always_inline__
-int oryx_shmring_get(struct oryx_shmring_t *shmring, void **value, size_t *valen)
+int oryx_shmring_get
+(
+	IN struct oryx_shmring_t *shmring,
+	OUT void **value,
+	OUT size_t *valen
+)
 {
 	uint32_t	rp,
 				wp;
@@ -60,7 +65,7 @@ int oryx_shmring_get(struct oryx_shmring_t *shmring, void **value, size_t *valen
 	(*valen) = b->valen;
 	
 	shmring->rp	= shmring_element_next(shmring, shmring->rp);
-	shmring->nr_times_r ++;
+	shmring->nr_times_rd ++;
 
 	//RLOCK_UNLOCK(shmring);
 
@@ -68,7 +73,12 @@ int oryx_shmring_get(struct oryx_shmring_t *shmring, void **value, size_t *valen
 }
 
 static __oryx_always_inline__
-int oryx_shmring_put(struct oryx_shmring_t *shmring, void *value, size_t valen)
+int oryx_shmring_put
+(
+	IN struct oryx_shmring_t *shmring,
+	IN void *value,
+	IN size_t valen
+)
 {
 	uint32_t	rp,
 				wp;
@@ -98,7 +108,7 @@ int oryx_shmring_put(struct oryx_shmring_t *shmring, void *value, size_t valen)
 	memcpy(b->value, value, b->valen);
 	
 	shmring->wp	= shmring_element_next(shmring, wp);
-	shmring->nr_times_w ++;
+	shmring->nr_times_wr ++;
 
 	//RLOCK_UNLOCK(shmring);
 	

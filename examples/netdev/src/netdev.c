@@ -143,7 +143,7 @@ void *netdev_cap(void *argv)
 	int64_t rank_acc;
 	struct netdev_t *netdev = (struct netdev_t *)argv;
 	
-	atomic64_set(&netdev->rank, 0);
+	atomic_set(netdev->rank, 0);
 
 	netdev_open(netdev);
 	
@@ -157,7 +157,7 @@ void *netdev_cap(void *argv)
 			(u_char *)netdev);
 
 		if (rank_acc >= 0) {
-			atomic64_add (&netdev->rank, rank_acc);
+			atomic_add (netdev->rank, rank_acc);
 		} else {
 			pcap_close (netdev->handler);
 			netdev->handler = NULL;

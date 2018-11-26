@@ -1,11 +1,12 @@
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
-extern atomic64_t mem_access_times;
 
 /** memory flags */
 #define MPF_NOFLGS  (0)
 #define MPF_CLR     (1 << 0)      /** Clear it after allocated */
+
+atomic_extern(uint64_t, mem_access_times);
 
 static __oryx_always_inline__
 void *kmalloc(int s, 
@@ -17,7 +18,7 @@ void *kmalloc(int s,
     if (likely((p = malloc(s)) != NULL)){
         if(flags & MPF_CLR)
             memset(p, 0, s);
-        atomic64_inc(&mem_access_times);
+        atomic_inc(mem_access_times);
     }
 
     return p;
@@ -40,7 +41,7 @@ void *krealloc(void *sp,  int s,
     if (likely((p = realloc(sp, s)) != NULL)) {
         if(flags & MPF_CLR)
             memset(p, 0, s);
-        atomic64_inc(&mem_access_times);
+        atomic_inc(mem_access_times);
     }
 
     return p;
@@ -52,7 +53,7 @@ void kfree(void *p)
 
     if(likely(p)){
         free(p);
-        atomic64_dec(&mem_access_times);
+        atomic_dec(mem_access_times);
     }
 
     p = NULL;
@@ -60,7 +61,7 @@ void kfree(void *p)
 
 typedef struct vlib_shm_t {
 	int		shmid;
-	void	**addr;
+	void	*addr;
 } vlib_shm_t;
 
 ORYX_DECLARE(

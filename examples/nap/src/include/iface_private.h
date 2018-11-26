@@ -74,7 +74,7 @@ struct iface_t {
 		uint32_t link_pad0    : 7;
 		uint32_t mtu       		: 16;	/**< MTU */
 
-	struct CounterCtx 		*perf_private_ctx;
+	struct oryx_counter_ctx_t 		*perf_private_ctx;
 	struct iface_counter_ctx *if_counter_ctx;
 
 	uint32_t			ul_map_mask;		/** map for this iface belong to. */

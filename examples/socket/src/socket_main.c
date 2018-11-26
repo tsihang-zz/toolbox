@@ -10,7 +10,7 @@ static int server_handler (void *instance,
 		/* Wait for data from client */
 		nb_rx_length = read(s->sock, s->rx_buf, 64);
 		if (nb_rx_length == -1) {
-			perror("read()");
+			fprintf(stdout, "read: %s\n", oryx_safe_strerror(errno));
 			close(s->sock);
 			return -1;
 		}
@@ -18,7 +18,7 @@ static int server_handler (void *instance,
 		/* Send response to client */
 		nb_tx_length = write(s->sock, s->rx_buf, nb_rx_length);
 		if (nb_tx_length == -1) {
-			perror("write()");
+			fprintf(stdout, "write: %s\n", oryx_safe_strerror(errno));
 			close(s->sock);
 			return -1;
 		}
@@ -53,7 +53,7 @@ static int client_handler (void *instance,
 			CLIENT_RESET(c);
 			continue;
 		}
-		printf("rx_from_server -> %s\n", c->rx_buf);
+		fprintf(stdout, "rx_from_server -> %s\n", c->rx_buf);
 		sleep(1);
 	}
 
@@ -82,20 +82,20 @@ void * server_thread (void *r)
 	struct sockaddr_in6 sa, ca;
 	socklen_t ca_length;
 	char str_addr[INET6_ADDRSTRLEN];
-	int ret, flag;
+	int err, flag;
  
 	/* Create socket for listening (client requests) */
 	s->listen_sock = socket(s->family, SOCK_STREAM, IPPROTO_TCP);
 	if(s->listen_sock == -1) {
-		perror("socket()");
+		fprintf(stdout, "socket: %s\n", oryx_safe_strerror(errno));
 		goto finish;
 	}
  
 	/* Set socket to reuse address */
 	flag = 1;
-	ret = setsockopt(s->listen_sock, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-	if(ret == -1) {
-		perror("setsockopt()");
+	err = setsockopt(s->listen_sock, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+	if(err) {
+		fprintf(stdout, "setsockopt: %s\n", oryx_safe_strerror(errno));
 		goto finish;
 	}
 
@@ -104,17 +104,17 @@ void * server_thread (void *r)
 	sa.sin6_port	= htons(s->listen_port);
  
 	/* Bind address and socket together */
-	ret = bind(s->listen_sock, (struct sockaddr*)&sa, sizeof(sa));
-	if(ret == -1) {
-		perror("bind()");
+	err = bind(s->listen_sock, (struct sockaddr*)&sa, sizeof(sa));
+	if(err) {
+		fprintf(stdout, "bing: %s\n", oryx_safe_strerror(errno));
 		close(s->listen_sock);
 		goto finish;
 	}
  
 	/* Create listening queue (client requests) */
-	ret = listen(s->listen_sock, 10);
-	if (ret == -1) {
-		perror("listen()");
+	err = listen(s->listen_sock, 10);
+	if(err) {
+		fprintf(stdout, "listen: %s\n", oryx_safe_strerror(errno));
 		close(s->listen_sock);
 		goto finish;
 	}
@@ -127,13 +127,13 @@ void * server_thread (void *r)
 				(struct sockaddr*)&ca,
 				&ca_length);
 		if (s->sock == -1) {
-			perror("accept()");
+			fprintf(stdout, "accept: %s\n", oryx_safe_strerror(errno));
 			continue;
 		}
  
 		inet_ntop(s->family, &ca.sin6_addr,
 				str_addr, sizeof(str_addr));
-		printf("New connection from: %s:%d ...\n",
+		fprintf(stdout, "New connection from: %s:%d ...\n",
 				str_addr,
 				ntohs(ca.sin6_port));
  
@@ -154,7 +154,7 @@ finish:
 static __oryx_always_inline__
 void * client_thread (void *r)
 {
-	int ret;
+	int err;
 	struct sockaddr_in6 sa;
 	struct oryx_client_t *c = (struct oryx_client_t *)r;
  
@@ -163,7 +163,7 @@ void * client_thread (void *r)
 						c->family,
 						SOCK_STREAM,
 						IPPROTO_TCP)) == -1) {
-		perror("socket()");
+		fprintf(stdout, "socket: %s\n", oryx_safe_strerror(errno));
 		goto finish;
 	}
  
@@ -173,14 +173,14 @@ void * client_thread (void *r)
 	inet_pton(c->family, c->connect_addr, &sa.sin6_addr);
 
 	do {
-		ret = connect(c->sock, (struct sockaddr*)&sa, sizeof(sa));
+		err = connect(c->sock, (struct sockaddr*)&sa, sizeof(sa));
 		/* Try to do TCP handshake with server */
-		if (ret == -1) {
+		if (err) {
 			sleep(1);
 		} else {
 			c->ul_flags |= TO_SERVER_CONNECTED;
 		}
-	} while(ret == -1);
+	} while(err);
 
 	FOREVER {
 		if (c->ul_flags & TO_SERVER_CONNECTED) {
@@ -188,14 +188,14 @@ void * client_thread (void *r)
 				c->handler(c, NULL);
 		} else {
 			do {
-				ret = connect(c->sock, (struct sockaddr*)&sa, sizeof(sa));
+				err = connect(c->sock, (struct sockaddr*)&sa, sizeof(sa));
 				/* Try to do TCP handshake with server */
-				if (ret == -1) {
+				if (err) {
 					sleep(1);
 				} else {
 					c->ul_flags |= TO_SERVER_CONNECTED;
 				}
-			} while(ret == -1);
+			} while(err);
 		}
 	}
 
@@ -216,7 +216,7 @@ static struct oryx_task_t client_task =
 	.module		= THIS,
 	.sc_alias	= "Client handler Task",
 	.fn_handler	= client_thread,
-	.ul_lcore	= INVALID_CORE,
+	.lcore_mask	= INVALID_CORE,
 	.ul_prio	= KERNEL_SCHED,
 	.argc		= 1,
 	.argv		= &client,
@@ -229,7 +229,7 @@ static struct oryx_task_t server_task =
 	.module		= THIS,
 	.sc_alias	= "Server handler Task",
 	.fn_handler	= server_thread,
-	.ul_lcore	= INVALID_CORE,
+	.lcore_mask	= INVALID_CORE,
 	.ul_prio	= KERNEL_SCHED,
 	.argc		= 1,
 	.argv		= &server,
@@ -242,12 +242,8 @@ int main (
 )
 {
 	oryx_initialize();
-
-
-	oryx_task_registry(&server_task);
-	
+	oryx_task_registry(&server_task);	
 	oryx_task_registry(&client_task);
-
 	oryx_task_launch();
 
 	FOREVER;

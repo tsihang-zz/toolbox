@@ -26,7 +26,7 @@ vlib_iface_main_t vlib_iface_main = {
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, iface_alias(v), v->ul_id, VTY_NEWLINE)
 
-atomic_t nb_ifaces = ATOMIC_INIT(0);
+atomic_decl_and_init(uint32_t, nb_ifaces);
 
 static
 void ht_iface_free (const ht_value_t v)
@@ -229,7 +229,7 @@ void iface_entry_config (struct iface_t *iface,
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-		atomic_read(&nb_ifaces), (int)vec_count(pm->entry_vec), VTY_NEWLINE);
+		atomic_read(nb_ifaces), (int)vec_count(pm->entry_vec), VTY_NEWLINE);
 
 DEFUN(show_interfacce,
       show_interface_cmd,

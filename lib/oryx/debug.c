@@ -84,7 +84,10 @@ struct log_cur_msg {
 
 /* Change the stream that will be used by logging system */
 int
-oryx_openlog_stream(FILE *f)
+oryx_openlog_stream
+(
+	IN FILE *f
+)
 {
 	oryx_logs.file = f;
 	return 0;
@@ -92,7 +95,10 @@ oryx_openlog_stream(FILE *f)
 
 /* Set global log level */
 void
-oryx_log_set_global_level(uint32_t level)
+oryx_log_set_global_level
+(
+	IN uint32_t level
+)
 {
 	oryx_logs.level = (uint32_t)level;
 }
@@ -100,7 +106,10 @@ oryx_log_set_global_level(uint32_t level)
 /* Set global log level */
 /* replaced by oryx_log_set_global_level */
 void
-oryx_set_log_level(uint32_t level)
+oryx_set_log_level
+(
+	IN uint32_t level
+)
 {
 	oryx_log_set_global_level(level);
 }
@@ -122,7 +131,11 @@ oryx_get_log_level(void)
 
 /* Set global log type */
 void
-oryx_set_log_type(uint32_t type, int enable)
+oryx_set_log_type
+(
+	IN uint32_t type,
+	IN int enable
+)
 {
 	if (type < ORYX_LOGTYPE_FIRST_EXT_ID) {
 		if (enable)
@@ -145,7 +158,11 @@ oryx_get_log_type(void)
 }
 
 int
-oryx_log_set_level(uint32_t type, uint32_t level)
+oryx_log_set_level
+(
+	IN uint32_t type,
+	IN uint32_t level
+)
 {
 	if (type >= oryx_logs.dynamic_types_len)
 		return -1;
@@ -159,7 +176,11 @@ oryx_log_set_level(uint32_t type, uint32_t level)
 
 /* set level */
 int
-oryx_log_set_level_regexp(const char *pattern, uint32_t level)
+oryx_log_set_level_regexp
+(
+	IN const char *pattern,
+	IN uint32_t level
+)
 {
 	regex_t r;
 	size_t i;
@@ -182,7 +203,10 @@ oryx_log_set_level_regexp(const char *pattern, uint32_t level)
 }
 
 static int
-oryx_log_lookup(const char *name)
+oryx_log_lookup
+(
+	IN const char *name
+)
 {
 	size_t i;
 
@@ -200,7 +224,11 @@ oryx_log_lookup(const char *name)
  * is not yet registered.
  */
 static int
-__oryx_log_register(const char *name, int id)
+__oryx_log_register
+(
+	IN const char *name,
+	IN int id
+)
 {
 	char *dup_name = strdup(name);
 
@@ -215,7 +243,10 @@ __oryx_log_register(const char *name, int id)
 
 /* register an extended log type */
 int
-oryx_log_register(const char *name)
+oryx_log_register
+(
+	IN const char *name
+)
 {
 	struct oryx_log_dynamic_type *new_dynamic_types;
 	int id, ret;
@@ -304,24 +335,30 @@ oryx_log_initialize(void)
 }
 
 const char *
-loglevel_format(uint32_t level)
+loglevel_format
+(
+	IN uint32_t level
+)
 {
 	switch (level) {
-	case 0: return "disabled";
-	case ORYX_LOG_EMERGENCY: return "emerg";
-	case ORYX_LOG_ALERT: return "alert";
-	case ORYX_LOG_CRITICAL: return "critical";
-	case ORYX_LOG_ERROR: return "error";
-	case ORYX_LOG_WARNING: return "warning";
-	case ORYX_LOG_NOTICE: return "notice";
-	case ORYX_LOG_INFO: return "info";
-	case ORYX_LOG_DEBUG: return "debug";
-	default: return "unknown";
+		case 0					: return "disabled";
+		case ORYX_LOG_EMERGENCY	: return "emerg";
+		case ORYX_LOG_ALERT		: return "alert";
+		case ORYX_LOG_CRITICAL	: return "critical";
+		case ORYX_LOG_ERROR		: return "error";
+		case ORYX_LOG_WARNING	: return "warning";
+		case ORYX_LOG_NOTICE	: return "notice";
+		case ORYX_LOG_INFO		: return "info";
+		case ORYX_LOG_DEBUG		: return "debug";
+		default					: return "unknown";
 	}
 }
 
 int
-loglevel_unformat(const char *level_str)
+loglevel_unformat
+(
+	IN const char *level_str
+)
 {
 	if (!strcmp(level_str, "debug"))
 		return ORYX_LOG_DEBUG;
@@ -346,7 +383,10 @@ loglevel_unformat(const char *level_str)
 
 /* dump global level and registered log types */
 void
-oryx_log_dump(FILE *f)
+oryx_log_dump
+(
+	IN FILE *f
+)
 {
 	size_t i;
 	struct oryx_log_dynamic_type *dt;
@@ -369,7 +409,13 @@ oryx_log_dump(FILE *f)
  * defined by the previous call to oryx_openlog_stream().
  */
 int
-oryx_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
+oryx_vlog
+(
+	IN uint32_t level,
+	IN uint32_t logtype,
+	IN const char *format,
+	IN va_list ap
+)
 {
 	int ret;
 	FILE *f = oryx_logs.file;
@@ -405,7 +451,13 @@ oryx_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
  * No need to check level here, done by oryx_vlog().
  */
 int
-oryx_log(uint32_t level, uint32_t logtype, const char *format, ...)
+oryx_log
+(
+	IN uint32_t level,
+	IN uint32_t logtype,
+	IN const char *format,
+	...
+)
 {
 	va_list ap;
 	int ret;
@@ -434,7 +486,11 @@ oryx_log_set_default(FILE *default_log)
  * \param msg Pointer to the character string that should be logged
  */
 static __oryx_always_inline__
-void oryx_log2_stream(FILE *fd, char *msg)
+void oryx_log2_stream
+(
+	IN FILE *fd,
+	IN char *msg
+)
 {
     /* Would only happen if the log file failed to re-open during rotation. */
     if (fd == NULL) {
@@ -450,7 +506,10 @@ void oryx_log2_stream(FILE *fd, char *msg)
 }
 
 static const
-char *errno2_string(int __oryx_unused_param__ err)
+char *errno2_string
+(
+	IN int __oryx_unused_param__ err
+)
 {
 	return str(err);
 }
@@ -466,13 +525,20 @@ char *errno2_string(int __oryx_unused_param__ err)
  *
  * \retval 0 on success; else an error code
  */
-static int oryx_log2_buffer(
-        struct timeval *tval, int color, oryx_logopt_type __oryx_unused_param__ type,
-                     char *buffer, size_t __oryx_unused_param__ buffer_size,
-                     const char *log_format,
-                     const uint32_t log_level, const char *file,
-                     const unsigned int line, const char *function,
-                     const int error_code, const char *message)
+static int oryx_log2_buffer
+(
+	IN struct timeval *tval, int color,
+	IN oryx_logopt_type __oryx_unused_param__ type,
+	OUT char *buffer,
+	IN size_t __oryx_unused_param__ buffer_size,
+	IN const char *log_format,
+	IN const uint32_t log_level,
+	IN const char *file,
+	IN const unsigned int line,
+	IN const char *function,
+	IN const int error_code,
+	IN const char *message
+)
 {
 #ifdef HAVE_LIBJANSSON
     if (type == SC_LOG_OP_TYPE_JSON)
@@ -517,8 +583,7 @@ static int oryx_log2_buffer(
                 temp_fmt[0] = '\0';
 
                 struct tm local_tm;
-                tms = oryx_localtime(tval->tv_sec, &local_tm);
-
+				tms = localtime_r(&tval->tv_sec, &local_tm);
                 cw = snprintf(temp, ORYX_LOG_MAX_LOG_MSG_LEN - (temp - buffer),
                               "%s%s%d/%d/%04d -- %02d:%02d:%02d%s",
                               substr, green, tms->tm_mday, tms->tm_mon + 1,
@@ -698,9 +763,15 @@ static int oryx_log2_buffer(
     return 0;
 }
 					 
-void oryx_logging_out(const int log_level, const char *file,
-                     const unsigned int line, const char *function,
-                     const int error_code, const char *message)
+void oryx_logging_out
+(
+	IN const int log_level,
+	IN const char *file,
+	IN const unsigned int line,
+	IN const char *function,
+	IN const int error_code,
+	IN const char *message
+)
 {
 	char buffer[ORYX_LOG_MAX_LOG_MSG_LEN] = "";
     /* get ts here so we log the same ts to each output */
@@ -758,7 +829,12 @@ oryx_dump_registers(void)
  * provided and no core-dump is generated.
  */
 void
-oryx_panic(int exit_code, const char *format, ...)
+oryx_panic
+(
+	IN int exit_code,
+	IN const char *format,
+	...
+)
 {
 	va_list ap;
 	FILE *f = stderr;
@@ -775,12 +851,5 @@ oryx_panic(int exit_code, const char *format, ...)
 	oryx_dump_stack();
 	oryx_dump_registers();
 	abort();
-}
-
-const char *
-oryx_safe_strerror(int en)
-{
-  const char *s = strerror(en);
-  return (s != NULL) ? s : "Unknown error";
 }
 

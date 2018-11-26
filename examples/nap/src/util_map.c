@@ -108,7 +108,7 @@ int map_entry_new (struct map_t **map,
 	(*map)->port_list_str[QUA_TX] = strdup(to);
 	/** Need Map's ul_id, so have to remove map_ports to map_table_entry_add. */
 
-	oryx_thread_mutex_create(&(*map)->ol_lock);
+	oryx_tm_create(&(*map)->ol_lock);
 
 	return 0;
 }

@@ -23,7 +23,7 @@ struct netdev_t {
                                    const u_char *bytes);
 
 	void *private;
-	atomic64_t         rank;
+	atomic_declare(uint64_t, rank);
 
 	uint32_t ul_flags;
 };

@@ -8,7 +8,7 @@
 #include "cli_udp.h"
 
 #if 0
-atomic_t n_udp_elements = ATOMIC_INIT(0);
+atomic_decl_and_init(uint32_t, n_udp_elements);
 oryx_vector udp_vector_table;
 
 #define UDP_LOCK
@@ -452,7 +452,7 @@ int udp_entry_new (struct udp_t **udp, char *alias)
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-			atomic_read(&n_udp_elements), (int)vec_count(udp_vector_table), VTY_NEWLINE);
+			atomic_read(n_udp_elements), (int)vec_count(udp_vector_table), VTY_NEWLINE);
 
 DEFUN(show_udp,
       show_udp_cmd,
@@ -765,7 +765,7 @@ static void * thread_fn (void *a)
 	                               (uint8_t *)buf, pl);
 		gettimeofday(&end,NULL);
 
-		t = tm_elapsed_us(&start, &end);
+		t = oryx_elapsed_us(&start, &end);
 
 		total_cost += t;
 		matched_size += pl;
@@ -930,7 +930,7 @@ DEFUN(test_udp,
 	                               (uint8_t *)buf, pl);
 		gettimeofday(&end,NULL);
 
-		t = tm_elapsed_us (&start, &end);
+		t = oryx_elapsed_us (&start, &end);
 
 		total_cost += t;
 		matched_size += pl;

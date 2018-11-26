@@ -1,5 +1,5 @@
-#ifndef RING_H
-#define RING_H
+#ifndef LOCKLESS_RING_H
+#define LOCKLESS_RING_H
 
 #define RLOCK_INIT(r)\
 		do_mutex_init(&(r)->m)
@@ -16,11 +16,8 @@
 #define RLOCK_UNLOCK(r)\
 		do_mutex_unlock(&(r)->m)
 
-
-#define DEFAULT_RING_ELEMENTS	(1 << 1024)
-
 struct oryx_ring_data_t {
-	uint32_t	pad0: 16;
+	uint32_t	s0: 16;
 	uint32_t	s: 16;
 	void	*v;
 };
@@ -30,73 +27,96 @@ struct oryx_ring_t {
 	int					max_elements;
 	key_t					key;			/* for different progress. */
 
-	volatile uint64_t			wp,
-								rp;
+	atomic_declare(uint64_t, wp);
+	atomic_declare(uint64_t, rp);
+	
 	struct oryx_ring_data_t		*data;
 
 	uint32_t			ul_flags;
-	uint64_t			nr_times_r,
-						nr_times_w,
+	uint64_t			nr_times_rd,
+						nr_times_wr,
 						nr_times_f;	/* full times */
 
-	os_mutex_t			m;
+	os_mutex_t			m;			/* lockless .*/
 };
 #define	ring_element_next(r,rw)	(((rw) + 1) % (r)->max_elements)
 
 static __oryx_always_inline__
-int oryx_ring_get(struct oryx_ring_t *ring, void **data, uint16_t *data_size)
+int oryx_ring_get
+(
+	IN struct oryx_ring_t *ring,
+	OUT void **value,
+	OUT uint16_t *valen
+)
 {
-	uint32_t	rp = 0;
+	uint64_t	rp = 0,
+				wp = 0;
 	
 #if defined(BUILD_DEBUG)
 	BUG_ON(ring == NULL);
 #endif
 
-	(*data)			= NULL;
-	(*data_size)	= 0;
+	(*value)	= NULL;
+	(*valen)	= 0;
 
-	RLOCK_LOCK(ring);
+	//RLOCK_LOCK(ring);
 
-	rp = ring->rp;
-	if(rp == ring->wp) {
-		RLOCK_UNLOCK(ring);
+	rp = atomic_add(ring->rp, 0);
+	wp = atomic_add(ring->wp, 0);
+	if(rp == wp) {
+		//RLOCK_UNLOCK(ring);
 		return -1;
 	}
 
-	(*data)			= ring->data[rp].v;
-	(*data_size)	= ring->data[rp].s;
-	ring->rp		= ring_element_next(ring, ring->rp);
-	ring->nr_times_r ++;
+	/* load and hold the data pointer from ring. 
+	 * zero-copy. */
+	(*value)	= ring->data[rp].v;
+	(*valen)	= ring->data[rp].s;
+	//ring->rp	= ring_element_next(ring, ring->rp);
+	atomic_set(ring->rp, ring_element_next(ring, rp));
+	ring->nr_times_rd ++;
 
-	RLOCK_UNLOCK(ring);
+	//RLOCK_UNLOCK(ring);
 
 	return 0;
 }
 
 static __oryx_always_inline__
-int oryx_ring_put(struct oryx_ring_t *ring, void *data, uint16_t data_size)
+int oryx_ring_put
+(
+	IN struct oryx_ring_t *ring,
+	IN void *value,
+	IN uint16_t valen
+)
 {
-	uint32_t	wp = 0;
+	uint64_t	rp = 0,
+				wp = 0;
+
 	
 #if defined(BUILD_DEBUG)
 	BUG_ON(ring == NULL);
 #endif
 
-	RLOCK_LOCK(ring);
+	//RLOCK_LOCK(ring);
 
-	wp = ring->wp;
-	if(ring_element_next(ring, wp) == ring->rp) {
-		RLOCK_UNLOCK(ring); 
+	rp = atomic_add(ring->rp, 0);
+	wp = atomic_add(ring->wp, 0);
+
+	if(ring_element_next(ring, wp) == rp) {
+		//RLOCK_UNLOCK(ring); 
 		ring->nr_times_f ++;
 		return -1;
 	}
 
-	ring->data[wp].v	= data;
-	ring->data[wp].s	= data_size;
-	ring->wp			= ring_element_next(ring, ring->wp);
-	ring->nr_times_w ++;
+	/* zero-copy.
+	 * store external data point to ring element. */
+	ring->data[wp].v	= value;
+	ring->data[wp].s	= valen;
+	//ring->wp			= ring_element_next(ring, ring->wp);
+	atomic_set(ring->wp, ring_element_next(ring, wp));
+	ring->nr_times_wr ++;
 
-	RLOCK_UNLOCK(ring);
+	//RLOCK_UNLOCK(ring);
 	
 	return 0;
 }

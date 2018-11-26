@@ -1,5 +1,5 @@
 #include "oryx.h"
-#if 0
+
 /* return oryx_sockunion structure : this function should be revised. */
 static const char *
 sockunion_log (const union oryx_sockunion *su, char *buf, size_t len)
@@ -48,7 +48,7 @@ int oryx_sock_bind (
 		union oryx_sockunion *su_addr)
 {
   int size = 0;
-  int ret;
+  int err;
 
   if (su->sa.sa_family == AF_INET)
     {
@@ -80,16 +80,16 @@ int oryx_sock_bind (
 #endif /* HAVE_IPV6 */
   
 
-  ret = bind (sock, (struct sockaddr *)su, size);
-  if (ret < 0)
+  err = bind (sock, (struct sockaddr *)su, size);
+  if (err)
     oryx_logw(-1, "can't bind socket : %s", oryx_safe_strerror (errno));
 
-  return ret;
+  return err;
 }
 
 int oryx_sock_connect (int fd, const union oryx_sockunion *peersu, unsigned short port)
 {
-	int ret;
+	int err;
 	int val;
 	union oryx_sockunion su;
 
@@ -112,17 +112,17 @@ int oryx_sock_connect (int fd, const union oryx_sockunion *peersu, unsigned shor
 	fcntl (fd, F_SETFL, val|O_NONBLOCK);
 
 	/* Call connect function. */
-	ret = connect (fd, (struct sockaddr *) &su, sockunion_sizeof (&su));
+	err = connect (fd, (struct sockaddr *) &su, sockunion_sizeof (&su));
 
 	/* Immediate success */
-	if (ret == 0)
+	if (err == 0)
 	{
 	  fcntl (fd, F_SETFL, val);
 	  return 0;
 	}
 
 	/* If connect is in progress then return 1 else it's real error. */
-	if (ret < 0)
+	if (err < 0)
 	{
 	  if (errno != EINPROGRESS)
 	{
@@ -159,12 +159,12 @@ oryx_sockunion_stream_socket (union oryx_sockunion *su)
 int
 oryx_sockopt_reuseaddr (int sock)
 {
-  int ret;
+  int err;
   int on = 1;
 
-  ret = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, 
+  err = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, 
 		    (void *) &on, sizeof (on));
-  if (ret < 0)
+  if (err < 0)
     {
       oryx_loge(-1, "can't set sockopt SO_REUSEADDR to socket %d", sock);
       return -1;
@@ -179,7 +179,7 @@ oryx_sockunion_bind (int sock, union oryx_sockunion *su, unsigned short port,
 		union sockunion *su_addr)
 {
   int size = 0;
-  int ret;
+  int err;
 
   if (su->sa.sa_family == AF_INET)
     {
@@ -211,11 +211,10 @@ oryx_sockunion_bind (int sock, union oryx_sockunion *su, unsigned short port,
 #endif /* HAVE_IPV6 */
   
 
-  ret = bind (sock, (struct sockaddr *)su, size);
-  if (ret < 0)
+  err = bind (sock, (struct sockaddr *)su, size);
+  if (err < 0)
     oryx_loge(-1, "can't bind socket : %s", oryx_safe_strerror (errno));
 
-  return ret;
+  return err;
 }
-#endif
 

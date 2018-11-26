@@ -3,7 +3,10 @@
 
 /* Initialize oryx_vector : allocate memory and return oryx_vector. */
 oryx_vector
-vec_init (unsigned int size)
+vec_init
+(
+	IN unsigned int size
+)
 {
   oryx_vector v = kmalloc (sizeof (struct _oryx_vector), MPF_CLR, __oryx_unused_val__);
   if (unlikely(!v))
@@ -25,26 +28,38 @@ vec_init (unsigned int size)
 }
 
 void
-vec_only_wrapper_free (oryx_vector v)
+vec_only_wrapper_free 
+(
+	IN oryx_vector v
+)
 {
   kfree (v);
 }
 
 void
-vec_only_index_free (void *index)
+vec_only_index_free 
+(
+	IN void *index
+)
 {
   kfree (index);
 }
 
 void
-vec_free (oryx_vector v)
+vec_free 
+(
+	IN oryx_vector v
+)
 {
   kfree (v->index);
   kfree (v);
 }
 
 oryx_vector
-vec_copy (oryx_vector v)
+vec_copy 
+(
+	IN oryx_vector v
+)
 {
   unsigned int size;
   oryx_vector new = kmalloc (sizeof (struct _oryx_vector), MPF_CLR, __oryx_unused_val__);
@@ -70,7 +85,10 @@ vec_copy (oryx_vector v)
    the slot's index memory is assigned, please call vec_ensure()
    after calling this function. */
 int
-vec_empty_slot (oryx_vector v)
+vec_empty_slot
+(
+	IN oryx_vector v
+)
 {
   unsigned int i;
 
@@ -86,7 +104,11 @@ vec_empty_slot (oryx_vector v)
 
 /* Set value to the smallest empty slot. */
 int
-vec_set (oryx_vector v, void *val)
+vec_set 
+(
+	IN oryx_vector v,
+	IN void *val
+)
 {
   unsigned int i;
 
@@ -103,7 +125,12 @@ vec_set (oryx_vector v, void *val)
 
 /* Set value to specified index slot. */
 int
-vec_set_index (oryx_vector v, unsigned int i, void *val)
+vec_set_index
+(
+	IN oryx_vector v,
+	IN unsigned int i,
+	IN void *val
+)
 {
   vec_ensure (v, i);
 
@@ -117,7 +144,11 @@ vec_set_index (oryx_vector v, unsigned int i, void *val)
 
 /* Unset value at specified index slot. */
 void
-vec_unset (oryx_vector v, unsigned int i)
+vec_unset 
+(
+	IN oryx_vector v,
+	IN unsigned int i
+)
 {
   if (i >= v->alloced)
     return;
@@ -132,7 +163,11 @@ vec_unset (oryx_vector v, unsigned int i)
     }
 }
 
-void *vec_last (oryx_vector v)
+void *
+vec_last 
+(
+	IN oryx_vector v
+)
 {
     unsigned int i;
     void * last = NULL;
@@ -144,7 +179,11 @@ void *vec_last (oryx_vector v)
     return last;
 }
 
-void *vec_first (oryx_vector v)
+void *
+vec_first
+(
+	IN oryx_vector v
+)
 {
     unsigned int i;
     void * first = NULL;
@@ -160,7 +199,11 @@ void *vec_first (oryx_vector v)
 
 /* Check assigned index, and if it runs short double index pointer */
 void
-vec_ensure (oryx_vector v, unsigned int num)
+vec_ensure
+(
+	IN oryx_vector v,
+	IN unsigned int num
+)
 {
   if (v->alloced > num)
     return;
@@ -180,7 +223,11 @@ vec_ensure (oryx_vector v, unsigned int num)
 
 /* Lookup oryx_vector, ensure it. */
 void *
-vec_lookup_ensure (oryx_vector v, unsigned int i)
+vec_lookup_ensure
+(
+	IN oryx_vector v,
+	IN unsigned int i
+)
 {
   vec_ensure (v, i);
   return v->index[i];

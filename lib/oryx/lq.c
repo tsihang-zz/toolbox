@@ -1,7 +1,10 @@
 #include "oryx.h"
 
-static __oryx_always_inline__
-void _wakeup (void *lq)
+static void
+_wakeup 
+(
+	IN void *lq
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "wakeup...\n");
@@ -10,8 +13,11 @@ void _wakeup (void *lq)
 	do_mutex_unlock (&q->cond_lock);
 }
 
-static __oryx_always_inline__
-void _hangup (void *lq)
+static void
+_hangup 
+(
+	IN void *lq
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "Trying hangup %d...\n", lq_blocked_len(lq));
@@ -25,8 +31,13 @@ void _hangup (void *lq)
 	}
 }
 
-static __oryx_always_inline__
-struct oryx_lq_ctx_t * list_queue_init (const char *fq_name,	uint32_t fq_cfg, struct oryx_lq_ctx_t *lq)
+static struct oryx_lq_ctx_t *
+list_queue_init 
+(
+	IN const char *fq_name,
+	IN uint32_t fq_cfg,
+	IN struct oryx_lq_ctx_t *lq
+)
 {
     BUG_ON (lq == NULL);
 	
@@ -59,7 +70,12 @@ struct oryx_lq_ctx_t * list_queue_init (const char *fq_name,	uint32_t fq_cfg, st
  *  \param lq, the q
  */
 __oryx_always_extern__
-int oryx_lq_new (const char *fq_name, uint32_t fq_cfg, void ** lq)
+int oryx_lq_new
+(
+	IN const char *fq_name,
+	IN uint32_t fq_cfg,
+	OUT void ** lq
+)
 {
     struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)malloc(sizeof(struct oryx_lq_ctx_t));
     if (q == NULL)
@@ -76,7 +92,10 @@ int oryx_lq_new (const char *fq_name, uint32_t fq_cfg, void ** lq)
  *  \param q the queue to destroy
  */
  __oryx_always_extern__
-void oryx_lq_destroy (void * lq)
+void oryx_lq_destroy 
+(
+	IN void * lq
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	FQLOCK_DESTROY(q);
@@ -88,7 +107,10 @@ void oryx_lq_destroy (void * lq)
  *  \param q the queue to display
  */
 __oryx_always_extern__
-void oryx_lq_dump(void *lq)
+void oryx_lq_dump
+(
+	IN void *lq
+)
 {	
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	fprintf (stdout, "%16s%32s(%p)\n", "qname: ",	q->name, q);

@@ -38,7 +38,10 @@ static const char *___builtin_itoa (int value, char * str, int base)
 }
 
 __oryx_always_extern__
-int oryx_path_exsit (const char *path)
+int oryx_path_exsit
+(
+	IN const char *path
+)
 {
 	int exsit = 0;
 

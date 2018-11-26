@@ -24,7 +24,7 @@ vlib_map_main_t vlib_map_main = {
 	.lock = INIT_MUTEX_VAL,
 };
 
-atomic_t n_map_elements = ATOMIC_INIT(0);
+atomic_decl_and_init(uint32_t, n_map_elements);
 
 
 #define VTY_ERROR_MAP(prefix, alias)\
@@ -350,7 +350,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 
 #define PRINT_SUMMARY	\
 	vty_out (vty, "matched %d element(s), %d element(s) actived.%s", \
-		atomic_read(&n_map_elements), mm->nb_maps, VTY_NEWLINE);
+		atomic_read(n_map_elements), mm->nb_maps, VTY_NEWLINE);
 
 DEFUN(show_map,
       show_map_cmd,
@@ -550,7 +550,7 @@ DEFUN(sync_appl,
 	gettimeofday(&start, NULL);
 	sync_acl(vm, &nr_entries);
 	gettimeofday(&end, NULL);
-	vty_out(vty, "%d entries done (cost %lu us)%s", nr_entries, tm_elapsed_us(&start, &end), VTY_NEWLINE);
+	vty_out(vty, "%d entries done (cost %lu us)%s", nr_entries, oryx_elapsed_us(&start, &end), VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }

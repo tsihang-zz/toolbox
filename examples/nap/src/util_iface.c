@@ -6,7 +6,7 @@ void iface_alloc (struct iface_t **this)
 	int							id;
 	int							lcore;
 	char						lcore_stats_name[1024];
-	struct CounterCtx			*per_private_ctx0;
+	struct oryx_counter_ctx_t			*per_private_ctx0;
 	struct iface_counter_ctx	*if_counter_ctx0;
 
 	(*this) = NULL;
@@ -17,7 +17,7 @@ void iface_alloc (struct iface_t **this)
 
 	memcpy(&(*this)->sc_alias[0], "--", strlen("--"));
 	(*this)->mtu = 1500;
-	(*this)->perf_private_ctx = kmalloc(sizeof(struct CounterCtx), MPF_CLR, __oryx_unused_val__);
+	(*this)->perf_private_ctx = kmalloc(sizeof(struct oryx_counter_ctx_t), MPF_CLR, __oryx_unused_val__);
 	(*this)->if_counter_ctx = kmalloc(sizeof(struct iface_counter_ctx), MPF_CLR, __oryx_unused_val__);
 
 	per_private_ctx0 = (*this)->perf_private_ctx;

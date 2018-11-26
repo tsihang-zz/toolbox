@@ -9,13 +9,13 @@ typedef struct ThreadVars_ {
     char name[16];
     char *printable_name;
     char *thread_group_name;
-    SC_ATOMIC_DECLARE(unsigned int, flags);
+    atomic_declare(unsigned int, flags);
 
     /** local id */
     int id;
 
     /* counters for this thread. */
-	struct CounterCtx perf_private_ctx0;
+	struct oryx_counter_ctx_t perf_private_ctx0;
 
 	/** free function for this thread to free a packet. */
 	int (*free_fn)(void *);

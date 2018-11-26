@@ -9,15 +9,20 @@ struct oryx_ring_t *my_ring;
 static __oryx_always_inline__
 void * ring_rp (void *r)
 {
-	void		*data;
-	uint16_t	data_size = 0;
+	int			err;
+	void		*value;
+	uint16_t	valen = 0;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		if (oryx_ring_get(ring, &data, &data_size) != 0)
+		err = oryx_ring_get(ring, &value, &valen);
+		if (err) {
+			//fprintf(stdout, "empty\n");
 			continue;
-		if (data) {
-			free(data);
+		} else {
+			if (value) {
+				free(value);
+			}
 		}
 	}
 	
@@ -28,29 +33,19 @@ void * ring_rp (void *r)
 static __oryx_always_inline__
 void * ring_wp (void *r)
 {
-	uint32_t	times = 0;
-	int			sleeps = 0;
-	void		*data;
+	int			err;
+	char		*value;
 	struct oryx_ring_t *ring = (struct oryx_ring_t *)r;
 
 	FOREVER {
-		if (NULL == (data = malloc(RING_DATA_SIZE)))
+		if((value = malloc(RING_DATA_SIZE)) == NULL)
 			continue;
-
-		oryx_pattern_generate(data, RING_DATA_SIZE);
-		if (oryx_ring_put(ring, data, RING_DATA_SIZE) != 0) {
-			free(data);
+		oryx_pattern_generate(value, RING_DATA_SIZE);
+		err = oryx_ring_put(ring, value, RING_DATA_SIZE);
+		if (err) {
+			//fprintf(stdout, "full\n");
+			free(value);
 			continue;
-		}
-
-		times ++;
-		usleep(1000);
-
-		/** dump ring desc every 3 sec */
-		if (sleeps ++ == 3000) {
-			sleeps = 0;
-			oryx_ring_dump(ring);
-			fprintf (stdout, "Write times %u\n", times);
 		}
 	}
 	
@@ -89,10 +84,13 @@ int main (
 )
 {
 	uint32_t	flags = 0;
+	int			err;
 	
 	oryx_initialize();
 
-	if (oryx_ring_create("test_ring", RING_ELEMENTS, flags, &my_ring) != 0) return 0;
+	err = oryx_ring_create("test_ring",
+			RING_ELEMENTS, RING_DATA_SIZE, flags, &my_ring);
+	if (err) return 0;
 
 	oryx_ring_dump(my_ring);
 
@@ -107,6 +105,7 @@ int main (
 	oryx_task_launch();
 
 	FOREVER {
+		oryx_ring_dump(my_ring);
 		sleep(1);
 	};
 

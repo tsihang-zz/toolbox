@@ -40,7 +40,7 @@ oryx_kc_create(const char *name, size_t size, size_t offset,
 {
 	struct oryx_kmcache_t *ret = kmalloc(sizeof(*ret), MPF_CLR, __oryx_unused_val__);
 
-	oryx_thread_mutex_create (&ret->lock);
+	oryx_tm_create (&ret->lock);
 	ret->obj_size = size;
 	ret->name = name;
 	ret->nr_objs = 0;

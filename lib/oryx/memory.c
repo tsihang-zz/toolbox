@@ -5,7 +5,8 @@
 #define MEM_BLOCK_SIZE 	10*1024*1024
 #define MAX_MEM_BLOCKS	256
 
-atomic64_t mem_access_times = ATOMIC_INIT(0);
+atomic_decl_and_init(uint64_t, mem_access_times);
+
 
 typedef struct memory_handle_s {
 	/* 
@@ -153,7 +154,7 @@ int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
 			return -1;
 		} else {
 			shm->shmid = shmid;
-			*(shm->addr) = mem;
+			shm->addr = mem;
 			return 0;
 		}
 	}
@@ -171,7 +172,7 @@ int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
 			return -1;
 		} else {
 			memset(shm->addr , 0 , size);
-			*(shm->addr) = mem;
+			shm->addr = mem;
 			shm->shmid = shmid;
 		}
 	}
@@ -181,7 +182,7 @@ int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
 int oryx_shm_detach(vlib_shm_t *shm)
 {
 	/* detach shm memory from the calling process. */
-	if (shmdt(*shm->addr) == -1) {
+	if (shmdt(shm->addr) == -1) {
 		oryx_loge(-1,
 			"shmdt: %s", oryx_safe_strerror(errno));
 		return -1;

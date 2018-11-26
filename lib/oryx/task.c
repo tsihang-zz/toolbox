@@ -20,23 +20,30 @@ static struct oryx_task_mgr_t taskmgr = {
 static sem_t oryx_task_sync_sem;
 
 /** All system semphore is initialized in this api */
-static void os_sync_init(void)
+static void 
+os_sync_init(void)
 {
     sem_init(&oryx_task_sync_sem, 0, 1);
     /** Add other semphore here */
 }
 
-static void os_unsync(void)
+static void
+os_unsync(void)
 {
     sem_post(&oryx_task_sync_sem);
 }
 
-static void os_sync(void)
+static void
+os_sync(void)
 {
     sem_wait(&oryx_task_sync_sem);
 }
 
-static void task_deregistry (struct oryx_task_t *task)
+static void
+task_deregistry 
+(
+	IN struct oryx_task_t *task
+)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
@@ -49,7 +56,11 @@ static void task_deregistry (struct oryx_task_t *task)
 		kfree(task);
 }
 
-static void task_registry (struct oryx_task_t *task)
+static void 
+task_registry 
+(
+	IN struct oryx_task_t *task
+)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
@@ -59,7 +70,11 @@ static void task_registry (struct oryx_task_t *task)
 	do_mutex_unlock(&tm->lock);
 }
 
-static struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
+static struct oryx_task_t*
+oryx_task_query_id 
+(
+	IN oryx_os_thread_t pid
+)
 {
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -75,7 +90,11 @@ static struct oryx_task_t  *oryx_task_query_id (oryx_os_thread_t pid)
 	return NULL;
 }
 
-static struct oryx_task_t  *oryx_task_query_alias (char *sc_alias)
+static struct oryx_task_t*
+oryx_task_query_alias
+(
+	IN char *sc_alias
+)
 {
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -91,7 +110,11 @@ static struct oryx_task_t  *oryx_task_query_alias (char *sc_alias)
 	return NULL;
 }
 
-static struct oryx_task_t  *oryx_task_query (struct prefix_t *lp)
+static struct oryx_task_t*
+oryx_task_query 
+(
+	IN struct prefix_t *lp
+)
 {
 	switch (lp->cmd) {
 		case LOOKUP_ID:
@@ -105,7 +128,11 @@ static struct oryx_task_t  *oryx_task_query (struct prefix_t *lp)
 	return NULL;
 }
 
-void oryx_task_registry (struct oryx_task_t *task)
+void
+oryx_task_registry 
+(
+	IN struct oryx_task_t *task
+)
 {	
 	BUG_ON(task == NULL);
 
@@ -119,7 +146,11 @@ void oryx_task_registry (struct oryx_task_t *task)
 		task_registry (task);
 }
 
-void oryx_task_deregistry_id (oryx_os_thread_t pid)
+void
+oryx_task_deregistry_id 
+(
+	IN oryx_os_thread_t pid
+)
 {
 	struct prefix_t p = {
 		.cmd	=	LOOKUP_ID,
@@ -136,12 +167,15 @@ void oryx_task_deregistry_id (oryx_os_thread_t pid)
 
 
 /** Thread description should not be same with registered one. */
-struct oryx_task_t *oryx_task_spawn (
-		const char		__oryx_unused_param__*alias, 
-		const uint32_t	__oryx_unused_param__ ul_prio,
-		void		__oryx_unused_param__*attr,
-		void *		(*handler)(void *),
-		void		*argv)
+struct oryx_task_t*
+oryx_task_spawn
+(
+	IN const char		__oryx_unused_param__*alias, 
+	IN const uint32_t	__oryx_unused_param__ ul_prio,
+	IN void		__oryx_unused_param__*attr,
+	IN void *		(*handler)(void *),
+	IN void		*argv
+)
 {
 	BUG_ON(alias == NULL);
 
@@ -186,7 +220,8 @@ struct oryx_task_t *oryx_task_spawn (
 	return NULL;
 }
 
-void oryx_task_launch(void)
+void 
+oryx_task_launch(void)
 {
 	struct oryx_task_t *t = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -246,7 +281,8 @@ void oryx_task_launch(void)
 	return;
 }
 
-void oryx_task_initialize (void)
+void 
+oryx_task_initialize (void)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 

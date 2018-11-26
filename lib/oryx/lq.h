@@ -65,7 +65,11 @@ struct lq_prefix_t {
  *  \param f instance
  */
 static __oryx_always_inline__
-void oryx_lq_enqueue (void *lq, void * f)
+void oryx_lq_enqueue 
+(
+	IN void *lq,
+	IN void * f
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 
@@ -109,7 +113,10 @@ void oryx_lq_enqueue (void *lq, void * f)
  *  \retval f flow or NULL if empty list.
  */
 static __oryx_always_inline__
-void * oryx_lq_dequeue (void *lq)
+void * oryx_lq_dequeue 
+(
+	IN void *lq
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 
@@ -155,7 +162,10 @@ void * oryx_lq_dequeue (void *lq)
 }
 
 static __oryx_always_inline__
-int oryx_lq_length (void *lq)
+int oryx_lq_length
+(
+	IN void *lq
+)
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	return q->len;

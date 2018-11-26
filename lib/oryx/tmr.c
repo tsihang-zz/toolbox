@@ -6,12 +6,12 @@ typedef struct oryx_tmr_mgr_t {
 	struct list_head sigtmr_head;
 
 	os_mutex_t ol_sigtmr_lock;
-	atomic64_t  sigtmr_cur_ticks;
+	atomic_declare(uint64_t, sigtmr_cur_ticks);
 	
 	/** advanced tmr head */
 	struct list_head tmr_head;
 	os_mutex_t ol_tmr_lock;
-	atomic64_t  tmr_cur_ticks;
+	atomic_declare(uint64_t, tmr_cur_ticks);
 
 	uint32_t ul_tmr_cnt;
 
@@ -20,23 +20,25 @@ typedef struct oryx_tmr_mgr_t {
 
 struct oryx_tmr_mgr_t tmrmgr = {
 	.ol_sigtmr_lock		= INIT_MUTEX_VAL,
-	.sigtmr_cur_ticks	= ATOMIC_INIT(0),
-
 	.ol_tmr_lock		= INIT_MUTEX_VAL,
-	.tmr_cur_ticks		= ATOMIC_INIT(0),
-
 	.ul_precision_msec	= TMR_DEFAULT_PRECISION,
 };
 
-void oryx_tmr_default_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-                char __oryx_unused_param__**argv)
+void
+oryx_tmr_default_handler
+(
+	IN struct oryx_timer_t *tmr,
+	IN int __oryx_unused_param__	argc,
+	IN char __oryx_unused_param__	*argv
+)
 {
     fprintf (stdout, "default %s-timer routine has occured on [%s, %u, %d]\n",
 		tmr->ul_setting_flags & TMR_OPTIONS_ADVANCED ? "advanced" : "sig",
 		tmr->sc_alias, tmr->tmr_id, tmr->ul_cyclical_times);
 }
 
-static void *tmr_alloc(void)
+static void*
+tmr_alloc(void)
 {
     struct oryx_timer_t *new;
 
@@ -53,18 +55,24 @@ static void *tmr_alloc(void)
     return new;
 }
 
-static __oryx_always_inline__ 
-void tmr_free(struct oryx_timer_t *t)
+static void
+tmr_free
+(
+	IN struct oryx_timer_t *t
+)
 {
     if(t->ul_setting_flags & TMR_CAN_BE_RECYCLABLE){
         kfree(t);
     }
 }
 
-static __oryx_always_inline__ 
-oryx_tmr_id tmr_id_alloc(int __oryx_unused_param__ module, 
-                const char *sc_alias, 
-                size_t s)
+static oryx_tmr_id
+tmr_id_alloc
+(
+	IN int __oryx_unused_param__ module,
+	IN const char *sc_alias,
+	IN size_t s
+)
 {
 	BUG_ON (sc_alias == NULL);
 	BUG_ON (s < 1);
@@ -72,19 +80,28 @@ oryx_tmr_id tmr_id_alloc(int __oryx_unused_param__ module,
 }
 
 static __oryx_always_inline__
-void tmr_enable(struct oryx_timer_t *t)
+void tmr_enable
+(
+	IN struct oryx_timer_t *t
+)
 {
     t->ul_setting_flags |= TMR_OPTIONS_ENABLE;
 }
 
 static __oryx_always_inline__
-void tmr_disable(struct oryx_timer_t *t)
+void tmr_disable
+(
+	IN struct oryx_timer_t *t
+)
 {
     t->ul_setting_flags &= ~TMR_OPTIONS_ENABLE;
 }
 
 static __oryx_always_inline__
-void tmr_delete(struct oryx_timer_t *t)
+void tmr_delete
+(
+	IN struct oryx_timer_t *t
+)
 {
     if(likely(t)){
         list_del(&t->list);
@@ -99,7 +116,7 @@ void sigtmr_handler(void)
 	struct oryx_timer_t *_this = NULL, *p;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
-    old_ticks = atomic64_inc(&tm->sigtmr_cur_ticks);
+    old_ticks = atomic_inc(tm->sigtmr_cur_ticks);
     do_mutex_lock(&tm->ol_sigtmr_lock);
         list_for_each_entry_safe (_this, p, &tm->sigtmr_head, list) {
             if (likely(_this->ul_setting_flags & TMR_OPTIONS_ENABLE)) {
@@ -128,14 +145,14 @@ void tmr_handler(void)
 	struct timeval now;
 	int64_t old_ticks_us = 0, now_tick_us = 0;
 	
-    old_ticks_us = atomic64_read(&tm->tmr_cur_ticks);
+    old_ticks_us = atomic_read(tm->tmr_cur_ticks);
 	
 	/** current ticks */
 	gettimeofday(&now, NULL);
 	now_tick_us = now.tv_sec * 1000000 + now.tv_usec;
 
 	/** update tick. */
-	atomic64_set(&tm->tmr_cur_ticks, now_tick_us);
+	atomic_set(tm->tmr_cur_ticks, now_tick_us);
 	
 	do_mutex_lock(&tm->ol_tmr_lock);
         list_for_each_entry_safe (_this, p, &tm->tmr_head, list) {
@@ -179,7 +196,10 @@ void realtimer_init(void)
 }
 
 static __oryx_always_inline__
-void * tmr_daemon (void __oryx_unused_param__*pv_par )
+void * tmr_daemon
+(
+	IN void __oryx_unused_param__*pv_par
+)
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	
@@ -207,7 +227,11 @@ static struct oryx_task_t advanced_tmr_task =
 	.ul_flags		= 0,	/** Can not be recyclable. */
 };
 
-void oryx_tmr_start (struct oryx_timer_t *tmr)
+void
+oryx_tmr_start 
+(
+	IN struct oryx_timer_t *tmr
+)
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	os_mutex_t *lock = &tm->ol_sigtmr_lock;
@@ -221,7 +245,11 @@ void oryx_tmr_start (struct oryx_timer_t *tmr)
     do_mutex_unlock(lock);
 }
 
-void oryx_tmr_stop (struct oryx_timer_t *tmr)
+void
+oryx_tmr_stop
+(
+	struct oryx_timer_t *tmr
+)
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	os_mutex_t *lock = &tm->ol_sigtmr_lock;
@@ -235,7 +263,11 @@ void oryx_tmr_stop (struct oryx_timer_t *tmr)
     do_mutex_unlock(lock);
 }
 
-void oryx_tmr_destroy (struct oryx_timer_t *tmr)
+void
+oryx_tmr_destroy
+(
+	struct oryx_timer_t *tmr
+)
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
 	os_mutex_t *lock = &tm->ol_sigtmr_lock;
@@ -255,6 +287,8 @@ int oryx_tmr_initialize(void)
 
 	INIT_LIST_HEAD (&tm->sigtmr_head);
 	INIT_LIST_HEAD (&tm->tmr_head);
+	atomic_init(tm->sigtmr_cur_ticks);
+	atomic_init(tm->tmr_cur_ticks);
 
 #if defined (HAVE_ADVANCED_TMR)
 	oryx_task_registry (&advanced_tmr_task);
@@ -262,17 +296,23 @@ int oryx_tmr_initialize(void)
 	realtimer_init();
 #endif
 
-	return ORYX_SUCCESS;
+	return 0;
 }
 
 /**
 * routine: must be a reentrant function.
 * An unknown error occurs if a thread-safe function called as a routione.
 */
-struct oryx_timer_t *oryx_tmr_create (int module,
-                const char *sc_alias, uint32_t ul_setting_flags,
-                void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
-                uint32_t n_mseconds)
+struct oryx_timer_t *
+oryx_tmr_create
+(
+	IN int module,
+	IN const char *sc_alias, uint32_t ul_setting_flags,
+	IN void (*handler)(struct oryx_timer_t *, int, char **),
+	IN int argc,
+	IN char **argv,
+    IN uint32_t nr_mseconds
+)
 {
     struct oryx_timer_t *_this = NULL, *p;
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
@@ -310,7 +350,7 @@ struct oryx_timer_t *oryx_tmr_create (int module,
     _this->module		= module;
     _this->sc_alias		= sc_alias;
     _this->curr_ticks	= 0;
-    _this->interval_ms	= n_mseconds;
+    _this->interval_ms	= nr_mseconds;
     _this->routine		= handler ? handler : oryx_tmr_default_handler;
     _this->tmr_id		= tmr_id_alloc(_this->module, _this->sc_alias, strlen(_this->sc_alias));
     _this->ul_setting_flags = (ul_setting_flags | TMR_CAN_BE_RECYCLABLE);
@@ -322,13 +362,18 @@ finish:
     return _this;
 }
 
-struct oryx_timer_t *oryx_tmr_create_loop (int module,
-				const char *sc_alias,
-				void (*handler)(struct oryx_timer_t *, int, char **), int argc, char **argv,
-				uint32_t n_mseconds)
+struct oryx_timer_t *
+oryx_tmr_create_loop
+(
+	IN int module,
+	IN const char *sc_alias,
+	IN void (*handler)(struct oryx_timer_t *, int, char **),
+	IN int argc,
+	IN char **argv,
+	IN uint32_t nr_mseconds)
 {
 	uint32_t ul_setting_flags = (TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED);
 	return oryx_tmr_create(module, sc_alias,
-					ul_setting_flags, handler, argc, argv, n_mseconds);
+					ul_setting_flags, handler, argc, argv, nr_mseconds);
 }
 

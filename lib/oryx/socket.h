@@ -1,7 +1,6 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
-#if 0
 #define HAVE_IPV6
 
 /* Sockunion address string length.  Same as INET6_ADDRSTRLEN. */
@@ -21,25 +20,14 @@ union oryx_sockunion   {
 
 #define sockunion_family(X)  ((X)->sa.sa_family)
 #define sockunion2ip(X)      ((X)->sin.sin_addr.s_addr)
-
-ORYX_DECLARE(int oryx_sock_bind (
-		int sock,
-		union oryx_sockunion *su,
-		unsigned short port, 
-		union oryx_sockunion *su_addr));
-ORYX_DECLARE(int oryx_sock_connect (
-				int fd,
-				const union oryx_sockunion *peersu,
-				unsigned short port));
-
 #define	BUF_LENGTH	1024
 
 struct oryx_sock_handle_t {
-	int				sock;
-	char			rx_buf[BUF_LENGTH];
-	int				rx_buf_length;
-	char			tx_buf[BUF_LENGTH];
-	int				tx_buf_length;	
+	int				sock,
+					rx_buf_length,
+					tx_buf_length;
+	char			rx_buf[BUF_LENGTH],
+					tx_buf[BUF_LENGTH];
 };
 
 struct oryx_server_t {
@@ -111,7 +99,5 @@ struct oryx_client_t {
 
 #define CLIENT_RESET(c)\
 	((c)->ul_flags |= TO_SERVER_RESET)
-
-#endif
 
 #endif

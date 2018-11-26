@@ -2,7 +2,11 @@
 
 #define SHMRING_BASE	0x123456
 static __oryx_always_inline__
-key_t shmring_key (const char *v, uint32_t s) 
+key_t shmring_key
+(
+	IN const char *v,
+	IN uint32_t s
+) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -14,11 +18,15 @@ key_t shmring_key (const char *v, uint32_t s)
 	 return (SHMRING_BASE + hv);
 }
 
-int oryx_shmring_create(const char *shmring_name,
-		int __oryx_unused_param__ nr_elements,
-		int __oryx_unused_param__ nr_element_size,
-		uint32_t flags, 
-		struct oryx_shmring_t **shmring)
+int
+oryx_shmring_create
+(
+	IN const char *shmring_name,
+	IN int __oryx_unused_param__ nr_elements,
+	IN int __oryx_unused_param__ nr_element_size,
+	IN uint32_t flags,
+	OUT struct oryx_shmring_t **shmring
+)
 {
 	BUG_ON(shmring_name == NULL);
 	BUG_ON(shmring == NULL);
@@ -35,7 +43,7 @@ int oryx_shmring_create(const char *shmring_name,
 		fprintf(stdout, "Cannot create share ring handler\n");
 		return -1;
 	} else {
-		(*shmring) = *shm.addr;
+		(*shmring) = shm.addr;
 		nr_elements = NR_SHMRING_ELEMENTS;
 		if ((*shmring)->name[0] == '\0') {
 			//r->name			= shmring_name;
@@ -57,20 +65,27 @@ int oryx_shmring_create(const char *shmring_name,
 	return 0;	
 }
 
-void oryx_shmring_dump(struct oryx_shmring_t *shmring)
+void
+oryx_shmring_dump
+(
+	IN struct oryx_shmring_t *shmring
+)
 {
 	
 	fprintf (stdout, "shmring %s\n", shmring->name);
 	fprintf (stdout, "%16s%32d\n", "shmid: ",		shmring->key0);
 	fprintf (stdout, "%16s%32d\n", "nb_data: ",		shmring->max_elements);
-	fprintf (stdout, "%16s%32lu\n", "rp_times: ",	shmring->nr_times_r);
-	fprintf (stdout, "%16s%32lu\n", "wp_times: ",	shmring->nr_times_w);
+	fprintf (stdout, "%16s%32lu\n", "rp_times: ",	shmring->nr_times_rd);
+	fprintf (stdout, "%16s%32lu\n", "wp_times: ",	shmring->nr_times_wr);
 	fprintf (stdout, "%16s%32lu\n", "full_times: ",	shmring->nr_times_f);		
 	fprintf (stdout, "%16s%32lu\n", "rp: ",			shmring->rp);
 	fprintf (stdout, "%16s%32lu\n", "wp: ",			shmring->wp);
 }
 
-int oryx_shmring_destroy(struct oryx_shmring_t *shmring)
+int oryx_shmring_destroy
+(
+	IN struct oryx_shmring_t *shmring
+)
 {
 	int err;
 	vlib_shm_t shm = {

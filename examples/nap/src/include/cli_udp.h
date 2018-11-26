@@ -1,7 +1,7 @@
 #ifndef CLI_UDP_H
 #define CLI_UDP_H
 
-extern atomic_t n_udp_elements;
+atomic_extern(uint32_t, n_udp_elements);
 extern oryx_vector udp_vector_table;
 
 #define split_foreach_udp_func1_param0(argv_x, func)\
@@ -10,7 +10,7 @@ extern oryx_vector udp_vector_table;
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 	token = strtok_r (alias_list, split, &save);\
 	while (token) {\
@@ -38,7 +38,7 @@ lookup_by_alias_exactly:\
 			}\
 			if (v) {\
 				func (v);\
-				atomic_inc(&n_udp_elements);\
+				atomic_inc(n_udp_elements);\
 				goto lookup_next;\
 			}\
 lookup_by_alias_posted_fuzzy:\
@@ -46,7 +46,7 @@ lookup_by_alias_posted_fuzzy:\
 			vec_foreach_element(udp_vector_table, each, v){\
 				if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 					func (v);\
-					atomic_inc(&n_udp_elements);\
+					atomic_inc(n_udp_elements);\
 				}\
 			}\
 		}\
@@ -60,7 +60,7 @@ lookup_next:\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 	token = strtok_r (alias_list, split, &save);\
 	while (token) {\
@@ -88,7 +88,7 @@ lookup_by_alias_exactly:\
 			}\
 			if (v) {\
 				func (v, param0);\
-				atomic_inc(&n_udp_elements);\
+				atomic_inc(n_udp_elements);\
 				goto lookup_next;\
 			}\
 lookup_by_alias_posted_fuzzy:\
@@ -96,7 +96,7 @@ lookup_by_alias_posted_fuzzy:\
 			vec_foreach_element(udp_vector_table, each, v){\
 				if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 					func (v, param0);\
-					atomic_inc(&n_udp_elements);\
+					atomic_inc(n_udp_elements);\
 				}\
 			}\
 		}\
@@ -111,7 +111,7 @@ lookup_next:\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 	token = strtok_r (alias_list, split, &save);\
 	while (token) {\
@@ -139,7 +139,7 @@ lookup_by_alias_exactly:\
 			}\
 			if (v) {\
 				func (v, param0, param_1);\
-				atomic_inc(&n_udp_elements);\
+				atomic_inc(n_udp_elements);\
 				goto lookup_next;\
 			}\
 lookup_by_alias_posted_fuzzy:\
@@ -147,7 +147,7 @@ lookup_by_alias_posted_fuzzy:\
 			vec_foreach_element(udp_vector_table, each, v){\
 				if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 					func (v, param0, param_1);\
-					atomic_inc(&n_udp_elements);\
+					atomic_inc(n_udp_elements);\
 				}\
 			}\
 		}\
@@ -162,7 +162,7 @@ lookup_next:\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 	token = strtok_r (alias_list, split, &save);\
 	while (token) {\
@@ -191,7 +191,7 @@ lookup_by_alias_exactly:\
 			if (v) {\
 				func1(v, func1_param0);\
 				func2 (v, func2_param0);\
-				atomic_inc(&n_udp_elements);\
+				atomic_inc(n_udp_elements);\
 				goto lookup_next;\
 			}\
 lookup_by_alias_posted_fuzzy:\
@@ -200,7 +200,7 @@ lookup_by_alias_posted_fuzzy:\
 				if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 					func1(v, func1_param0);\
 					func2 (v, func2_param0);\
-					atomic_inc(&n_udp_elements);\
+					atomic_inc(n_udp_elements);\
 				}\
 			}\
 		}\
@@ -214,7 +214,7 @@ lookup_next:\
 	char *token = NULL;\
 	char *save = NULL;\
 	char alias_list[128] = {0};\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	memcpy (alias_list, (char *)argv_x, strlen ((char *)argv_x));\
 	token = strtok_r (alias_list, split, &save);\
 	while (token) {\
@@ -244,7 +244,7 @@ lookup_by_alias_exactly:\
 			}\
 			if (v) {\
 				func (v, param0);\
-				atomic_inc(&n_udp_elements);\
+				atomic_inc(n_udp_elements);\
 				goto lookup_next;\
 			}\
 lookup_by_alias_posted_fuzzy:\
@@ -257,23 +257,23 @@ lookup_next:\
 
 #define foreach_udp_func1_param0(argv_x, func)\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	struct udp_t *v;\
 	vec_foreach_element(udp_vector_table, each, v){\
 		if (v) {\
 			func (v);\
-			atomic_inc(&n_udp_elements);\
+			atomic_inc(n_udp_elements);\
 		}\
 	}
 
 #define foreach_udp_func1_param1(argv_x, func, param0)\
 	int each;\
-	atomic_set(&n_udp_elements, 0);\
+	atomic_set(n_udp_elements, 0);\
 	struct udp_t *v;\
 	vec_foreach_element(udp_vector_table, each, v){\
 		if (v) {\
 			func (v, param0);\
-			atomic_inc(&n_udp_elements);\
+			atomic_inc(n_udp_elements);\
 			v = NULL;\
 		}\
 	}

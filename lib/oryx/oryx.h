@@ -58,7 +58,6 @@
 #include <sys/ioctl.h>
 #include <linux/sockios.h>
 #include <net/if.h>
-#include <sys/time.h>
 #include <math.h>
 
 #if defined(HAVE_BACKTRACE)
@@ -247,6 +246,14 @@ typedef pthread_rwlock_t	os_rwlock_t;
 
 /* spinlocks */
 typedef pthread_spinlock_t	os_spinlock_t;
+
+#ifndef IN
+#define IN
+#endif
+
+#ifndef OUT
+#define OUT
+#endif
 
 #define GETL_BYTE2(p)		(((p)[0]<<8)  | (p)[1])
 #define GETL_BYTE3(p)		(((p)[0]<<16) | ((p)[1]<<8)  | (p)[2])
@@ -609,7 +616,6 @@ struct oryx_cfg_t *oryx_cfg_get(void) {
 #include "oryx_htable.h"
 #include "oryx_task.h"
 #include "oryx_tmr.h"
-#include "oryx_netdev.h"
 #include "oryx_counters.h"
 #include "oryx_socket.h"
 

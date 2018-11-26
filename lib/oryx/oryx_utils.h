@@ -4,20 +4,17 @@
 #include "rbtree.h"
 #include "list.h"
 #include "lru.h"
-#include "fop.h"
+#include "utils.h"
 #include "parser.h"
 #include "memory.h"
 #include "memcache.h"
-#include "tq.h"
 #include "mpool.h"
-#include "ethtool.h"
 #include "mdx.h"
-
 
 #define u8_tolower(c) tolower((uint8_t)(c))
 
 static __oryx_always_inline__ 
-uint32_t next_rand_ (uint32_t *p)
+uint32_t oryx_next_rand (uint32_t *p)
 {
 	uint32_t seed = *p;
 
@@ -35,12 +32,6 @@ unsigned long timenow_(void)
 	gettimeofday(&tv, NULL);
 
 	return tv.tv_sec * 1000000 + tv.tv_usec;
-}
-
-static __oryx_always_inline__
-struct tm *oryx_localtime(time_t timep, struct tm *result)
-{
-    return localtime_r(&timep, result);
 }
 
 /** 1-100, 1:100, ... */

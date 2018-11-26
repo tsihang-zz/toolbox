@@ -49,7 +49,11 @@ typedef struct _oryx_vector *oryx_vector;
 #if defined(BUILD_DEBUG)
 /* Look up oryx_vector.  */
 static __oryx_always_inline__
-void * vec_lookup (oryx_vector v, unsigned int i)
+void *vec_lookup
+(
+	IN oryx_vector v,
+	IN unsigned int i
+)
 {
   if (i >= v->active)
     return NULL;
@@ -63,7 +67,10 @@ void * vec_lookup (oryx_vector v, unsigned int i)
 
 /* Count the number of not emplty slot. */
 static __oryx_always_inline__
-unsigned int vec_count (oryx_vector v)
+unsigned int vec_count 
+(
+	IN oryx_vector v
+)
 {
   unsigned int i;
   unsigned count = 0;

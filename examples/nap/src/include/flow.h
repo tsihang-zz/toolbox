@@ -178,7 +178,7 @@ typedef struct Flow_
 
     /* end of flow "header" */
 
-    SC_ATOMIC_DECLARE(FlowStateType, flow_state);
+    atomic_declare(FlowStateType, flow_state);
 
     /** how many pkts and stream msgs are using the flow *right now*. This
      *  variable is atomic so not protected by the Flow mutex "m".
@@ -186,7 +186,7 @@ typedef struct Flow_
      *  On receiving a packet the counter is incremented while the flow
      *  bucked is locked, which is also the case on timeout pruning.
      */
-    SC_ATOMIC_DECLARE(FlowRefCount, use_cnt);
+    atomic_declare(FlowRefCount, use_cnt);
 
     /** flow tenant id, used to setup flow timeout and stream pseudo
      *  packets with the correct tenant id set */
@@ -291,8 +291,8 @@ typedef struct Flow_
         (f)->sp = 0; \
         (f)->dp = 0; \
         (f)->proto = 0; \
-        SC_ATOMIC_INIT((f)->flow_state); \
-        SC_ATOMIC_INIT((f)->use_cnt); \
+        atomic_init((f)->flow_state); \
+        atomic_init((f)->use_cnt); \
         (f)->flags = 0; \
         (f)->lastts.tv_sec = 0; \
         (f)->lastts.tv_usec = 0; \
@@ -325,7 +325,7 @@ typedef struct FlowBucket_ {
      *  to 0 by workers, either when new flows are added or when a
      *  flow state changes. The flow manager sets this to INT_MAX for
      *  empty buckets. */
-    SC_ATOMIC_DECLARE(int32_t, next_ts);
+    atomic_declare(int32_t, next_ts);
 } __attribute__((aligned(64))) FlowBucket;
 
 #ifdef FLOWLOCK_RWLOCK
@@ -395,7 +395,7 @@ enum {
 #define FLOW_PROTO_APPLAYER_MAX FLOW_PROTO_UDP + 1
 
 /** flow memuse counter (atomic), for enforcing memcap limit */
-SC_ATOMIC_DECLARE(uint64_t, flow_memuse);
+atomic_declare(uint64_t, flow_memuse);
 
 #endif
 #endif

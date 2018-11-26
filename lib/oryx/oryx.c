@@ -65,7 +65,7 @@ int oryx_initialize(void)
 
 	oryx_format_free(&fb);
 
-	return ORYX_SUCCESS;
+	return 0;
 }
 
 

@@ -921,20 +921,22 @@ finish:
 	fkey->nr_size		= nr_local_size;
 	fkey->tv_usec		= tv_usec;
 
-	sprintf(echo, "echo %lu: %s \\(%lu entries, %s, cost %lu usec, %s/s\\) >> %s/classify_result.log",
-			time(NULL),
+	char logfile[256] = {0};
+	sprintf(logfile, "%s/classify_result.log", classify_home);
+	fp = fopen(logfile, "a+");
+	if(!fp) {
+		fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
+		return 0;
+	}
+	fprintf(fp, "%lu, %lu: %s (%lu entries, %s, cost %lu usec, %s/s)\n",
+			start.tv_sec,
+			end.tv_sec,
 			oldpath,
 			fkey->nr_entries,
 			oryx_fmt_program_counter(fkey->nr_size, file_size_buf, 0, 0),
 			fkey->tv_usec,
-			oryx_fmt_program_counter(fmt_pps(fkey->tv_usec, fkey->nr_entries), pps_str0, 0, 0),
-			classify_home);
-	fprintf(stdout, "\n(*)done, %s\n", echo);
-	err = do_system(echo);
-	if(err) {
-		fprintf(stdout, "\necho: %s\n", oryx_safe_strerror(errno));
-	}
-
+			oryx_fmt_program_counter(fmt_pps(fkey->tv_usec, fkey->nr_entries), pps_str0, 0, 0));
+	fclose(fp);
 	/* clean up all file handlers */
 
 #if 0	

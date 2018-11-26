@@ -1,7 +1,7 @@
 #ifndef CLI_MAP_H
 #define CLI_MAP_H
 
-extern atomic_t n_map_elements;
+atomic_extern(uint32_t, n_map_elements);
 extern void vlib_map_init(vlib_main_t *vm);
 
 #define split_foreach_map_func1_param0(argv_x, func) {\
@@ -13,14 +13,14 @@ extern void vlib_map_init(vlib_main_t *vm);
 	oryx_vector vec = vlib_map_main.entry_vec;\
 	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
-	atomic_set(&n_map_elements, 0);\
+	atomic_set(n_map_elements, 0);\
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v);\
-				atomic_inc(&n_map_elements);\
+				atomic_inc(n_map_elements);\
 			}\
 		}\
 	}  else {\
@@ -63,7 +63,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				}\
 				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v);\
-					atomic_inc(&n_map_elements);\
+					atomic_inc(n_map_elements);\
 					goto lookup_next;\
 				}\
 	lookup_by_alias_posted_fuzzy:\
@@ -72,7 +72,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 					if (v && (v->ul_flags & MAP_VALID)\
 						&& !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
-						atomic_inc(&n_map_elements);\
+						atomic_inc(n_map_elements);\
 					}\
 				}\
 			}\
@@ -91,14 +91,14 @@ extern void vlib_map_init(vlib_main_t *vm);
 	oryx_vector vec = vlib_map_main.entry_vec;\
 	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
-	atomic_set(&n_map_elements, 0);\
+	atomic_set(n_map_elements, 0);\
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v, param0);\
-				atomic_inc(&n_map_elements);\
+				atomic_inc(n_map_elements);\
 			}\
 		}\
 	}  else {\
@@ -141,7 +141,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				}\
 				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v, param0);\
-					atomic_inc(&n_map_elements);\
+					atomic_inc(n_map_elements);\
 					goto lookup_next;\
 				}\
 	lookup_by_alias_posted_fuzzy:\
@@ -149,7 +149,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0);\
-						atomic_inc(&n_map_elements);\
+						atomic_inc(n_map_elements);\
 					}\
 				}\
 			}\
@@ -169,14 +169,14 @@ extern void vlib_map_init(vlib_main_t *vm);
 	oryx_vector vec = vlib_map_main.entry_vec;\
 	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
-	atomic_set(&n_map_elements, 0);\
+	atomic_set(n_map_elements, 0);\
 	struct map_t *v = NULL;\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v && (v->ul_flags & MAP_VALID)){\
 				func (v, param0, param_1);\
-				atomic_inc(&n_map_elements);\
+				atomic_inc(n_map_elements);\
 			}\
 		}\
 	}  else {\
@@ -219,7 +219,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 				}\
 				if (v && (v->ul_flags & MAP_VALID)) {\
 					func (v, param0, param_1);\
-					atomic_inc(&n_map_elements);\
+					atomic_inc(n_map_elements);\
 					goto lookup_next;\
 				}\
 		lookup_by_alias_posted_fuzzy:\
@@ -228,7 +228,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 					if (v && (v->ul_flags & MAP_VALID)\
 						&& !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
-						atomic_inc(&n_map_elements);\
+						atomic_inc(n_map_elements);\
 					}\
 				}\
 			}\
@@ -243,12 +243,12 @@ extern void vlib_map_init(vlib_main_t *vm);
 	oryx_vector vec = vlib_map_main.entry_vec;\
 	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
-	atomic_set(&n_map_elements, 0);\
+	atomic_set(n_map_elements, 0);\
 	struct map_t *v;\
 	vec_foreach_element(vec, each, v){\
 		if (v && (v->ul_flags & MAP_VALID)) {\
 			func (v);\
-			atomic_inc(&n_map_elements);\
+			atomic_inc(n_map_elements);\
 		}\
 	}
 
@@ -257,12 +257,12 @@ extern void vlib_map_init(vlib_main_t *vm);
 	oryx_vector vec = vlib_map_main.entry_vec;\
 	uint32_t elements_before = vec_count(vec);\
 	elements_before = elements_before;\
-	atomic_set(&n_map_elements, 0);\
+	atomic_set(n_map_elements, 0);\
 	struct map_t *v;\
 	vec_foreach_element(vec, each, v){\
 		if (v && (v->ul_flags & MAP_VALID)) {\
 			func (v, param0);\
-			atomic_inc(&n_map_elements);\
+			atomic_inc(n_map_elements);\
 		}\
 	}
 	

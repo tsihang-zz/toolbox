@@ -3,7 +3,7 @@
 
 #include "iface_private.h"
 
-extern atomic_t nb_ifaces;
+atomic_extern(uint32_t, nb_ifaces);
 extern void vlib_iface_init(vlib_main_t *vm);
 
 #define split_foreach_iface_func1(argv_x, func){\
@@ -14,13 +14,13 @@ extern void vlib_iface_init(vlib_main_t *vm);
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v);\
-				atomic_inc(&nb_ifaces);\
+				atomic_inc(nb_ifaces);\
 			}\
 		}\
 	} else {\
@@ -62,7 +62,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				}\
 				if (v) {\
 					func (v);\
-					atomic_inc(&nb_ifaces);\
+					atomic_inc(nb_ifaces);\
 					goto lookup_next;\
 				}\
 	lookup_by_alias_posted_fuzzy:\
@@ -70,7 +70,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v);\
-						atomic_inc(&nb_ifaces);\
+						atomic_inc(nb_ifaces);\
 					}\
 				}\
 				goto lookup_next;\
@@ -89,13 +89,13 @@ extern void vlib_iface_init(vlib_main_t *vm);
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0);\
-				atomic_inc(&nb_ifaces);\
+				atomic_inc(nb_ifaces);\
 			}\
 		}\
 	} else {\
@@ -137,7 +137,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				}\
 				if (v) {\
 					func (v, param0);\
-					atomic_inc(&nb_ifaces);\
+					atomic_inc(nb_ifaces);\
 					goto lookup_next;\
 				}\
 	lookup_by_alias_posted_fuzzy:\
@@ -145,7 +145,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0);\
-						atomic_inc(&nb_ifaces);\
+						atomic_inc(nb_ifaces);\
 					}\
 				}\
 				goto lookup_next;\
@@ -165,13 +165,13 @@ extern void vlib_iface_init(vlib_main_t *vm);
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
 	struct iface_t *v = NULL;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	if (!strcmp (alias_list, "*")) {\
 		/** lookup alias with Post-Fuzzy match */\
 		vec_foreach_element(vec, each, v){\
 			if (v){\
 				func (v, param0, param_1);\
-				atomic_inc(&nb_ifaces);\
+				atomic_inc(nb_ifaces);\
 			}\
 		}\
 	} else {\
@@ -213,7 +213,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				}\
 				if (v) {\
 					func (v, param0, param_1);\
-					atomic_inc(&nb_ifaces);\
+					atomic_inc(nb_ifaces);\
 					goto lookup_next;\
 				}\
 	lookup_by_alias_posted_fuzzy:\
@@ -221,7 +221,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 				vec_foreach_element(vec, each, v){\
 					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
 						func (v, param0, param_1);\
-						atomic_inc(&nb_ifaces);\
+						atomic_inc(nb_ifaces);\
 					}\
 				}\
 				goto lookup_next;\
@@ -235,36 +235,36 @@ extern void vlib_iface_init(vlib_main_t *vm);
 #define foreach_iface_func1_param0(argv_x, func)\
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v);\
-			atomic_inc(&nb_ifaces);\
+			atomic_inc(nb_ifaces);\
 		}\
 	}
 
 #define foreach_iface_func1_param1(argv_x, func, param0)\
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v, param0);\
-			atomic_inc(&nb_ifaces);\
+			atomic_inc(nb_ifaces);\
 		}\
 	}
 
 #define foreach_iface_func1_param2(argv_x, func, param0, param1)\
 		int each;\
 		oryx_vector vec = vlib_iface_main.entry_vec;\
-		atomic_set(&nb_ifaces, 0);\
+		atomic_set(nb_ifaces, 0);\
 		struct iface_t *v;\
 		vec_foreach_element(vec, each, v){\
 			if (v) {\
 				func (v, param0, param1);\
-				atomic_inc(&nb_ifaces);\
+				atomic_inc(nb_ifaces);\
 			}\
 		}
 		
@@ -272,12 +272,12 @@ extern void vlib_iface_init(vlib_main_t *vm);
 #define foreach_iface_func0_param0_func1_param1(argv_x, func0, param0, func1, param1)\
 	int each;\
 	oryx_vector vec = vlib_iface_main.entry_vec;\
-	atomic_set(&nb_ifaces, 0);\
+	atomic_set(nb_ifaces, 0);\
 	struct iface_t *v;\
 	vec_foreach_element(vec, each, v){\
 		if (v) {\
 			func (v, param0);\
-			atomic_inc(&nb_ifaces);\
+			atomic_inc(nb_ifaces);\
 		}\
 	}
 

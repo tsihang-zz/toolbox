@@ -111,12 +111,4 @@ typedef enum {
 /* The default output interface to be used */
 #define SC_LOG_DEF_LOG_OP_IFACE SC_LOG_OP_IFACE_CONSOLE
 
-ORYX_DECLARE(
-	void oryx_logging_out(const int log_level, const char *file,
-						 const unsigned int line, const char *function,
-						 const int error_code, const char *message)
-);
-
-
-
 #endif

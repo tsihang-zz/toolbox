@@ -12,11 +12,11 @@ vlib_appl_main_t vlib_appl_main = {
 	.lock = INIT_MUTEX_VAL,
 };
 
-atomic_t n_application_elements = ATOMIC_INIT(0);
+atomic_decl_and_init(uint32_t, n_application_elements);
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
-			atomic_read(&n_application_elements), am->nb_appls, VTY_NEWLINE);
+			atomic_read(n_application_elements), am->nb_appls, VTY_NEWLINE);
 
 static void
 ht_appl_free (const ht_value_t v)

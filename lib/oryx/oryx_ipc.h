@@ -4,12 +4,21 @@
 #include "ipc.h"
 
 ORYX_DECLARE (
-	int oryx_thread_mutex_create(os_mutex_t **m));
-ORYX_DECLARE (
-	int oryx_thread_cond_create(os_cond_t **c));
-ORYX_DECLARE (
-	int oryx_thread_mutex_destroy(os_mutex_t *m));
+	int oryx_tm_create (
+		OUT os_mutex_t **m
+	)
+);
 
+ORYX_DECLARE (
+	int oryx_tm_destroy (
+		IN os_mutex_t *m
+	)
+);
 
+ORYX_DECLARE (
+	int oryx_tc_create (
+		OUT os_cond_t **c
+	)
+);
 
 #endif
