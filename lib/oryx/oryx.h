@@ -167,7 +167,7 @@
 #if defined(__GNUC__)
 #define __oryx_always_extern__		__attribute__((visibility("default")))
 #define	__oryx_always_inline__		inline __attribute__((always_inline))
-#define	__oryx_unused_param__				__attribute__((unused))
+#define	__oryx_unused__				__attribute__((unused))
 #define __oryx_noreturn__(fn)		__attribute__((noreturn))fn
 #define __oryx_hot__				__attribute__((hot))
 //#define __oryx_format_func__(f,a)	__attribute__((format(__NSString__, f, a)))
@@ -175,7 +175,7 @@
 // TODO: dllexport defines for windows
 #define __oryx_always_extern__
 #define	__oryx_always_inline__	
-#define	__oryx_unused_param__
+#define	__oryx_unused__
 #endif
 
 /* we need this to stringify the defines which are supplied at compiletime see:
@@ -212,7 +212,6 @@ typedef ino_t          	oryx_ino_t;
 typedef oryx_uint16_t	oryx_port_t;
 typedef oryx_uint32_t		HASH_INDEX;
 typedef DIR				oryx_dir_t;			   /**< native dirent */
-typedef FILE				oryx_file_t;
 typedef struct timeval		oryx_os_imp_time_t;    /**< native timeval */
 typedef struct tm			oryx_os_exp_time_t;    /**< native tm */
 typedef oryx_int32_t		oryx_handler_t;
@@ -617,7 +616,6 @@ struct oryx_cfg_t *oryx_cfg_get(void) {
 #include "oryx_task.h"
 #include "oryx_tmr.h"
 #include "oryx_counters.h"
-#include "oryx_socket.h"
 
 extern int oryx_initialize(void);
 

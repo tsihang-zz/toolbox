@@ -381,7 +381,7 @@ static __oryx_always_inline__ uint32_t SCHSInitHashRaw(uint8_t *pat, uint16_t pa
  */
 static __oryx_always_inline__ SCHSPattern *SCHSInitHashLookup(SCHSCtx *ctx, uint8_t *pat,
                                               uint16_t patlen, uint16_t offset,
-                                              uint16_t depth, char __oryx_unused_param__ flags,
+                                              uint16_t depth, char __oryx_unused__ flags,
                                               uint32_t pid)
 {
     uint32_t hash = SCHSInitHashRaw(pat, patlen);
@@ -720,7 +720,7 @@ static char SCHSPatternCompare(const SCHSPattern *p1, const SCHSPattern *p2)
     return 1;
 }
 
-static uint32_t PatternDatabaseHash(struct oryx_htable_t *ht, void *data, uint32_t __oryx_unused_param__ len)
+static uint32_t PatternDatabaseHash(struct oryx_htable_t *ht, void *data, uint32_t __oryx_unused__ len)
 {
     const PatternDatabase *pd = data;
     uint32_t hash = 0;
@@ -734,8 +734,8 @@ static uint32_t PatternDatabaseHash(struct oryx_htable_t *ht, void *data, uint32
     return hash;
 }
 
-static int PatternDatabaseCompare(void *data1, uint32_t __oryx_unused_param__ len1, void *data2,
-                                   uint32_t __oryx_unused_param__ len2)
+static int PatternDatabaseCompare(void *data1, uint32_t __oryx_unused__ len1, void *data2,
+                                   uint32_t __oryx_unused__ len2)
 {
     const PatternDatabase *pd1 = data1;
     const PatternDatabase *pd2 = data2;
@@ -774,7 +774,7 @@ static void PatternDatabaseFree(PatternDatabase *pd)
     free(pd);
 }
 
-static void PatternDatabaseTableFree(void __oryx_unused_param__*data)
+static void PatternDatabaseTableFree(void __oryx_unused__*data)
 {
     /* Stub function handed to hash table; actual freeing of PatternDatabase
      * structures is done in MPM destruction when the ref_cnt drops to zero. */
@@ -976,7 +976,7 @@ error:
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-void SCHSInitThreadCtx(MpmCtx __oryx_unused_param__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void SCHSInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
 
@@ -1057,7 +1057,7 @@ void SCHSInitCtx(MpmCtx *mpm_ctx)
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-void SCHSDestroyThreadCtx(MpmCtx __oryx_unused_param__*mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
+void SCHSDestroyThreadCtx(MpmCtx __oryx_unused__*mpm_ctx, MpmThreadCtx *mpm_thread_ctx)
 {
     SCHSPrintSearchStats(mpm_thread_ctx);
 
@@ -1121,8 +1121,8 @@ typedef struct SCHSCallbackCtx_ {
 } SCHSCallbackCtx;
 
 /* Hyperscan MPM match event handler */
-static int SCHSMatchEvent(unsigned int id, unsigned long long __oryx_unused_param__ from,
-                          unsigned long long __oryx_unused_param__ to, unsigned int __oryx_unused_param__ flags,
+static int SCHSMatchEvent(unsigned int id, unsigned long long __oryx_unused__ from,
+                          unsigned long long __oryx_unused__ to, unsigned int __oryx_unused__ flags,
                           void *ctx)
 {
     SCHSCallbackCtx *cctx = ctx;
@@ -1239,7 +1239,7 @@ int SCHSAddPatternCS(MpmCtx *mpm_ctx, uint8_t *pat, uint16_t patlen,
     return SCHSAddPattern(mpm_ctx, pat, patlen, offset, depth, pid, sid, flags);
 }
 
-void SCHSPrintSearchStats(MpmThreadCtx __oryx_unused_param__ *mpm_thread_ctx)
+void SCHSPrintSearchStats(MpmThreadCtx __oryx_unused__ *mpm_thread_ctx)
 {
     return;
 }

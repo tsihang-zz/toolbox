@@ -50,9 +50,9 @@ LIBABIVER := 1
 
 # all source are stored in SRC-Y
 SRCS-y :=\
-   counter.c debug.c format.c utils.c rbtree.c ipc.c lq.c \
+   counter.c debug.c format.c fio.c  utils.c rbtree.c ipc.c lq.c \
    memcache.c oryx.c error.c atomic.c ring.c shm_ring.c mpool.c parser.c task.c htable.c memory.c \
-   socket.c socket6.c mdx.c lru.c list.c tmr.c vec.c
+   mdx.c list.c tmr.c vec.c
 
 
 #CFLAGS += $(WERROR_FLAGS)

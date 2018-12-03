@@ -28,7 +28,7 @@ struct oryx_lq_ctx_t * fetch_lq(uint64_t sand, struct oryx_lq_ctx_t **lq) {
 }
 
 static
-void * dequeue_handler (void __oryx_unused_param__ *r)
+void * dequeue_handler (void __oryx_unused__ *r)
 {
 		struct lq_element_t *lqe;
 		struct oryx_lq_ctx_t *lq = *(struct oryx_lq_ctx_t **)r;
@@ -62,7 +62,7 @@ void * dequeue_handler (void __oryx_unused_param__ *r)
 }
 
 static
-void * enqueue_handler (void __oryx_unused_param__ *r)
+void * enqueue_handler (void __oryx_unused__ *r)
 {
 		struct lq_element_t *lqe;
 		static uint32_t sand = 1315423911;
@@ -194,8 +194,8 @@ static void lq_runtime(void)
 }
 
 int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
+        int     __oryx_unused__   argc,
+        char    __oryx_unused__   ** argv
 )
 
 {	

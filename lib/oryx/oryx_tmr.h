@@ -53,8 +53,8 @@ ORYX_DECLARE (
 ORYX_DECLARE (
 	void oryx_tmr_default_handler (
 		IN struct oryx_timer_t *tmr,
-		IN int __oryx_unused_param__	argc,
-		IN char __oryx_unused_param__	*argv
+		IN int __oryx_unused__	argc,
+		IN char __oryx_unused__	**argv
 	)
 );
 

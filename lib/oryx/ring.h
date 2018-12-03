@@ -27,8 +27,8 @@ struct oryx_ring_t {
 	int					max_elements;
 	key_t					key;			/* for different progress. */
 
-	atomic_declare(uint64_t, wp);
-	atomic_declare(uint64_t, rp);
+	ATOMIC_DECLARE(uint64_t, wp);
+	ATOMIC_DECLARE(uint64_t, rp);
 	
 	struct oryx_ring_data_t		*data;
 

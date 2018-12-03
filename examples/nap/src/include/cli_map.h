@@ -1,7 +1,7 @@
 #ifndef CLI_MAP_H
 #define CLI_MAP_H
 
-atomic_extern(uint32_t, n_map_elements);
+ATOMIC_EXTERN(uint32_t, n_map_elements);
 extern void vlib_map_init(vlib_main_t *vm);
 
 #define split_foreach_map_func1_param0(argv_x, func) {\
@@ -29,7 +29,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -107,7 +107,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -185,7 +185,7 @@ extern void vlib_map_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\

@@ -745,7 +745,6 @@ int main_loop (void *ptr_data)
 	uint32_t		tx_port_id;
 	uint64_t		prev_tsc;
 	uint64_t		diff_tsc;
-	uint64_t		cur_tsc;
 	uint64_t		timer_tsc;
 	int32_t			nr_ip4_acl;
 	int32_t			nr_ip6_acl;

@@ -13,7 +13,7 @@
     [COLORS]		= "skip-draw-color"\
 }
 
-uint32_t __os_rand;
+static uint32_t __os_rand;
 static const char* colors[] = COLOR_TYPES;
 
 static const char *___builtin_itoa (int value, char * str, int base)
@@ -70,7 +70,11 @@ int oryx_path_remove (const char *path)
 }
 
 __oryx_always_extern__
-int oryx_mkdir (const char *dir, oryx_dir_t **d)
+int oryx_mkdir 
+(
+	IN const char *dir,
+	OUT DIR **d
+)
 {
 
 	char cmd[256] = {0};
@@ -94,7 +98,12 @@ int oryx_mkdir (const char *dir, oryx_dir_t **d)
 }
 
 __oryx_always_extern__
-int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode)
+int oryx_mkfile 
+(
+	IN const char *file,
+	IN const char *mode,
+	OUT FILE **fp
+)
 {
 
 	char cmd[256] = {0};
@@ -111,28 +120,13 @@ int oryx_mkfile (const char *file, oryx_file_t **fp, const char *mode)
 		do_system(cmd);
 
 		snprintf (cmd, 255,  "chmod 775 %s", file);
-	    	do_system(cmd);
+	    do_system(cmd);
 
 		(*fp)  = fopen (file, mode);
 	}
 
 	s = (file && (*fp)) ? 0 : 1;
 
-	return s;
-}
-
-__oryx_always_extern__
-int oryx_file_close (oryx_file_t *fp)
-{
-
-	int s = 0;
-
-	ASSERT (fp);
-	
-	if (unlikely(!fclose (fp))) {
-		s = 1;
-	}
-	
 	return s;
 }
 
@@ -144,39 +138,13 @@ void oryx_file_clear(const char *f) {
 	do_system(cat_null);
 }
 
-__oryx_always_extern__
-int oryx_file_read_write (oryx_file_t *fp, 
-			struct oryx_file_rw_context_t *frw_ctx)
-{
-
-	oryx_size_t s = 0;
-
-	ASSERT (frw_ctx);
-	ASSERT (fp);
-
-	if (frw_ctx->cmd & RW_MODE_READ) {
-		if (frw_ctx->cmd & RW_MODE_READ_LINE) {
-			char *v = fgets (frw_ctx->sc_buffer, frw_ctx->ul_size, fp);
-			if (v) s = strlen (frw_ctx->sc_buffer);
-		} else {
-			/** Read blocks. */
-			s = fread (frw_ctx->sc_buffer, sizeof (char), frw_ctx->ul_size, fp);
-		}
-		
-	} else {
-		if (fputs (frw_ctx->sc_buffer, fp) > 0) {
-			s = strlen (frw_ctx->sc_buffer);
-		}
-	}
-
-	frw_ctx->ul_rw_size = (s > 0) ? s : 0;
-
-	return (s > 0) ? s : 0;
-}
-
 /** A random Pattern generator.*/
 __oryx_always_extern__
-int oryx_pattern_generate (char *pattern, size_t l)
+int oryx_pattern_generate 
+(
+	IN char *pattern,
+	IN size_t l
+)
 {
 	int pl = 0, j;
 	uint32_t rand = __os_rand;
@@ -184,7 +152,7 @@ int oryx_pattern_generate (char *pattern, size_t l)
 	memset (pattern, 0, l);
 
 	do {
-		next_rand_(&rand);
+		oryx_next_rand(&rand);
 		pl = rand % l;
 	} while (pl < 4 /** Smallest Pattern */ || 
 			pl > (int)(l - 1)  /** Largest Pattern */);
@@ -192,7 +160,7 @@ int oryx_pattern_generate (char *pattern, size_t l)
 	for (j = 0; j < (int)pl; j ++) {
 		char c;
 		do {
-			next_rand_(&rand);
+			oryx_next_rand(&rand);
 			c = rand % 255;
 		} while (!isalpha(c));
 		
@@ -206,7 +174,10 @@ int oryx_pattern_generate (char *pattern, size_t l)
 
 /** A random IPv4 address generator.*/
 __oryx_always_extern__
-void oryx_ipaddr_generate (char *ipv4)
+void oryx_ipaddr_generate
+(
+	IN char *ipv4
+)
 {
 	int		a = 0,
 			b = 0,
@@ -221,11 +192,11 @@ void oryx_ipaddr_generate (char *ipv4)
 	
 	uint8_t mask;
 	
-	a = next_rand_ (&rand) % 256;
-	b = next_rand_ (&rand) % 256;
-	c = next_rand_ (&rand) % 256;
-	d = next_rand_ (&rand) % 256;
-	mask = next_rand_ (&rand) % 32;
+	a = oryx_next_rand (&rand) % 256;
+	b = oryx_next_rand (&rand) % 256;
+	c = oryx_next_rand (&rand) % 256;
+	d = oryx_next_rand (&rand) % 256;
+	mask = oryx_next_rand (&rand) % 32;
 	
 	___builtin_itoa (a, aa, 10);
 	___builtin_itoa (b, bb, 10);
@@ -246,15 +217,19 @@ void oryx_ipaddr_generate (char *ipv4)
 }
 
 __oryx_always_extern__
-void oryx_l4_port_generate (char *sp, char *dp)
+void oryx_l4_port_generate 
+(
+	IN char *sp,
+	IN char *dp
+)
 {
 	uint32_t rand = __os_rand;
 	uint16_t psrc, pdst;
 	char	aa[5],
 			bb[5];
 	
-	psrc = next_rand_ (&rand) % 65535;
-	pdst = next_rand_ (&rand) % 65535;
+	psrc = oryx_next_rand (&rand) % 65535;
+	pdst = oryx_next_rand (&rand) % 65535;
 	
 	___builtin_itoa (psrc, aa, 10);
 	___builtin_itoa (pdst, bb, 10);
@@ -263,6 +238,7 @@ void oryx_l4_port_generate (char *sp, char *dp)
 	strcpy (dp, bb);
 }
 
+__oryx_always_extern__
 char * oryx_fmt_program_counter (uint64_t fmt_val, char *fmt_buffer, int fixed_width , int no_scale)
 {
 	uint64_t _1KB = 1LL << 10;
@@ -310,7 +286,12 @@ char * oryx_fmt_program_counter (uint64_t fmt_val, char *fmt_buffer, int fixed_w
 	return str;
 }
 
-void oryx_register_sighandler(int signal, void (*handler)(int))
+__oryx_always_extern__
+void oryx_register_sighandler
+(
+	IN int signal,
+	IN void (*handler)(IN int)
+)
 {
 	sigset_t block_mask;
 	struct sigaction saction;
@@ -325,16 +306,51 @@ void oryx_register_sighandler(int signal, void (*handler)(int))
 }
 
 __oryx_always_extern__
-uint64_t oryx_elapsed_us (struct  timeval *start, struct  timeval *end)
+uint64_t oryx_elapsed_us
+(
+	IN struct  timeval *start,
+	IN struct  timeval *end
+)
 {
 	return (1000000 * (end->tv_sec - start->tv_sec) + end->tv_usec - start->tv_usec);
 }
 
 __oryx_always_extern__
-void fmt_time (uint64_t ts, const char *fmt, char *date, size_t len)
+int oryx_get_prgname
+(
+	IN pid_t pid,
+	OUT char *prgname
+)
+{
+	 char pidpath[1024];
+	 char buf[1024];
+
+	 sprintf(pidpath, "/proc/%d/status", pid);
+	 FILE* fp = fopen(pidpath, "r");
+	 if(fp == NULL) {
+	 	fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
+		return -EINVAL;
+	 } else {
+	     if (fgets(buf, 1024 - 1, fp) != NULL)
+		     sscanf(buf, "%*s %s", prgname);
+	     fclose(fp);
+		 return 0;
+	 }
+}
+
+__oryx_always_extern__
+void oryx_fmt_time 
+(
+	IN uint64_t ts, 
+	IN const char *fmt,
+	OUT char *date,
+	IN size_t len
+)
 {
 	BUG_ON (date == NULL);
 	BUG_ON (fmt == NULL);
+
+	memset(date, 0, len);
 
 	/** Convert ts to localtime with local time-zone */
     const struct tm *tm = localtime((time_t *)&ts);
@@ -342,7 +358,10 @@ void fmt_time (uint64_t ts, const char *fmt, char *date, size_t len)
 }
 
 __oryx_always_extern__
-int do_system(const char *cmd)
+int do_system
+(
+	IN const char *cmd
+)
 {
     if (likely(cmd)) {
 	    return system(cmd);
@@ -352,87 +371,101 @@ int do_system(const char *cmd)
 }
 
 __oryx_always_extern__
-int is_numerical (char* s)
+bool is_number
+(
+	IN const char *s,
+	IN size_t l
+)
 {
-	//in : have integer <==>fr : have fraction
-	bool in = false, fr = false;
-	//ein : left of e <==> eout : right of e
-	bool ein = false, eout = false;
-	//1. space
+	char *p;
+
+	if (!l) return false;
+	
+	for (p = (char *)&s[0];
+				*p != '\0' && *p != '\n'; ++ p) {
+		if(*p != '+' && *p != '-' 
+					&& (*p < '0' || *p > '9')
+					&& (*p < 'A' || *p > 'F')
+					&& (*p < 'a' || *p > 'f'))
+			return false;
+	}
+	return true;
+}
+
+
+__oryx_always_extern__
+bool is_numerical 
+(
+	IN const char* s,
+	IN size_t __oryx_unused__ l
+)
+{
+	bool	in		= false,	/* have integer */
+			fr		= false,	/* have fraction */
+			ein		= false,	/* left of e */
+			eout 	= false;	/* right of e */
+
+	/* 1. skip space */
 	while(isspace(*s))
-	{
-		s++;
-	}
-	//2. after space
+		s ++;
+
+	/* 2. after space */
 	if((!isdigit(*s)) && (*s != 'e') && (*s != '.') && (*s != '+') && (*s != '-'))
-	{
 		return false;
-	}
-	//3. + -
+	
+	/* 3. + - */
 	if((*s == '+') || (*s == '-'))
-	{
 		s++;
-	}
-	//4. integer part
-	if(isdigit(*s))
-	{
+	
+	/* 4. integer part */
+	if(isdigit(*s)) {
 		in = true;
 		ein = true;
 	}
+	
 	while(isdigit(*s))
-	{
 		s++;
-	}
-	//5. '.' and 'e'
-	if((*s) == '.')
-	{
+	
+	/* 5. '.' and 'e' */
+	if((*s) == '.') {
 		s++;
 		if(isdigit(*s))
-		{
 			fr = true;
-		}
 		if((!fr) && (!in))
-		{
 			return false;
-		}
 		while(isdigit(*s))
-		{
 			s++;
-		}
 		ein = true;
 	}
-	if(*s == 'e')
-	{
+	
+	if(*s == 'e') {
 		s++;
+		
 		if((*s == '-') || (*s == '+'))
-		{
 			s++;
-		}
 		if(isdigit(*s))
-		{
 			eout = true;
-		}
 		if((!ein) || (!eout))
-		{
 			return false;
-		}
 		while(isdigit(*s))
-		{
 			s++;
-		}
 	}
   
-	//6. ending space
+	/* 6. ending space */
 	while(isspace(*s))
-	{
 		s++;
-	}
+		
 	return (*s == '\0') ? true : false;
 	
 }
 
 __oryx_always_extern__
-int kvpair(char *str, char **k, char **v)
+int kvpair
+(
+	IN char *str,
+	OUT char **k,
+	OUT char **v
+)
 {
     char seps[]   = " \t\r\n=:";
     *k = strtok(str, seps);
@@ -448,17 +481,93 @@ int kvpair(char *str, char **k, char **v)
 }
 
 __oryx_always_extern__
-const char *draw_color(color_t color)
+const char *draw_color
+(
+	IN color_t color
+)
 {
 	return colors[color % COLORS];
 }
 
+__oryx_always_extern__
+uint32_t oryx_next_rand 
+(
+	uint32_t *p
+)
+{
+	uint32_t seed = *p;
 
-int
-oryx_foreach_directory_file (char *dir_name,
-			int (*f) (void *arg, char * path_name,
-			char * file_name), void *arg,
-			int scan_dirs)
+	seed = 1103515145 * seed + 12345;
+	*p = seed;
+	__os_rand = *p;
+	return seed;
+}
+
+/**
+ *  \brief wrapper for OS/compiler specific atomic compare and swap (CAS)
+ *         function.
+ *
+ *  \param @string A range in string mode
+ *  \param @lim Limit of the maximum number
+ *  \param @base 
+ *	\param @ul_start The number before @lim
+ *	\param @ul_end The number after @lim
+ *
+ *  \retval 0 format successed
+ *  \retval -EINVAL format failed
+ *
+ *	\example: oryx_formatted_range("1:100", UINT16_MAX, 0, ':', &val_start, &val_end)
+ *   val_start will be number 1 and val_end will be number 100.
+ */
+
+__oryx_always_extern__
+int oryx_formatted_range
+(
+	IN const char *str,
+	IN uint32_t lim,
+	IN int base,
+	IN char dlm,
+	OUT uint32_t *ul_start,
+	OUT uint32_t *ul_end
+)
+{
+	uint32_t val_start, val_end;
+	char *end;
+	char *next;
+
+	BUG_ON(ul_start == NULL || ul_end == NULL);
+	(*ul_start) = (*ul_end) = 0;
+	
+	val_start = strtoul((const char *)str, &end, base);
+	if (errno == ERANGE || end[0] != dlm || val_start > lim){
+		oryx_logn("%d %c %d lim %u (%s)", errno, end[0], val_start, lim, str);
+		return -EINVAL;
+	}
+
+	next = end + 1; /** skip the dlm */
+	
+	val_end = strtoul((const char *)next, &end, base);
+	if (errno == ERANGE || val_end > lim){
+		oryx_logn("%d %c %d lim %u (%s)", errno, end[0], val_end, lim, next);
+		return -EINVAL;
+	}
+
+	*ul_start = val_start;
+	*ul_end = val_end;
+
+	return 0;
+}
+
+
+__oryx_always_extern__
+int oryx_foreach_directory_file 
+(
+		IN char *dir_name,
+		IN int (*f) (IN void *arg, IN char * path_name,
+			IN char * file_name), 
+		IN void *arg,
+		IN int scan_dirs
+)
 {
 	DIR *d;
 	struct dirent *e;
@@ -511,18 +620,18 @@ oryx_foreach_directory_file (char *dir_name,
  * Like strncpy but does not 0 fill the buffer and always null 
  * terminates.
  *
- * @param VLIB_BUFSIZE is the size of the destination buffer.
+ * @param l is the size of the destination buffer.
  *
  * @return index of the terminating byte.
  **/
 size_t
-strlcpy(char *d, const char *s, size_t VLIB_BUFSIZE)
+strlcpy(char *d, const char *s, size_t l)
 {
 	size_t len = strlen(s);
 	size_t ret = len;
-	if (VLIB_BUFSIZE > 0) {
-		if (len >= VLIB_BUFSIZE)
-			len = VLIB_BUFSIZE-1;
+	if (l > 0) {
+		if (len >= l)
+			len = l -1;
 		memcpy(d, s, len);
 		d[len] = 0;
 	}
@@ -535,19 +644,19 @@ strlcpy(char *d, const char *s, size_t VLIB_BUFSIZE)
  * Like strncat() but does not 0 fill the buffer and always null 
  * terminates.
  *
- * @param VLIB_BUFSIZE length of the buffer, which should be one more than
+ * @param l length of the buffer, which should be one more than
  * the maximum resulting string length.
  **/
 size_t
-strlcat(char *d, const char *s, size_t VLIB_BUFSIZE)
+strlcat(char *d, const char *s, size_t l)
 {
 	size_t len1 = strlen(d);
 	size_t len2 = strlen(s);
 	size_t ret = len1 + len2;
 
-	if (len1 < VLIB_BUFSIZE - 1) {
-		if (len2 >= VLIB_BUFSIZE - len1)
-			len2 = VLIB_BUFSIZE - len1 - 1;
+	if (len1 < l - 1) {
+		if (len2 >= l - len1)
+			len2 = l - len1 - 1;
 		memcpy(d+len1, s, len2);
 		d[len1+len2] = 0;
 	}
@@ -565,7 +674,12 @@ strlcat(char *d, const char *s, size_t VLIB_BUFSIZE)
  * \param len len of the string sent in s.
  */
 __oryx_always_extern__
-void memcpy_tolower (uint8_t *d, uint8_t *s, uint16_t len)
+void memcpy_tolower
+(
+	OUT uint8_t *d,
+	IN uint8_t *s,
+	IN uint16_t len
+)
 {
     uint16_t i;
 	

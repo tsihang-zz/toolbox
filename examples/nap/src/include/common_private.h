@@ -61,8 +61,7 @@ enum {
 	QUAS,
 };
 
-typedef struct vlib_main
-{
+typedef struct vlib_main {
 	int					argc;
 	char				**argv;
 	const char			*prgname;			/* Name for e.g. syslog. */

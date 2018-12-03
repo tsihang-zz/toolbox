@@ -5,9 +5,9 @@
 
 ORYX_DECLARE (
 	struct oryx_task_t * oryx_task_spawn (
-		IN const char		__oryx_unused_param__*alias, 
-		IN const uint32_t	__oryx_unused_param__ ul_prio,
-		IN void	__oryx_unused_param__*attr,
+		IN const char		__oryx_unused__*alias, 
+		IN const uint32_t	__oryx_unused__ ul_prio,
+		IN void	__oryx_unused__*attr,
 		IN void *(*handler)(void *),
 		IN void	*argv
 	)

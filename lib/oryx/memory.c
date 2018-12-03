@@ -5,7 +5,7 @@
 #define MEM_BLOCK_SIZE 	10*1024*1024
 #define MAX_MEM_BLOCKS	256
 
-atomic_decl_and_init(uint64_t, mem_access_times);
+ATOMIC_DECL_AND_INIT(uint64_t, mem_access_times);
 
 
 typedef struct memory_handle_s {
@@ -137,72 +137,64 @@ void MEM_UninitMemory(void *mem_handle)
 	free(mem_handle);
 }
 
-int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
+int oryx_shm_destroy(vlib_shm_t *shm)
+{
+	/* 
+	 * command "ipcs -m"	   : show current shm by users. */
+	/* command "ipcrm -m shmid $id": delete shared memroy forever. */
+	if (shmdt((void *)shm->addr) == -1) {
+        fprintf(stderr, "shmdt: %s\n", oryx_safe_strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+	/* rm the shm memory forever */
+    if (shmctl(shm->shmid, IPC_RMID, 0) == -1) {
+        fprintf(stderr, "shmctl: %s\n", oryx_safe_strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+	return 0;
+}
+
+
+int oryx_shm_get (key_t key , int size, vlib_shm_t *shm)
 {	
 	int		shmid;
 	void	*mem;
+	
 	/* There is a shared memory with the KEY. */
 	shmid = shmget(key, size, 0640); 	
-	if (shmid == -1) {
-		fprintf(stdout, "shmget(%d): %s\n", key, oryx_safe_strerror(errno));
-	}
-	else {
+	if (shmid != -1) {
 		/* attache this shared memory to current address space of current progress. */
-		mem = (void*)shmat(shmid, NULL, 0);
+		mem = shmat(shmid, NULL, 0);
 		if (mem == (void *)-1) {
 			fprintf(stdout, "shmat0: %s\n", oryx_safe_strerror(errno));
 			return -1;
 		} else {
 			shm->shmid = shmid;
-			shm->addr = mem;
+			shm->addr = (uint64_t)mem;
 			return 0;
 		}
+
 	}
 
 	fprintf(stdout, "Create new partion.\n");
 	/* Create shared memory with the given KEY. */
 	shmid = shmget(key, size, (0640|IPC_CREAT|IPC_EXCL)); 
 	if (shmid == -1) {
-		fprintf(stdout, "shmget1: %s\n", oryx_safe_strerror(errno));
+		fprintf(stdout, "shmnew: %s\n", oryx_safe_strerror(errno));
 		return -1;
 	} else {
-		mem = (void *)shmat(shmid, NULL, 0);
+		mem = shmat(shmid, NULL, 0);
 		if (mem == (void *)-1) {
 			fprintf(stdout, "shmat1: %s\n", oryx_safe_strerror(errno));
 			return -1;
 		} else {
-			memset(shm->addr , 0 , size);
-			shm->addr = mem;
+			memset(mem ,0, size);
 			shm->shmid = shmid;
+			shm->addr = (uint64_t)mem;
 		}
 	}
 	return 0;
 }
-
-int oryx_shm_detach(vlib_shm_t *shm)
-{
-	/* detach shm memory from the calling process. */
-	if (shmdt(shm->addr) == -1) {
-		oryx_loge(-1,
-			"shmdt: %s", oryx_safe_strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
-int oryx_shm_destroy(vlib_shm_t *shm)
-{
-	/* 
-	 * command "ipcs -m"	   : show current shm by users. */
-	/* command "ipcrm -m shmid": delete shared memroy forever. */
-	char ipcrm[256] = {0};
-
-	sprintf(ipcrm, "ipcrm -m %d", shm->shmid);
-	fprintf(stdout, "%s\n", ipcrm);
-	do_system(ipcrm);
-	
-	/* rm the shm memory forever */
-	return 0;
-}
-
 

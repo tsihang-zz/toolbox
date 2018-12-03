@@ -3,7 +3,7 @@
 
 #include "appl_private.h"
 
-atomic_extern(uint32_t, n_application_elements);
+ATOMIC_EXTERN(uint32_t, n_application_elements);
 
 extern void vlib_appl_init(vlib_main_t *vm);
 
@@ -21,7 +21,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
 						.cmd = LOOKUP_ID,\
@@ -86,7 +86,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -152,7 +152,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 		while (token) {\
 			if (token) {\
 				v = NULL;\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -219,7 +219,7 @@ extern void vlib_appl_init(vlib_main_t *vm);
 				while (token) {\
 					if (token) {\
 						v = NULL;\
-						if (isalldigit (token)) {\
+						if (is_numerical (token, strlen(token))) {\
 							/** Lookup by ID. */\
 							uint32_t id = atoi(token);\
 							struct prefix_t lp = {\

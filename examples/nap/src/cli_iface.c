@@ -3,6 +3,7 @@
 #include "command.h"
 #include "prefix.h"
 
+#include "netdev.h"
 #include "common_private.h"
 #include "map_private.h"
 #include "cli_iface.h"
@@ -26,7 +27,7 @@ vlib_iface_main_t vlib_iface_main = {
 	vty_out (vty, "%s(Success)%s %s port \"%s\"(%u)%s", \
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, iface_alias(v), v->ul_id, VTY_NEWLINE)
 
-atomic_decl_and_init(uint32_t, nb_ifaces);
+ATOMIC_DECL_AND_INIT(uint32_t, nb_ifaces);
 
 static
 void ht_iface_free (const ht_value_t v)
@@ -496,8 +497,8 @@ static void register_ports(void)
 
 
 static __oryx_always_inline__
-void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
-			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
+void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
 
 {
 	int i;
@@ -512,7 +513,7 @@ void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
 	uint64_t lcore_nr_tx_pkts[MAX_LCORES];
 	uint64_t lcore_nr_tx_bytes[MAX_LCORES];
 
-	static oryx_file_t *fp;
+	static FILE *fp;
 	const char *healthy_file = "/data/iface_healthy.txt";
 	int each;
 	oryx_vector vec = vlib_iface_main.entry_vec;
@@ -566,8 +567,8 @@ void iface_healthy_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
 
 
 static __oryx_always_inline__
-void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused_param__*tmr,
-			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
+void iface_activity_prob_tmr_handler(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
 	vlib_iface_main_t *pm = &vlib_iface_main;	
 	int each;

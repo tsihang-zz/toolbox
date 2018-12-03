@@ -12,7 +12,7 @@ vlib_appl_main_t vlib_appl_main = {
 	.lock = INIT_MUTEX_VAL,
 };
 
-atomic_decl_and_init(uint32_t, n_application_elements);
+ATOMIC_DECL_AND_INIT(uint32_t, n_application_elements);
 
 #define PRINT_SUMMARY	\
 		vty_out (vty, "matched %d element(s), total %d element(s)%s", \
@@ -93,7 +93,7 @@ static int appl_entry_output (struct appl_t *appl, struct vty *vty)
 	struct prefix_ipv4 ip4;
 	
 	char tmstr[100];
-	fmt_time (appl->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	oryx_fmt_time (appl->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	if(appl->ip_src_mask == ANY_IPADDR) {
 		sprintf((char *)&pfx_buf[__SRC__][0], "%s", "any");
@@ -411,11 +411,11 @@ DEFUN(test_application,
   vlib_appl_main_t *am	= &vlib_appl_main;
   struct appl_t *appl	= NULL;
 	
-  ret = format_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
+  ret = oryx_formatted_range (range, UINT16_MAX, 0, ':', &val_start, &val_end);
   vty_out (vty, "%s ret = %d, start %d end %d%s", range,
 	  ret, val_start, val_end, VTY_NEWLINE);
 
-  ret = format_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
+  ret = oryx_formatted_range (mask, UINT16_MAX, 0, '/', &val, &val_mask);
   vty_out (vty, "%s ret = %d, %d/%d%s", mask,
 	  ret, val, val_mask, VTY_NEWLINE);
 

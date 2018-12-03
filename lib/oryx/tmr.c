@@ -6,12 +6,12 @@ typedef struct oryx_tmr_mgr_t {
 	struct list_head sigtmr_head;
 
 	os_mutex_t ol_sigtmr_lock;
-	atomic_declare(uint64_t, sigtmr_cur_ticks);
+	ATOMIC_DECLARE(uint64_t, sigtmr_cur_ticks);
 	
 	/** advanced tmr head */
 	struct list_head tmr_head;
 	os_mutex_t ol_tmr_lock;
-	atomic_declare(uint64_t, tmr_cur_ticks);
+	ATOMIC_DECLARE(uint64_t, tmr_cur_ticks);
 
 	uint32_t ul_tmr_cnt;
 
@@ -28,8 +28,8 @@ void
 oryx_tmr_default_handler
 (
 	IN struct oryx_timer_t *tmr,
-	IN int __oryx_unused_param__	argc,
-	IN char __oryx_unused_param__	*argv
+	IN int __oryx_unused__	argc,
+	IN char __oryx_unused__	**argv
 )
 {
     fprintf (stdout, "default %s-timer routine has occured on [%s, %u, %d]\n",
@@ -69,7 +69,7 @@ tmr_free
 static oryx_tmr_id
 tmr_id_alloc
 (
-	IN int __oryx_unused_param__ module,
+	IN int __oryx_unused__ module,
 	IN const char *sc_alias,
 	IN size_t s
 )
@@ -198,7 +198,7 @@ void realtimer_init(void)
 static __oryx_always_inline__
 void * tmr_daemon
 (
-	IN void __oryx_unused_param__*pv_par
+	IN void __oryx_unused__*pv_par
 )
 {
 	struct oryx_tmr_mgr_t *tm = &tmrmgr;
@@ -287,8 +287,8 @@ int oryx_tmr_initialize(void)
 
 	INIT_LIST_HEAD (&tm->sigtmr_head);
 	INIT_LIST_HEAD (&tm->tmr_head);
-	atomic_init(tm->sigtmr_cur_ticks);
-	atomic_init(tm->tmr_cur_ticks);
+	ATOMIC_INIT(tm->sigtmr_cur_ticks);
+	ATOMIC_INIT(tm->tmr_cur_ticks);
 
 #if defined (HAVE_ADVANCED_TMR)
 	oryx_task_registry (&advanced_tmr_task);

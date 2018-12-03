@@ -22,7 +22,7 @@ struct kafka_producer_param_t kpp = {
  * the application's thread.
  */
 static void dr_msg_cb (rd_kafka_t *rk,
-                       const rd_kafka_message_t *rkmessage, void __oryx_unused_param__ *opaque) {
+                       const rd_kafka_message_t *rkmessage, void __oryx_unused__ *opaque) {
         struct kafka_producer_param_t *k = &kpp;
 		if (rkmessage->err)
 			k->errors ++;
@@ -39,11 +39,11 @@ static void dr_msg_cb (rd_kafka_t *rk,
 * Called once for each message.
 * See rdkafka.h for more information.
 */
-static void dr_cb (rd_kafka_t __oryx_unused_param__*rk,
-			 void  __oryx_unused_param__ *payload,
+static void dr_cb (rd_kafka_t __oryx_unused__*rk,
+			 void  __oryx_unused__ *payload,
 			 size_t len,
 			 int error_code,
-			 void __oryx_unused_param__ *opaque, void *msg_opaque) {
+			 void __oryx_unused__ *opaque, void *msg_opaque) {
    struct kafka_producer_param_t *k = (struct kafka_producer_param_t *)msg_opaque;
    if (error_code) {
 	   k->errors ++;

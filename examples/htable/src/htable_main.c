@@ -7,7 +7,7 @@ struct hash_key_t {
 };
 
 static void
-ht__free (const ht_value_t __oryx_unused_param__ v)
+ht__free (const ht_value_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
@@ -47,17 +47,17 @@ ht__cmp (const ht_value_t v1,
 	return xret;
 }
 
-static void htable_handler(ht_value_t __oryx_unused_param__ v,
-				uint32_t __oryx_unused_param__ s,
+static void htable_handler(ht_value_t __oryx_unused__ v,
+				uint32_t __oryx_unused__ s,
 				void *opaque,
-				int __oryx_unused_param__ opaque_size) {
+				int __oryx_unused__ opaque_size) {
 	int *actives = (int *)opaque;
 	(*actives) ++;
 }
 
 int main (
-	int 	__oryx_unused_param__	argc,
-	char	__oryx_unused_param__	** argv
+	int 	__oryx_unused__	argc,
+	char	__oryx_unused__	** argv
 )
 {
 	int i;

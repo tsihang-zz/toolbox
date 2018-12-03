@@ -95,7 +95,7 @@ struct appl_t {
 }__attribute__((__packed__));
 
 #define appl_id(appl)		((appl)->ul_id)
-#define appl_alias(appl)	((appl)->sc_alias)
+#define appl_alias(appl)	((char *)&(appl)->sc_alias[0])
 
 #define VLIB_AM_XXXXXXXXXX		(1 << 0)
 typedef struct {
@@ -128,7 +128,7 @@ static __oryx_always_inline__
 void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct appl_t **appl)
 {
 	BUG_ON(alias == NULL);
-	void *s = oryx_htable_lookup (am->htable, (ht_value_t)alias,
+	void *s = oryx_htable_lookup (am->htable, (const ht_value_t)alias,
 						strlen(alias));
 	if (s) {
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);

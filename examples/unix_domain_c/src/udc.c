@@ -6,7 +6,7 @@ bool bypass = false;
 static uint64_t connected_times = 0;
 
 static
-void * unix_domain_detector_handler0 (void __oryx_unused_param__ *v)
+void * unix_domain_detector_handler0 (void __oryx_unused__ *v)
 {
     int r;
 	static uint64_t errors = 0;
@@ -64,7 +64,7 @@ quit:
 }
 
 static
-void * unix_domain_detector_handler (void __oryx_unused_param__ *v)
+void * unix_domain_detector_handler (void __oryx_unused__ *v)
 {
     int err;
 	static uint64_t errors = 0;
@@ -112,7 +112,7 @@ quit:
 
 
 static
-void * unix_domain_client_handler (void __oryx_unused_param__ *v)
+void * unix_domain_client_handler (void __oryx_unused__ *v)
 {
 	static uint64_t errors = 0;
     static struct sockaddr_un saddr;

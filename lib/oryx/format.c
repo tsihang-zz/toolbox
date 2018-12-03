@@ -5,8 +5,7 @@
  * Generates a log message The message will be sent in the stream
  * defined by the previous call to rte_openlog_stream().
  */
-static int
-___format
+static int ___format
 (
 	IN struct oryx_fmt_buff_t *fb,
 	IN const char *format,
@@ -20,8 +19,8 @@ ___format
 	return ret;
 }
 
-void
-oryx_format
+__oryx_always_extern__
+void oryx_format
 (
 	IN struct oryx_fmt_buff_t *fb,
 	IN const char *fmt,
@@ -57,8 +56,8 @@ oryx_format
 
 }
 
-void
-oryx_format_free
+__oryx_always_extern__
+void oryx_format_free
 (
 	IN struct oryx_fmt_buff_t *fb
 )
@@ -69,8 +68,8 @@ oryx_format_free
 	fb->fmt_buff_size = fb->fmt_doffs = 0;
 }
 
-void
-oryx_format_reset
+__oryx_always_extern__
+void oryx_format_reset
 (
 	IN struct oryx_fmt_buff_t *fb
 )

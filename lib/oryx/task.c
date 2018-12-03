@@ -170,9 +170,9 @@ oryx_task_deregistry_id
 struct oryx_task_t*
 oryx_task_spawn
 (
-	IN const char		__oryx_unused_param__*alias, 
-	IN const uint32_t	__oryx_unused_param__ ul_prio,
-	IN void		__oryx_unused_param__*attr,
+	IN const char		__oryx_unused__*alias, 
+	IN const uint32_t	__oryx_unused__ ul_prio,
+	IN void		__oryx_unused__*attr,
 	IN void *		(*handler)(void *),
 	IN void		*argv
 )
@@ -272,7 +272,7 @@ oryx_task_launch(void)
 	fprintf (stdout, "%10s%32s%16s%20s%20s\n", " ", "Alias", "TaskID", "CoreMask", "StartTime");
 	list_for_each_entry_safe(t, p, &tm->head, list) {
 		char tmstr[100];
-		fmt_time (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+		oryx_fmt_time (t->ull_startup_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 		fprintf (stdout, "%10s%32s%16lX%20lX%20s\n", " ", t->sc_alias, t->pid, t->lcore_mask, tmstr);
 	}
 

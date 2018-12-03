@@ -23,7 +23,7 @@ int oryx_ring_create
 (
 	IN const char *name,
 	IN int nr_elements,
-	IN size_t __oryx_unused_param__ nr_bytes_per_element,
+	IN size_t __oryx_unused__ nr_bytes_per_element,
 	IN uint32_t flags,
 	OUT struct oryx_ring_t **ring
 )

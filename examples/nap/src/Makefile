@@ -45,7 +45,7 @@ APP = napd
 SRCS_MPM-y := 
 
 # all source are stored in SRCS-y
-SRCS-y := main.c rc4.c threadvars.c event.c dp_main.c dp.c dp_proc.c dp_decode.c dp_storage.c \
+SRCS-y := main.c netdev.c netdev_pcap.c rc4.c threadvars.c event.c dp_main.c dp.c dp_proc.c dp_decode.c dp_storage.c \
 	dp_decode_gre.c dp_decode_eth.c dp_decode_mpls.c dp_decode_ppp.c dp_decode_pppoe.c \
 	dp_decode_arp.c dp_decode_marvell_dsa.c dp_decode_ipv4.c dp_decode_ipv6.c dp_decode_vlan.c \
 	dp_decode_icmpv4.c dp_decode_icmpv6.c dp_decode_udp.c dp_decode_tcp.c dp_decode_sctp.c dp_decode_http.c \
@@ -72,8 +72,7 @@ CFLAGS += -I$(SRCDIR)\
 	  -I/usr/include/hs
 
 #LDFLAGS += -lhs -lhs_runtime
-LDFLAGS += -ldl -lpthread -lm -lrt\
-	   -lpcre -lyaml -lpcap -lstdc++
+LDFLAGS += -ldl -lpthread -lm -lrt -lpcap -lstdc++
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

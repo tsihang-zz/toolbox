@@ -5,43 +5,38 @@
 
 struct oryx_hbucket_t {
 	ht_value_t		value;
-	uint32_t		valen;		/** sizeof (data) */
-	ht_key_t		key;			/** key = hash(value) */		
+	uint32_t		valen;	/** sizeof (data) */
+	ht_key_t		key;	/** key = hash(value) */		
 	struct oryx_hbucket_t *next;	/** conflict chain. */
 };
 
 #define HTABLE_SYNCHRONIZED	(1 << 0)	/* Synchronized hash table. 
-	 									 * Caller can use the hash table safely
-	 									 * without maintaining a thread-safe-lock. */
+	 					 * Caller can use the hash table safely
+	 					 * without maintaining a thread-safe-lock. */
 #define HTABLE_PRINT_INFO	(1 << 1)
 
 struct oryx_htable_t {
 	struct oryx_hbucket_t	**array;
-	int						array_size;		/* sizeof hash bucket */
-	int						active_count;	/* total of instance stored in bucket,
-										 	 * maybe great than array_size in future.
-								 		 	 */
-	uint32_t			ul_flags;
+	int			array_size;	/* sizeof hash bucket */
+	int			active_count;	/* total of instance stored in bucket,
+						 * maybe great than array_size in future. */
+	uint32_t		ul_flags;
 
-	os_mutex_t			*os_lock;
+	os_mutex_t		*os_lock;
 	int		(*ht_lock_fn)(os_mutex_t *lock);
 	int		(*ht_unlock_fn)(os_mutex_t *lock);
 
 	ht_key_t (*hash_fn)(struct oryx_htable_t *,
-						const ht_value_t,
-						uint32_t);		/* function for create a hash value
-										 * with the given parameter *v
-										 */
+				const ht_value_t, uint32_t);	/* function for create a hash value
+								 * with the given parameter *v */
 	int (*cmp_fn)(const ht_value_t,
 				  uint32_t,
 				  const ht_value_t,
 				  uint32_t);			/* 0: equal,
-										 * otherwise a value less than zero returned.
-										 */
+								 * otherwise a value less than zero returned. */
 										 
 	void (*free_fn)(const ht_value_t);	/* function for vlaue of
-										 * oryx_hbucket_t releasing.
-										 */
+						 * oryx_hbucket_t releasing. */
 };
 
 #define HTABLE_LOCK(ht)\
@@ -59,15 +54,19 @@ struct oryx_htable_t {
 	((ht)->active_count)
 
 static __oryx_always_inline__
-uint32_t oryx_js_hash(const char* str, unsigned int len)  
-{  
-   unsigned int hash = 1315423911;  
-   unsigned int i    = 0;  
-   for(i = 0; i < len; str++, i++)  
-   {  
-      hash ^= ((hash << 5) + (*str) + (hash >> 2));  
-   }  
-   return hash;  
+uint32_t oryx_js_hash
+(
+	IN const char* str,
+	OUT unsigned int len
+)  
+{
+	unsigned int hash = 1315423911;
+	unsigned int i    = 0;
+
+	for(i = 0; i < len; str++, i++)  
+      		hash ^= ((hash << 5) + (*str) + (hash >> 2));
+
+	return hash;  
 }  
 
 /*

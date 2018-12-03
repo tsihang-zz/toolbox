@@ -30,7 +30,7 @@ static struct drm_lq_ctx_t drm_lq_ctx[] = {
 static int quit;
 
 static void
-ht_lqe_free (const ht_value_t __oryx_unused_param__ v)
+ht_lqe_free (const ht_value_t __oryx_unused__ v)
 {
 	/** To avoid warnings. */
 }
@@ -79,7 +79,7 @@ void lq_element_free(struct lq_element_t *lqe)
 }
 
 static void *
-drm_dequeue_handler (void __oryx_unused_param__ *r)
+drm_dequeue_handler (void __oryx_unused__ *r)
 {
 		struct lq_element_t *lqe;
 		int lq_id = *(int *)r;
@@ -130,7 +130,7 @@ drm_dequeue_handler (void __oryx_unused_param__ *r)
 }
 
 static void *
-dispatcher_handler (void __oryx_unused_param__ *r)
+dispatcher_handler (void __oryx_unused__ *r)
 {
 	struct lq_element_t *lqe;
 	static uint32_t sand = 1315423911;
@@ -279,8 +279,8 @@ static void lq_env_init(void)
 }
 
 int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
+        int     __oryx_unused__   argc,
+        char    __oryx_unused__   ** argv
 )
 
 {	

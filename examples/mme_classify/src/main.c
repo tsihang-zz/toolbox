@@ -2,6 +2,7 @@
 #include "config.h"
 
 #define VLIB_MAX_PID_NUM	4
+#define VLIB_FIFO_MSG_END	'#'
 
 vlib_main_t vlib_main = {
 	.argc		=	0,
@@ -38,10 +39,6 @@ static void sigchld_handler(int num) {
         	printf("The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
     }   
 }
-
-#define MME_CSV_FILE \
-        "/home/tsihang/vbx_share/class/DataExport.s1mmeSAMPLEMME_1540090678.csv"
-
 
 static __oryx_always_inline__
 void update_event_start_time(char *value, size_t valen)
@@ -110,118 +107,74 @@ update_time:
 	return;
 }
 
-static void create_new_file (const char *file_template)
-{
-    FILE            *fp0,
-                     *fp1;
-    char            line[lqe_valen] = {0},
-                            fn[256] = {0};
-    uint64_t        nr_rb = 0,
-                    nr_wb = 0;
-    time_t          t = time(NULL);
-    vlib_main_t     *vm = &vlib_main;
-
-    FOREVER {
-
-            nr_rb = nr_wb = 0;
-            sprintf (fn, "%s/%s%s_%lu.csv",
-                    vm->inotifydir, MME_CSV_PREFIX, "SAMPLEMME", t);
-            t += 300;
-
-            fp0 = fopen(file_template, "r");
-            if(!fp0) {
-                    fprintf (stdout, "Cannot open %s \n", file_template);
-                    break;
-            }
-
-            fp1 = fopen(fn, "a+");
-            if(!fp1) {
-                    fprintf (stdout, "Cannot open %s \n", fn);
-                    break;
-            }
-
-            fprintf (stdout, "writing %s ......", fn);
-            while (fgets (line, lqe_valen, fp0)) {
-					size_t s = strlen(line);
-                    nr_rb += s;
-					update_event_start_time(line, s);
-                    nr_wb += fwrite(line, 1, strlen(line), fp1);
-            }
-
-            fclose(fp0);
-            fclose(fp1);
-
-            if (nr_rb == nr_wb) {
-                    fprintf (stdout, "done!\n");
-            }
-			break;
-    }
-
-}
-
-#define linesize 256
-
-static int get_prgname(pid_t pid, char *task_name) {
-	 char pidpath[1024];
-	 char buf[linesize];
-
-	 sprintf(pidpath, "/proc/%d/status", pid);
-	 FILE* fp = fopen(pidpath, "r");
-	 if(fp == NULL) {
-	 	fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
-		return -1;
-	 } else {
-	     if (fgets(buf, linesize - 1, fp) != NULL)
-		     sscanf(buf, "%*s %s", task_name);
-	     fclose(fp);
-		 return 0;
-	 }
-}
-
-
-static __oryx_always_inline__
-bool is_number(const char *value, size_t valen)
+static void fifo_msg_depart(const char *msg, size_t msglen)
 {
 	char *p;
+	char elem[128] = {0};
+	int pos = 0;
 
-	if(!valen) return false;
-	
-	for (p = (const char *)&value[0];
-				*p != '\0' && *p != '\n'; ++ p) {
-		if(*p != '+' && *p != '-' 
-					&& (*p < '0' || *p > '9')
-					&& (*p < 'A' || *p > 'F')
-					&& (*p < 'a' || *p > 'f'))
-			return false;
+	fprintf(stdout, "msg: %s\n", msg);
+	for (p = (const char *)&msg[0];
+				*p != '\0' && *p != '\n'; ++ p) {	
+		if (*p == VLIB_FIFO_MSG_END) {
+			//fprintf(stdout, "elem: %s\n", elem);
+			fmgr_remove(elem);
+			pos = 0;
+		} else {
+			elem[pos ++] = *p;
+		}
 	}
-	return true;
 }
 
+static int openfifo(const char *fifoname)
+{
+	int fd = -1;
+	int err;
+	
+	unlink(fifoname);
+	err = mkfifo(fifoname, 0777);
+	if (err) {
+		fprintf(stdout, "mkfifo: %s\n", oryx_safe_strerror(errno));
+	} else {
+		fd = open(fifoname, O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			fprintf(stdout, "open: %s\n", oryx_safe_strerror(errno));
+		}
+	}
+
+	return fd;
+}
+
+static void logprgname(void)
+{
+	char logzomb[1024] = {0};
+	char prgname[32] = {0};
+	const char *zombie = "./zombie.txt";
+		
+	if (oryx_path_exsit(zombie))
+		remove(zombie);
+	
+	oryx_get_prgname(getpid(), prgname);
+	fprintf(stdout, "$$> hello, it's %s\n", prgname);
+	sprintf(logzomb, "ps -ef | grep %s | grep -v grep | grep defunct | awk '{print$2}' >> %s", prgname, zombie);
+	do_system(logzomb);
+
+}
 
 int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
+        int     __oryx_unused__   argc,
+        char    __oryx_unused__   ** argv
 )
 {
 	vlib_main_t *vm = &vlib_main;
 	struct fq_element_t *fqe = NULL;	
-	char logzomb[1024] = {0};
-	char prgname[32] = {0};
-	const char *zombie = "./zombie.txt";
+	int err;
+	int fd;
+	char msg[VLIB_BUFSIZE];	
+	size_t bytes;
 
-	char *s;
-
-	s = "-9f";
-	fprintf(stdout, "%s is %s\n", s, is_number(s, strlen(s)) ? "number" : "not number");
-
-	time_t tv = time(NULL);
-	struct tm *utc = gmtime(&tv);
-	struct tm *cst = localtime(&tv);
-	fprintf(stdout, "%s\n", ctime(&tv));
-	fprintf(stdout, "CST %d-%d-%d %d-%d-%d\n", 1900 + cst->tm_year, cst->tm_mon + 1, cst->tm_mday,
-		cst->tm_hour, cst->tm_min, cst->tm_sec);
-	fprintf(stdout, "UTC %d-%d-%d %d-%d-%d\n", 1900 + utc->tm_year, utc->tm_mon + 1, utc->tm_mday,
-		utc->tm_hour, utc->tm_min, utc->tm_sec);
+	if ((fd = openfifo(VLIB_FIFO_NAME)) < 0)
+		exit(0);
 	
 	oryx_initialize();
 	oryx_register_sighandler(SIGINT,	sigint_handler);
@@ -239,6 +192,12 @@ int main (
 	}
 
 	if(vm->inotifydir /* dir exist ? */) {
+		if(!oryx_path_exsit(vm->inotifydir)) {
+			err = mkdir(vm->inotifydir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			if(err) {
+				fprintf(stdout, "mkdir: %s\n", oryx_safe_strerror(errno));
+			}
+		}
 		oryx_lq_new("A FMGR queue", 0, (void **)&fmgr_q);
 		oryx_lq_dump(fmgr_q);
 		oryx_task_registry(&inotify);
@@ -251,18 +210,18 @@ int main (
 	oryx_task_launch();
 
 	FOREVER {
+
+		if (!running)
+			break;
+		
 		sleep (3);
 		
-		if (!running) {
-			break;
-		}
+		memset (msg, 0, VLIB_BUFSIZE);
+		if ((bytes = read (fd, msg, VLIB_BUFSIZE)) > 0)
+			fifo_msg_depart(msg, bytes);
 		
-		if (oryx_path_exsit(zombie))
-			remove(zombie);
-
-		get_prgname(getpid(), prgname);
-		sprintf(logzomb, "ps -ef | grep %s | grep -v grep | grep defunct | awk '{print$2}' >> %s", prgname, zombie);
-		do_system(logzomb);
+		logprgname();
+		
 		fqe = oryx_lq_dequeue(fmgr_q);
 		if (fqe == NULL)
 			continue;
@@ -270,13 +229,6 @@ int main (
 			free(fqe);
 			continue;
 		}
-
-		vlib_fkey_t fkey = {
-			.name = " ",
-			.ul_flags = 0,
-			.nr_size = 0,
-			.nr_entries = 0,
-		};
 		
 		pid_t p = fork();
 		if (p < 0) {
@@ -285,8 +237,23 @@ int main (
 			continue;
 		} else if (p == 0) {
 			fprintf(stdout, "Children %d -> %s\n", getpid(), fqe->name);
-			classify_offline(fqe->name, &fkey); 			
-			fprintf(stdout, "Children %d -> %s, %lu entries, exit\n", getpid(), fqe->name, fkey.nr_entries);
+			classify_offline(fqe->name, NULL); 			
+			fprintf(stdout, "Children %d -> %s, exit\n", getpid(), fqe->name);
+			fd = open(VLIB_FIFO_NAME, O_WRONLY);
+			if (fd < 0) {
+				fprintf(stdout, "open: %s\n", oryx_safe_strerror(errno));
+			} else {
+				char msgo[fq_name_length] = {0};
+				size_t l;
+	
+				l = sprintf(msgo, "%s%c", fqe->name, VLIB_FIFO_MSG_END);
+				bytes = write(fd, msgo, l);
+				if (bytes < 0) {
+					fprintf(stdout, "write: %s\n", oryx_safe_strerror(errno));
+				}
+				close(fd);
+			}
+
 			exit(0);
 		}
 		

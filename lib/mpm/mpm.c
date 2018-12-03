@@ -95,7 +95,7 @@ void mpm_threadctx_destroy(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
     mpm_table[mpm_ctx->mpm_type].threadctx_destroy(NULL, mpm_thread_ctx);
 }
 
-uint32_t mpm_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx,
+uint32_t mpm_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
 	return mpm_table[mpm_ctx->mpm_type].pat_search(mpm_ctx, mpm_thread_ctx, pmq, buf, buflen);
@@ -290,7 +290,7 @@ void mpm_pattern_free(mpm_ctx_t *mpm_ctx, mpm_pattern_t *p)
  * \retval -1 On failure.
  */
 int mpm_pattern_add(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,
-                            uint16_t __oryx_unused_param__ offset, uint16_t __oryx_unused_param__ depth, uint32_t pid,
+                            uint16_t __oryx_unused__ offset, uint16_t __oryx_unused__ depth, uint32_t pid,
                             sig_id sid, uint8_t flags)
 {
 #ifdef MPM_DEBUG

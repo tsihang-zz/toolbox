@@ -6,11 +6,11 @@
 #define MPF_NOFLGS  (0)
 #define MPF_CLR     (1 << 0)      /** Clear it after allocated */
 
-atomic_extern(uint64_t, mem_access_times);
+ATOMIC_EXTERN(uint64_t, mem_access_times);
 
 static __oryx_always_inline__
 void *kmalloc(int s, 
-                 int flags, int __oryx_unused_param__ node)
+                 int flags, int __oryx_unused__ node)
 
 {
     void *p;
@@ -34,7 +34,7 @@ void *kcalloc(int c, int s,
 
 static __oryx_always_inline__
 void *krealloc(void *sp,  int s, 
-			 int flags, int __oryx_unused_param__ node)
+			 int flags, int __oryx_unused__ node)
 {
     void *p;
  
@@ -51,7 +51,7 @@ static __oryx_always_inline__
 void kfree(void *p)
 {
 
-    if(likely(p)){
+    if(unlikely(p == NULL)){
         free(p);
         atomic_dec(mem_access_times);
     }
@@ -61,7 +61,7 @@ void kfree(void *p)
 
 typedef struct vlib_shm_t {
 	int		shmid;
-	void	*addr;
+	uint64_t addr;
 } vlib_shm_t;
 
 ORYX_DECLARE(
@@ -76,14 +76,27 @@ ORYX_DECLARE(
 ORYX_DECLARE(
 	void MEM_UninitMemory(void *mem_handle)
 );
-ORYX_DECLARE(
-	int oryx_shm_get(key_t key , int size, vlib_shm_t *shm)
+
+ORYX_DECLARE (
+	int oryx_shm_get (
+		IN key_t key,
+		IN int size,
+		OUT vlib_shm_t *shm
+	)
 );
+
 ORYX_DECLARE(
 	int oryx_shm_detach(vlib_shm_t *shm)
 );
 ORYX_DECLARE(
 	int oryx_shm_destroy(vlib_shm_t *shm)
+);
+
+ORYX_DECLARE (
+	void *oryx_shm_get0 (
+		IN key_t key,
+		IN int size
+	)
 );
 
 #endif

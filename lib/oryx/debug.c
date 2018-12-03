@@ -1,5 +1,4 @@
 #include "oryx.h"
-#include "debug.h"
 
 #ifndef ORYX_LOG_LEVEL
 #define ORYX_LOG_LEVEL	ORYX_LOG_DEBUG
@@ -508,7 +507,7 @@ void oryx_log2_stream
 static const
 char *errno2_string
 (
-	IN int __oryx_unused_param__ err
+	IN int __oryx_unused__ err
 )
 {
 	return str(err);
@@ -528,9 +527,9 @@ char *errno2_string
 static int oryx_log2_buffer
 (
 	IN struct timeval *tval, int color,
-	IN oryx_logopt_type __oryx_unused_param__ type,
+	IN oryx_logopt_type __oryx_unused__ type,
 	OUT char *buffer,
-	IN size_t __oryx_unused_param__ buffer_size,
+	IN size_t __oryx_unused__ buffer_size,
 	IN const char *log_format,
 	IN const uint32_t log_level,
 	IN const char *file,

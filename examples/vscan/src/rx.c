@@ -191,8 +191,8 @@ static void rx_pkt_handler(u_char *user, const struct pcap_pkthdr *h,
 	return;
 }
 
-static void perftmr_handler(struct oryx_timer_t *tmr, int __oryx_unused_param__ argc, 
-				char __oryx_unused_param__**argv)
+static void perftmr_handler(struct oryx_timer_t *tmr, int __oryx_unused__ argc, 
+				char __oryx_unused__**argv)
 {
 	fprintf (stdout, "refcnt_all %u, refcnt_tcp %u, refcnt_udp %u, refcnt_http %u, refcnt_hit_uri %u, refcnt_hit_content_type %u\n",
 		refcnt_all, refcnt_tcp, refcnt_udp, refcnt_http, refcnt_hit_uri, refcnt_hit_content_type);

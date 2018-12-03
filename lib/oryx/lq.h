@@ -25,16 +25,16 @@
 
 /* Define a queue for storing flows */
 struct oryx_lq_ctx_t {
-    void				*top;
-    void				*bot;
-	const char			*name;
-    uint32_t			len;
-	uint64_t			nr_eq_refcnt;
-	uint64_t			nr_dq_refcnt;
+	void		*top,
+			*bot;
+	const char	*name;
+	uint32_t	len;
+	uint64_t	nr_eq_refcnt;
+	uint64_t	nr_dq_refcnt;
 #ifdef DBG_PERF
-    uint32_t	dbg_maxlen;
+	uint32_t	dbg_maxlen;
 #endif /* DBG_PERF */
-    os_mutex_t	m;
+	os_mutex_t	m;
 
 #if defined(LQ_ENABLE_PASSIVE)
 	void (*fn_wakeup) (void *);
@@ -42,8 +42,7 @@ struct oryx_lq_ctx_t {
 	os_mutex_t	cond_lock;
 	os_cond_t	cond;
 #endif
-
-	int			unique_id;
+	int		unique_id;
 	uint32_t	ul_flags;
 };
 //}__attribute__((__packed__));
@@ -54,8 +53,8 @@ struct oryx_lq_ctx_t {
 #define lq_type_blocked(lq)	((lq)->ul_flags & LQ_TYPE_PASSIVE)
 
 struct lq_prefix_t {
-    void *lnext;	/* list */
-    void *lprev;
+	void *lnext;	/* list */
+	void *lprev;
 };
 
 /**
@@ -74,20 +73,20 @@ void oryx_lq_enqueue
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 
 //#if defined(BUILD_DEBUG)
-    BUG_ON(q == NULL || f == NULL);
+	BUG_ON(q == NULL || f == NULL);
 //#endif
 
-    FQLOCK_LOCK(q);
+	FQLOCK_LOCK(q);
 
-    if (q->top != NULL) {
-        ((struct lq_prefix_t *)f)->lnext = q->top;
-        ((struct lq_prefix_t *)q->top)->lprev = f;
-        q->top = f;
-    } else {
-        q->top = f;
-        q->bot = f;
-    }
-	
+	if (q->top != NULL) {
+		((struct lq_prefix_t *)f)->lnext = q->top;
+		((struct lq_prefix_t *)q->top)->lprev = f;
+		q->top = f;
+	} else {
+		q->top = f;
+		q->bot = f;
+	}
+
 	q->len ++;
 	q->nr_eq_refcnt ++;
 	
@@ -129,36 +128,37 @@ void * oryx_lq_dequeue
 		q->fn_hangup(q);
 #endif
 
-    FQLOCK_LOCK(q);
-
-    void *f = q->bot;
-    if (f == NULL) {
-        FQLOCK_UNLOCK(q);
-        return NULL;
-    }
+	FQLOCK_LOCK(q);
+	
+	void *f = q->bot;
+	if (f == NULL) {
+		FQLOCK_UNLOCK(q);
+		return NULL;
+	}
 
 	/* more elements in queue */
-    if (((struct lq_prefix_t *)q->bot)->lprev != NULL) {
-        q->bot = ((struct lq_prefix_t *)q->bot)->lprev;
-        ((struct lq_prefix_t *)q->bot)->lnext = NULL;
-    } else {
-        q->top = NULL;
-        q->bot = NULL;
-    }
+	if (((struct lq_prefix_t *)q->bot)->lprev != NULL) {
+		q->bot = ((struct lq_prefix_t *)q->bot)->lprev;
+		((struct lq_prefix_t *)q->bot)->lnext = NULL;
+	} else {
+		q->top = NULL;
+		q->bot = NULL;
+	}
 
 	((struct lq_prefix_t *)f)->lnext = NULL;
-    ((struct lq_prefix_t *)f)->lprev = NULL;
+	((struct lq_prefix_t *)f)->lprev = NULL;
 
 #if defined(BUILD_DEBUG)
-    BUG_ON(q->len == 0);
+	BUG_ON(q->len == 0);
 #endif
 	q->nr_dq_refcnt ++;
-
-    if (q->len > 0)
-        q->len--;
 	
-    FQLOCK_UNLOCK(q);
-    return f;
+	if (q->len > 0)
+		q->len--;
+
+	FQLOCK_UNLOCK(q);
+
+	return f;
 }
 
 static __oryx_always_inline__

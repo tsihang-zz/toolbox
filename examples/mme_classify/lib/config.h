@@ -12,16 +12,14 @@
 #define VLIB_ENQUEUE_HANDLER_STARTED	(1 << 1)
 #define	VLIB_INIT_DONE					(1 << 2)
 
-#define	VLIB_FIFO_NAME			"/tmp/FIFO.domain"
-#define VLIB_BUFSIZE			1024
+#define	VLIB_FIFO_NAME			"/root/classify_home/mme_fifo"
+#define VLIB_BUFSIZE			4096
 
 #if defined(VLIB_ATOMIC_COUNTER)
-#define ATOMIC64_T		atomic64_t
 #define ATOMIC64_INC(v)	atomic64_inc((v))
 #define ATOMIC64_ADD(v,i) atomic64_add((v), (i))
 #define ATOMIC64_READ(v)	atomic64_read((v))
 #else
-#define ATOMIC64_T	uint64_t
 #define ATOMIC64_INC(v)	((*(v)) += 1)
 #define ATOMIC64_ADD(v,i)((*(v)) += i)
 #define ATOMIC64_READ(v)	(*(v))
@@ -102,12 +100,12 @@ typedef struct vlib_main_t {
 
 	enum {RR, HASH}dispatch_mode;
 
-	ATOMIC64_T nr_rx_entries;
-	ATOMIC64_T nr_rx_entries_without_imsi;
-	ATOMIC64_T nr_rx_entries_undispatched;
-	ATOMIC64_T nr_rx_entries_dispatched;
+	uint64_t nr_rx_entries;
+	uint64_t nr_rx_entries_without_imsi;
+	uint64_t nr_rx_entries_undispatched;
+	uint64_t nr_rx_entries_dispatched;
 
-	ATOMIC64_T nr_rx_files;
+	uint64_t nr_rx_files;
 	uint64_t nr_cost_usec;
 
 	uint64_t nr_thread_eq_ticks;

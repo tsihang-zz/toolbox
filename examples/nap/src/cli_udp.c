@@ -8,7 +8,7 @@
 #include "cli_udp.h"
 
 #if 0
-atomic_decl_and_init(uint32_t, n_udp_elements);
+ATOMIC_DECL_AND_INIT(uint32_t, n_udp_elements);
 oryx_vector udp_vector_table;
 
 #define UDP_LOCK
@@ -183,7 +183,7 @@ static void udp_entry_output (struct udp_t *udp, struct vty *vty)
 		return;
 	}
 	
-	fmt_time (udp->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	oryx_fmt_time (udp->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 	vty_out (vty, "%16s\"%s\"(%u)		%s%s", "Udp ", udp->sc_alias, udp->ul_id, tmstr, VTY_NEWLINE);
 
 	uint8_t qua;
@@ -341,7 +341,7 @@ static void udp_entry_remove_and_destroy (struct udp_t *udp)
 	udp_entry_destroy(udp);
 }
 
-static int udp_entry_destroy_strict (struct udp_t *udp, struct vty __oryx_unused_param__ *vty)
+static int udp_entry_destroy_strict (struct udp_t *udp, struct vty __oryx_unused__ *vty)
 {
 	struct map_t *m;
 	oryx_vector v0, v1;

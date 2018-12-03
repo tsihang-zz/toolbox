@@ -11,7 +11,8 @@
  *         present counter on success
  * \retval 0 on failure
  */
-static counter_id register_qualified_counter
+static
+counter_id register_qualified_counter
 (
 	IN const char *name,
 	IN struct oryx_counter_ctx_t *ctx,
@@ -63,7 +64,8 @@ static counter_id register_qualified_counter
     return c->id;
 }
 
-counter_id oryx_register_counter
+counter_id
+oryx_register_counter
 (
 	IN const char *name,
 	IN const char *comments,
@@ -71,8 +73,10 @@ counter_id oryx_register_counter
 )
 {
 	comments = comments;
-	counter_id id = register_qualified_counter (name, ctx,
-											  STATS_TYPE_Q_NORMAL, NULL);
+	counter_id id = register_qualified_counter (
+					name,
+					ctx,
+					STATS_TYPE_Q_NORMAL, NULL);
 	return id;
 }
 							 
@@ -82,7 +86,8 @@ counter_id oryx_register_counter
 * \param head Pointer to the head of the list of perf counters that have to
 * 			be freed
 */
-void oryx_release_counter
+void
+oryx_release_counter
 (
 	IN struct oryx_counter_ctx_t *ctx
 )
@@ -91,7 +96,7 @@ void oryx_release_counter
 	struct oryx_counter_t *c = NULL;
 
 	while (head != NULL) {
-		c		= head;
+		c	= head;
 		head	= head->next;
 		free(c);
 		ctx->h_size --;
@@ -111,43 +116,45 @@ void oryx_release_counter
  *
  *  \retval a counter-array in this(s_id-e_id) range for this TM instance
  */
-int oryx_counter_get_array_range
+int
+oryx_counter_get_array_range
 (
 	IN counter_id s_id,
 	IN counter_id e_id,
 	IN struct oryx_counter_ctx_t *ctx
 )
 {
+	struct oryx_counter_t *c = NULL;
+	uint32_t i = 0;
+
 	BUG_ON (ctx == NULL);
 	BUG_ON ((s_id < 1) || (e_id < 1) || (s_id > e_id));
-
-    struct oryx_counter_t *c = NULL;
-    uint32_t i = 0;
 	
-    if (e_id > (counter_id)atomic_read(ctx->curr_id))
-        oryx_panic(-1,
+	if (e_id > (counter_id)atomic_read(ctx->curr_id))
+        	oryx_panic(-1,
 			"end id is greater than the max id.");
 
-    if ((ctx->head = malloc(sizeof(struct oryx_counter_t) * (e_id - s_id  + 2))) == NULL)
-        oryx_panic(-1,
+	if ((ctx->head = malloc(sizeof(struct oryx_counter_t) * (e_id - s_id  + 2))) == NULL)
+        	oryx_panic(-1,
 			"malloc: %s", oryx_safe_strerror(errno));
-    memset(ctx->head, 0, sizeof(struct oryx_counter_t) * (e_id - s_id  + 2));
+	memset(ctx->head, 0, sizeof(struct oryx_counter_t) * (e_id - s_id  + 2));
 
-    c = ctx->hhead;
-    while (c->id != s_id)
-        c = c->next;
+	c = ctx->hhead;
+	while (c->id != s_id)
+        	c = c->next;
 
-    i = 1;
-    while ((c != NULL) && (c->id <= e_id)) {
+	i = 1;
+	while ((c != NULL) && (c->id <= e_id)) {
 		memcpy(&ctx->head[i], c, sizeof(*c));
-        c = c->next;
-        i++;
-    }
-    ctx->size = i - 1;
-	
-    return 0;
+		c = c->next;
+		i++;
+	}
+
+	ctx->size = i - 1;
+	return 0;
 }
 
+__oryx_always_extern__
 void oryx_counter_initialize(void)
 {
 	/* DO NOTHING */

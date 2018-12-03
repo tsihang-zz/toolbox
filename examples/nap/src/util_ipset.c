@@ -107,14 +107,14 @@ int appl_entry_unformat (struct appl_t *appl, char *fmt_buf, size_t fmt_buflen)
 }
 
 int appl_entry_format (struct appl_t *appl,
-	const uint32_t __oryx_unused_param__*rule_id,
+	const uint32_t __oryx_unused__*rule_id,
 	const char *unused_var,
-	const char __oryx_unused_param__*vlan,
-	const char __oryx_unused_param__*sip,
-	const char __oryx_unused_param__*dip,
-	const char __oryx_unused_param__*sp,
-	const char __oryx_unused_param__*dp,
-	const char __oryx_unused_param__*proto)
+	const char __oryx_unused__*vlan,
+	const char __oryx_unused__*sip,
+	const char __oryx_unused__*dip,
+	const char __oryx_unused__*sp,
+	const char __oryx_unused__*dp,
+	const char __oryx_unused__*proto)
 {
 	struct prefix_ipv4 ip4;
 	uint32_t val_start, val_end;
@@ -126,10 +126,10 @@ int appl_entry_format (struct appl_t *appl,
 		if(!strncmp(vlan, "a", 1)) {
 			appl->l2_vlan_id_mask = ANY_VLAN;
 		} else {
-			if (isalldigit (vlan)) {
+			if (is_numerical (vlan, strlen(vlan))) {
 				appl->vlan_id = appl->l2_vlan_id_mask = atoi (vlan);
 			} else {
-				if(!format_range(vlan, 2048, 0, ':', &val_start, &val_end)) {
+				if(!oryx_formatted_range(vlan, 2048, 0, ':', &val_start, &val_end)) {
 					appl->vlan_id = val_start;
 					appl->l2_vlan_id_mask = val_end;
 				} else {
@@ -168,12 +168,12 @@ int appl_entry_format (struct appl_t *appl,
 			appl->l4_port_src_mask = ANY_PORT; /** To avoid warnings. */
 		} else {
 			/** single port */
-			if (isalldigit (sp)) {
+			if (is_numerical (sp, strlen(sp))) {
 				appl->l4_port_src = appl->l4_port_src_mask = atoi (sp);
 			}
 			/** range */
 			else {
-				if(!format_range(sp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
+				if(!oryx_formatted_range(sp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
 					appl->l4_port_src = val_start;
 					appl->l4_port_src_mask = val_end;
 				} else {
@@ -189,11 +189,11 @@ int appl_entry_format (struct appl_t *appl,
 		if (!strncmp(dp, "a", 1)) {
 			appl->l4_port_dst_mask = ANY_PORT;
 		} else {
-			if (isalldigit (dp)) {
+			if (is_numerical (dp, strlen(dp))) {
 				appl->l4_port_dst = appl->l4_port_dst_mask= atoi (dp);
 			}
 			else {
-				if(!format_range(dp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
+				if(!oryx_formatted_range(dp, UINT16_MAX, 0, ':', &val_start, &val_end)) {
 					appl->l4_port_dst = val_start;
 					appl->l4_port_dst_mask = val_end;
 				}else {
@@ -210,12 +210,12 @@ int appl_entry_format (struct appl_t *appl,
 		if (!strncmp(proto, "a", 1)) {
 			appl->ip_next_proto_mask = ANY_PROTO;
 		} else {
-			if (isalldigit (proto)) {
+			if (is_numerical (proto, strlen(proto))) {
 				appl->ip_next_proto  = atoi (proto);
 				appl->ip_next_proto_mask = 0xFF;
 			}
 			else {
-				if(!format_range (proto, UINT8_MAX, 0, '/', &val_start, &val_end)) {
+				if(!oryx_formatted_range (proto, UINT8_MAX, 0, '/', &val_start, &val_end)) {
 					appl->ip_next_proto = val_start;
 					appl->ip_next_proto_mask = val_end;
 				}else {
@@ -230,7 +230,7 @@ int appl_entry_format (struct appl_t *appl,
 }
 
 void appl_entry_new (struct appl_t **appl, 
-			const char *alias, uint32_t __oryx_unused_param__ type)
+			const char *alias, uint32_t __oryx_unused__ type)
 {
 	/** create an appl */
 	(*appl) = kmalloc (sizeof (struct appl_t), MPF_CLR, __oryx_unused_val__);
@@ -343,7 +343,7 @@ int appl_table_entry_deep_lookup(const char *argv,
 		(*appl) = v;
 	} else {
 		/** try id lookup if alldigit input. */
-		if (isalldigit (argv)) {
+		if (is_numerical (argv, strlen(argv))) {
 			uint32_t id = atoi(argv);
 			struct prefix_t lp_id = {
 				.cmd = LOOKUP_ID,

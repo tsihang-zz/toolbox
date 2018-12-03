@@ -44,13 +44,13 @@ struct event_mask event_masks[] = {
 }; 
 #endif
 
-static void fkey_free (const ht_value_t __oryx_unused_param__ v)
+static void fkey_free (const ht_value_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
 
 static ht_key_t fkey_hval (struct oryx_htable_t *ht,
-		const ht_value_t v, uint32_t __oryx_unused_param__ s)
+		const ht_value_t v, uint32_t __oryx_unused__ s)
 {
 	uint8_t *d = (uint8_t *)v;
 	uint32_t i;
@@ -95,7 +95,7 @@ int skip_event(struct inotify_event *event)
 }
 
 static __oryx_always_inline__
-void * fmgr_handler (void __oryx_unused_param__ *r)
+void * fmgr_handler (void __oryx_unused__ *r)
 {
 	const char *path = inotify_home;
 	int fd;
@@ -391,7 +391,7 @@ void fmgr_remove(const char *oldpath)
 static void fmgr_ht_handler(ht_value_t v,
 				uint32_t s,
 				void *opaque,
-				int __oryx_unused_param__ opaque_size) {
+				int __oryx_unused__ opaque_size) {
 	char pathname[256] = {0};
 	
 	vlib_fkey_t *fkey = (vlib_fkey_t *)v;
@@ -403,7 +403,7 @@ static void fmgr_ht_handler(ht_value_t v,
    }
 }
 
-static void * fmgr_handler0 (void __oryx_unused_param__ *r)
+static void * fmgr_handler0 (void __oryx_unused__ *r)
 {
 	int try_scan_dir = 0;
 	vlib_main_t *vm = &vlib_main;

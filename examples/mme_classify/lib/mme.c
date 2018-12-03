@@ -5,7 +5,7 @@ vlib_mme_t nr_global_mmes[VLIB_MAX_MME_NUM];
 /* Store those unknown entries. */
 vlib_mme_t *default_mme = NULL;
 
-void mmekey_free (const ht_value_t __oryx_unused_param__ v)
+void mmekey_free (const ht_value_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
@@ -110,9 +110,9 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 }
 
 void mme_print(ht_value_t  v,
-		uint32_t __oryx_unused_param__ s,
-		void __oryx_unused_param__*opaque,
-		int __oryx_unused_param__ opaque_size) {
+		uint32_t __oryx_unused__ s,
+		void __oryx_unused__*opaque,
+		int __oryx_unused__ opaque_size) {
 	vlib_mme_t *mme;
 	vlib_mmekey_t *mmekey = (vlib_mmekey_t *)container_of (v, vlib_mmekey_t, ip);
 	FILE *fp = (FILE *)opaque;

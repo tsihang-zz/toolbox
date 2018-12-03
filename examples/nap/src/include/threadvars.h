@@ -9,7 +9,7 @@ typedef struct ThreadVars_ {
     char name[16];
     char *printable_name;
     char *thread_group_name;
-    atomic_declare(unsigned int, flags);
+    ATOMIC_DECLARE(unsigned int, flags);
 
     /** local id */
     int id;

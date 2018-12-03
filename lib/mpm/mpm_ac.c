@@ -692,7 +692,7 @@ static void ac_state_table_prepare(mpm_ctx_t *mpm_ctx)
     return;
 }
 
-static void ac_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx)
+static void ac_threadctx_print(mpm_threadctx_t __oryx_unused__ *mpm_thread_ctx)
 {
 
 #ifdef SC_AC_COUNTERS
@@ -712,7 +712,7 @@ static void ac_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  * \param matchsize      We don't need this.
  */
-static void ac_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
+static void ac_threadctx_init(mpm_ctx_t __oryx_unused__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 
@@ -733,7 +733,7 @@ static void ac_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_thre
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void ac_threadctx_destroy(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
+static void ac_threadctx_destroy(mpm_ctx_t __oryx_unused__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     ac_threadctx_print(mpm_thread_ctx);
 
@@ -747,9 +747,9 @@ static void ac_threadctx_destroy(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_t
     return;
 }
 
-static void ac_ctx_print(mpm_ctx_t __oryx_unused_param__ *mpm_ctx)
+static void ac_ctx_print(mpm_ctx_t __oryx_unused__ *mpm_ctx)
 {
-    ac_ctx_t __oryx_unused_param__ *ctx = (ac_ctx_t *)mpm_ctx->ctx;
+    ac_ctx_t __oryx_unused__ *ctx = (ac_ctx_t *)mpm_ctx->ctx;
 #if 1
     fprintf (stdout, "MPM AC Information:\n");
     fprintf (stdout, "Memory allocs:   %" PRIu32 "\n", mpm_ctx->memory_cnt);
@@ -888,7 +888,7 @@ static void ac_ctx_destroy(mpm_ctx_t *mpm_ctx)
  *
  * \retval matches Match count.
  */
-static uint32_t ac_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx,
+static uint32_t ac_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen)
 {
     const ac_ctx_t *ctx = (ac_ctx_t *)mpm_ctx->ctx;

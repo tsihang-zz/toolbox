@@ -91,8 +91,8 @@ void flow_deinit(struct oryx_lq_ctx_t *q, void *v)
 }
 
 int main (
-	int		__oryx_unused_param__	argc,
-	char	__oryx_unused_param__	** argv
+	int		__oryx_unused__	argc,
+	char	__oryx_unused__	** argv
 )
 {
 	void *flow_pool, *flow_pool1;
@@ -101,10 +101,10 @@ int main (
 	
 	int i = 3;
 
-	mpool_init(&flow_pool, "mempool for flow",
+	oryx_mpool_new (&flow_pool, "mempool for flow",
 					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 	
-	mpool_init(&flow_pool1, "mempool for flow",
+	oryx_mpool_new (&flow_pool1, "mempool for flow1",
 					i, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 
 	struct timeval start, end;
@@ -115,18 +115,18 @@ int main (
 	do {
 		void *elem;
 		gettimeofday(&start, NULL);
-		elem = mpool_alloc(flow_pool);
+		elem = oryx_mpool_alloc(flow_pool);
 		gettimeofday(&end, NULL);	
 		if(elem) {
-			oryx_logn("from pool -> cost %llu", tm_elapsed_us(&start, &end));
-			mpool_free(flow_pool, elem);
+			oryx_logn("from pool -> cost %llu", oryx_elapsed_us(&start, &end));
+			oryx_mpool_free(flow_pool, elem);
 		}
 
 		gettimeofday(&start, NULL);
 		elem = malloc(64);
 		gettimeofday(&end, NULL);	
 		if(elem) {
-			oryx_logn("stdlib -> cost %llu", tm_elapsed_us(&start, &end));
+			oryx_logn("stdlib -> cost %llu", oryx_elapsed_us(&start, &end));
 			free(elem);
 		}
 
@@ -134,18 +134,18 @@ int main (
 	}while (i --);
 	fprintf (stdout, "done !\n");
 
-	mpool_uninit(flow_pool);
-	mpool_uninit(flow_pool1);
+	oryx_mpool_destroy (flow_pool);
+	oryx_mpool_destroy (flow_pool1);
 
 	while(1) {
-		mpool_init(&flow_pool, "mempool for flow",
+		oryx_mpool_new (&flow_pool, "mempool for flow",
 						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 		
-		mpool_init(&flow_pool1, "mempool for flow",
+		oryx_mpool_new (&flow_pool1, "mempool for flow",
 						1000, sizeof(struct flow_t), FLOW_CACHE_LINE_SIZE);
 
-		mpool_uninit(flow_pool);
-		mpool_uninit(flow_pool1);
+		oryx_mpool_destroy (flow_pool);
+		oryx_mpool_destroy (flow_pool1);
 		usleep(10000);
 	}
 

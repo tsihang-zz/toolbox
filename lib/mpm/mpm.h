@@ -172,7 +172,7 @@ void mpm_ctx_init(mpm_ctx_t *mpm_ctx, uint16_t matcher);
 void mpm_ctx_destroy (mpm_ctx_t *mpm_ctx);
 void mpm_threadctx_init(mpm_threadctx_t *mpm_thread_ctx, uint16_t);
 void mpm_threadctx_destroy(mpm_ctx_t *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx);
-uint32_t mpm_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx,
+uint32_t mpm_pattern_search(mpm_ctx_t *mpm_ctx, mpm_threadctx_t __oryx_unused__ *mpm_thread_ctx,
                     PrefilterRuleStore *pmq, const uint8_t *buf, uint16_t buflen);
 int mpm_pattern_prepare(mpm_ctx_t *mpm_ctx);
 int mpm_pattern_add_cs(mpm_ctx_t *mpm_ctx, uint8_t *pat, uint16_t patlen,

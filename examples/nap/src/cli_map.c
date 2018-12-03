@@ -24,7 +24,7 @@ vlib_map_main_t vlib_map_main = {
 	.lock = INIT_MUTEX_VAL,
 };
 
-atomic_decl_and_init(uint32_t, n_map_elements);
+ATOMIC_DECL_AND_INIT(uint32_t, n_map_elements);
 
 
 #define VTY_ERROR_MAP(prefix, alias)\
@@ -36,7 +36,7 @@ atomic_decl_and_init(uint32_t, n_map_elements);
 		draw_color(COLOR_GREEN), draw_color(COLOR_FIN), prefix, (char *)&v->sc_alias[0], v->ul_id, VTY_NEWLINE)
 
 static void
-ht_map_free (const ht_value_t __oryx_unused_param__ v)
+ht_map_free (const ht_value_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
@@ -269,7 +269,7 @@ static void map_entry_output (struct map_t *map,  struct vty *vty)
 	if(!(map->ul_flags & MAP_VALID))
 		return;
 
-	fmt_time (map->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
+	oryx_fmt_time (map->create_time, "%Y-%m-%d,%H:%M:%S", (char *)&tmstr[0], 100);
 
 	/** let us try to find the map which name is 'alias'. */
 	vty_out (vty, "%20s\"%s\"(%u)		%s%s", "Map ", map_alias(map), map_id(map), tmstr, VTY_NEWLINE);
@@ -591,8 +591,8 @@ DEFUN(test_map,
 }
 
 static __oryx_always_inline__
-void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused_param__*tmr,
-			int __oryx_unused_param__ argc, char __oryx_unused_param__**argv)
+void map_online_iface_update_tmr(struct oryx_timer_t __oryx_unused__*tmr,
+			int __oryx_unused__ argc, char __oryx_unused__**argv)
 {
 	int 				i;
 	int					each_map;

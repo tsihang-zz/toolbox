@@ -9,7 +9,7 @@ static void cluster_sigint(int sig)
 }
 
 static __oryx_always_inline__
-void * t0_handler (void __oryx_unused_param__ *r)
+void * t0_handler (void __oryx_unused__ *r)
 {
 		FOREVER {
 			if (quit)
@@ -33,8 +33,8 @@ static struct oryx_task_t t0 = {
 
 
 int main (
-        int     __oryx_unused_param__   argc,
-        char    __oryx_unused_param__   ** argv
+        int     __oryx_unused__   argc,
+        char    __oryx_unused__   ** argv
 )
 
 {

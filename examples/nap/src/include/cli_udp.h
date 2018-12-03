@@ -1,7 +1,7 @@
 #ifndef CLI_UDP_H
 #define CLI_UDP_H
 
-atomic_extern(uint32_t, n_udp_elements);
+ATOMIC_EXTERN(uint32_t, n_udp_elements);
 extern oryx_vector udp_vector_table;
 
 #define split_foreach_udp_func1_param0(argv_x, func)\
@@ -16,7 +16,7 @@ extern oryx_vector udp_vector_table;
 	while (token) {\
 		if (token) {\
 			struct udp_t *v = NULL;\
-			if (isalldigit (token)) {\
+			if (is_numerical (token, strlen(token))) {\
 				/** Lookup by ID. */\
 				v = udp_entry_lookup_id (atoi(token));\
 				if (!v) {\
@@ -66,7 +66,7 @@ lookup_next:\
 	while (token) {\
 		if (token) {\
 			struct udp_t *v = NULL;\
-			if (isalldigit (token)) {\
+			if (is_numerical (token, strlen(token))) {\
 				/** Lookup by ID. */\
 				v = udp_entry_lookup_id (atoi(token));\
 				if (!v) {\
@@ -117,7 +117,7 @@ lookup_next:\
 	while (token) {\
 		if (token) {\
 			struct udp_t *v = NULL;\
-			if (isalldigit (token)) {\
+			if (is_numerical (token, strlen(token))) {\
 				/** Lookup by ID. */\
 				v = udp_entry_lookup_id (atoi(token));\
 				if (!v) {\
@@ -168,7 +168,7 @@ lookup_next:\
 	while (token) {\
 		if (token) {\
 			struct udp_t *v = NULL;\
-			if (isalldigit (token)) {\
+			if (is_numerical (token, strlen(token))) {\
 				/** Lookup by ID. */\
 				v = udp_entry_lookup_id (atoi(token));\
 				if (!v) {\
@@ -220,7 +220,7 @@ lookup_next:\
 	while (token) {\
 		if (token) {\
 			struct pattern_t *v = NULL;\
-			if (isalldigit (token)) {\
+			if (is_numerical (token, strlen(token))) {\
 				/** Lookup by ID. */\
 				v = udp_entry_pattern_lookup_id (param0, atoi(token));\
 				if (!v) {\

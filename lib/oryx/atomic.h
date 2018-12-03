@@ -124,13 +124,13 @@
  *
  *  \warning variable is not initialized
  */
-#define atomic_declare(type, name) \
+#define ATOMIC_DECLARE(type, name) \
     type name ## __atomic__
     
 /**
  *  \brief wrapper for initializing an atomic variable.
  **/
-#define atomic_init(name) \
+#define ATOMIC_INIT(name) \
     (name ## __atomic__) = 0
 
 /**
@@ -146,25 +146,25 @@
  *  to modify it, so no need for locks.
  *
  */
-#define atomic_extern(type, name) \
+#define ATOMIC_EXTERN(type, name) \
     extern type name ## __atomic__
 
 /**
  *  \brief wrapper for declaring an atomic variable and initializing it.
  **/
-#define atomic_decl_and_init(type, name) \
+#define ATOMIC_DECL_AND_INIT(type, name) \
     type name ## __atomic__ = 0
+
+/**
+ *  \brief No-op.
+ */
+#define ATOMIC_DESTROY(name)
 
 /**
  *  \brief wrapper for reinitializing an atomic variable.
  **/
 #define atomic_reset(name) \
     (name ## __atomic__) = 0
-
-/**
- *  \brief No-op.
- */
-#define atomic_destroy(name)
 
 /**
  *  \brief add a value to our atomic variable

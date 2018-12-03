@@ -1,7 +1,7 @@
 #ifndef __FORMAT_H__
 #define __FORMAT_H__
 
-#define FMT_START				0
+#define FMT_START		0
 #define DEFAULT_FMT_MSG_SIZE	1024
 struct oryx_fmt_buff_t {
 

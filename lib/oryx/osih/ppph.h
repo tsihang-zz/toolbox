@@ -37,14 +37,14 @@
 #define PPP_LQM        0xc025       /* Link Quality Monitoring */
 #define PPP_CHAP       0xc223       /* Challenge Handshake Authentication Protocol */
 
-/** PPP packet_t header */
+/** PPP vlib_pkt_t header */
 typedef struct PPPHdr_ {
     uint8_t address;
     uint8_t control;
     uint16_t protocol;
 } __attribute__((__packed__)) PPPHdr;
 
-/** PPP packet_t header length */
+/** PPP vlib_pkt_t header length */
 #define PPP_HEADER_LEN 4
 
 #endif

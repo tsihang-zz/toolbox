@@ -63,7 +63,7 @@ dispatch:
 }
 
 static
-void * unix_domain_server_handler (void __oryx_unused_param__ *v)
+void * unix_domain_server_handler (void __oryx_unused__ *v)
 {
     int fd0 = -1,
 		fd = -1,

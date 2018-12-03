@@ -3,7 +3,7 @@
 
 #include "iface_private.h"
 
-atomic_extern(uint32_t, nb_ifaces);
+ATOMIC_EXTERN(uint32_t, nb_ifaces);
 extern void vlib_iface_init(vlib_main_t *vm);
 
 #define split_foreach_iface_func1(argv_x, func){\
@@ -28,7 +28,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -103,7 +103,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\
@@ -179,7 +179,7 @@ extern void vlib_iface_init(vlib_main_t *vm);
 		token = strtok_r (alias_list, split, &save);\
 		while (token) {\
 			if (token) {\
-				if (isalldigit (token)) {\
+				if (is_numerical (token, strlen(token))) {\
 					/** Lookup by ID. */\
 					uint32_t id = atoi(token);\
 					struct prefix_t lp = {\

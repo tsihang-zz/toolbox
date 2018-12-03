@@ -381,7 +381,7 @@ void PrintDSA(const char *comment, uint32_t cpu_dsa, u8 rx_tx)
 									DSA_TO_PANEL_GE_ID(cpu_dsa));
 }
 
-static void geo_pkt_handler(u_char __oryx_unused_param__ *argv,
+static void geo_pkt_handler(u_char __oryx_unused__ *argv,
 		const struct pcap_pkthdr *pcaphdr,
 		const u_char *packet)
 {
@@ -630,9 +630,9 @@ static struct oryx_task_t geo_refill_task =
 };
 
 static void geo_pcap_perf_tmr_handler (
-		struct oryx_timer_t __oryx_unused_param__	*tmr,
-		int		__oryx_unused_param__ argc,
-		char	__oryx_unused_param__ **argv)
+		struct oryx_timer_t __oryx_unused__	*tmr,
+		int		__oryx_unused__ argc,
+		char	__oryx_unused__ **argv)
 {
 	int i;
 	uint64_t rx_pkts;
@@ -703,28 +703,28 @@ static void geo_pcap_perf_tmr_handler (
 }
 
 static void geo_cdr_age(
-		ht_value_t	__oryx_unused_param__ v,
-		uint32_t	__oryx_unused_param__ s,
-		void		__oryx_unused_param__ *opaque,
-		int			__oryx_unused_param__ opaque_size) {
+		ht_value_t	__oryx_unused__ v,
+		uint32_t	__oryx_unused__ s,
+		void		__oryx_unused__ *opaque,
+		int			__oryx_unused__ opaque_size) {
 	struct geo_htable_key_t *hk = (struct geo_htable_key_t *)v;
 	//if(hk->mme_code == 255)
 	//fprintf (stdout, "hk->mme_code %u, hk->v %u\n", hk->mme_code, hk->v);
 }
 
 static void geo_refill_queue_age_tmr_handler(
-		struct oryx_timer_t __oryx_unused_param__	*tmr,
-		int		__oryx_unused_param__ argc,
-		char	__oryx_unused_param__ **argv) {
+		struct oryx_timer_t __oryx_unused__	*tmr,
+		int		__oryx_unused__ argc,
+		char	__oryx_unused__ **argv) {
 	int refcount = oryx_htable_foreach_elem(geo_cdr_hash_table,
 				geo_cdr_age, NULL, -1);
 	//oryx_htable_print(geo_cdr_hash_table);
 }
 
 static void geo_cdr_load_db_tmr_handler(
-		struct oryx_timer_t __oryx_unused_param__	*tmr,
-		int		__oryx_unused_param__ argc,
-		char	__oryx_unused_param__ **argv) {
+		struct oryx_timer_t __oryx_unused__	*tmr,
+		int		__oryx_unused__ argc,
+		char	__oryx_unused__ **argv) {
 	int			i;
 	int			fd = -1;
 	int			nread;

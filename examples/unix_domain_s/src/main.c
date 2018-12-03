@@ -10,8 +10,8 @@ static void sigint_handler(int sig) {
 
 
 int main(
-	int 	__oryx_unused_param__	argc,
-	char	__oryx_unused_param__	** argv
+	int 	__oryx_unused__	argc,
+	char	__oryx_unused__	** argv
 )
 {
 	oryx_initialize();

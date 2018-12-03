@@ -420,7 +420,7 @@ static __oryx_always_inline__ uint32_t hs_pat_hash_raw(uint8_t *pat, uint16_t pa
  */
 static __oryx_always_inline__ hs_pattern_t *hs_pat_lookup(hs_ctx_t *ctx, uint8_t *pat,
                                               uint16_t patlen, uint16_t offset,
-                                              uint16_t depth, char __oryx_unused_param__ flags,
+                                              uint16_t depth, char __oryx_unused__ flags,
                                               uint32_t pid)
 {
     uint32_t hash = hs_pat_hash_raw(pat, patlen);
@@ -702,7 +702,7 @@ static void hs_compile_data_free(hs_compile_data_t *cd)
     free(cd);
 }
 
-static uint32_t hs_pat_database_hash(struct oryx_htable_t *ht, void *data, uint32_t __oryx_unused_param__ len)
+static uint32_t hs_pat_database_hash(struct oryx_htable_t *ht, void *data, uint32_t __oryx_unused__ len)
 {
     const hs_pat_database_t *pd = data;
     uint32_t hash = 0;
@@ -716,8 +716,8 @@ static uint32_t hs_pat_database_hash(struct oryx_htable_t *ht, void *data, uint3
     return hash;
 }
 
-static int hs_pat_database_cmp(void *data1, uint32_t __oryx_unused_param__ len1, void *data2,
-                                   uint32_t __oryx_unused_param__ len2)
+static int hs_pat_database_cmp(void *data1, uint32_t __oryx_unused__ len1, void *data2,
+                                   uint32_t __oryx_unused__ len2)
 {
     const hs_pat_database_t *pd1 = data1;
     const hs_pat_database_t *pd2 = data2;
@@ -756,7 +756,7 @@ static void hs_pat_database_free(hs_pat_database_t *pd)
     free(pd);
 }
 
-static void hs_pat_database_destroy(void __oryx_unused_param__*data)
+static void hs_pat_database_destroy(void __oryx_unused__*data)
 {
     /* Stub function handed to hash table; actual freeing of hs_pat_database_t
      * structures is done in MPM destruction when the ref_cnt drops to zero. */
@@ -785,7 +785,7 @@ static hs_pat_database_t *hs_pat_database_alloc(uint32_t pattern_cnt)
     return pd;
 }
 
-static void hs_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread_ctx)
+static void hs_threadctx_print(mpm_threadctx_t __oryx_unused__ *mpm_thread_ctx)
 {
     return;
 }
@@ -796,7 +796,7 @@ static void hs_threadctx_print(mpm_threadctx_t __oryx_unused_param__ *mpm_thread
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void hs_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
+static void hs_threadctx_init(mpm_ctx_t __oryx_unused__ *mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     memset(mpm_thread_ctx, 0, sizeof(mpm_threadctx_t));
 
@@ -849,7 +849,7 @@ static void hs_threadctx_init(mpm_ctx_t __oryx_unused_param__ *mpm_ctx, mpm_thre
  * \param mpm_ctx        Pointer to the mpm context.
  * \param mpm_thread_ctx Pointer to the mpm thread context.
  */
-static void hs_threadctx_destroy(mpm_ctx_t __oryx_unused_param__*mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
+static void hs_threadctx_destroy(mpm_ctx_t __oryx_unused__*mpm_ctx, mpm_threadctx_t *mpm_thread_ctx)
 {
     hs_threadctx_print(mpm_thread_ctx);
 
@@ -970,8 +970,8 @@ static void hs_ctx_destroy(mpm_ctx_t *mpm_ctx)
  * access to for each match. In our simple example we're just going to use it
  * to pass in the pattern that was being searched for so we can print it out.
  */
-static int hs_match_event(unsigned int id, unsigned long long __oryx_unused_param__ from,
-                          unsigned long long __oryx_unused_param__ to, unsigned int __oryx_unused_param__ flags,
+static int hs_match_event(unsigned int id, unsigned long long __oryx_unused__ from,
+                          unsigned long long __oryx_unused__ to, unsigned int __oryx_unused__ flags,
                           void *ctx)
 {
     hs_search_cb_ctx_t *cctx = ctx;

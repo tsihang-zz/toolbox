@@ -55,8 +55,8 @@ func_cmp
 	return xret;
 }
 
-void
-oryx_htable_print
+__oryx_always_extern__
+void oryx_htable_print
 (
 	IN struct oryx_htable_t *ht
 )
@@ -75,8 +75,8 @@ oryx_htable_print
 	fprintf (stdout, "-----------------------------------------\n");
 }
 
-struct oryx_htable_t*
-oryx_htable_init
+__oryx_always_extern__
+struct oryx_htable_t* oryx_htable_init
 (
 	IN uint32_t max_buckets, 
 	IN ht_key_t (*hash_fn)(IN struct oryx_htable_t *, IN void *, IN uint32_t), 
@@ -121,8 +121,8 @@ oryx_htable_init
 	return ht;
 }
 
-void
-oryx_htable_destroy
+__oryx_always_extern__
+void oryx_htable_destroy
 (
 	IN struct oryx_htable_t *ht
 )
@@ -156,8 +156,8 @@ oryx_htable_destroy
     kfree(ht);
 }
 
-int
-oryx_htable_add
+__oryx_always_extern__
+int oryx_htable_add
 (
 	IN struct oryx_htable_t *ht,
 	IN ht_value_t value,
@@ -165,41 +165,37 @@ oryx_htable_add
 )
 {
 	BUG_ON ((ht == NULL) || (value == NULL));
+	ht_key_t hash = ht->hash_fn(ht, value, valen);
 
-    ht_key_t hash = ht->hash_fn(ht, value, valen);
-
-    struct oryx_hbucket_t *hb = kmalloc(sizeof(struct oryx_hbucket_t), MPF_CLR, -1);
-    if (unlikely(!hb))
+	struct oryx_hbucket_t *hb = kmalloc(sizeof(struct oryx_hbucket_t), MPF_CLR, -1);
+	if (unlikely(!hb))
 		oryx_panic(-1,
 			"kmalloc: %s", oryx_safe_strerror(errno));
 	
 	/** kmalloc.MPF_CLR means that the memory block pointed by its return 
 	 *  has been CLEARED. */
-    hb->value	= value;
+	hb->value	= value;
 	hb->valen	= valen;
-    hb->next	= NULL;
+	hb->next	= NULL;
     
 	HTABLE_LOCK(ht);
-	
-    if (ht->array[hash] == NULL) {
-        ht->array[hash] = hb;
-    } else {
-        hb->next = ht->array[hash];
-        ht->array[hash] = hb;
-    }
-    ht->active_count++;
-
+	if (ht->array[hash] == NULL) {
+		ht->array[hash] = hb;
+	} else {
+		hb->next = ht->array[hash];
+		ht->array[hash] = hb;
+	}
+	ht->active_count++;
 	HTABLE_UNLOCK(ht);
 
 #ifdef ORYX_HASH_DEBUG
 	fprintf (stdout, "add %s, %p\n", (char *)hb->value, hb->value);
 #endif
-
-    return 0;
+	return 0;
 }
 
-int
-oryx_htable_del
+__oryx_always_extern__
+int oryx_htable_del
 (
 	IN struct oryx_htable_t *ht,
 	IN ht_value_t value,
@@ -207,57 +203,54 @@ oryx_htable_del
 )
 {
 	BUG_ON ((ht == NULL) || (value == NULL));
-	
-    ht_key_t hash = ht->hash_fn(ht, value, valen);
+	ht_key_t hash = ht->hash_fn(ht, value, valen);
 
 	HTABLE_LOCK(ht);
-
-    if (ht->array[hash] == NULL) {
+	if (ht->array[hash] == NULL) {
 		HTABLE_UNLOCK(ht);
 		return -1;
-    }
-	
-    if (ht->array[hash]->next == NULL) {
+	}
+
+	if (ht->array[hash]->next == NULL) {
 		if (ht->free_fn != NULL)
-            ht->free_fn(ht->array[hash]->value);
-        kfree(ht->array[hash]);
-        ht->array[hash] = NULL;
+			ht->free_fn(ht->array[hash]->value);
+		kfree(ht->array[hash]);
+		ht->array[hash] = NULL;
 		ht->active_count --;
 		HTABLE_UNLOCK(ht);
-        return 0;
-    }
+		return 0;
+	}
 
-    struct oryx_hbucket_t *hb = ht->array[hash], *pb = NULL;
-    do {
-        if (ht->cmp_fn(hb->value, hb->valen, value, valen) == 0) {
-            if (pb == NULL) {
-                /* root bucket */
-                ht->array[hash] = hb->next;
-            } else {
-                /* child bucket */
-                pb->next = hb->next;
-            }
-
-            /* remove this */
-            if (ht->free_fn != NULL)
-                ht->free_fn(hb->value);
-            kfree(hb);
-	     	ht->active_count --;
+	struct oryx_hbucket_t *hb = ht->array[hash], *pb = NULL;
+	do {
+		if (ht->cmp_fn(hb->value, hb->valen, value, valen) == 0) {
+			if (pb == NULL) {
+				/* root bucket */
+				ht->array[hash] = hb->next;
+			} else {
+				/* child bucket */
+				pb->next = hb->next;
+			}
+			/* remove this */
+			if (ht->free_fn != NULL)
+				ht->free_fn(hb->value);
+			kfree(hb);
+			ht->active_count --;
 			HTABLE_UNLOCK(ht);
-            return 0;
-        }
+			return 0;
+		}
 
-        pb = hb;
-        hb = hb->next;
-    } while (hb != NULL);
+		pb = hb;
+		hb = hb->next;
 
+	} while (hb != NULL);
 	HTABLE_UNLOCK(ht);
 
-    return -1;
+	return -1;
 }
 
-int
-oryx_htable_foreach_elem
+__oryx_always_extern__
+int oryx_htable_foreach_elem
 (
 	IN struct oryx_htable_t *ht,
 	IN void (*handler)(IN ht_value_t, IN uint32_t, IN void *, IN int),

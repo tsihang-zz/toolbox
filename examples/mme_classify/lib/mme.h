@@ -24,7 +24,7 @@ typedef struct vlib_mme_t {
 
 	/* total entries for this MME,
 	 * may equal with. */
-	ATOMIC64_T	nr_rx_entries,
+	uint64_t	nr_rx_entries,
 				nr_rx_entries_noimsi,
 				nr_refcnt,				/* statistics of RIGHT write for each MME with IMSI */
 				nr_refcnt_bytes,
@@ -73,7 +73,7 @@ void fmt_mme_ip(char *out, const char *in)
 	sprintf (out, "%d.%d.%d.%d", a, b, c, d);
 }
 
-extern void mmekey_free (const ht_value_t __oryx_unused_param__ v);
+extern void mmekey_free (const ht_value_t __oryx_unused__ v);
 extern ht_key_t mmekey_hval (struct oryx_htable_t *ht,
 					const ht_value_t v, uint32_t s) ;
 extern int mmekey_cmp (const ht_value_t v1, uint32_t s1,
@@ -82,9 +82,9 @@ extern vlib_mmekey_t *mmekey_alloc(void);
 extern vlib_mme_t *mme_find(const char *name, size_t nlen);
 extern vlib_mme_t *mme_alloc(const char *name, size_t nlen);
 extern void mme_print(ht_value_t  v,
-				uint32_t __oryx_unused_param__ s,
-				void __oryx_unused_param__*opaque,
-				int __oryx_unused_param__ opaque_size);
+				uint32_t __oryx_unused__ s,
+				void __oryx_unused__*opaque,
+				int __oryx_unused__ opaque_size);
 
 extern vlib_mme_t *default_mme;
 
