@@ -1,18 +1,36 @@
 #include "oryx.h"
 #include "netdev.h"
 
-static int is_there_an_eth_iface_named(struct ifreq *ifr)
+
+static void netdev_pkt_handler 
+(
+	IN u_char *user,
+	IN const struct pcap_pkthdr *h,
+	IN const u_char *bytes
+)
+{
+	user = user;
+	h = h;
+	bytes = bytes;
+	
+	fprintf (stdout, "defualt pkt_handler\n");
+}
+
+static int is_there_an_eth_iface_named
+(
+	IN struct ifreq *ifr
+)
 {
 	int skfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(skfd < 0) {
 		oryx_loge(-1,
-				"%s", strerror(errno));
+				"%s", oryx_safe_strerror(errno));
 		return -1;
 	}
 
 	if(ioctl(skfd, SIOCGIFFLAGS, ifr) < 0) {
 		oryx_loge(-1,
-				"%s-%d(\"%s\")", strerror(errno), errno, ifr->ifr_name);
+				"%s-%d(\"%s\")", oryx_safe_strerror(errno), errno, ifr->ifr_name);
 		if (errno == ENODEV) {
 			close(skfd);
 			skfd = -ENODEV;
@@ -24,7 +42,11 @@ static int is_there_an_eth_iface_named(struct ifreq *ifr)
 	return skfd;
 }
 
-int netdev_exist(const char *iface) {
+int netdev_exist
+(
+	IN const char *iface
+)
+{
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, iface);
@@ -40,7 +62,12 @@ int netdev_exist(const char *iface) {
 	}
 }
 
-int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool) {
+int netdev_is_running
+(
+	IN const char *iface,
+	IN struct ethtool_cmd *ethtool
+)
+{
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, iface);
@@ -62,7 +89,11 @@ int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool) {
 }
 
 
-int netdev_is_up(const char *iface) {
+int netdev_is_up
+(
+	IN const char *iface
+)
+{
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, iface);
@@ -80,7 +111,11 @@ int netdev_is_up(const char *iface) {
 	}
 }
 
-int netdev_up(const char *iface) {
+int netdev_up
+(
+	IN const char *iface
+)
+{
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, iface);
@@ -93,7 +128,7 @@ int netdev_up(const char *iface) {
 
 	if(ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
 		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
+				"%s(\"%s\")", oryx_safe_strerror(errno), ifr.ifr_name);
 	    close(skfd);
 	    return -1;
 	}
@@ -102,7 +137,11 @@ int netdev_up(const char *iface) {
 	return 0;
 }
 
-int netdev_down(const char *iface) {
+int netdev_down
+(
+	IN const char *iface
+)
+{
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, iface);
@@ -115,7 +154,7 @@ int netdev_down(const char *iface) {
 
 	if(ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
 		oryx_loge(-1,
-				"%s(\"%s\")", strerror(errno), ifr.ifr_name);
+				"%s(\"%s\")", oryx_safe_strerror(errno), ifr.ifr_name);
 	    close(skfd);
 	    return -1;
 	}
@@ -124,30 +163,21 @@ int netdev_down(const char *iface) {
 	return 0;
 }
 
-
-static void
-pkt_handler 
+int
+netdev_open
 (
-	IN u_char *user,
-	IN const struct pcap_pkthdr *h,
-	IN const u_char *bytes
+	IN struct netdev_t *netdev
 )
-{
-	user = user;
-	h = h;
-	bytes = bytes;
-	
-	fprintf (stdout, "defualt pkt_handler\n");
-}
-
-int netdev_open(struct netdev_t *netdev)
 {
 	netdev->ul_flags = NETDEV_OPEN_LIVE;
 	return netdev_pcap_open ((dev_handler_t **)&netdev->handler, 
 				netdev->devname, netdev->ul_flags);
 }
 
-void *netdev_cap(void *argv)
+void *netdev_cap
+(
+	IN void *argv
+)
 {
 	int64_t rank_acc;
 	struct netdev_t *netdev = (struct netdev_t *)argv;
@@ -162,7 +192,7 @@ void *netdev_cap(void *argv)
 		
 		rank_acc = pcap_dispatch(netdev->handler,
 			1024, 
-			(netdev->pcap_handler != NULL) ? netdev->pcap_handler : pkt_handler, 
+			(netdev->pcap_handler != NULL) ? netdev->pcap_handler : netdev_pkt_handler, 
 			(u_char *)netdev);
 
 		if (rank_acc >= 0) {

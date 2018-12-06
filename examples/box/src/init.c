@@ -68,7 +68,10 @@ static int numa_on = 1; /**< NUMA is enabled by default. */
 
 /* display usage */
 static void
-usage(const char *prgname)
+usage
+(
+	IN const char *prgname
+)
 {
 	fprintf (stdout, "%s [EAL options] --"
 		" -p PORTMASK"
@@ -93,8 +96,13 @@ usage(const char *prgname)
 		"  --hash-entry-num: Specify the hash entry number in hexadecimal to be setup\n\n",
 		prgname);
 }
+
 static void
-print_ethaddr(const char *name, const struct ether_addr *eth_addr)
+print_ethaddr
+(
+	IN const char *name,
+	IN const struct ether_addr *eth_addr
+)
 {
 	char buf[ETHER_ADDR_FMT_SIZE];
 	ether_format_addr(buf, ETHER_ADDR_FMT_SIZE, eth_addr);
@@ -129,7 +137,11 @@ box_check_lcore_params(void)
 }
 
 static int
-box_check_port_config(const uint32_t portmask, const unsigned nb_ports)
+box_check_port_config
+(
+	IN const uint32_t portmask,
+	IN const unsigned nb_ports
+)
 {
 	unsigned portid;
 	uint16_t i;
@@ -152,7 +164,10 @@ box_check_port_config(const uint32_t portmask, const unsigned nb_ports)
 }
 
 static int
-box_parse_max_pkt_len(const char *pktlen)
+box_parse_max_pkt_len
+(
+	IN const char *pktlen
+)
 {
 	char *end = NULL;
 	unsigned long len;
@@ -174,7 +189,10 @@ box_parse_max_pkt_len(const char *pktlen)
  * and places the port numbers to be used into the port[]
  * array variable
  */
-static int box_parse_portmask(const char *portmask)
+static int box_parse_portmask
+(
+	IN const char *portmask
+)
 {
 	char *end = NULL;
 	unsigned long pm = 0;
@@ -191,7 +209,10 @@ static int box_parse_portmask(const char *portmask)
 }
 
 static int
-box_parse_config(const char *q_arg)
+box_parse_config
+(
+	IN const char *q_arg
+)
 {
 	char s[256];
 	const char *p, *p0 = q_arg;
@@ -246,7 +267,11 @@ box_parse_config(const char *q_arg)
 
 
 /* Parse the argument given in the command line of the application */
-static int box_parse_args(int argc, char **argv)
+static int box_parse_args
+(
+	IN int argc,
+	IN char **argv
+)
 {
 	int opt, ret;
 	char **argvopt;
@@ -348,8 +373,12 @@ static int box_parse_args(int argc, char **argv)
 	optind = 1; /* reset getopt lib */
 	return ret;
 }
+
 static uint8_t
-box_nr_rx_queue_of_port(const uint8_t port)
+box_nr_rx_queue_of_port
+(
+	IN const uint8_t port
+)
 {
 	int queue = -1;
 	uint16_t i;

@@ -66,13 +66,48 @@ const char *ethtool_duplex(uint32_t duplex) {
 	}
 }
 
-ORYX_DECLARE(int netdev_up(const char *iface));
-ORYX_DECLARE(int netdev_exist(const char *iface));
-ORYX_DECLARE(int netdev_is_running(const char *iface, struct ethtool_cmd *ethtool));
-ORYX_DECLARE(int netdev_is_up(const char *iface));
-ORYX_DECLARE(int netdev_open(struct netdev_t *netdev));
-ORYX_DECLARE(int netdev_down(const char *iface));
-ORYX_DECLARE(void *netdev_cap(void *argv));
+ORYX_DECLARE (
+	int netdev_up (
+		IN const char *iface
+	)
+);
+
+ORYX_DECLARE (
+	int netdev_exist (
+		IN const char *iface
+	)
+);
+
+ORYX_DECLARE (
+	int netdev_is_running (
+		IN const char *iface,
+		IN struct ethtool_cmd *ethtool
+	)
+);
+
+ORYX_DECLARE (
+	int netdev_is_up (
+		IN const char *iface
+	)
+);
+
+ORYX_DECLARE (
+	int netdev_open (
+		IN struct netdev_t *netdev
+	)
+);
+
+ORYX_DECLARE (
+	int netdev_down (
+		IN const char *iface
+	)
+);
+
+ORYX_DECLARE (
+	void *netdev_cap (
+		IN void *argv
+	)
+);
 
 
 #endif

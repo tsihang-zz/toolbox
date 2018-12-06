@@ -65,7 +65,10 @@ extern vlib_main_t vlib_main;
 /* All lcores will set its own bit on vm->ul_core_mask.
  * */
 static __oryx_always_inline__
-void lock_lcores(vlib_main_t *vm)
+void lock_lcores
+(
+	IN vlib_main_t *vm
+)
 {
 	vm->ul_flags |= VLIB_DP_SYNC;
 	while(vm->ul_core_mask != VLIB_ALL_WORK_CORES);
@@ -73,7 +76,10 @@ void lock_lcores(vlib_main_t *vm)
 }
 
 static __oryx_always_inline__
-void unlock_lcores(vlib_main_t *vm)
+void unlock_lcores
+(
+	IN vlib_main_t *vm
+)
 {
 	vm->ul_flags &= ~VLIB_DP_SYNC;
 	while(vm->ul_core_mask != 0);

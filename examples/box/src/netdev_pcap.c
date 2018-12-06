@@ -1,7 +1,12 @@
 #include "oryx.h"
 #include "netdev.h"
 
-int netdev_pcap_open(dev_handler_t **handler, char *devname, int flags)
+int netdev_pcap_open
+(
+	OUT dev_handler_t **handler,
+	IN char *devname,
+	IN int flags
+)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
     struct bpf_program bpf;

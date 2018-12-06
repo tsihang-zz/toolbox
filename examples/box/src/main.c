@@ -11,8 +11,11 @@ extern int box_init
 );
 
 static void
-sigint_handler(int signum) {
-
+sigint_handler
+(
+	IN int signum
+)
+{
 	vlib_main_t *vm = &vlib_main;
 	
 	if (signum == SIGINT || signum == SIGTERM) {

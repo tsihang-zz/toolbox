@@ -235,7 +235,10 @@ static void dp_register_perf_counters
 }
 
 static __oryx_always_inline__
-void dsa_tag_strip(struct rte_mbuf *m)
+void dsa_tag_strip
+(
+	IN struct rte_mbuf *m
+)
 {
 	void *new_start;
 	
@@ -251,7 +254,11 @@ void dsa_tag_strip(struct rte_mbuf *m)
 }
 
 static __oryx_always_inline__
-void act_packet_trim(struct rte_mbuf *m, uint16_t slice_size)
+void act_packet_trim
+(
+	IN struct rte_mbuf *m,
+	IN uint16_t slice_size
+)
 {
 	if (slice_size > m->pkt_len)
 		return;
@@ -260,7 +267,11 @@ void act_packet_trim(struct rte_mbuf *m, uint16_t slice_size)
 }
 
 static __oryx_always_inline__
-int dsa_tag_insert(struct rte_mbuf **m, uint32_t new_cpu_dsa)
+int dsa_tag_insert
+(
+	OUT struct rte_mbuf **m,
+	IN uint32_t new_cpu_dsa
+)
 {
 	struct ether_hdr *oh;
 	MarvellDSAEthernetHdr *nh;
@@ -290,7 +301,11 @@ int dsa_tag_insert(struct rte_mbuf **m, uint32_t new_cpu_dsa)
 
 
 static __oryx_always_inline__
-uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
+uint32_t dsa_tag_update
+(
+	IN uint32_t cpu_tag,
+	IN uint8_t tx_virtual_port_id
+)
 {
 	uint32_t new_cpu_dsa = 0; /** this packet received from a panel sw virtual port ,
 	                           * and also send to a panel sw virtual port, here just update the dsa tag. */
@@ -310,8 +325,12 @@ uint32_t dsa_tag_update(uint32_t cpu_tag, uint8_t tx_virtual_port_id)
 }
 
 static __oryx_always_inline__
-uint32_t ipv4_hash_crc(const void *data, __rte_unused uint32_t data_len,
-		uint32_t init_val)
+uint32_t ipv4_hash_crc
+(
+	IN const void *data,
+	IN uint32_t __oryx_unused__ data_len,
+	IN uint32_t init_val
+)
 {
 	uint32_t		t;
 	const uint32_t		*p;
@@ -330,7 +349,10 @@ uint32_t ipv4_hash_crc(const void *data, __rte_unused uint32_t data_len,
 }
 
 static __oryx_always_inline__
-uint32_t dp_recalc_rss(struct rte_mbuf *m)
+uint32_t dp_recalc_rss
+(
+	IN struct rte_mbuf *m
+)
 {
 	void *ipv4h;
 	union ipv4_5tuple_host key;
@@ -348,8 +370,12 @@ uint32_t dp_recalc_rss(struct rte_mbuf *m)
 
 
 static __oryx_always_inline__
-int dp_decide_tx_port(struct iface_t *rx_iface,
-		struct rte_mbuf *m, uint32_t *tx_port_id)
+int dp_decide_tx_port
+(
+	IN struct iface_t *rx_iface,
+	IN struct rte_mbuf *m,
+	IN uint32_t *tx_port_id
+)
 {
 	uint32_t rss;
 	uint32_t index;
@@ -384,7 +410,12 @@ int dp_decide_tx_port(struct iface_t *rx_iface,
 }
 
 static __oryx_always_inline__
-void dp_load_frame_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt, uint32_t ipoff)
+void dp_load_frame_key4
+(
+	IN union ipv4_5tuple_host *key,
+	IN struct rte_mbuf *pkt,
+	IN uint32_t ipoff
+)
 {
 	void *iph;
 
@@ -398,7 +429,11 @@ void dp_load_frame_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt, uint3
 }
 
 static __oryx_always_inline__
-void dp_dump_packet_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt)
+void dp_dump_packet_key4
+(
+	IN union ipv4_5tuple_host *key,
+	IN struct rte_mbuf *pkt
+)
 {
 	char s[16];
 	oryx_logn ("%16s%08d", "packet_type: ", pkt->packet_type);
@@ -411,16 +446,27 @@ void dp_dump_packet_key4(union ipv4_5tuple_host *key, struct rte_mbuf *pkt)
 }
 
 static __oryx_always_inline__
-void dp_free_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct rte_mbuf *pkt){
+void dp_free_packet
+(
+	IN threadvar_ctx_t *tv,
+	IN decode_threadvar_ctx_t *dtv,
+	IN struct rte_mbuf *pkt
+)
+{
 	rte_pktmbuf_free(pkt);
 	oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_drop);
 	tv->nr_mbufs_feedback ++;
 }
 	
 static __oryx_always_inline__
-void dp_drop_all(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct rte_mbuf **pkts_in, int nb){
+void dp_drop_all
+(
+	IN threadvar_ctx_t *tv,
+	IN decode_threadvar_ctx_t *dtv,
+	IN struct rte_mbuf **pkts_in,
+	IN int nb
+)
+{
 	int i;
 	for (i = 0; i < nb; i ++) {
 		struct rte_mbuf *pkt = pkts_in[i];
@@ -430,7 +476,13 @@ void dp_drop_all(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
 
 /* Send burst of packets on an output interface */
 static __oryx_always_inline__
-int dp_send_burst(threadvar_ctx_t *tv, struct lcore_conf *qconf, uint16_t n, uint32_t tx_port_id)
+int dp_send_burst
+(
+	IN threadvar_ctx_t *tv,
+	IN struct lcore_conf *qconf,
+	IN uint16_t n,
+	IN uint32_t tx_port_id
+)
 {
 	int 		ret;
 	uint16_t		tx_queue_id;
@@ -494,8 +546,15 @@ void dp_parse_key4
 }
 
 static __oryx_always_inline__
-void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct parser_ctx_t *parser, int index)
+void dp_classify_prepare_one_packet
+(
+	IN threadvar_ctx_t *tv,
+	IN decode_threadvar_ctx_t *dtv,
+	IN struct iface_t *rx_iface,
+	IN struct rte_mbuf **pkts_in,
+	IN struct parser_ctx_t *parser,
+	IN int index
+)
 {
 	vlib_pkt_t			*p;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
@@ -575,8 +634,15 @@ void dp_classify_prepare_one_packet(threadvar_ctx_t *tv, decode_threadvar_ctx_t 
 }
 
 static __oryx_always_inline__
-void dp_classify_prepare (threadvar_ctx_t *tv, decode_threadvar_ctx_t *dtv,
-	struct iface_t *rx_iface, struct rte_mbuf **pkts_in, struct parser_ctx_t *parser, int nb_rx)
+void dp_classify_prepare
+(
+	IN threadvar_ctx_t *tv,
+	IN decode_threadvar_ctx_t *dtv,
+	IN struct iface_t *rx_iface,
+	IN struct rte_mbuf **pkts_in,
+	IN struct parser_ctx_t *parser,
+	IN int nb_rx
+)
 {
 	int i;
 
@@ -923,7 +989,10 @@ int main_loop (void *ptr_data)
 }
 
 
-void dp_start (vlib_main_t *vm)
+void dp_start
+(
+	IN vlib_main_t *vm
+)
 {
 	int i;
 	threadvar_ctx_t *tv;
@@ -950,7 +1019,10 @@ void dp_start (vlib_main_t *vm)
 	
 }
 
-void dp_stop(vlib_main_t *vm)
+void dp_stop
+(
+	IN vlib_main_t *vm
+)
 {
 	dpdk_main_t *dm = &dpdk_main;
 	uint8_t portid;

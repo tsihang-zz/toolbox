@@ -29,6 +29,7 @@
 #include <rte_fbk_hash.h>
 #include <rte_string_fns.h>
 #include <rte_cycles.h>
+#include <rte_vect.h>
 
 #if defined(HAVE_DPDK)
 #define MAX_LCORES	RTE_MAX_LCORE
