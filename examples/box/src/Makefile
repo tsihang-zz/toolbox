@@ -45,7 +45,7 @@ APP = napd
 SRCS_MPM-y := 
 
 # all source are stored in SRCS-y
-SRCS-y := main.c init.c netdev.c netdev_pcap.c dp.c iface.c dpdk.c dsa.c 
+SRCS-y := main.c init.c netdev.c netdev_pcap.c dp.c iface.c dpdk.c dsa.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
@@ -57,7 +57,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_DPDK
 CFLAGS += -DHAVE_SF1500
 #CFLAGS += -DHAVE_MPM
-#CFLAGS += -DBUILD_DEBUG
+CFLAGS += -DBUILD_DEBUG
 			  
 CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/include\

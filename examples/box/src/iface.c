@@ -186,20 +186,20 @@ void iface_healthy_tmr_handler
 	uint64_t lcore_nr_tx_bytes[MAX_LCORES];
 
 	static FILE *fp;
-	const char *healthy_file = "/data/iface_healthy.txt";
+	const char *healthy_file = "/tmp/iface_healthy.txt";
 	int each;
 	oryx_vector vec = vlib_iface_main.entry_vec;
 	struct iface_t *iface;	
-	char cat_null[128] = "cat /dev/null > ";
+	char emptycmd[128] = "cat /dev/null > ";
 
-	strcat(cat_null, healthy_file);
-	do_system(cat_null);
+	strcat(emptycmd, healthy_file);
+	do_system(emptycmd);
 
+	fp = fopen(healthy_file, "a+");
 	if(!fp) {
-		fp = fopen(healthy_file, "a+");
-		if(!fp) fp = stdout;
+		return;
 	}
-
+	
 	vec_foreach_element(vec, each, iface){
 		if (!iface)
 			continue;

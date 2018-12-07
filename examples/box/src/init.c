@@ -463,6 +463,14 @@ box_init_mem(void)
 					socketid);
 			//classify_setup_em (socketid);
 			//classify_setup_acl(socketid);
+			mask0 = (rte_xmm_t){.u32 = {BIT_8_TO_15, ALL_32_BITS,
+						ALL_32_BITS, ALL_32_BITS} };
+			
+			mask1 = (rte_xmm_t){.u32 = {BIT_16_TO_23, ALL_32_BITS,
+						ALL_32_BITS, ALL_32_BITS} };
+			
+			mask2 = (rte_xmm_t){.u32 = {ALL_32_BITS, ALL_32_BITS, 0, 0} };
+
 		}
 	}
 	return 0;

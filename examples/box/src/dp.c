@@ -28,11 +28,20 @@ threadvar_ctx_t g_tv[MAX_LCORES];
 decode_threadvar_ctx_t g_dtv[MAX_LCORES];
 volatile bool force_quit = false;
 
+struct enp5s0fx_t {
+	const char *name;
+};
 
-static const char *enp5s0fx[] = {
-	"enp5s0f1",
-	"enp5s0f2",
-	"enp5s0f3"
+static struct enp5s0fx_t enp5s0fx[] = {
+	{
+		.name = "enp5s0f1",
+	},
+	{
+		.name = "enp5s0f2",
+	},
+	{
+		.name = "enp5s0f3",
+	}
 };
 
 __oryx_always_extern__
@@ -63,7 +72,7 @@ void dp_check_port
 		if(!this) {
 			oryx_panic(-1, "no such ethdev.");
 		}
-		if(strcmp(this->sc_alias_fixed, enp5s0fx[portid])) {
+		if(strcmp(this->sc_alias_fixed, enp5s0fx[portid].name)) {
 			oryx_panic(-1, "no such ethdev named %s.", this->sc_alias_fixed);
 		}
 	}
@@ -349,6 +358,19 @@ uint32_t ipv4_hash_crc
 }
 
 static __oryx_always_inline__
+void dump_pkt(uint8_t *pkt, int len)
+{
+	int i = 0;
+	
+	for (i = 0; i < len; i ++){
+		if (!(i % 16))
+			fprintf (stdout, "\n");
+		fprintf (stdout, "%02x ", pkt[i]);
+	}
+	fprintf (stdout, "\n");
+}
+
+static __oryx_always_inline__
 uint32_t dp_recalc_rss
 (
 	IN struct rte_mbuf *m
@@ -372,7 +394,7 @@ uint32_t dp_recalc_rss
 static __oryx_always_inline__
 int dp_decide_tx_port
 (
-	IN struct iface_t *rx_iface,
+	IN struct iface_t *rx_cpu_iface,
 	IN struct rte_mbuf *m,
 	IN uint32_t *tx_port_id
 )
@@ -380,27 +402,27 @@ int dp_decide_tx_port
 	uint32_t rss;
 	uint32_t index;
 	uint32_t tx_panel_port_id = 0;
-	vlib_main_t *vm = &vlib_main;
 	
-	rss = (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID) ? \
+	rss = (iface_id(rx_cpu_iface) == SW_CPU_XAUI_PORT_ID) ? \
 			dp_recalc_rss(m) : m->hash.rss;
-	
-	index = rss % vm->nr_sys_ports;
 
 #if defined(BUILD_DEBUG)
 	oryx_logn("%20s%8u", "m->hash.rss: ", m->hash.rss);
 	oryx_logn("%20s%8u", "rss: ", rss);
-	oryx_logn("%20s%8u", "index: ", index);
 #endif
 
 	/*
 	 * Packets from GE port will be delivered to 2 XE ports
 	 * and those from XE port will be delivered to 8 GE ports.
 	 */
-	if (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID)
-		*tx_port_id = tx_panel_port_id = index % 2;
-	else
-		*tx_port_id = tx_panel_port_id = index % ET1500_N_GE_PORTS;
+	if (iface_id(rx_cpu_iface) == SW_CPU_XAUI_PORT_ID) {
+		index = rss % 2;		
+		*tx_port_id = tx_panel_port_id = (index + 1);	/* skip enp5s0f1 */
+	}
+	else {
+		index = rss % ET1500_N_GE_PORTS;
+		*tx_port_id = tx_panel_port_id = index;
+	}
 	
 	if(tx_panel_port_id != UINT32_MAX &&
 		tx_panel_port_id > SW_PORT_OFFSET)
@@ -486,7 +508,7 @@ int dp_send_burst
 {
 	int 		ret;
 	uint16_t		tx_queue_id;
-	uint16_t		nb_tx_pkts;
+	uint16_t		nr_tx_pkts = 0;
 	struct iface_t		*tx_iface = NULL;
 	struct rte_mbuf 	**m_table;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
@@ -497,20 +519,20 @@ int dp_send_burst
 	tx_queue_id = qconf->tx_queue_id[tx_port_id];
 	m_table = (struct rte_mbuf **)qconf->tx_mbufs[tx_port_id].m_table;
 
-	nb_tx_pkts = ret = rte_eth_tx_burst((uint8_t)tx_port_id, tx_queue_id, m_table, n);
+	nr_tx_pkts = ret = rte_eth_tx_burst((uint8_t)tx_port_id, tx_queue_id, m_table, n);
 	if (unlikely(ret < n)) {
 		do {
 			rte_pktmbuf_free(m_table[ret]);
 		} while (++ ret < n);
 	}
+	tv->nr_mbufs_feedback += n;
 
 #if defined(BUILD_DEBUG)
-	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d", tx_port_id, tx_queue_id, tv->lcore, nb_tx_pkts);
+	oryx_logd("tx_port_id=%d tx_queue_id %d, tx_lcore_id %d tx_pkts_num %d/%d",
+		tx_port_id, tx_queue_id, tv->lcore, nr_tx_pkts, n);
 #endif
-
-	iface_counters_add(tx_iface, tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], nb_tx_pkts);
-
-	tv->nr_mbufs_feedback += n;
+	iface_counters_add(tx_iface,
+		tx_iface->if_counter_ctx->lcore_counter_pkts[QUA_TX][qconf->lcore_id], nr_tx_pkts);
 
 	return 0;
 }
@@ -569,7 +591,7 @@ void dp_classify_prepare_one_packet
 	/* offset of every header. */
 	size_t nroff = ETHERNET_HEADER_LEN;
 
-	uint8_t rx_panel_port_id;
+	uint8_t rx_panel_port_id = -1;
 	const bool dsa_support = iface_support_marvell_dsa(rx_iface);
 
 	if (dsa_support) {
@@ -581,12 +603,6 @@ void dp_classify_prepare_one_packet
 		ether_type = dsaeth->eth_type;
 		rx_panel_port_id = DSA_TO_GLOBAL_PORT_ID(p->dsa);
 
-#if defined(BUILD_DEBUG)
-		oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
-		oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
-		PrintDSA("RX", p->dsa, QUA_RX);
-		dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
-#endif		
 		/* DSA is invalid. */
 		if (!DSA_IS_INGRESS(p->dsa)) {
 			dp_free_packet(tv, dtv, pkt);
@@ -599,6 +615,13 @@ void dp_classify_prepare_one_packet
 		EthernetHdr *eth = rte_pktmbuf_mtod(pkt, EthernetHdr *);
 		ether_type = eth->eth_type;
 	}
+	
+#if defined(BUILD_DEBUG)
+	oryx_logn("%20s%4d", "rx_panel_port_id: ",	rx_panel_port_id);
+	oryx_logn("%20s%4x", "eth_type: ",			rte_be_to_cpu_16(ether_type));
+	if(dsa_support) PrintDSA("RX", p->dsa, QUA_RX);
+	dump_pkt((uint8_t *)rte_pktmbuf_mtod(pkt, void *), pkt->pkt_len);
+#endif
 
 	if (ether_type == rte_cpu_to_be_16(ETHERNET_TYPE_IP)) {
 		union ipv4_5tuple_host k4;
@@ -627,7 +650,7 @@ void dp_classify_prepare_one_packet
 			oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_arp);
 		parser->m_notip[(parser->num_notip)++] = pkt;
 		/* Unknown type, a simplified drop for the packet */
-		dp_free_packet(tv, dtv, pkt);
+		//dp_free_packet(tv, dtv, pkt);
 		return;
 	}
 
@@ -676,7 +699,7 @@ int dp_send_single_packet
 (
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t __oryx_unused__ *dtv,
-	IN struct iface_t *rx_iface,
+	IN struct iface_t *rx_cpu_iface,
 	IN struct lcore_conf *qconf,
 	IN struct rte_mbuf *m,
 	IN uint32_t tx_port_id,
@@ -689,7 +712,7 @@ int dp_send_single_packet
 	struct iface_t		*tx_panel_iface = NULL;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
 	
-	if (iface_id(rx_iface) == SW_CPU_XAUI_PORT_ID) {
+	if (iface_id(rx_cpu_iface) == SW_CPU_XAUI_PORT_ID) {
 		vlib_pkt_t *p = GET_MBUF_PRIVATE(vlib_pkt_t, m);
 		if(tx_panel_port_id > SW_PORT_OFFSET) {
 			/* GE ---> GE */
@@ -728,7 +751,7 @@ int dp_send_single_packet
 		} else {
 			/** XE -> XE */
 	#if defined(BUILD_DEBUG)
-				BUG_ON(tx_port_id == SW_CPU_XAUI_PORT_ID);
+			BUG_ON(tx_port_id == SW_CPU_XAUI_PORT_ID);
 	#endif
 		}
 	}
@@ -754,6 +777,7 @@ flush2_buffer:
 		dp_send_burst(tv, qconf, DPDK_MAX_TX_BURST, tx_port_id);
 		len = 0;
 	}
+	
 	qconf->tx_mbufs[tx_port_id].len = len;
 	
 	return 0;
@@ -764,22 +788,23 @@ void dp_classify_post
 (
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t *dtv,
-	IN struct iface_t *rx_iface,
+	IN struct iface_t *rx_cpu_iface,
 	IN struct lcore_conf *qconf,
 	IN struct rte_mbuf *m,
 	IN uint32_t __oryx_unused__ res
 )
 {
 	uint32_t		tx_panel_port_id = 0;
-	uint32_t		tx_port_id = iface_id(rx_iface);
+	uint32_t		tx_port_id = iface_id(rx_cpu_iface);
 
-
-	tx_panel_port_id = dp_decide_tx_port(rx_iface, m, &tx_port_id);
+	tx_panel_port_id = dp_decide_tx_port(rx_cpu_iface, m, &tx_port_id);
+	
 #if defined(BUILD_DEBUG)
 	oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
 #endif
+
 	if(tx_panel_port_is_online(tx_panel_port_id)) {
-		dp_send_single_packet(tv, dtv, rx_iface, qconf, m, tx_port_id, tx_panel_port_id);
+		dp_send_single_packet(tv, dtv, rx_cpu_iface, qconf, m, tx_port_id, tx_panel_port_id);
 	} else {
 		dp_free_packet(tv, dtv, m);
 	}
@@ -790,7 +815,7 @@ void dp_classify
 (
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t *dtv,
-	IN struct iface_t *rx_iface,
+	IN struct iface_t *rx_cpu_iface,
 	IN struct lcore_conf *qconf,
 	IN struct rte_mbuf **m,
 	IN uint32_t __oryx_unused__ *res,
@@ -808,14 +833,15 @@ void dp_classify
 	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(m[
 				i + PREFETCH_OFFSET], void *));
-		dp_classify_post(tv, dtv, rx_iface, qconf, m[i], 0/*res[i]*/);
+		dp_classify_post(tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
 	}
 
 	/* Process left packets */
 	for (; i < num; i++)
-		dp_classify_post(tv, dtv, rx_iface, qconf, m[i], 0/*res[i]*/);
+		dp_classify_post(tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
 }
 
+static
 int main_loop (void *ptr_data)
 {
 	int i, nb_rx;
@@ -863,6 +889,8 @@ int main_loop (void *ptr_data)
 	while (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
 		fprintf (stdout, "lcore %d wait for dataplane ...\n", tv->lcore);
 		sleep(1);
+		if (force_quit)
+			break;
 	}
 
 	oryx_logn("entering main loop @lcore %u @socket %d\n", tv->lcore, socketid);
@@ -1016,6 +1044,8 @@ void dp_start
 		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 		dp_register_perf_counters(dtv, tv);
 	}
+
+	vm->ul_flags |= VLIB_DP_INITIALIZED;
 	
 }
 

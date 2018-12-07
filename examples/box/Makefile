@@ -48,6 +48,8 @@ endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
 
+install:
+	sh script/BuildPackage.sh src
 clean:
 	@rm -fr src/$(RTE_TARGET)
 	@rm -fr oryx/$(RTE_TARGET)

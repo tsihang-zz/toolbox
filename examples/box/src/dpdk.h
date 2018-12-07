@@ -107,6 +107,10 @@
 
 #define HASH_ENTRY_NUMBER_DEFAULT	4
 
+#define ALL_32_BITS 0xffffffff
+#define BIT_8_TO_15 0x0000ff00
+#define BIT_16_TO_23 0x00ff0000
+
 struct mbuf_table {
 	uint16_t len;
 	struct rte_mbuf *m_table[DPDK_MAX_TX_BURST];

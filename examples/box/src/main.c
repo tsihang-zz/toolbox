@@ -19,8 +19,6 @@ sigint_handler
 	vlib_main_t *vm = &vlib_main;
 	
 	if (signum == SIGINT || signum == SIGTERM) {
-		vm->force_quit = true;
-
 		notify_dp(vm, signum);
 		/** */
 		vm->ul_flags |= VLIB_QUIT;
@@ -33,6 +31,7 @@ int main (
 )
 {
 	int err;
+	uint32_t id_core;
 	
 	oryx_initialize();
 	oryx_register_sighandler(SIGINT, sigint_handler);
@@ -42,11 +41,30 @@ int main (
 
 	err = box_init (argc, argv);
 	if (err) exit(0);
-
-	dp_start(&vlib_main);
 	
 	oryx_task_launch();
-	FOREVER;
+
+	dp_start(&vlib_main);
+
+#if defined(HAVE_DPDK)
+	RTE_LCORE_FOREACH_SLAVE(id_core) {
+		if (rte_eal_wait_lcore(id_core) < 0)
+			return -1;
+		/* wait for dataplane quit. */
+		if(vlib_main.ul_core_mask & VLIB_QUIT)
+			break;
+		sleep(3);
+	}
+#else
+	FOREVER {
+		/* wait for dataplane quit. */
+		if(vlib_main.ul_core_mask & VLIB_QUIT)
+			break;
+		sleep(3);
+	}
+#endif
+	
+	dp_stop(&vlib_main);
 
 	return 0;
 }
