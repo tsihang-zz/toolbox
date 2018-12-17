@@ -132,10 +132,10 @@ int oryx_mkfile
 
 __oryx_always_extern__
 void oryx_file_clear(const char *f) {
-	char cat_null[128] = "cat /dev/null > ";
+	char emptycmd[128] = "cat /dev/null > ";
 
-	strcat(cat_null, f);
-	do_system(cat_null);
+	strcat(emptycmd, f);
+	do_system(emptycmd);
 }
 
 /** A random Pattern generator.*/

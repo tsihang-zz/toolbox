@@ -1,103 +1,290 @@
-#ifndef IFACE_H
-#define IFACE_H
+#ifndef __BOX_IFACE_H__
+#define __BOX_IFACE_H__
 
-enum {
-	ETH_GE,
-	ETH_XE
-};
+#include "iface_private.h"
 
-struct iface_counter_ctx {
-	counter_id lcore_counter_pkts[QUA_RXTX][MAX_LCORES];
-	counter_id lcore_counter_bytes[QUA_RXTX][MAX_LCORES];
-};
+ATOMIC_EXTERN(uint32_t, nr_ifaces);
 
-#define NETDEV_ADMIN_UP							(1 << 0)	/** 0-down, 1-up */
-#define NETDEV_PROMISC							(1 << 1)
-#define	NETDEV_LOOPBACK							(1 << 3)
-#define NETDEV_POLL_UP							(1 << 4)	/** poll this port up. */
-#define NETDEV_MARVELL_DSA						(1 << 5)	/** marvell dsa frame. */
-#define NETDEV_PANEL							(1 << 6)	/** is a panel port or not.
-															 *  cpu <-> sw */
-#define LINK_PAD0	(0)
-struct iface_t {
-	const char				*sc_alias_fixed; 	/** fixed alias used to do linkstate poll,
-								 			  	 *  and can not be overwrite by CLI. */
-	int						type;				/** ETH_GE, ETH_XE, ... */
-	uint32_t				ul_flags;
-
-	int						(*if_poll_state)(struct iface_t *this);
-	int						(*if_poll_up)(struct iface_t *this);	
-	uint32_t				ul_id;				/* A panel interface ID. 
-											 	 * enp5s0f1, enp5s0f2, enp5s0f3, lan1 ... lan8
-											 	 * Can be translated by TO_INFACE_ID(Frame.vlan) */
-	char					sc_alias[32];		/* Port name.
-												 * for example, Gn_b etc... 
-												 * can be overwritten by CLI. */
-	char					eth_addr[6];		/** ethernet address for this port. */
-	uint32_t				ul_up_down_times;	/** up->down counter. */
-
-		uint32_t link_speed;		/**< ETH_SPEED_NUM_ */
-		uint32_t link_duplex  : 8;	/**< ETH_LINK_[HALF/FULL]_DUPLEX */
-		uint32_t link_autoneg : 1;	/**< ETH_LINK_SPEED_[AUTONEG/FIXED] */
-		uint32_t link_pad0    : 7;
-		uint32_t mtu       		: 16;	/**< MTU */
-
-	struct oryx_counter_ctx_t 		*perf_private_ctx;
-	struct iface_counter_ctx *if_counter_ctx;
-
-	uint32_t			ul_map_mask;		/** map for this iface belong to. */
-};
-
-#define iface_alias(p) (p)->sc_alias
-#define iface_id(p)	   (p)->ul_id
-#define iface_perf(p)  (p)->perf_private_ctx
-#define iface_support_marvell_dsa(p) ((p)->ul_flags & NETDEV_MARVELL_DSA)
-
-#define iface_counters_add(p,id,x)\
-	oryx_counter_add(iface_perf((p)),(id),(x));
-#define iface_counters_inc(p,id)\
-	oryx_counter_inc(iface_perf((p)),(id));
-#define iface_counters_set(p,id,x)\
-	oryx_counter_set(iface_perf((p)),(id),(x));
-
-#define iface_counter_update(iface,nb_pkts,nb_bytes,rx_tx,lcore)\
-	iface_counters_add((iface),\
-		(iface)->if_counter_ctx->lcore_counter_pkts[rx_tx][(lcore)], nb_pkts);\
-	iface_counters_add((iface),\
-		(iface)->if_counter_ctx->lcore_counter_bytes[rx_tx][(lcore)], nb_bytes);
-
-static __oryx_always_inline__
-int iface_lookup_id0
-(
-	IN vlib_iface_main_t *pm,
-	IN const uint32_t id,
-	OUT struct iface_t **this
-)
-{
-	BUG_ON(pm->entry_vec == NULL);
-	
-	(*this) = NULL;
-	if (!vec_active(pm->entry_vec) ||
-		id > vec_active(pm->entry_vec))
-		return 0;
-	(*this) = (struct iface_t *) vec_lookup (pm->entry_vec, id);
-
-	return 0;
+#define split_foreach_iface_func1(argv_x, func){\
+	const char *split = ",";/** split tokens */\
+	char *token = NULL;\
+	char *save = NULL;\
+	char alias_list[128] = {0};\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	struct iface_t *v = NULL;\
+	atomic_set(nr_ifaces, 0);\
+	if (!strcmp (alias_list, "*")) {\
+		/** lookup alias with Post-Fuzzy match */\
+		vec_foreach_element(vec, each, v){\
+			if (v){\
+				func (v);\
+				atomic_inc(nr_ifaces);\
+			}\
+		}\
+	} else {\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
+		token = strtok_r (alias_list, split, &save);\
+		while (token) {\
+			if (token) {\
+				if (is_numerical (token, strlen(token))) {\
+					/** Lookup by ID. */\
+					uint32_t id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.v = (void *)&id,\
+						.s = strlen (token),\
+					};\
+					iface_table_entry_lookup (&lp, &v);\
+					if (!v) {\
+						goto lookup_by_alias_exactly;\
+					}\
+				} else {\
+					/** Lookup by ALIAS fuzzy. */\
+					if (strchr (token, '*')){\
+						goto lookup_by_alias_posted_fuzzy;\
+					}\
+					else {\
+	lookup_by_alias_exactly:\
+						token = token;\
+						/** Lookup by ALIAS exactly. */\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						iface_table_entry_lookup (&lp, &v);\
+						if (!v) {\
+							goto lookup_next;\
+						}\
+					}\
+				}\
+				if (v) {\
+					func (v);\
+					atomic_inc(nr_ifaces);\
+					goto lookup_next;\
+				}\
+	lookup_by_alias_posted_fuzzy:\
+				/** lookup alias with Post-Fuzzy match */\
+				vec_foreach_element(vec, each, v){\
+					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
+						func (v);\
+						atomic_inc(nr_ifaces);\
+					}\
+				}\
+				goto lookup_next;\
+			}\
+	lookup_next:\
+			token = strtok_r (NULL, split, &save);\
+		}\
+	}\
 }
 
-#if defined(BUILD_DEBUG)
-#define iface_lookup_id(pm,id,iface)\
-	iface_lookup_id0((pm),(id),(iface));
-#else
-#define iface_lookup_id(pm,id,iface)\
-	(*(iface)) = NULL;\
-	(*(iface)) = (struct iface_t *) vec_lookup ((pm)->entry_vec, (id));
-#endif
+#define split_foreach_iface_func1_param1(argv_x, func, param0){\
+	const char *split = ",";/** split tokens */\
+	char *token = NULL;\
+	char *save = NULL;\
+	char alias_list[128] = {0};\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	struct iface_t *v = NULL;\
+	atomic_set(nr_ifaces, 0);\
+	if (!strcmp (alias_list, "*")) {\
+		/** lookup alias with Post-Fuzzy match */\
+		vec_foreach_element(vec, each, v){\
+			if (v){\
+				func (v, param0);\
+				atomic_inc(nr_ifaces);\
+			}\
+		}\
+	} else {\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
+		token = strtok_r (alias_list, split, &save);\
+		while (token) {\
+			if (token) {\
+				if (is_numerical (token, strlen(token))) {\
+					/** Lookup by ID. */\
+					uint32_t id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.s = strlen (token),\
+						.v = (void *)&id,\
+					};\
+					iface_table_entry_lookup (&lp, &v);\
+					if (!v) {\
+						goto lookup_by_alias_exactly;\
+					}\
+				} else {\
+					/** Lookup by ALIAS fuzzy. */\
+					if (strchr (token, '*')){\
+						goto lookup_by_alias_posted_fuzzy;\
+					}\
+					else {\
+	lookup_by_alias_exactly:\
+						token = token;\
+						/** Lookup by ALIAS exactly. */\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						iface_table_entry_lookup (&lp, &v);\
+						if (!v) {\
+							goto lookup_next;\
+						}\
+					}\
+				}\
+				if (v) {\
+					func (v, param0);\
+					atomic_inc(nr_ifaces);\
+					goto lookup_next;\
+				}\
+	lookup_by_alias_posted_fuzzy:\
+				/** lookup alias with Post-Fuzzy match */\
+				vec_foreach_element(vec, each, v){\
+					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
+						func (v, param0);\
+						atomic_inc(nr_ifaces);\
+					}\
+				}\
+				goto lookup_next;\
+			}\
+	lookup_next:\
+			token = strtok_r (NULL, split, &save);\
+		}\
+	}\
+}
+
+
+#define split_foreach_iface_func1_param2(argv_x, func, param0, param_1) {\
+	const char *split = ",";/** split tokens */\
+	char *token = NULL;\
+	char *save = NULL;\
+	char alias_list[128] = {0};\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	struct iface_t *v = NULL;\
+	atomic_set(nr_ifaces, 0);\
+	if (!strcmp (alias_list, "*")) {\
+		/** lookup alias with Post-Fuzzy match */\
+		vec_foreach_element(vec, each, v){\
+			if (v){\
+				func (v, param0, param_1);\
+				atomic_inc(nr_ifaces);\
+			}\
+		}\
+	} else {\
+		memcpy (alias_list, (const char *)argv_x, strlen ((const char *)argv_x));\
+		token = strtok_r (alias_list, split, &save);\
+		while (token) {\
+			if (token) {\
+				if (is_numerical (token, strlen(token))) {\
+					/** Lookup by ID. */\
+					uint32_t id = atoi(token);\
+					struct prefix_t lp = {\
+						.cmd = LOOKUP_ID,\
+						.s = strlen (token),\
+						.v = (void *)&id,\
+					};\
+					iface_table_entry_lookup (&lp, &v);\
+					if (!v) {\
+						goto lookup_by_alias_exactly;\
+					}\
+				} else {\
+					/** Lookup by ALIAS fuzzy. */\
+					if (strchr (token, '*')){\
+						goto lookup_by_alias_posted_fuzzy;\
+					}\
+					else {\
+	lookup_by_alias_exactly:\
+						token = token;\
+						/** Lookup by ALIAS exactly. */\
+						struct prefix_t lp = {\
+							.cmd = LOOKUP_ALIAS,\
+							.s = strlen (token),\
+							.v = token,\
+						};\
+						iface_table_entry_lookup (&lp, &v);\
+						if (!v) {\
+							goto lookup_next;\
+						}\
+					}\
+				}\
+				if (v) {\
+					func (v, param0, param_1);\
+					atomic_inc(nr_ifaces);\
+					goto lookup_next;\
+				}\
+	lookup_by_alias_posted_fuzzy:\
+				/** lookup alias with Post-Fuzzy match */\
+				vec_foreach_element(vec, each, v){\
+					if (v && !strncmp (v->sc_alias, token, (strlen(token) - 1/** ignore '*'  */))){\
+						func (v, param0, param_1);\
+						atomic_inc(nr_ifaces);\
+					}\
+				}\
+				goto lookup_next;\
+			}\
+	lookup_next:\
+			token = strtok_r (NULL, split, &save);\
+		}\
+	}\
+}
+
+#define foreach_iface_func1_param0(argv_x, func)\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	atomic_set(nr_ifaces, 0);\
+	struct iface_t *v;\
+	vec_foreach_element(vec, each, v){\
+		if (v) {\
+			func (v);\
+			atomic_inc(nr_ifaces);\
+		}\
+	}
+
+#define foreach_iface_func1_param1(argv_x, func, param0)\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	atomic_set(nr_ifaces, 0);\
+	struct iface_t *v;\
+	vec_foreach_element(vec, each, v){\
+		if (v) {\
+			func (v, param0);\
+			atomic_inc(nr_ifaces);\
+		}\
+	}
+
+#define foreach_iface_func1_param2(argv_x, func, param0, param1)\
+		int each;\
+		oryx_vector vec = vlib_iface_main.entry_vec;\
+		atomic_set(nr_ifaces, 0);\
+		struct iface_t *v;\
+		vec_foreach_element(vec, each, v){\
+			if (v) {\
+				func (v, param0, param1);\
+				atomic_inc(nr_ifaces);\
+			}\
+		}
+		
+
+#define foreach_iface_func0_param0_func1_param1(argv_x, func0, param0, func1, param1)\
+	int each;\
+	oryx_vector vec = vlib_iface_main.entry_vec;\
+	atomic_set(nr_ifaces, 0);\
+	struct iface_t *v;\
+	vec_foreach_element(vec, each, v){\
+		if (v) {\
+			func (v, param0);\
+			atomic_inc(nr_ifaces);\
+		}\
+	}
 
 ORYX_DECLARE (
 	void vlib_iface_init (
 		IN vlib_main_t *vm
 	)
 );
+
 
 #endif

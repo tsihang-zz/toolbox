@@ -54,7 +54,7 @@ static __oryx_always_inline__
 void * oryx_htable_lookup 
 (
 	IN struct oryx_htable_t *ht,
-	IN const ht_value_t value,
+	IN ht_value_t value,
 	IN uint32_t valen
 )
 {

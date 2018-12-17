@@ -717,9 +717,6 @@ config_write_host (struct vty *vty)
         vty_out (vty, "enable password %s%s", host.enable, VTY_NEWLINE);
     }
 
-  iface_config_write(vty);
-  appl_config_write(vty);
-  
 #if 0
   if (zlog_default->default_lvl != LOG_DEBUG)
     {

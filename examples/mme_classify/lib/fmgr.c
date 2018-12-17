@@ -80,11 +80,11 @@ static int fkey_cmp (const ht_value_t v1, uint32_t s1,
 	return xret;
 }
 
-static vlib_fkey_t *fkey_alloc(void)
+static vlib_conf_t *fkey_alloc(void)
 {
-	vlib_fkey_t *v = malloc(sizeof (vlib_fkey_t));
+	vlib_conf_t *v = malloc(sizeof (vlib_conf_t));
 	BUG_ON(v == NULL);
-	memset (v, 0, sizeof (vlib_fkey_t));
+	memset (v, 0, sizeof (vlib_conf_t));
 	return v;
 }
 
@@ -155,10 +155,10 @@ void * fmgr_handler (void __oryx_unused__ *r)
 					goto next;
 
 				/* search hash table first */
-				vlib_fkey_t *key;
+				vlib_conf_t *key;
 				void *s = oryx_htable_lookup(file_hash_tab, name, strlen(name));
 				if (s) {
-					key = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
+					key = (vlib_conf_t *) container_of (s, vlib_conf_t, name);
 					if (key != NULL) {
 						fprintf(stdout, "[FID] %s\n", key->name);
 						//BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
@@ -200,7 +200,7 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 				n = 0;
 				//timeout_sec = *(int *)argv;
 	vlib_tm_grid_t *vtg = (vlib_tm_grid_t *)argv;	
-	vlib_fkey_t *key;	/* search hash table first */
+	vlib_conf_t *key;	/* search hash table first */
 	char		*p,
 				stime[16] = {0};
 	
@@ -335,9 +335,9 @@ static int fmgr_classify_timedout (void *argv, char *pathname, char *filename)
 	return 0;
 }
 
-void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
+void fmgr_move(const char *oldpath, const vlib_conf_t *vf)
 {
-	vlib_fkey_t *fkey;	/* search hash table first */
+	vlib_conf_t *fkey;	/* search hash table first */
 	char	*f;
 	
 	f = strstr(oldpath, MME_CSV_PREFIX);
@@ -352,7 +352,7 @@ void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 		return;
 	}
 	
-	fkey = (vlib_fkey_t *) container_of (s, vlib_fkey_t, name);
+	fkey = (vlib_conf_t *) container_of (s, vlib_conf_t, name);
 	if (fkey != NULL) {
 		/* To make sure that we cannot process files duplicated. */
 		fkey->nr_entries = vf->nr_entries;
@@ -365,7 +365,7 @@ void fmgr_move(const char *oldpath, const vlib_fkey_t *vf)
 
 void fmgr_remove(const char *oldpath)
 {
-	vlib_fkey_t *fkey;	/* search hash table first */
+	vlib_conf_t *fkey;	/* search hash table first */
 	char	*f;
 	int err;
 	
@@ -394,7 +394,7 @@ static void fmgr_ht_handler(ht_value_t v,
 				int __oryx_unused__ opaque_size) {
 	char pathname[256] = {0};
 	
-	vlib_fkey_t *fkey = (vlib_fkey_t *)v;
+	vlib_conf_t *fkey = (vlib_conf_t *)v;
 	fprintf(stdout, "==== %s\n", fkey->name);
 	sprintf(pathname, "%s/%s", inotify_home, fkey->name);
    /* If this file removed successfully,

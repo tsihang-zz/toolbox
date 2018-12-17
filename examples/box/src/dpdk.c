@@ -1,4 +1,5 @@
 #include "oryx.h"
+#include "config.h"
 #include "dpdk.h"
 
 /* Global variables. */

@@ -549,7 +549,7 @@ void do_classify_entry
 	}
 }
 
-static mme_stat (const FILE *fp)
+static void mme_stat (const FILE *fp)
 {
 	int i;
 	vlib_mme_t *mme;
@@ -948,10 +948,47 @@ void classify_initialization(vlib_main_t *vm)
 #endif
 }
 
+int classify_result (const char *oldpath, vlib_conf_t *conf)
+{
+	FILE				*fp = NULL;
+	char				pps_str0[20],
+						pps_str1[20],
+						file_size_buf[20] = {0},
+						logfile[256] = {0};
+
+	fprintf(stdout, "\nClassify Result\n");
+	fprintf(stdout, "%3s%12s%s\n",	" ", "File: ",	oldpath);
+	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ",
+		conf->nr_entries, conf->nr_entries, conf->tv_usec);
+	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
+		oryx_fmt_program_counter(fmt_pps(conf->tv_usec, conf->nr_local_entries), pps_str0, 0, 0),
+		oryx_fmt_program_counter(fmt_pps(conf->tv_usec, conf->nr_local_entries), pps_str1, 0, 0));
+
+	if (conf->ul_flags & VLIB_CONF_LOG) {
+		sprintf(logfile, "%s/classify_result.log", classify_home);
+		fp = fopen(logfile, "a+");
+		if(!fp) {
+			fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
+			return 0;
+		}
+		fprintf(fp, "Summary: %s (%lu entries, %s, cost %lu usec, %s/s)\n",
+				oldpath,
+				conf->nr_local_entries,
+				oryx_fmt_program_counter(conf->nr_size, file_size_buf, 0, 0),
+				conf->tv_usec,
+				oryx_fmt_program_counter(fmt_pps(conf->tv_usec, conf->nr_local_entries), pps_str0, 0, 0));
+		mme_stat(fp);
+		fclose(fp);
+	}
+	
+	mme_stat(stdout);
+	return 0;
+}
+
 int classify_offline 
 (
 	IN const char *oldpath,
-	OUT vlib_fkey_t *fkey
+	IN vlib_conf_t *conf
 )
 {
 	FILE				*fp = NULL;
@@ -960,11 +997,7 @@ int classify_offline
 						tv_usec = 0;
 	size_t				entry_size = 0;
 	vlib_main_t			*vm = &vlib_main;
-	char				entry[lqe_valen]	= {0},
-						pps_str0[20],
-						pps_str1[20],
-						echo[1024] = {0},
-						file_size_buf[20] = {0};
+	char				entry[lqe_valen]	= {0};
 	struct timeval		start,
 						end;
 	int err;
@@ -996,12 +1029,9 @@ int classify_offline
 		memset (entry, 0, lqe_valen);
 		if(!fgets (entry, lqe_valen, fp) || !running)
 			break;
-
 		entry_size = strlen(entry);		
 		nr_local_entries ++;
 		nr_local_size += entry_size;
-		
-		//do_dispatch(entry, entry_size);
 		do_classify_entry (entry, entry_size);
 	}
 	fclose(fp);
@@ -1010,41 +1040,14 @@ finish:
 
 	gettimeofday(&end, NULL);	
 	tv_usec = oryx_elapsed_us(&start, &end);
-	vm->nr_cost_usec += tv_usec;
 
-	uint64_t vm_nr_rx_entries = ATOMIC64_READ(&vm->nr_rx_entries);
-	
-	fprintf(stdout, "\nClassify Result\n");
-	fprintf(stdout, "%3s%12s%s\n", 	" ", "File: ", 	oldpath);
-	fprintf(stdout, "%3s%12s%lu/%lu, cost %lu usec\n", " ", "Entries: ", nr_local_entries, vm_nr_rx_entries, tv_usec);
-	fprintf(stdout, "%3s%12s%s/s, avg %s/s\n",	" ", "Speed: ",
-		oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_entries), pps_str0, 0, 0),
-		oryx_fmt_program_counter(fmt_pps(vm->nr_cost_usec, vm_nr_rx_entries), pps_str1, 0, 0));
-
-	if (fkey) {
-		fkey->nr_entries	= nr_local_entries;
-		fkey->nr_size		= nr_local_size;
-		fkey->tv_usec		= tv_usec;
+	if (conf) {
+		conf->nr_entries		= ATOMIC64_READ(&vm->nr_rx_entries);
+		conf->nr_local_entries	= nr_local_entries;
+		conf->nr_size			= nr_local_size;
+		conf->tv_usec			= tv_usec;
 	}
 
-	char logfile[256] = {0};
-	sprintf(logfile, "%s/classify_result.log", classify_home);
-	fp = fopen(logfile, "a+");
-	if(!fp) {
-		fprintf(stdout, "fopen: %s\n", oryx_safe_strerror(errno));
-		return 0;
-	}
-	fprintf(fp, "%lu, %lu: %s (%lu entries, %s, cost %lu usec, %s/s)\n",
-			start.tv_sec,
-			end.tv_sec,
-			oldpath,
-			nr_local_entries,
-			oryx_fmt_program_counter(nr_local_size, file_size_buf, 0, 0),
-			tv_usec,
-			oryx_fmt_program_counter(fmt_pps(tv_usec, nr_local_entries), pps_str0, 0, 0));
-	mme_stat(fp);
-
-	fclose(fp);
 	/* clean up all file handlers */
 
 #if 0	
@@ -1066,20 +1069,30 @@ finish:
 	}
 #endif
 #else
-	char	newpath[256] = {0},
-			move[256] = {0};
+	if (conf->ul_flags & VLIB_CONF_NONE)
+		return 0;
+	else if (conf->ul_flags & VLIB_CONF_MV) {
+		char	newpath[256] = {0},
+				move[256] = {0};
 
-	sprintf(newpath, "%s/", vm->savdir);
-	sprintf(move, "mv %s %s", oldpath, newpath);
-	fprintf(stdout, "\n(*)done, %s\n", move);
-	err = do_system(move);
-	if(err) {
-		fprintf(stdout, "\nmv: %s\n", oryx_safe_strerror(errno));
+		sprintf(newpath, "%s/", vm->savdir);
+		sprintf(move, "mv %s %s", oldpath, newpath);
+		fprintf(stdout, "\n(*)done, %s\n", move);
+		err = do_system(move);
+		if(err) {
+			fprintf(stdout, "\nmv: %s\n", oryx_safe_strerror(errno));
+		}
+	} else if (conf->ul_flags & VLIB_CONF_RM) {
+		err = remove(oldpath);
+		if(err) {
+			fprintf(stdout, "\nremove: %s\n", oryx_safe_strerror(errno));
+		}
 	}
 #endif
 	return 0;
 }
 
+#if 0
 static
 void * enqueue_handler (void __oryx_unused__ *r)
 {
@@ -1097,14 +1110,11 @@ void * enqueue_handler (void __oryx_unused__ *r)
 				while (NULL != (fqe = oryx_lq_dequeue(fmgr_q))){
 					memset(inotify_file, 0, BUFSIZ);
 					sprintf(inotify_file, "%s", fqe->name);
-					vlib_fkey_t fkey = {
-						.name = " ",
-						.ul_flags = 0,
-						.nr_size = 0,
-						.nr_entries = 0,
+					vlib_conf_t conf = {
+						.ul_flags = VLIB_CONF_MV
 					};
-					classify_offline(fqe->name, &fkey); 	
-					fmgr_move(fqe->name, &fkey);
+					classify_offline(fqe->name, &conf); 	
+					fmgr_move(fqe->name, &conf);
 					free(fqe);
 				}
 				fprintf (stdout, " exited!\n");
@@ -1121,14 +1131,11 @@ void * enqueue_handler (void __oryx_unused__ *r)
 
 			memset(inotify_file, 0, BUFSIZ);
 			sprintf(inotify_file, "%s", fqe->name);				
-			vlib_fkey_t fkey = {
-				.name = " ",
-				.ul_flags = 0,
-				.nr_size = 0,
-				.nr_entries = 0,
+			vlib_conf_t conf = {
+				.ul_flags = VLIB_CONF_MV
 			};
-			classify_offline(fqe->name, &fkey);		
-			fmgr_move(fqe->name, &fkey);
+			classify_offline(fqe->name, &conf);		
+			fmgr_move(fqe->name, &conf);
 
 			free(fqe);
 		}
@@ -1146,4 +1153,4 @@ struct oryx_task_t enqueue = {
 		.argv			= NULL,
 		.ul_flags		= 0,	/** Can not be recyclable. */
 };
-
+#endif

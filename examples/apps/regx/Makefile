@@ -39,42 +39,25 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = napd
-
-#SRCS_MPM-y := mpm.c mpm_ac.c mpm_hs.c
-SRCS_MPM-y := 
+APP = regx
 
 # all source are stored in SRCS-y
-SRCS-y := main.c init.c netdev.c netdev_pcap.c dp.c dpdk.c dsa.c\
-	acl.c iface.c map.c rule.c
+SRCS-y := main.c fmgr.c
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
+CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
-		  -DHAVE_PCAP\
-		  -DHAVE_ADVANCED_TMR\
-		  -DHAVE_HYPERSCAN\
-		  -DHAVE_DPDK
-CFLAGS += -DHAVE_SF1500
-#CFLAGS += -DHAVE_MPM
-#CFLAGS += -DBUILD_DEBUG
+		  -DHAVE_ADVANCED_TMR
 			  
 CFLAGS += -I$(SRCDIR)\
-	  -I$(SRCDIR)/include\
-	  -I$(SRCDIR)/../oryx\
-	  -I$(SRCDIR)/../oryx/osih\
-	  -I$(SRCDIR)/../quagga\
-	  -I/usr/include/hs
+		-I$(SRCDIR)/../oryx
 
-#LDFLAGS += -lhs -lhs_runtime
-LDFLAGS += -ldl -lpthread -lm -lrt -lpcap -lstdc++
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
 
-LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst regx,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
-
-LDLIBS += -L$(subst src,quagga,$(RTE_OUTPUT))/lib
-LDLIBS += -lquagga
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

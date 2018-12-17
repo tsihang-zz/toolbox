@@ -355,7 +355,6 @@ int appl_table_entry_deep_lookup(const char *argv,
 		}
 	}
 	
-
 	return 0;
 }
 

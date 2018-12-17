@@ -2,40 +2,44 @@
 #define __DPDK_INC_H__
 
 #include <rte_common.h>
-#include <rte_memory.h>
-#include <rte_memzone.h>
-#include <rte_tailq.h>
-#include <rte_eal.h>
-#include <rte_byteorder.h>
-#include <rte_atomic.h>
-#include <rte_launch.h>
-#include <rte_per_lcore.h>
-#include <rte_lcore.h>
-#include <rte_branch_prediction.h>
-#include <rte_debug.h>
-#include <rte_ring.h>
 #include <rte_log.h>
-#include <rte_mempool.h>
+#include <rte_malloc.h>
+#include <rte_memory.h>
 #include <rte_memcpy.h>
-#include <rte_mbuf.h>
+#include <rte_memzone.h>
+#include <rte_eal.h>
+#include <rte_per_lcore.h>
+#include <rte_launch.h>
+#include <rte_atomic.h>
+#include <rte_cycles.h>
+#include <rte_prefetch.h>
+#include <rte_lcore.h>
+#include <rte_per_lcore.h>
+#include <rte_branch_prediction.h>
 #include <rte_interrupts.h>
 #include <rte_pci.h>
+#include <rte_random.h>
+#include <rte_debug.h>
 #include <rte_ether.h>
 #include <rte_ethdev.h>
-#include <rte_malloc.h>
+#include <rte_mempool.h>
+#include <rte_mbuf.h>
+#include <rte_ring.h>
+#include <rte_version.h>
+#include <rte_ethdev.h>
 #include <rte_ip.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
-#include <rte_fbk_hash.h>
 #include <rte_string_fns.h>
-#include <rte_cycles.h>
 #include <rte_vect.h>
-
-#if defined(HAVE_DPDK)
-#define MAX_LCORES	RTE_MAX_LCORE
-#else
-#define MAX_LCORES	4
-#endif
+/** for exact match */
+#include <rte_hash.h>
+#include <rte_hash_crc.h>
+/** for longest prefixe match */
+#include <rte_lpm.h>
+#include <rte_lpm6.h>
+/** for access control list. */
+#include <rte_acl.h>
 
 #define MAX_LCORE_PARAMS 1024
 
@@ -74,8 +78,6 @@
 
 #define MAX_TX_QUEUE_PER_PORT RTE_MAX_ETHPORTS
 #define MAX_RX_QUEUE_PER_PORT 128
-
-#define VLIB_SOCKETS        8
 
 /*
  * How many objects (mbufs) to keep in per-lcore mempool cache
@@ -166,6 +168,7 @@ struct parser_ctx_t {
 
 	const uint8_t *data_notip[DPDK_MAX_RX_BURST];
 	struct rte_mbuf *m_notip[DPDK_MAX_RX_BURST];
+	uint32_t res_notip[DPDK_MAX_RX_BURST];
 	int num_notip;
 };
 

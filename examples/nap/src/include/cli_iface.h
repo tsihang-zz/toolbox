@@ -3,7 +3,7 @@
 
 #include "iface_private.h"
 
-ATOMIC_EXTERN(uint32_t, nb_ifaces);
+ATOMIC_EXTERN(uint32_t, nr_ifaces);
 extern void vlib_iface_init(vlib_main_t *vm);
 
 #define split_foreach_iface_func1(argv_x, func){\

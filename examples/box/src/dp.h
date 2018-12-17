@@ -151,6 +151,12 @@ ORYX_DECLARE (
 	)
 );
 
+ORYX_DECLARE (
+	void dp_stats (
+		IN vlib_main_t *vm
+	)
+);
+
 
 
 #endif

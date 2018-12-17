@@ -1,6 +1,6 @@
 #include "oryx.h"
-#include "dpdk.h"
 #include "config.h"
+#include "dpdk.h"
 #include "iface.h"
 #include "dp.h"
 
@@ -476,6 +476,19 @@ box_init_mem(void)
 	return 0;
 }
 
+static void
+box_dp_stats_tmr_handler
+
+(
+	IN struct oryx_timer_t __oryx_unused__*tmr,
+	IN int __oryx_unused__ argc,
+	IN char __oryx_unused__**argv
+)
+{
+	vlib_main_t *vm = &vlib_main;
+	dp_stats(vm);
+}
+
 
 /**
  * Main init function for the multi-process server app,
@@ -556,7 +569,6 @@ int box_init
 	err = box_init_lcore_rx_queues();
 	if (err < 0)
 		rte_exit(EXIT_FAILURE, "init_lcore_rx_queues failed\n");
-
 
 	if (box_check_port_config(conf->portmask, vm->nr_sys_ports) < 0)
 		rte_exit(EXIT_FAILURE, "check_port_config failed\n");
@@ -652,8 +664,7 @@ int box_init
 			queueid = qconf->rx_queue_list[queue].queue_id;
 
 			if (numa_on)
-				socketid =
-				(uint8_t)rte_lcore_to_socket_id(lcore_id);
+				socketid = (uint8_t)rte_lcore_to_socket_id(lcore_id);
 			else
 				socketid = 0;
 
@@ -666,8 +677,7 @@ int box_init
 					dm->pktmbuf_pool[socketid]);
 			if (err)
 				rte_exit(EXIT_FAILURE,
-				"rte_eth_rx_queue_setup: err=%d, port=%d\n",
-				err, portid);
+					"rte_eth_rx_queue_setup: err=%d, port=%d\n", err, portid);
 		}
 	}
 
@@ -675,7 +685,10 @@ int box_init
 
 	/* start ports */
 	for (portid = 0; portid < vm->nr_sys_ports; portid++) {
+		fprintf (stdout, "\nStarting port %d ... ", portid);
+		fflush(stdout);		
 		if ((conf->portmask & (1 << portid)) == 0) {
+			fprintf(stdout, "(*)skipping ...\n");
 			continue;
 		}
 		/* Start device */
@@ -693,6 +706,7 @@ int box_init
 		 */
 		if (promiscuous_on)
 			rte_eth_promiscuous_enable(portid);
+		fprintf (stdout, "done \n");
 	}
 
 	fprintf (stdout, "\n");
@@ -700,16 +714,24 @@ int box_init
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 		if (rte_lcore_is_enabled(lcore_id) == 0)
 			continue;
+
 		qconf = &lcore_conf[lcore_id];
 		for (queue = 0; queue < qconf->n_rx_queue; ++queue) {
 			portid = qconf->rx_queue_list[queue].port_id;
 			queueid = qconf->rx_queue_list[queue].queue_id;
-#if defined(HAVE_DPDK_BUILT_IN_PARSER)
+#if defined(HAVE_DPDK_BUILTIN_PARSER)
 			if (prepare_ptype_parser(portid, queueid, (void*)qconf) == 0)
 				rte_exit(EXIT_FAILURE, "ptype check fails\n");
 #endif
 		}
 	}
+
+	struct oryx_timer_t *dp_stats_tmr = oryx_tmr_create(1, "dp stats monitoring tmr", 
+								(TMR_OPTIONS_PERIODIC | TMR_OPTIONS_ADVANCED),
+								box_dp_stats_tmr_handler,
+								0, NULL, 3);
+	if(likely(dp_stats_tmr != NULL))
+		oryx_tmr_start(dp_stats_tmr);
 
 	return 0;
 }

@@ -98,8 +98,6 @@ void iface_entry_out (struct iface_t *iface, struct vty *vty)
 		vty_out (vty, " %16s%s%s", 
 				"State: ", (iface->ul_flags & NETDEV_ADMIN_UP) ? "Up" : "Down", VTY_NEWLINE);
 	}
-
-	
 }
 
 static __oryx_always_inline__
@@ -602,6 +600,8 @@ void iface_config_write(struct vty *vty)
 
 void vlib_iface_init(vlib_main_t *vm)
 {
+	struct vty *v;
+	
 	vlib_iface_main_t *pm = &vlib_iface_main;
 	
 	pm->link_detect_tmr_interval = 3;

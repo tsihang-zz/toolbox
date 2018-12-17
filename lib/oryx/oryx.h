@@ -544,7 +544,7 @@ enum {LOOKUP_ID, LOOKUP_ALIAS};
 
 struct prefix_t {
 	uint8_t		cmd;
-	const void	*v;
+	void		*v;
 	uint8_t		s;	/** sizeof(v) */
 };
 

@@ -3,12 +3,6 @@
 
 //#define HAVE_F_CACHE
 
-extern uint64_t nr_classified_files;
-extern uint64_t nr_handlers;
-extern uint64_t nr_fopen_times;
-extern uint64_t nr_fopen_times_r;
-extern uint64_t nr_fopen_times_error;
-
 #define VLIB_CONF_NONE	(1 << 0)
 #define VLIB_CONF_MV	(1 << 1)
 #define VLIB_CONF_RM	(1 << 2)
@@ -18,7 +12,7 @@ typedef struct vlib_conf_t {
 	uint32_t	ul_flags;
 	uint64_t	nr_size;
 	uint64_t	nr_entries;
-	uint64_t	nr_local_entries;
+	uint64_t	nr_err_skip_entries;
 	uint64_t	tv_usec;
 } vlib_conf_t;
 
@@ -159,99 +153,6 @@ size_t file_write(vlib_file_t *f, const char *val, size_t valen)
 }
 
 static __oryx_always_inline__
-void file_close(vlib_file_t *f)
-{
-	if(f->fp == NULL)
-		return;
-
-	fprintf(stdout, "\nclosing %s\n", f->filepath);
-
-#if defined(HAVE_F_CACHE)
-	file_write(f, f->cache, f->offset);
-	f->offset = 0;
-#endif
-	nr_handlers --;
-	/* flush file before close it. */
-	fflush(f->fp);
-	fclose(f->fp);
-	file_reset(f);
-}
-
-/* event_start_time <= TIME < event_end_time */
-static __oryx_always_inline__
-int file_open(const char *home,
-	const char *mme_name, vlib_tm_grid_t *vtg, vlib_file_t *f)
-{
-	memset(f->filepath, 0, name_length);
-
-#if defined(HAVE_CLASSIFY_HOME)
-	sprintf(f->filepath, "%s/%s%s_%lu_%lu.csv", home, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
-#else
-	sprintf(f->filepath, "%s/%s/%s%s_%lu_%lu.csv", home, mme_name, MME_CSV_PREFIX, mme_name, vtg->start, vtg->end);
-#endif
-
-	/* Open an exist file with appended mode.
-	 * this mode is atomic, so there is no need to call a userspace lock. */
-	f->fp = fopen (f->filepath, "a+");
-	if (f->fp == NULL) {
-		fprintf(stdout, "fopen(%s, %lu handlers): %s\n",
-			f->filepath, nr_handlers, oryx_safe_strerror(errno));
-		nr_fopen_times_error ++;
-	} else {
-		nr_handlers ++;		
-		nr_fopen_times ++;
-		/* update local time. */
-		f->local_time = vtg->start;
-		
-#if defined(HAVE_F_CACHE)
-		f->offset = 0;
-		f->cache = malloc(file_cache_size);
-		BUG_ON(f->cache == NULL);
-#endif
-		f->ul_flags |= VLIB_FILE_OPENED;
-		INIT_LIST_HEAD(&f->fnode);
-		if (file_empty0(f)) {						
-			fprintf(stdout, "Write CSV head to %s\n", f->filepath);
-			/* Write CSV header before writting an entry
-			 * when vlib_file_t is new. */
-			file_write(f, MME_CSV_HEADER, strlen(MME_CSV_HEADER));
-			nr_classified_files ++;
-			f->ul_flags |= VLIB_FILE_NEW;
-		}
-	}
-	
-	return f->fp ? 1 : 0;
-}
-
-
-/* event_start_time <= TIME < event_end_time */
-static __oryx_always_inline__
-int file_new(const char *path,
-	const char *mme_name, time_t start, time_t end, vlib_file_t *f)
-{
-	memset (f->filepath, 0, name_length);
-	
-	sprintf (f->filepath, "%s/%s%s_%lu_%lu.csv",
-			MME_CSV_PREFIX, path, mme_name, start, end);
-
-	/* Create current file. */
-	f->fp = fopen (f->filepath, "a+");
-	if (f->fp == NULL) {
-		fprintf(stdout, "fopen(%lu handlers): %s\n",
-			nr_handlers, oryx_safe_strerror(errno));
-		nr_fopen_times_error ++;
-	} else {
-		nr_handlers ++;
-		/* update local time. */
-		f->entries = 0;
-	}
-	
-	file_close(f);
-
-	return 0;
-}
-
-static __oryx_always_inline__
 int file_overtime(vlib_file_t *f, time_t now, int threshold)
 {
 	return (now > (f->local_time +  threshold * 60));
@@ -277,10 +178,12 @@ struct fq_element_t *fqe_alloc(void)
 	return fqe;
 }
 
-extern struct oryx_task_t inotify;
-extern struct oryx_lq_ctx_t *fmgr_q;
+extern char *inotify_home;
+extern char *store_home;
 
+extern struct oryx_lq_ctx_t *fmgr_q;
 extern void fmgr_move(const char *oldpath, const vlib_conf_t *vf);
+extern void vlib_fmgr_init(vlib_main_t *vm);
 
 #endif
 

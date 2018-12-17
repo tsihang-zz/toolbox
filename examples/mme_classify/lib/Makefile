@@ -65,7 +65,8 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
 
 CFLAGS += -I$(SRCDIR)\
-	-I$(SRCDIR)/../oryx
+	-I$(SRCDIR)/../oryx\
+	-I$(SRCDIR)/../lib
 
 
 

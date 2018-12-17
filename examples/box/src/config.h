@@ -1,5 +1,8 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef __BOX_CONFIG_H__
+#define __BOX_CONFIG_H__
+
+#define VLIB_MAX_LCORES		4
+#define VLIB_SOCKETS        8
 
 enum {
 	QUA_RX,
@@ -7,20 +10,53 @@ enum {
 	QUA_RXTX,
 };
 
-typedef struct vlib_iface_main_t {
-	int						ul_n_ports;	/* dpdk_ports + sw_ports */
-	uint32_t				ul_flags;
-	struct oryx_timer_t		*link_detect_tmr;
-	struct oryx_timer_t		*healthy_tmr;
-	uint32_t				link_detect_tmr_interval;
-	uint32_t				poll_interval;
-	os_mutex_t				lock;
-	oryx_vector				entry_vec;
-	struct oryx_htable_t	*htable;
-	void					*vm;
-} vlib_iface_main_t;
 
-extern vlib_iface_main_t vlib_iface_main;
+/** THIS IS a FIXED structure for EM  LPM and ACL. DO NOT CHANGE. */
+/* BIG ENDIAN */
+struct ipv4_5tuple {
+	uint32_t ip_dst;
+	uint32_t ip_src;
+	uint16_t port_dst;
+	uint16_t port_src;
+	uint8_t  proto;
+	union {
+		uint16_t  rx_port_id: 4;
+		uint16_t  vlan: 12;
+		uint16_t  pad0;
+	}u;
+} __attribute__((__packed__));
+
+#define IPv6_ADDR_LEN 16
+struct ipv6_5tuple {
+	uint8_t  ip_dst[IPv6_ADDR_LEN];
+	uint8_t  ip_src[IPv6_ADDR_LEN];
+	uint16_t port_dst;
+	uint16_t port_src;
+	uint8_t  proto;
+	union {
+		uint16_t  rx_port_id: 4;
+		uint16_t  vlan: 12;
+		uint16_t  pad0;
+	}u;
+} __attribute__((__packed__));
+
+struct acl_route {
+	union {
+		struct ipv4_5tuple		k4;
+		struct ipv6_5tuple		k6;
+	}u;
+	uint32_t					ip_src_mask: 8;
+	uint32_t					ip_dst_mask: 8;
+	uint32_t					ip_next_proto_mask: 8;
+	uint32_t					pad0: 8;
+	uint32_t					port_src_mask: 16;
+	uint32_t					port_dst_mask: 16;
+	uint32_t					appid;
+	uint32_t					prio;
+	uint32_t					map_mask;/** map_mask is a traffic direction
+										  *  which has a set of in_ports and out_ports.
+										  */
+};
 
 
 typedef struct vlib_main_t {

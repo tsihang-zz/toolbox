@@ -1,6 +1,6 @@
 #   BSD LICENSE
 #
-#   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
+#   Copyright(c) 2015 Intel Corporation. All rights reserved.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -33,48 +33,21 @@ ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
 
-# Default target, can be overriden by command line or environment
+# Default target, can be overwritten by command line or environment
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-# binary name
-APP = napd
+ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
+$(info This application can only operate in a linuxapp environment, \
+please change the definition of the RTE_TARGET environment variable)
+else
 
-#SRCS_MPM-y := mpm.c mpm_ac.c mpm_hs.c
-SRCS_MPM-y := 
+DIRS-y += oryx regx
+endif
 
-# all source are stored in SRCS-y
-SRCS-y := main.c init.c netdev.c netdev_pcap.c dp.c dpdk.c dsa.c\
-	acl.c iface.c map.c rule.c
+include $(RTE_SDK)/mk/rte.extsubdir.mk
 
-CFLAGS += $(WERROR_FLAGS)
-CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
-CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_BACKTRACE\
-		  -DHAVE_PCAP\
-		  -DHAVE_ADVANCED_TMR\
-		  -DHAVE_HYPERSCAN\
-		  -DHAVE_DPDK
-CFLAGS += -DHAVE_SF1500
-#CFLAGS += -DHAVE_MPM
-#CFLAGS += -DBUILD_DEBUG
-			  
-CFLAGS += -I$(SRCDIR)\
-	  -I$(SRCDIR)/include\
-	  -I$(SRCDIR)/../oryx\
-	  -I$(SRCDIR)/../oryx/osih\
-	  -I$(SRCDIR)/../quagga\
-	  -I/usr/include/hs
-
-#LDFLAGS += -lhs -lhs_runtime
-LDFLAGS += -ldl -lpthread -lm -lrt -lpcap -lstdc++
-
-LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
-LDLIBS += -loryx
-
-LDLIBS += -L$(subst src,quagga,$(RTE_OUTPUT))/lib
-LDLIBS += -lquagga
-
-include $(RTE_SDK)/mk/rte.extapp.mk
-
+clean:
+	@rm -fr src/$(RTE_TARGET)
+	@rm -fr oryx/$(RTE_TARGET)

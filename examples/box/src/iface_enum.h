@@ -3,6 +3,11 @@
 
 #include "netdev.h"
 
+enum {
+	ETH_GE,
+	ETH_XE
+};
+
 static int dpdk_iface_is_up(uint32_t portid, struct rte_eth_link *link)
 {
 	rte_eth_link_get_nowait(portid, link);

@@ -24,8 +24,8 @@
 #define tx_panel_port_is_online(tx_panel_port_id)\
 	((tx_panel_port_id) != UINT32_MAX)
 
-threadvar_ctx_t g_tv[MAX_LCORES];
-decode_threadvar_ctx_t g_dtv[MAX_LCORES];
+threadvar_ctx_t g_tv[VLIB_MAX_LCORES];
+decode_threadvar_ctx_t g_dtv[VLIB_MAX_LCORES];
 volatile bool force_quit = false;
 
 struct enp5s0fx_t {
@@ -406,20 +406,14 @@ int dp_decide_tx_port
 	rss = (iface_id(rx_cpu_iface) == SW_CPU_XAUI_PORT_ID) ? \
 			dp_recalc_rss(m) : m->hash.rss;
 
-#if defined(BUILD_DEBUG)
-	oryx_logn("%20s%8u", "m->hash.rss: ", m->hash.rss);
-	oryx_logn("%20s%8u", "rss: ", rss);
-#endif
-
 	/*
 	 * Packets from GE port will be delivered to 2 XE ports
 	 * and those from XE port will be delivered to 8 GE ports.
 	 */
 	if (iface_id(rx_cpu_iface) == SW_CPU_XAUI_PORT_ID) {
-		index = rss % 2;		
+		index = rss % 2;
 		*tx_port_id = tx_panel_port_id = (index + 1);	/* skip enp5s0f1 */
-	}
-	else {
+	} else {
 		index = rss % ET1500_N_GE_PORTS;
 		*tx_port_id = tx_panel_port_id = index;
 	}
@@ -427,6 +421,12 @@ int dp_decide_tx_port
 	if(tx_panel_port_id != UINT32_MAX &&
 		tx_panel_port_id > SW_PORT_OFFSET)
 		*tx_port_id = SW_CPU_XAUI_PORT_ID;
+
+#if defined(BUILD_DEBUG)
+		oryx_logn("%20s%8u", "rx_cpu_iface: ", iface_id(rx_cpu_iface));
+		oryx_logn("%20s%8u(%8u)", "rss: ", rss, m->hash.rss);
+		oryx_logn("%20s%8u", "tx_cpu_iface: ", tx_panel_port_id);
+#endif
 
 	return tx_panel_port_id;
 }
@@ -468,7 +468,7 @@ void dp_dump_packet_key4
 }
 
 static __oryx_always_inline__
-void dp_free_packet
+void dp_drop_packet
 (
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t *dtv,
@@ -492,7 +492,7 @@ void dp_drop_all
 	int i;
 	for (i = 0; i < nb; i ++) {
 		struct rte_mbuf *pkt = pkts_in[i];
-		dp_free_packet(tv, dtv, pkt);
+		dp_drop_packet(tv, dtv, pkt);
 	}
 }
 
@@ -573,14 +573,14 @@ void dp_classify_prepare_one_packet
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t *dtv,
 	IN struct iface_t *rx_iface,
-	IN struct rte_mbuf **pkts_in,
+	IN struct rte_mbuf **rx_pkts,
 	IN struct parser_ctx_t *parser,
 	IN int index
 )
 {
 	vlib_pkt_t			*p;
 	vlib_iface_main_t	*pm = &vlib_iface_main;
-	struct rte_mbuf 	*pkt = pkts_in[index];
+	struct rte_mbuf 	*pkt = rx_pkts[index];
 	struct iface_t		*rx_panel_iface = NULL;
 	
 	p = GET_MBUF_PRIVATE(vlib_pkt_t, pkt);
@@ -605,7 +605,7 @@ void dp_classify_prepare_one_packet
 
 		/* DSA is invalid. */
 		if (!DSA_IS_INGRESS(p->dsa)) {
-			dp_free_packet(tv, dtv, pkt);
+			dp_drop_packet(tv, dtv, pkt);
 			return;
 		}
 		/* Rx statistics on an ethernet GE port. */
@@ -650,7 +650,7 @@ void dp_classify_prepare_one_packet
 			oryx_counter_inc(&tv->perf_private_ctx0, dtv->counter_arp);
 		parser->m_notip[(parser->num_notip)++] = pkt;
 		/* Unknown type, a simplified drop for the packet */
-		//dp_free_packet(tv, dtv, pkt);
+		//dp_drop_packet(tv, dtv, pkt);
 		return;
 	}
 
@@ -662,9 +662,9 @@ void dp_classify_prepare
 	IN threadvar_ctx_t *tv,
 	IN decode_threadvar_ctx_t *dtv,
 	IN struct iface_t *rx_iface,
-	IN struct rte_mbuf **pkts_in,
-	IN struct parser_ctx_t *parser,
-	IN int nb_rx
+	IN struct rte_mbuf **rx_pkts,
+	IN int nr_rx_pkts,
+	OUT struct parser_ctx_t *parser
 )
 {
 	int i;
@@ -675,20 +675,20 @@ void dp_classify_prepare
 	parser->num_notip	= 0;
 
 	/* Prefetch first packets */
-	for (i = 0; i < PREFETCH_OFFSET && i < nb_rx; i++) {
+	for (i = 0; i < PREFETCH_OFFSET && i < nr_rx_pkts; i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(
-				pkts_in[i], void *));
+				rx_pkts[i], void *));
 	}
 
-	for (i = 0; i < (nb_rx - PREFETCH_OFFSET); i++) {
-		rte_prefetch0(rte_pktmbuf_mtod(pkts_in[
+	for (i = 0; i < (nr_rx_pkts - PREFETCH_OFFSET); i++) {
+		rte_prefetch0(rte_pktmbuf_mtod(rx_pkts[
 				i + PREFETCH_OFFSET], void *));
-		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, parser, i);
+		dp_classify_prepare_one_packet(tv, dtv, rx_iface, rx_pkts, parser, i);
 	}
 
 	/* Process left packets */
-	for (; i < nb_rx; i++) {
-		dp_classify_prepare_one_packet(tv, dtv, rx_iface, pkts_in, parser, i);
+	for (; i < nr_rx_pkts; i++) {
+		dp_classify_prepare_one_packet(tv, dtv, rx_iface, rx_pkts, parser, i);
 	}
 }
 
@@ -799,14 +799,10 @@ void dp_classify_post
 
 	tx_panel_port_id = dp_decide_tx_port(rx_cpu_iface, m, &tx_port_id);
 	
-#if defined(BUILD_DEBUG)
-	oryx_logn(" 	send to tx_panel_port_id %d, tx_port_id %d", tx_panel_port_id, tx_port_id);
-#endif
-
 	if(tx_panel_port_is_online(tx_panel_port_id)) {
 		dp_send_single_packet(tv, dtv, rx_cpu_iface, qconf, m, tx_port_id, tx_panel_port_id);
 	} else {
-		dp_free_packet(tv, dtv, m);
+		dp_drop_packet(tv, dtv, m);
 	}
 }
 		
@@ -833,18 +829,19 @@ void dp_classify
 	for (i = 0; i < (num - PREFETCH_OFFSET); i++) {
 		rte_prefetch0(rte_pktmbuf_mtod(m[
 				i + PREFETCH_OFFSET], void *));
-		dp_classify_post(tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
+		dp_classify_post (tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
 	}
 
 	/* Process left packets */
 	for (; i < num; i++)
-		dp_classify_post(tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
+		dp_classify_post (tv, dtv, rx_cpu_iface, qconf, m[i], 0/*res[i]*/);
 }
+
 
 static
 int main_loop (void *ptr_data)
 {
-	int i, nb_rx;
+	int i, nr_rx_pkts;
 	int 		socketid;
 	uint8_t 		lcore_id;
 	uint8_t 		rx_port_id;
@@ -863,7 +860,7 @@ int main_loop (void *ptr_data)
 
 	struct lcore_conf	*qconf;
 	struct iface_t		*rx_cpu_iface = NULL;
-	struct rte_mbuf 	*pkts_burst[DPDK_MAX_RX_BURST];
+	struct rte_mbuf 	*rx_pkts[DPDK_MAX_RX_BURST];
 	
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -893,7 +890,7 @@ int main_loop (void *ptr_data)
 			break;
 	}
 
-	oryx_logn("entering main loop @lcore %u @socket %d\n", tv->lcore, socketid);
+	oryx_logn("entering main loop @lcore %u @socket %d", tv->lcore, socketid);
 
 	for (i = 0; i < qconf->n_rx_queue; i++) {
 		rx_port_id = qconf->rx_queue_list[i].port_id;
@@ -904,7 +901,6 @@ int main_loop (void *ptr_data)
 	}
 
 	while (!force_quit) {
-
 		tv->cur_tsc = rte_rdtsc();
 
 		/*
@@ -929,7 +925,6 @@ int main_loop (void *ptr_data)
 
 				/* if timer has reached its timeout */
 				if (unlikely(timer_tsc >= timer_period)) {
-
 					/* do this only on a sepcific core */
 					if (tv->lcore == rte_get_master_lcore()) {
 						/* reset the timer */
@@ -942,7 +937,8 @@ int main_loop (void *ptr_data)
 			prev_tsc = tv->cur_tsc;
 		}
 
-		/* SYNC */
+		/* Interface of SYNC from controlplane to dataplane.
+		 * Used to sync ACL rules or some other purpose. */
 		while(vm->ul_flags & VLIB_DP_SYNC) {
 			if(!(vm->ul_core_mask & (1 << tv->lcore)))
 				vm->ul_core_mask |= (1 << tv->lcore);
@@ -951,42 +947,54 @@ int main_loop (void *ptr_data)
 		/*
 		 * Read packet from RX queues
 		 */
-		for (i = 0; i < qconf->n_rx_queue; ++i) {
+		for (i = 0; i < qconf->n_rx_queue; ++ i) {
 			rx_port_id = qconf->rx_queue_list[i].port_id;
 			rx_queue_id = qconf->rx_queue_list[i].queue_id;
-			nb_rx = rte_eth_rx_burst(rx_port_id, rx_queue_id, pkts_burst,
+			nr_rx_pkts = rte_eth_rx_burst(rx_port_id, rx_queue_id, rx_pkts,
 								DPDK_MAX_RX_BURST);
-			if (nb_rx == 0)
+			if (nr_rx_pkts == 0)
 				continue;
 
-			tv->nr_mbufs_refcnt += nb_rx;
+			tv->nr_mbufs_refcnt += nr_rx_pkts;
 			
 			/* port ID -> iface */
 			iface_lookup_id(pm, rx_port_id, &rx_cpu_iface);
 
 			/* Rx statistics on this port. */
-			iface_counter_update(rx_cpu_iface, nb_rx, 0, QUA_RX, tv->lcore);
+			iface_counter_update(rx_cpu_iface, nr_rx_pkts, 0, QUA_RX, tv->lcore);
 
-			//iface_counters_add(rx_cpu_iface, rx_cpu_iface->if_counter_ctx->lcore_counter_pkts[QUA_RX][lcore_id], nb_rx);
-
-			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nb_rx);
-			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nb_rx);
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_pkts, nr_rx_pkts);
+			oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_eth, nr_rx_pkts);
 
 	#if defined(BUILD_DEBUG)
-			oryx_logn("rx_port_id %d, rx_queue_id %d, rx_core_id %d, rx_cpu_iface %p, iface_id %d",
+			oryx_logn("rx_port[%d], rx_queue[%d], rx_core[%d], rx_cpu_iface %p, iface_id %d",
 							rx_port_id, rx_queue_id, tv->lcore,
 							rx_cpu_iface, iface_id(rx_cpu_iface));
 	#endif
 
-			struct parser_ctx_t parser;
+			struct parser_ctx_t parser = {
+				.data_ipv4 = {0},
+				.m_ipv4 = {0},
+				.res_ipv4 = {0},
+				.num_ipv4 = 0,
+				.data_ipv6 = {0},
+				.m_ipv6 = {0},
+				.res_ipv6 = {0},
+				.num_ipv6 = 0,
+				.data_notip = {0},
+				.m_notip = {0},
+				.res_notip = {0},
+				.num_notip = 0,
+			};
+				
 			/* Anyway, classify frames with IPv4, IPv6 and non-IP. */
 			dp_classify_prepare (tv, dtv,
-					rx_cpu_iface, pkts_burst, &parser, nb_rx);
+					rx_cpu_iface, rx_pkts, nr_rx_pkts, &parser);
 
 			/* Do classify on IPv4 frames. */
 			if (parser.num_ipv4) {
 				/* IPv4 frame statistics. */
-				oryx_counter_add(&tv->perf_private_ctx0, dtv->counter_ipv4, parser.num_ipv4);
+				oryx_counter_add (&tv->perf_private_ctx0, dtv->counter_ipv4, parser.num_ipv4);
 				/* do real classification. */
 				dp_classify (tv, dtv, rx_cpu_iface,
 					qconf,
@@ -1007,15 +1015,13 @@ int main_loop (void *ptr_data)
 					parser.num_ipv6);
 			}
 			
-			/* drop them all. */
+			/* drop all unidentified packets. */
 			dp_drop_all(tv, dtv, (struct rte_mbuf **)parser.m_notip, parser.num_notip);
-
 		}
 	}
 
 	return 0;
 }
-
 
 void dp_start
 (
@@ -1067,4 +1073,304 @@ void dp_stop
 	}
 	fprintf (stdout, "Bye...\n");
 }
+
+void dp_stats(vlib_main_t *vm)
+{
+	int lcore = 0;
+	threadvar_ctx_t *tv;
+	decode_threadvar_ctx_t *dtv;
+	dpdk_main_t *dm = &dpdk_main;
+	dpdk_config_main_t *conf = dm->conf;
+	uint64_t nr_mbufs_delta = 0;
+	struct timeval start, end;
+	static uint64_t cur_tsc[VLIB_MAX_LCORES];
+	struct oryx_fmt_buff_t fb = FMT_BUFF_INITIALIZATION;
+	uint64_t counter_eth[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_ipv4[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_ipv6[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_tcp[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_udp[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_sctp[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_arp[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_icmpv4[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_icmpv6[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_pkts[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_bytes[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_pkts_invalid[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_drop[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_http[VLIB_MAX_LCORES] = {0};
+	uint64_t counter_eth_total = 0;
+	uint64_t counter_ipv4_total = 0;
+	uint64_t counter_ipv6_total = 0;
+	uint64_t counter_tcp_total = 0;
+	uint64_t counter_udp_total = 0;
+	uint64_t counter_icmpv4_total = 0;
+	uint64_t counter_icmpv6_total = 0;
+	uint64_t counter_pkts_total = 0;
+	uint64_t counter_bytes_total = 0;
+	uint64_t counter_arp_total = 0;
+	uint64_t counter_sctp_total = 0;
+	uint64_t counter_pkts_invalid_total = 0;
+	uint64_t counter_drop_total = 0;
+	uint64_t counter_http_total = 0;
+	uint64_t nr_mbufs_refcnt = 0;
+	uint64_t nr_mbufs_feedback = 0;
+
+	FILE *fp;
+	const char *box_dp_stats = "/tmp/box_dp_stats.log";
+	char emptycmd[128] = "cat /dev/null > ";
+
+	strcat(emptycmd, box_dp_stats);
+	do_system(emptycmd);
+
+	fp = fopen(box_dp_stats, "a+");
+	if(!fp) {
+		return;
+	}
+
+	if (!(vm->ul_flags & VLIB_DP_INITIALIZED)) {
+		fprintf(fp, "Dataplane is not ready\n");
+		fclose(fp);
+		return;
+	}
+
+	gettimeofday(&start, NULL);
+
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		tv = &g_tv[lcore % vm->nb_lcores];
+		dtv = &g_dtv[lcore % vm->nb_lcores];
+
+		cur_tsc[lcore]		=  tv->cur_tsc;
+		nr_mbufs_refcnt 	+= tv->nr_mbufs_refcnt;
+		nr_mbufs_feedback	+= tv->nr_mbufs_feedback;
+		
+		counter_pkts_total += 
+			counter_pkts[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_pkts);
+		counter_bytes_total += 
+			counter_bytes[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_bytes);
+		counter_eth_total += 
+			counter_eth[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_eth);
+		counter_ipv4_total += 
+			counter_ipv4[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_ipv4);
+		counter_ipv6_total += 
+			counter_ipv6[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_ipv6);
+		counter_tcp_total += 
+			counter_tcp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_tcp);
+		counter_udp_total += 
+			counter_udp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_udp);
+		counter_icmpv4_total += 
+			counter_icmpv4[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_icmpv4);
+		counter_icmpv6_total +=
+			counter_icmpv6[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_icmpv6);
+		counter_arp_total +=
+			counter_arp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_arp);
+		counter_sctp_total +=
+			counter_sctp[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_sctp);
+		counter_pkts_invalid_total +=
+			counter_pkts_invalid[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_invalid);
+		counter_http_total +=
+			counter_http[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_http);
+		counter_drop_total +=
+			counter_drop[lcore] = oryx_counter_get(&tv->perf_private_ctx0, dtv->counter_drop);
+	}
+
+#if 0
+	if (argc == 1 && !strncmp (argv[0], "c", 1)) {
+		for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+			tv	= &g_tv[lcore % vm->nb_lcores];
+			dtv = &g_dtv[lcore % vm->nb_lcores];
+
+			tv->nr_mbufs_feedback	= 0;
+			tv->nr_mbufs_refcnt 	= 0;
+			
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_pkts, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_bytes, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_eth, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv4, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_ipv6, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_tcp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_udp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv4, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_icmpv6, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_arp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_sctp, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_invalid, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_drop, 0);
+			oryx_counter_set(&tv->perf_private_ctx0, dtv->counter_http, 0);
+		}
+	}
+#endif
+	nr_mbufs_delta = (nr_mbufs_refcnt - nr_mbufs_feedback);
+
+	fprintf(fp, "==== Global Graph%s", "\n");	
+	fprintf(fp, "%12s%16lu%s", "Total_Pkts:", counter_pkts_total, "\n");
+	fprintf(fp, "%12s%16lu (%u, %.2f%%)%s", "MBUF Usage:", nr_mbufs_delta, conf->nr_mbufs, ratio_of(nr_mbufs_delta, conf->nr_mbufs), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "IPv4:", counter_ipv4_total, ratio_of(counter_ipv4_total, counter_pkts_total), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "IPv6:", counter_ipv6_total, ratio_of(counter_ipv6_total, counter_pkts_total), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "UDP:", counter_udp_total, ratio_of(counter_udp_total, counter_pkts_total), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "TCP:", counter_tcp_total, ratio_of(counter_tcp_total, counter_pkts_total), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "SCTP:", counter_sctp_total, ratio_of(counter_sctp_total, counter_pkts_total), "\n");
+	fprintf(fp, "%12s%16lu (%.2f%%)%s", "Drop:", counter_drop_total, ratio_of(counter_drop_total, counter_pkts_total), "\n");
+
+	fprintf(fp, "%s", "\n");
+	
+	oryx_format_reset(&fb);
+	oryx_format(&fb, "%12s", " ");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		char lcore_str[32];
+		sprintf(lcore_str, "lcore%d", lcore);
+		oryx_format(&fb, "%20s", lcore_str);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "core_ratio");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		char format_pkts[20] = {0};
+		sprintf (format_pkts, "%.2f%s", ratio_of(counter_pkts[lcore], counter_pkts_total), "%");
+		oryx_format(&fb, "%20s", format_pkts);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "alive");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		tv = &g_tv[lcore % vm->nb_lcores];
+		oryx_format(&fb, "%20s", cur_tsc[lcore] == tv->cur_tsc ? "N" : "-");
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "pkts");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_pkts[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_pkts[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ethernet");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_eth[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_eth[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ipv4");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_ipv4[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_ipv4[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "ipv6");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_ipv6[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_ipv6[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "tcp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_tcp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_tcp[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "udp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_udp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_udp[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "sctp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_sctp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_sctp[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "http");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_http[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_http[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "arp");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_arp[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_arp[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "icmpv4");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_icmpv4[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_icmpv4[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb);
+
+	oryx_format(&fb, "%12s", "icmpv6");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_icmpv6[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_icmpv6[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb); 
+
+	oryx_format(&fb, "%12s", "drop");
+	for (lcore = 0; lcore < vm->nb_lcores; lcore ++) {
+		if(counter_drop[lcore] == 0)
+			oryx_format(&fb, "%20s", "-");
+		else
+			oryx_format(&fb, "%20llu", counter_drop[lcore]);
+	}
+	fprintf(fp, "%s%s", FMT_DATA(fb), "\n");
+	oryx_format_reset(&fb); 
+
+
+	oryx_format_free(&fb);
+
+	gettimeofday(&end, NULL);
+	fprintf(fp, ", cost %lu us%s", oryx_elapsed_us(&start, &end), "\n");
+
+	fflush(fp);
+	fclose(fp);
+	
+	return;
+}
+
 

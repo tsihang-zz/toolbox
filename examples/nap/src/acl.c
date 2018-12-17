@@ -260,6 +260,7 @@ void appl2_ar(struct appl_t *appl, struct acl_route *ar)
 	ar->appid					= appl_id(appl);
 	ar->prio					= appl->priority;
 }
+NB_SOCKETS
 
 static __oryx_always_inline__
 void convert_acl(struct     acl_route *ar,
