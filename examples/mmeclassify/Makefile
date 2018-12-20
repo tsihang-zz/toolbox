@@ -43,13 +43,8 @@ $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
 
-DIRS-y += oryx lib classify
+DIRS-y += oryx common progs prog
 endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
 
-clean:
-	@rm -fr oryx/$(RTE_TARGET)
-	@rm -fr lib/$(RTE_TARGET)
-	@rm -fr prog/$(RTE_TARGET)
-	@rm -fr classify/$(RTE_TARGET)

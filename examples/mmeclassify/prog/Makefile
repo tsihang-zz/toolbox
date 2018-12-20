@@ -53,11 +53,11 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 			  
 CFLAGS += -I$(SRCDIR)\
 	-I$(SRCDIR)/../oryx\
-	-I$(SRCDIR)/../lib
+	-I$(SRCDIR)/../common
 
 LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
 
-LDLIBS += -L$(subst prog,lib,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst prog,common,$(RTE_OUTPUT))/lib
 LDLIBS += -lmme
 
 LDLIBS += -L$(subst prog,oryx,$(RTE_OUTPUT))/lib

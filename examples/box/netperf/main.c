@@ -38,63 +38,12 @@ void sigchld_handler(int num) {
     }   
 }
 
-#if 0
-static int server_handler
-(
-	IN void *instance,
-	IN void  __oryx_unused__ *opaque
-)
-{
-        struct oryx_server_t *s = (struct oryx_server_t *)instance;
-        int nb_rx_length, nb_tx_length;
-
-        while (1) {
-                /* Wait for data from client */
-                nb_rx_length = read(s->sock, s->rx_buf, 64);
-                if (nb_rx_length == -1) {
-                        fprintf(stdout, "read: %s\n", oryx_safe_strerror(errno));
-                        close(s->sock);
-                        return -1;
-                }
-
-                /* Send response to client */
-                nb_tx_length = write(s->sock, s->rx_buf, nb_rx_length);
-                if (nb_tx_length == -1) {
-                        fprintf(stdout, "write: %s\n", oryx_safe_strerror(errno));
-                        close(s->sock);
-                        return -1;
-                }
-        }
-}
-
-static struct oryx_task_t client_task =
-{
-        .module         = THIS,
-        .sc_alias       = "Client handler Task",
-        .fn_handler     = client_thread,
-        .lcore_mask     = INVALID_CORE,
-        .ul_prio        = KERNEL_SCHED,
-        .argc           = 1,
-        .argv           = &client,
-        .ul_flags       = 0,    /** Can not be recyclable. */
-};
-
-
-static struct oryx_task_t server_task =
-{
-        .module         = THIS,
-        .sc_alias       = "Server handler Task",
-        .fn_handler     = server_thread,
-        .lcore_mask     = INVALID_CORE,
-        .ul_prio        = KERNEL_SCHED,
-        .argc           = 1,
-        .argv           = &server,
-        .ul_flags       = 0,    /** Can not be recyclable. */
-};
-#endif
-
 struct vlib_ethdev_t {
 	char *name;
+	uint64_t	nr_rx_pkts;
+	uint64_t	nr_tx_pkts;
+	uint64_t	nr_rx_bytes;
+	uint64_t	nr_tx_bytes;
 };
 
 typedef struct vlib_sockpair_t {
@@ -114,7 +63,7 @@ static void netperf_sockpair (const char *ethname1, const char *ethname2)
 	
 	skpair = &vlib_sockpair[i ++];
 
-	sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (sock < 0) {
 		fprintf(stdout, "socket: %s\n",
 			oryx_safe_strerror(errno));
@@ -124,19 +73,19 @@ static void netperf_sockpair (const char *ethname1, const char *ethname2)
 	/* bind to specified interface */
 	memset (&ifr, 0, sizeof (ifr));
 	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", ethname1);
+
     if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
 		(char *)&ifr, sizeof(ifr))  < 0) {
 		fprintf(stdout, "setsockopt: %s\n",
 			oryx_safe_strerror(errno));
 		exit(0);
     }
-
 	if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0) {
 		fprintf(stdout, "ioctl: %s\n",
 			oryx_safe_strerror(errno));
 		exit(0);
 	}
-	
+	skpair->dev[0].name = strdup(ethname1);
 	skpair->sock[0] = sock;
 
 	sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -161,10 +110,46 @@ static void netperf_sockpair (const char *ethname1, const char *ethname2)
 			oryx_safe_strerror(errno));
 		exit(0);
 	}
-	
+	skpair->dev[1].name = strdup(ethname2);
 	skpair->sock[1] = sock;
 
+}
 
+int toIpString(const char* ip, uint32_t* retval) {
+   struct hostent *hp;
+   *retval = 0;
+
+   if (strcmp(ip, "0.0.0.0") == 0) {
+      return 0;
+   }
+
+   if (ip[0] == 0) {
+      return 0;
+   }
+
+   // It seems it can't resolve IP addresses, or tries too hard to find a name,
+   // or something.  Need to check for a.b.c.d
+   *retval = inet_addr(ip);
+   if (*retval != INADDR_NONE) {
+      *retval = ntohl(*retval);
+      return 0;
+   }
+
+   // Otherwise, try to resolve it below.
+   hp = gethostbyname(ip);
+   if (hp == NULL) {
+      return -1;
+   }//if
+   else {
+      *retval = ntohl(*((unsigned int*)(hp->h_addr_list[0])));
+      if (*retval != 0) {
+         return 0;
+      }
+      else {
+         return -1;
+      }
+   }
+   return -1;
 }
 
 int main (
@@ -195,15 +180,63 @@ int main (
 	//oryx_register_sighandler(SIGCHLD,	sigchld_handler);
 	signal(SIGCHLD,	SIG_IGN);
 
-	/* lan1 <-> lan2 */
-	netperf_sockpair("enp0s3", "enp0s3");
+	netperf_sockpair("lan1", "lan2");
+	netperf_sockpair("lan3", "lan4");
+	netperf_sockpair("lan5", "lan6");
+	netperf_sockpair("lan7", "lan8");
+	netperf_sockpair("enp5s0f2", "enp5s0f3");
 
+	int i, j;
+	for (i = 0; i < VLIB_GRP_NUM; i ++) {
+		vlib_sockpair_t *skpair = &vlib_sockpair[i];
+		fprintf(stdout, "=== GROUP[%d]:\n", i);
+		fprintf(stdout, "%8s%12d\n", skpair->dev[0].name, skpair->sock[0]);
+		fprintf(stdout, "%8s%12d\n", skpair->dev[1].name, skpair->sock[1]);
+	}
+
+	struct sockaddr_in dest_addr;
+	// set up the destination address
+	memset(&dest_addr, '\0', sizeof(dest_addr));
+	dest_addr.sin_family = PF_PACKET;
+
+	uint32_t dip = 0;
+	toIpString("192.168.1.1", &dip);
+	dest_addr.sin_addr.s_addr = htonl(dip);
+	dest_addr.sin_port = htons(9);
+   	
 	oryx_task_launch();
 	FOREVER {
 		if (netperf_is_quit(vm))
-			break;
-		sleep(1);
+			break;		
+		usleep(1000);
 		logprgname();
+#if 0
+		for (i = 0; i < VLIB_GRP_NUM; i ++) {
+			vlib_sockpair_t *skpair = &vlib_sockpair[i];
+			for (j = 0; j < 2; j ++) {
+				char msg[1024] = {0};
+				sprintf(msg, "hello the world");
+				uint64_t nr_tx_bytes = sendto(skpair->sock[j], msg, strlen(msg),
+					0, (struct sockaddr *)&dest_addr, sizeof (dest_addr));
+				if (nr_tx_bytes > 0) {
+					skpair->dev[j].nr_tx_bytes += nr_tx_bytes;
+					fprintf(stdout, "[%s TX]  %s\n", skpair->dev[j].name, msg);
+				}
+			}
+		}
+#else
+		for (i = 0; i < VLIB_GRP_NUM; i ++) {
+			vlib_sockpair_t *skpair = &vlib_sockpair[i];
+			for (j = 0; j < 2; j ++) {
+				char msg[1024] = {0};
+				uint64_t nr_rx_bytes = recvfrom(skpair->sock[j], msg, 1024, 0, NULL, NULL);
+				if (nr_rx_bytes > 0) {
+					skpair->dev[j].nr_rx_bytes += nr_rx_bytes;
+					fprintf(stdout, "[%s RX]  %s\n", skpair->dev[j].name, msg);
+				}
+			}
+		}	
+#endif
 	};
 
 	return 0;

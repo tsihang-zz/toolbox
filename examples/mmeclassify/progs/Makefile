@@ -1,6 +1,6 @@
 #   BSD LICENSE
 #
-#   Copyright(c) 2015 Intel Corporation. All rights reserved.
+#   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -33,41 +33,35 @@ ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
 
-# Default target, can be overwritten by command line or environment
+# Default target, can be overriden by command line or environment
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(error This application can only operate in a linuxapp environment, \
-please change the definition of the RTE_TARGET environment variable)
-endif
+# binary name
+APP = mme_classify
 
-# library name
-LIB = libmme.a
+# all source are stored in SRCS-y
+SRCS-y := main.c 
 
-LIBABIVER := 1
-
-# all source are stored in SRC-Y
-SRCS-y :=\
-   mme.c fmgr.c classify.c 
-
-#CFLAGS += $(WERROR_FLAGS)
-CFLAGS := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS += -Wmissing-declarations -Wpointer-arith
-CFLAGS += -Wcast-align -Wnested-externs
-CFLAGS += -Wformat-nonliteral -Wformat-security
-CFLAGS += -Wundef -Wwrite-strings
-#CFLAGS += -Wold-style-definition -Wcast-qual
-
-CFLAGS += -g -O3 --std=gnu99 
+CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
+#CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
-
+		  -DHAVE_BACKTRACE\
+		  -DHAVE_ADVANCED_TMR
+			  
 CFLAGS += -I$(SRCDIR)\
 	-I$(SRCDIR)/../oryx\
-	-I$(SRCDIR)/../lib
+	-I$(SRCDIR)/../common
 
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
 
+LDLIBS += -L$(subst progs,common,$(RTE_OUTPUT))/lib
+LDLIBS += -lmme
 
-include $(RTE_SDK)/mk/rte.extlib.mk
+LDLIBS += -L$(subst progs,oryx,$(RTE_OUTPUT))/lib
+LDLIBS += -loryx
+
+include $(RTE_SDK)/mk/rte.extapp.mk
+
