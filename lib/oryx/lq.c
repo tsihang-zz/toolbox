@@ -1,5 +1,6 @@
 #include "oryx.h"
 
+#if defined(LQ_ENABLE_PASSIVE)
 static void
 _wakeup 
 (
@@ -14,7 +15,7 @@ _wakeup
 }
 
 static void
-_hangup 
+_hangon 
 (
 	IN void *lq
 )
@@ -25,11 +26,12 @@ _hangup
 		{
 			//fprintf (stdout, "hangup ...\n");
 			do_mutex_lock (&q->cond_lock);
-			do_cond_wait(&q->cond, &q->cond_lock);		
+			do_cond_wait(&q->cond, &q->cond_lock);
 			do_mutex_unlock (&q->cond_lock);
 		}
 	}
 }
+#endif
 
 static struct oryx_lq_ctx_t *
 list_queue_init 
@@ -54,7 +56,7 @@ list_queue_init
 	if(lq_type_blocked(lq)) {
 		do_mutex_init(&lq->cond_lock);
 		do_cond_init(&lq->cond);
-		lq->fn_hangup	=	_hangup;
+		lq->fn_hangon	=	_hangon;
 		lq->fn_wakeup	=	_wakeup;
 	}
 #endif

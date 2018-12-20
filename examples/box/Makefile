@@ -43,13 +43,11 @@ $(info This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
 else
 
-DIRS-y += oryx quagga src
+DIRS-y += oryx quagga nap netperf
 endif
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk
 
-install:
-	sh script/BuildPackage.sh src
 clean:
 	@rm -fr src/$(RTE_TARGET)
 	@rm -fr oryx/$(RTE_TARGET)

@@ -26,7 +26,7 @@
 /* Define a queue for storing flows */
 struct oryx_lq_ctx_t {
 	void		*top,
-			*bot;
+				*bot;
 	const char	*name;
 	uint32_t	len;
 	uint64_t	nr_eq_refcnt;
@@ -38,11 +38,11 @@ struct oryx_lq_ctx_t {
 
 #if defined(LQ_ENABLE_PASSIVE)
 	void (*fn_wakeup) (void *);
-	void (*fn_hangup) (void *);
+	void (*fn_hangon) (void *);
 	os_mutex_t	cond_lock;
 	os_cond_t	cond;
 #endif
-	int		unique_id;
+	int			unique_id;
 	uint32_t	ul_flags;
 };
 //}__attribute__((__packed__));
@@ -125,7 +125,7 @@ void * oryx_lq_dequeue
 
 #if defined(LQ_ENABLE_PASSIVE)
 	if(lq_type_blocked(q))
-		q->fn_hangup(q);
+		q->fn_hangon(q);
 #endif
 
 	FQLOCK_LOCK(q);

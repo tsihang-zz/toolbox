@@ -54,6 +54,41 @@ static vlib_conf_t *fkey_alloc(void)
 	return v;
 }
 
+
+static __oryx_always_inline__
+int fmgr_fchk (const char *f, char *date, char *port)
+{
+	char *p;
+	int c = 0,
+		i = 0,
+		j = 0,
+		pass = 0;
+	
+	for (p = (char *)&f[0], c = 0;
+				*p != '\0' && *p != '\t'; ++ p) {
+		if (*p == '_') c ++;
+		if (c == 2) {
+			if (*p != '_')
+				date[i ++] = *p;
+		}
+		if (c == 3) {
+			if (*p != '_' && *p != '.')
+				port[j ++] = *p;
+			else {
+				if (!strncmp(p, ".AVL", 4)) {
+					pass = 1;
+					break;
+				}
+			}
+		}
+	}
+	
+	return pass;
+}
+
+extern time_t	regx_time_from;
+extern time_t	regx_time_to;
+
 static int fmgr_inotify_timedout
 (
 	IN void *argv,
@@ -65,13 +100,22 @@ static int fmgr_inotify_timedout
 	struct stat buf;
 	vlib_conf_t *key;	/* search hash table first */
 	vlib_main_t *vm = (vlib_main_t *)argv;
-	
-	/* Not a CSV file */
-	if(!strstr(filename, ".AVL")) {
-		return 0;
+	char date[1024] = {0}, port[8] = {0};
+
+	if (vm->ul_flags & VLIB_REGX_FNAME_CHK) {
+		if (!fmgr_fchk(filename, date, port)) {
+			fprintf(stdout, "%s -\n", pathname);
+			return 0;
+		}
+		//fprintf(stdout, "%s %s %lu\n", date, port, regx_date2stamp(date));
 	}
-	if(!strstr(filename, "SSS")) {
-		return 0;
+	
+	if (vm->ul_flags & VLIB_REGX_FTIME_CHK) {
+		time_t t = regx_date2stamp(date);
+		if (t < regx_time_from || t > regx_time_to) {
+			fprintf(stdout, "%s -\n", pathname);
+			return 0;
+		}
 	}
 
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
@@ -89,17 +133,18 @@ static int fmgr_inotify_timedout
 
 		struct fq_element_t *fqe = fqe_alloc();
 		if (fqe) {
-			fprintf(stdout, "%d: %s\n", n++, pathname);
 			/* Tring to add a file to hash table by fkey. */
 			key = fkey_alloc();
-			if (key) {
-				memcpy(key->name, filename, strlen(filename));
-				BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
-			}
+			if (!key)
+				return 0;
+
+			memcpy(key->name, filename, strlen(filename));
+			BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 			/* enqueue abslute pathname */
 			strcpy(fqe->name, filename);
 			oryx_lq_enqueue(fmgr_q, fqe);
 			vm->nr__files ++;
+			fprintf(stdout, "%s +\n", pathname);
 		}
 	}
 

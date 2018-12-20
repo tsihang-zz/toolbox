@@ -1,6 +1,6 @@
 #   BSD LICENSE
 #
-#   Copyright(c) 2015 Intel Corporation. All rights reserved.
+#   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,32 @@ ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
 
-# Default target, can be overwritten by command line or environment
+# Default target, can be overriden by command line or environment
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
-ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(info This application can only operate in a linuxapp environment, \
-please change the definition of the RTE_TARGET environment variable)
-else
+# binary name
+APP = udc
 
-DIRS-y += oryx lib src
-endif
+# all source are stored in SRCS-y
+SRCS-y := main.c udc.c
 
-include $(RTE_SDK)/mk/rte.extsubdir.mk
+CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
+CFLAGS += -DBUILD_DEBUG
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
+		  -DHAVE_BACKTRACE\
+		  -DHAVE_ADVANCED_TMR
+			  
+CFLAGS += -I$(SRCDIR)\
+		-I$(SRCDIR)/../oryx\
+		-I$(SRCDIR)/../lib
 
-clean:
-	@rm -fr src/$(RTE_TARGET)
-	@rm -fr oryx/$(RTE_TARGET)
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
+
+LDLIBS += -L$(subst udc,oryx,$(RTE_OUTPUT))/lib
+LDLIBS += -loryx
+
+include $(RTE_SDK)/mk/rte.extapp.mk
+

@@ -39,27 +39,28 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = dpdk_io
+APP = do_classify
 
 # all source are stored in SRCS-y
-SRCS-y := main.c dpdk_cfg.c
+SRCS-y := main.c 
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
-CFLAGS += -DBUILD_DEBUG
+#CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
-		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR\
-		  -DHAVE_DPDK
+		  -DHAVE_ADVANCED_TMR
 			  
 CFLAGS += -I$(SRCDIR)\
-		  -I$(SRCDIR)/include\
-		  -I$(SRCDIR)/../oryx
+	-I$(SRCDIR)/../oryx\
+	-I$(SRCDIR)/../lib
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lpcre -lyaml -lpcap
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
 
-LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
+LDLIBS += -L$(subst prog,lib,$(RTE_OUTPUT))/lib
+LDLIBS += -lmme
+
+LDLIBS += -L$(subst prog,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
 
 include $(RTE_SDK)/mk/rte.extapp.mk

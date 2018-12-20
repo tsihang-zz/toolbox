@@ -13,15 +13,24 @@ enum {
 	REGX_MD_WAP_SIGNAL,
 };
 
-static char *progname;
-static int nr_regxs = 1;
-static char	regx_module = REGX_MD_NONE;
-vlib_main_t *vlib_main;
+enum {
+	REGX_DB,
+	REGX_DISK,
+};
 
 struct vlib_lqe_t {
 	char value[VLIB_BUFSIZE];
 	size_t valen;
 };
+
+static char *progname;
+static int nr_regxs = 1;
+static char	regx_module = REGX_MD_NONE;
+static char regx_datasource = -1;
+time_t	regx_time_from = 0;
+time_t	regx_time_to = 0;
+vlib_main_t *vlib_main;
+static const char *shortopt = "vcr:s:d:n:m:f:t:";
 
 /*
  * print a usage message
@@ -29,19 +38,24 @@ struct vlib_lqe_t {
 static void
 usage(void)
 {
-	printf (
-		"%s -m SIGNAL -n <THREADNUM> -s SRCDIR -d DSTDIR\n"
+	fprintf (stdout,
+		"%s -f DATASOURCE -m SIGNAL -n <THREADNUM> -s SRCDIR -d DSTDIR\n"
+		" -v            : Show version\n"
+		" -c            : Check file format\n"
+		" -r DATASOURCE : Resource (REGX_DB, REGX_DISK)\n"
 		" -m SIGNAL     : S1AP_HANDOVER_SIGNAL,S1_EMM_SIGNAL,S1_MME_SIGNAL,WAP_SIGNAL\n"
-		" -t <THREADNUM>: Number of threads in parallels\n"
+		" -n <THREADNUM>: Number of threads in parallels\n"
 		" -s SRCDIR     : A directory where the recoverying CSV files come from\n"
-		" -d DSTDIR     : A directory Where the recovered CSV files stored to \n"
+		" -d DSTDIR     : A directory Where the recovered CSV files stored to\n"
+		" -f TIMESTR    : Time from, 201812131450\n"
+		" -t TIMESTR    : Time to, 201812131455\n"
 		, progname);
 }
 
 static __oryx_always_inline__
 void sigint_handler(int sig) {
 	fprintf (stdout, "signal %d ...\n", sig);
-	vlib_main->ul_flags |= VLIB_REGX_QUIT;
+	vlib_main->ul_flags |= VLIB_QUIT;
 }
 
 static __oryx_always_inline__
@@ -51,7 +65,8 @@ void sigchld_handler(int num) {
     pid_t pid = waitpid(-1, &status, 0);   
     if (WIFEXITED(status)) {
 		if(WEXITSTATUS(status) != 0)
-        	printf("The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
+        	fprintf(stdout,
+        		"The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
     }   
 }
 
@@ -61,7 +76,7 @@ static FILE *regx_open_logfile(void)
 	char tmstr[100] = {0};
 	char logfile[64] = {0};
 	
-	oryx_fmt_time (vm->epoch_time_sec_start, "%Y%m%d%H%M%S", (char *)&tmstr[0], 100);
+	oryx_fmt_time (vm->start_time, "%Y%m%d%H%M%S", (char *)&tmstr[0], 100);
 	sprintf(logfile, "%s.%s", VLIB_REGX_LOGFILE, tmstr);
 	return fopen(logfile, "a+");
 }
@@ -102,11 +117,14 @@ void logprogress(void) {
 	oryx_fmt_program_counter(vm->nr__size, st_size_buf, 0, 0);
 	oryx_fmt_program_counter(vm->nr_rx_size, st_rx_size_buf, 0, 0);
 
-	fprintf(fp, "Cost %lu secs, Recoveried %lu/%lu file(s), %s/%s (%.2f%%)\n",
-		(now-vm->epoch_time_sec_start), vm->nr_rx_files, vm->nr__files,
+	fprintf(fp, "Cost %lu secs, Recoveried %lu/%lu file(s) (%.2f%%), %s/%s (%.2f%%)\n",
+		(now-vm->start_time),
+		vm->nr_rx_files, vm->nr__files, ratio_of(vm->nr_rx_files, vm->nr__files),
 		st_rx_size_buf, st_size_buf, ratio_of(vm->nr_rx_size, vm->nr__size));
-	fprintf(stdout, "Cost %lu secs, Recoveried %lu/%lu file(s), %s/%s (%.2f%%)\n",
-		(now-vm->epoch_time_sec_start), vm->nr_rx_files, vm->nr__files,
+	
+	fprintf(stdout, "Cost %lu secs, Recoveried %lu/%lu file(s) (%.2f%%), %s/%s (%.2f%%)\n",
+		(now-vm->start_time),
+		vm->nr_rx_files, vm->nr__files, ratio_of(vm->nr_rx_files, vm->nr__files),
 		st_rx_size_buf, st_size_buf, ratio_of(vm->nr_rx_size, vm->nr__size));
 
 	fflush(fp);
@@ -146,9 +164,10 @@ int baker_entry (vlib_conf_t *conf,
 				break;
 			lqe->value[lqe->valen ++] = (*p == ',') ? 0x01 : *p;
 		}
-#if defined(REGX_DT_FROM_DB)
-		lqe->value[lqe->valen ++]		= '\n';
-#endif
+		if (regx_datasource == REGX_DB) {
+			lqe->value[lqe->valen ++]	= '\n';
+		}
+		
 	} else if (regx_module == REGX_MD_S1_EMM_SIGNAL) {
 		for (p = (char *)&value[0];
 					*p != '\0' && *p != '\t'; ++ p) {
@@ -157,7 +176,11 @@ int baker_entry (vlib_conf_t *conf,
 				&& (*p == '\t' || *p == ' '))
 				break;
 			lqe->value[lqe->valen ++] = (*p == ',') ? 0x01 : *p;
+		}	
+		if (regx_datasource == REGX_DB) {
+			lqe->value[lqe->valen ++]	= '\n';
 		}
+		
 	} else if (regx_module == REGX_MD_S1_MME_SIGNAL) {
 		for (p = (char *)&value[0];
 					*p != '\0' && *p != '\t'; ++ p) {
@@ -167,6 +190,10 @@ int baker_entry (vlib_conf_t *conf,
 				break;
 			lqe->value[lqe->valen ++] = (*p == ',') ? 0x01 : *p;
 		}
+		if (regx_datasource == REGX_DB) {
+			lqe->value[lqe->valen ++]	= '\n';
+		}
+
 	} else if (regx_module == REGX_MD_WAP_SIGNAL) {
 		for (p = (char *)&value[0], pn = (char *)&value[1];
 					*p != '\0'; ++ p, ++pn) {
@@ -385,26 +412,42 @@ static int regx_init(int argc, char **argv)
 	char c;
 	vlib_main_t *vm = vlib_main;
 
-	vm->epoch_time_sec_start = time(NULL);
+	vm->start_time = time(NULL);
 	progname = argv[0];
 	
-	while ((c = getopt(argc, argv, "VF:s:d:n:m:")) != -1) {
+	while ((c = getopt(argc, argv, shortopt)) != -1) {
 		switch ((char)c) {
-			case 'V':
-			{
-				printf("%s Verson %s. BUILD %s\n", progname, "1", "aaa");
-				exit(0);
-			}
+			case 'v':
+				{
+					fprintf(stdout,
+						"%s Verson %s. BUILD %s\n", progname, "1", "aaa");
+					exit(0);
+				}
+			
+			case 'c':
+				{
+					vm->ul_flags |= (VLIB_REGX_FNAME_CHK);
+					break;
+				}
+
+			case 'r':
+				{
+					if (!strcmp(optarg, "REGX_DB"))
+							regx_datasource = REGX_DB;
+					else if (!strcmp(optarg, "REGX_DISK"))
+							regx_datasource = REGX_DISK;
+				}
+				break;
 
 			case 'm':
 				{
 					if (!strcmp(optarg, "S1_MME_SIGNAL"))
 						regx_module = REGX_MD_S1_MME_SIGNAL;
-					if (!strcmp(optarg, "S1_EMM_SIGNAL"))
+					else if (!strcmp(optarg, "S1_EMM_SIGNAL"))
 						regx_module = REGX_MD_S1_EMM_SIGNAL;
-					if (!strcmp(optarg, "S1AP_HANDOVER_SIGNAL"))
+					else if (!strcmp(optarg, "S1AP_HANDOVER_SIGNAL"))
 						regx_module = REGX_MD_S1AP_HANDOVER_SIGNAL;
-					if (!strcmp(optarg, "WAP_SIGNAL"))
+					else if (!strcmp(optarg, "WAP_SIGNAL"))
 						regx_module = REGX_MD_WAP_SIGNAL;
 				}
 				break;
@@ -426,12 +469,43 @@ static int regx_init(int argc, char **argv)
 					}
 					return -1;
 				}
+
+			case 'f':
+				{
+					if(is_number(optarg, strlen(optarg))) {
+						regx_time_from  = regx_date2stamp(optarg);
+						regx_time_to = time(NULL);	/* from $time_from to now, by default. */
+					}
+					vm->ul_flags |= (VLIB_REGX_FTIME_CHK);
+					break;
+				}
+
+			case 't':
+				{
+					if(is_number(optarg, strlen(optarg)))
+						regx_time_to	= regx_date2stamp(optarg);
+					vm->ul_flags |= (VLIB_REGX_FTIME_CHK);
+					break;
+				}
+
+		
 			default:
 				fprintf(stdout, "error\n");
 				return -1;
 		}
 	}
 
+	if (regx_datasource < 0) {
+		fprintf(stdout, "regx_datasource %d\n", regx_datasource);
+		return -1;
+	}
+
+	if ((vm->ul_flags & VLIB_REGX_FTIME_CHK) &&
+		!regx_time_from) {
+		fprintf(stdout, "regx_time_from %lu\n", regx_time_from);
+		return -1;
+	}
+	
 	if (nr_regxs > VLIB_MAX_PARALLELS) {
 		fprintf(stdout, "%d nr_regx(s), out of range %d\n", nr_regxs, VLIB_MAX_PARALLELS);
 		return -1;
@@ -458,7 +532,11 @@ static int regx_init(int argc, char **argv)
 		do_system(mkdir0);
 	}
 	
-	fprintf(stdout, "%s %s, module %d\n", inotify_home, store_home, regx_module);
+	fprintf(stdout, "%s %s, module %d, from %lu to %lu\n",
+		inotify_home, store_home, regx_module,
+		regx_time_from,
+		regx_time_to);
+	
 	return 0;
 }
 
@@ -474,17 +552,19 @@ static void regx_finish(void)
 	oryx_fmt_program_counter(vm->nr__size, st_size_buf, 0, 0);
 	oryx_fmt_program_counter(vm->nr_rx_size, st_rx_size_buf, 0, 0);
 	
-	oryx_fmt_time (vm->epoch_time_sec_start,
+	oryx_fmt_time (vm->start_time,
 		"%Y-%m-%d %H:%M:%S", (char *)&tsstr[0], 100);
 	oryx_fmt_time (now,
 		"%Y-%m-%d %H:%M:%S", (char *)&testr[0], 100);
 
-	fprintf(fp, "Start %s, End %s, Cost %lu secs, Recover %lu/%lu file(s), %s/%s (%.2f%%)\n",
-		tsstr, testr, (now-vm->epoch_time_sec_start), vm->nr_rx_files, vm->nr__files,
+	fprintf(fp, "Start %s, End %s, Cost %lu secs, Recover %lu/%lu file(s) (%.2f%%), %s/%s (%.2f%%)\n",
+		tsstr, testr, (now-vm->start_time),
+		vm->nr_rx_files, vm->nr__files, ratio_of(vm->nr_rx_files, vm->nr__files),
 		st_rx_size_buf, st_size_buf, ratio_of(vm->nr_rx_size, vm->nr__size));
 
-	fprintf(stdout, "Start %s, End %s, Cost %lu secs, Recover %lu/%lu file(s), %s/%s (%.2f%%)\n",
-		tsstr, testr, (now-vm->epoch_time_sec_start), vm->nr_rx_files, vm->nr__files,
+	fprintf(stdout, "Start %s, End %s, Cost %lu secs, Recover %lu/%lu file(s) (%.2f%%), %s/%s (%.2f%%)\n",
+		tsstr, testr, (now-vm->start_time),
+		vm->nr_rx_files, vm->nr__files, ratio_of(vm->nr_rx_files, vm->nr__files),
 		st_rx_size_buf, st_size_buf, ratio_of(vm->nr_rx_size, vm->nr__size));
 
 
@@ -532,7 +612,7 @@ int main (
 	FOREVER {
 		logprgname();
 		logprogress();
-		//sleep (1);
+		sleep (1);
 		
 		if (regx_is_quit(vm)) {
 			/* wait for all subproc quit. */
@@ -558,7 +638,7 @@ int main (
 		if (fqe == NULL && vm->nr_sub_regx_proc == 0) {
 			fprintf(stdout, "No more files (%lu/%lu), breaking ...\n",
 				 vm->nr_rx_files, vm->nr__files);
-			vm->ul_flags |= VLIB_REGX_QUIT;
+			vm->ul_flags |= VLIB_QUIT;
 			break;
 		}
 	/*

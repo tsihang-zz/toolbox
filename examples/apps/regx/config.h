@@ -6,8 +6,10 @@
 #define VLIB_REGX_LOGFILE	"/tmp/regx.log"
 #define VLIB_SHM_BASE_KEY	0x52454758	/* regx */
 
-#define VLIB_REGX_QUIT		(1 << 0)
+#define VLIB_QUIT		(1 << 0)
 #define VLIB_REGX_LD_FIN	(1 << 1)
+#define	VLIB_REGX_FNAME_CHK	(1 << 2)
+#define VLIB_REGX_FTIME_CHK	(1 << 3)
 typedef struct vlib_main_t {
 	volatile int nr_sub_regx_proc;
 	volatile uint64_t	nr__files;		/* total files. */
@@ -16,13 +18,13 @@ typedef struct vlib_main_t {
 	volatile uint64_t	nr_rx_entries;
 	volatile uint64_t	nr_rx_size;
 	volatile uint64_t	nr_rx_err_skip_entries;
-	time_t		epoch_time_sec_start;
+	time_t		start_time;
 	uint32_t	ul_flags;
 
 } vlib_main_t;
 
 #define regx_is_quit(vm)\
-	(((vm)->ul_flags & VLIB_REGX_QUIT))
+	(((vm)->ul_flags & VLIB_QUIT))
 
 #define VLIB_REGX_S1AP_HANDOVER_HD\
 	"len,msg_type,seq_id,frag,MF,offset,total_len,table_id,service_type,policy_id,start_time,cdr_id,device_id,filter_flag,data_type,cpu_clock_mul,sdr_id,cdr_type,handover_type,trigger_cause_type,trigger_cause,fail_cause_type,fail_cause,cancel_cause_type,cancel_cause,cancel_req_count,cancel_result,handover_req_count,cur_tac,cur_eci,cur_enbid,src_eci,src_enbid,src_tac,dest_tac,dest_eci,dest_enbid,mme_port,enodeb_port,mme_ip,enodeb_ip,mme_ue_s1apid,enb_ue_s1apid,mme_group_id,mme_code,ip_type,user_ipv4,user_ipv6,ue_maxbitrate_dl,ue_maxbitrate_ul,resp_delay,handover_delay,total_time,m_tmsi,imsi,calling,imei,apn,cdr_result,srvcc_ho_indication,msisdn_capability,handover_md5_hash,eps_bearer_number,Bearer_5_ID,Bearer_5_TYPE,Bearer_5_QCI,Bearer_5_Status,Bearer_5_Request_Cause,Bearer_5_Failure_Cause,Bearer_5_eNB_GTP_TEID,Bearer_5_SGW_GTP_TEID,Bearer_6_ID,Bearer_6_TYPE,Bearer_6_QCI,Bearer_6_Status,Bearer_6_Request_Cause,Bearer_6_Failure_Cause,Bearer_6_eNB_GTP_TEID,Bearer_6_SGW_GTP_TEID,Bearer_7_ID,Bearer_7_TYPE,Bearer_7_QCI,Bearer_7_Status,Bearer_7_Request_Cause,Bearer_7_Failure_Cause,Bearer_7_eNB_GTP_TEID,Bearer_7_SGW_GTP_TEID,Bearer_8_ID,Bearer_8_TYPE,Bearer_8_QCI,Bearer_8_Status,Bearer_8_Request_Cause,Bearer_8_Failure_Cause,Bearer_8_eNB_GTP_TEID,Bearer_8_SGW_GTP_TEID,Bearer_9_ID,Bearer_9_TYPE,Bearer_9_QCI,Bearer_9_Status,Bearer_9_Request_Cause,Bearer_9_Failure_Cause,Bearer_9_eNB_GTP_TEID,Bearer_9_SGW_GTP_TEID,Bearer_10_ID,Bearer_10_TYPE,Bearer_10_QCI,Bearer_10_Status,Bearer_10_Request_Cause,Bearer_10_Failure_Cause,Bearer_10_eNB_GTP_TEID,Bearer_10_SGW_GTP_TEID,Bearer_11_ID,Bearer_11_TYPE,Bearer_11_QCI,Bearer_11_Status,Bearer_11_Request_Cause,Bearer_11_Failure_Cause,Bearer_11_eNB_GTP_TEID,Bearer_11_SGW_GTP_TEID,Bearer_12_ID,Bearer_12_TYPE,Bearer_12_QCI,Bearer_12_Status,Bearer_12_Request_Cause,Bearer_12_Failure_Cause,Bearer_12_eNB_GTP_TEID,Bearer_12_SGW_GTP_TEID,Bearer_13_ID,Bearer_13_TYPE,Bearer_13_QCI,Bearer_13_Status,Bearer_13_Request_Cause,Bearer_13_Failure_Cause,Bearer_13_eNB_GTP_TEID,Bearer_13_SGW_GTP_TEID,Bearer_14_ID,Bearer_14_TYPE,Bearer_14_QCI,Bearer_14_Status,Bearer_14_Request_Cause,Bearer_14_Failure_Cause,Bearer_14_eNB_GTP_TEID,Bearer_14_SGW_GTP_TEID,Bearer_15_ID,Bearer_15_TYPE,Bearer_15_QCI,Bearer_15_Status,Bearer_15_Request_Cause,Bearer_15_Failure_Cause,Bearer_15_eNB_GTP_TEID,Bearer_15_SGW_GTP_TEID"

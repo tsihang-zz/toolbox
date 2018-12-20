@@ -5,7 +5,7 @@
 #include "dp.h"
 #include "cli.h"
 
-static unsigned short int alternative_port = 12000;
+static uint16_t alternative_port = 12000;
 struct thread_master *master;
 
 extern int box_init

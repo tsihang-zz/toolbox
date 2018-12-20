@@ -102,66 +102,91 @@ struct inotify_event {
 };
 #endif
 
-static __oryx_always_inline__
-void file_reset(vlib_file_t *f)
-{
-	f->ul_flags 	= ~0;
-	f->local_time	= ~0;
-#if defined(HAVE_F_CACHE)
-	f->offset		= ~0;
-#endif
-	f->fp			= NULL;
-	memset ((void *)&f->filepath[0], 0, name_length);
-}
 
 static __oryx_always_inline__
-int file_empty0(vlib_file_t *f)
+time_t regx_date2stamp(char *date)
 {
-	char ch;
-	size_t nr_rb = 0;
-
-	if (f->fp != NULL)
-		nr_rb = fread(&ch, sizeof(char), 1, f->fp);
-
-	return nr_rb == 0 ? 1 : 0;
-}
-
-
-static __oryx_always_inline__
-int file_empty(vlib_file_t *f)
-{
-	FILE *fp;
-	char ch;
-	size_t nr_rb = 0;
+	char *p, i;
+	struct tm	tm = {
+			.tm_sec	=	0,
+			.tm_min	=	0,
+			.tm_hour=	0,
+			.tm_mday=	0,
+			.tm_mon	=	0,
+			.tm_year=	0,
+			.tm_wday=	0,
+			.tm_yday=	0,
+			.tm_isdst=	0,
+	};
+	char *chkptr;
+	char d[8] = {0};
 	
-	fp = fopen(f->filepath, "r");
-	if (fp != NULL) {
-		nr_rb = fread(&ch, sizeof(char), 1, fp);
-		fclose(fp);
+	for (p = (char *)&date[0], i = 0;
+				*p != '\0' && *p != '\t'; ++ p) {
+		/* year */
+		if (tm.tm_year == 0) {
+			d[i ++] = *p;
+			if (i == 4) {
+				tm.tm_year = strtol(d, &chkptr, 10);
+				if ((chkptr != NULL && *chkptr == 0)) {
+					tm.tm_year = 2018;
+				}
+				tm.tm_year -= 1900;
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}
+		} else if (tm.tm_mon == 0) {
+			d[i ++] = *p;
+			if (i == 2) {
+				tm.tm_mon = strtol(d, &chkptr, 10);
+				tm.tm_mon -= 1;
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}	
+		} else if (tm.tm_mday == 0) {
+			d[i ++] = *p;
+			if (i == 2) {		
+				tm.tm_mday = strtol(d, &chkptr, 10);
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}	
+		} else if (tm.tm_hour == 0) {
+			d[i ++] = *p;
+			if (i == 2) {
+				tm.tm_hour = strtol(d, &chkptr, 10);
+				//tm.tm_hour -= 1;
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}	
+		} else if (tm.tm_min == 0) {
+			d[i ++] = *p;
+			if (i == 2) {
+				tm.tm_min = strtol(d, &chkptr, 10);
+				//tm.tm_min -= 1;
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}
+		} else if (tm.tm_sec == 0) {
+			d[i ++] = *p;
+			if (i == 2) {
+				tm.tm_sec = strtol(d, &chkptr, 10);
+				//tm.tm_sec -= 1;
+				i = 0;
+				chkptr = NULL;
+				memset (d, 0, 8);
+			}
+		}			
 	}
-	
-	return nr_rb == 0 ? 1 : 0;
-}
+				
+/** fprintf(stdout, "%d-%d-%d %d:%d:%d\n",
+		tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); */
 
-static __oryx_always_inline__
-size_t file_write(vlib_file_t *f, const char *val, size_t valen)
-{
-	size_t nr_wb;
-
-	nr_wb = fwrite(val, sizeof(char), valen, f->fp);
-	return nr_wb;
-}
-
-static __oryx_always_inline__
-int file_overtime(vlib_file_t *f, time_t now, int threshold)
-{
-	return (now > (f->local_time +  threshold * 60));
-}
-
-static __oryx_always_inline__
-int file_overdisk(vlib_file_t *f, int max_entries)
-{
-	return ((int64_t)f->entries > (int64_t)max_entries);
+	return mktime(&tm);
 }
 
 static __oryx_always_inline__

@@ -1,5 +1,5 @@
 #include "oryx.h"
-#include "unix_domain_config.h"
+#include "config.h"
 
 int running = 1;
 
