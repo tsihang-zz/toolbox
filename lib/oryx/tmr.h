@@ -1,5 +1,13 @@
+/*!
+ * @file tmr.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __TMR_H__
 #define __TMR_H__
+
 
 #define DEFAULT_TMR_MODULE	1
 
@@ -38,14 +46,14 @@ struct oryx_timer_t {
     int				module;
     oryx_tmr_id		tmr_id;			/** unique id */
     const char		*sc_alias;		/** make sure that allocate desc member with malloc like function. */
-    int64_t			interval_ms;	/** in secs, default is 3 seconds. */
+    int64_t			interval;		/** in micro secs, default is 3000. */
     int64_t			curr_ticks;
 
 	int				argc;
 	char			**argv;
 	void			(*routine)(struct oryx_timer_t *, int, char **);
 	
-    uint32_t		ul_setting_flags;
+    uint32_t		cfg;
 	uint32_t		ul_cyclical_times;
 	
     struct list_head list;

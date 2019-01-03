@@ -207,7 +207,7 @@ typedef struct Flow_
 #ifdef FLOWLOCK_RWLOCK
     os_rwlock_t r;
 #elif defined FLOWLOCK_MUTEX
-    os_mutex_t m;
+    sys_mutex_t m;
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
@@ -314,7 +314,7 @@ typedef struct FlowBucket_ {
     Flow *head;
     Flow *tail;
 #ifdef FBLOCK_MUTEX
-    os_mutex_t m;
+    sys_mutex_t m;
 #elif defined FBLOCK_SPIN
     os_spinlock_t s;
 #else
@@ -339,11 +339,11 @@ typedef struct FlowBucket_ {
 #elif defined FLOWLOCK_MUTEX
     #define FLOWLOCK_INIT(fb) do_mutex_init(&(fb)->m)
     #define FLOWLOCK_DESTROY(fb) do_mutex_destroy(&(fb)->m)
-    #define FLOWLOCK_RDLOCK(fb) do_mutex_lock(&(fb)->m)
-    #define FLOWLOCK_WRLOCK(fb) do_mutex_lock(&(fb)->m)
+    #define FLOWLOCK_RDLOCK(fb) oryx_sys_mutex_lock(&(fb)->m)
+    #define FLOWLOCK_WRLOCK(fb) oryx_sys_mutex_lock(&(fb)->m)
     #define FLOWLOCK_TRYRDLOCK(fb) do_mutex_trylock(&(fb)->m)
     #define FLOWLOCK_TRYWRLOCK(fb) do_mutex_trylock(&(fb)->m)
-    #define FLOWLOCK_UNLOCK(fb) do_mutex_unlock(&(fb)->m)
+    #define FLOWLOCK_UNLOCK(fb) oryx_sys_mutex_unlock(&(fb)->m)
 #else
     #error Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX
 #endif
@@ -358,9 +358,9 @@ typedef struct FlowBucket_ {
 #elif defined FBLOCK_MUTEX
     #define FBLOCK_INIT(fb) pthread_mutex_init(&(fb)->m, NULL)
     #define FBLOCK_DESTROY(fb) do_mutex_destroy(&(fb)->m)
-    #define FBLOCK_LOCK(fb) do_mutex_lock(&(fb)->m)
+    #define FBLOCK_LOCK(fb) oryx_sys_mutex_lock(&(fb)->m)
     #define FBLOCK_TRYLOCK(fb) do_mutex_trylock(&(fb)->m)
-    #define FBLOCK_UNLOCK(fb) do_mutex_unlock(&(fb)->m)
+    #define FBLOCK_UNLOCK(fb) oryx_sys_mutex_unlock(&(fb)->m)
 #else
     #error Enable FBLOCK_SPIN or FBLOCK_MUTEX
 #endif

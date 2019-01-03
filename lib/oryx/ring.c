@@ -1,3 +1,10 @@
+/*!
+ * @file ring.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #define DEAFULT_RING_ELEMENTS	4096
@@ -76,7 +83,7 @@ int oryx_ring_create
 	r->ul_flags		= flags;
 	r->name	= name;
 	r->key			= key;
-	RLOCK_INIT(r);
+	oryx_sys_mutex_create(&r->mtx);
 	
 	(*ring) = r;
 	return 0;	

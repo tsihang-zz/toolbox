@@ -62,7 +62,7 @@ void _vn_travel (struct chash_root *ch, void (*fn)(struct vnode_t *, int), int f
 	if (flags & NODE_FLG_CLASSFY_TRAVEL) {
 		struct node_t *n1 = NULL, *p;
 		
-		do_mutex_lock (&ch->nhlock);
+		oryx_sys_mutex_lock (&ch->nhlock);
 		list_for_each_entry_safe (n1, p, &ch->node_head, node) {
 			
 			rbn = rb_first (&ch->vn_root);
@@ -78,7 +78,7 @@ void _vn_travel (struct chash_root *ch, void (*fn)(struct vnode_t *, int), int f
 				rbn  = rb_next(rbn);
 			}
 		}
-		do_mutex_unlock (&ch->nhlock);
+		oryx_sys_mutex_unlock (&ch->nhlock);
 		
 	}
 
@@ -250,13 +250,13 @@ int _n_add (struct chash_root *ch, struct node_t *n)
 
 	struct node_t *n1 = NULL, *p;
 
-	do_mutex_lock (&ch->nhlock);
+	oryx_sys_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node){
 		if (!strcmp(n->ipaddr, n1->ipaddr)){
 			fprintf (stdout, "A same machine %15s(\"%s\":%p)\n\n", 
 						n1->idesc, n1->ipaddr, n1);
-			do_mutex_unlock (&ch->nhlock);
+			oryx_sys_mutex_unlock (&ch->nhlock);
 			return -1;
 		}
 	}
@@ -266,7 +266,7 @@ int _n_add (struct chash_root *ch, struct node_t *n)
 	N_HITS(n) = 0;
 	N_VALID_VNS(n) = 0;
 	
-	do_mutex_unlock (&ch->nhlock);
+	oryx_sys_mutex_unlock (&ch->nhlock);
 	
 	return 0;
 }
@@ -306,12 +306,12 @@ int total_vns (struct chash_root *ch)
 	int vns=0;
 	struct node_t *n1 = NULL, *p;
 	
-	do_mutex_lock (&ch->nhlock);
+	oryx_sys_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node)
 		vns += n1->valid_vns;
 	
-	do_mutex_unlock (&ch->nhlock);
+	oryx_sys_mutex_unlock (&ch->nhlock);
 
 	return vns;
 }
@@ -328,17 +328,17 @@ struct node_t *node_remove (struct chash_root *ch, char *nodekey)
 	struct vnode_t *vn = NULL;
 
 	/* Find the physical node by $nodekey  */
-	do_mutex_lock (&ch->nhlock);
+	oryx_sys_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node) {
 		if (!strcmp(n1->ipaddr, nodekey)){
-			do_mutex_unlock (&ch->nhlock);
+			oryx_sys_mutex_unlock (&ch->nhlock);
 			n = n1;
 			goto find;
 		}
 	}
 	
-	do_mutex_unlock (&ch->nhlock);
+	oryx_sys_mutex_unlock (&ch->nhlock);
 	return NULL;
 	
 find:
@@ -362,7 +362,7 @@ find:
 	ch->vn_max = NULL;
 	ch->vn_min = NULL;
 	
-	do_mutex_lock (&ch->nhlock);
+	oryx_sys_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node) {
 		
@@ -395,7 +395,7 @@ find:
 		}
 	}
 	
-	do_mutex_unlock (&ch->nhlock);
+	oryx_sys_mutex_unlock (&ch->nhlock);
 
 	return n;
 }
@@ -491,14 +491,14 @@ void node_summary (struct chash_root *ch)
 	fprintf (stdout, "\n\n\nTotal %15d(%-5d vns) machines\n", ch->total_ns, total_vns(ch));
 
 	fprintf (stdout, "%15s%16s%4s%15s%15s\n", "MACHINE", "IPADDR", "VNS", "HIT", "RATIO");
-	do_mutex_lock (&ch->nhlock);
+	oryx_sys_mutex_lock (&ch->nhlock);
 	
 	list_for_each_entry_safe(n1, p, &ch->node_head, node){
 		fprintf (stdout, "%15s%16s%4d%15d%15.2f%s\n", 
 					n1->idesc, n1->ipaddr, n1->valid_vns, N_HITS(n1), (float)N_HITS(n1)/ch->total_hit_times * 100, "%");
 	}
 
-	do_mutex_unlock (&ch->nhlock);
+	oryx_sys_mutex_unlock (&ch->nhlock);
 }
 
 /** Dump all physical node.*/

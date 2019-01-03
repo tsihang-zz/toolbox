@@ -1,5 +1,12 @@
-#ifndef ORYX_HASH_TABLE_H
-#define ORYX_HASH_TABLE_H
+/*!
+ * @file oryx_htable.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_HASH_TABLE_H__
+#define __ORYX_HASH_TABLE_H__
 
 #include "htable.h"
 
@@ -27,7 +34,7 @@ ORYX_DECLARE (
 
 ORYX_DECLARE (
 	int oryx_htable_add (
-		IN struct oryx_htable_t *ht,
+		IO struct oryx_htable_t *ht,
 		IN ht_value_t value,
 		IN uint32_t valen
 	)
@@ -35,7 +42,7 @@ ORYX_DECLARE (
 
 ORYX_DECLARE (
 	int oryx_htable_del (
-		IN struct oryx_htable_t *ht,
+		IO struct oryx_htable_t *ht,
 		IN ht_value_t value,
 		IN uint32_t valen
 	)

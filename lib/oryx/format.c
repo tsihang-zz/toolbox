@@ -1,5 +1,11 @@
-#include "oryx.h"
+/*!
+ * @file format.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
 
+#include "oryx.h"
 
 /*
  * Generates a log message The message will be sent in the stream

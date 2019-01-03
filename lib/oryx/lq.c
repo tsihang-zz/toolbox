@@ -1,3 +1,10 @@
+/*!
+ * @file lq.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #if defined(LQ_ENABLE_PASSIVE)
@@ -9,9 +16,9 @@ _wakeup
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	//fprintf (stdout, "wakeup...\n");
-	do_mutex_lock (&q->cond_lock);
-	do_cond_signal(&q->cond);
-	do_mutex_unlock (&q->cond_lock);
+	oryx_sys_mutex_lock(&q->cond_mtx);
+	oryx_sys_cond_wake(&q->cond);
+	oryx_sys_mutex_unlock(&q->cond_mtx);
 }
 
 static void
@@ -25,9 +32,9 @@ _hangon
 	if (lq_blocked_len(q) == 0) {
 		{
 			//fprintf (stdout, "hangup ...\n");
-			do_mutex_lock (&q->cond_lock);
-			do_cond_wait(&q->cond, &q->cond_lock);
-			do_mutex_unlock (&q->cond_lock);
+			oryx_sys_mutex_lock(&q->cond_mtx);
+			oryx_sys_cond_wait(&q->cond, &q->cond_mtx);
+			oryx_sys_mutex_unlock(&q->cond_mtx);
 		}
 	}
 }
@@ -49,13 +56,15 @@ list_queue_init
 	lq->bot			=	NULL;
 	lq->top			=	NULL;
 	lq->len			=	0;
-    FQLOCK_INIT(lq);
+
+	oryx_sys_mutex_create(&lq->mtx);
+
 
 #if defined(LQ_ENABLE_PASSIVE)
 	fprintf (stdout, "init passive queue... %d\n", lq_type_blocked(lq));
 	if(lq_type_blocked(lq)) {
-		do_mutex_init(&lq->cond_lock);
-		do_cond_init(&lq->cond);
+		oryx_sys_mutex_create(&lq->cond_mtx);
+		oryx_sys_cond_create(&lq->cond);
 		lq->fn_hangon	=	_hangon;
 		lq->fn_wakeup	=	_wakeup;
 	}
@@ -100,7 +109,14 @@ void oryx_lq_destroy
 )
 {
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
-	FQLOCK_DESTROY(q);
+
+	/* free all equeued elements. */
+
+	/* destroy mutex */
+	oryx_sys_mutex_destroy(&q->mtx);
+
+	/* destroy cond mutex */
+	oryx_sys_mutex_destroy(&q->cond_mtx);
 }
 
 /**

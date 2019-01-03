@@ -1,6 +1,6 @@
 #ifndef __BOX_ACL_H__
 #define __BOX_ACL_H__
-
+
 /** access control list */
 
 #define MAX_ACL_RULE_NUM	(1024)

@@ -1,3 +1,10 @@
+/*!
+ * @file cs.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef CS_H
 #define CS_H
 

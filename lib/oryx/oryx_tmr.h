@@ -1,5 +1,12 @@
-#ifndef ORYX_TMR_H
-#define ORYX_TMR_H
+/*!
+ * @file oryx_tmr.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_TMR_H__
+#define __ORYX_TMR_H__
 
 #include "tmr.h"
 
@@ -25,11 +32,11 @@ ORYX_DECLARE (
 	struct oryx_timer_t *oryx_tmr_create (
 		IN int module,
 		IN const char *sc_alias,
-		IN uint32_t ul_setting_flags,
+		IN uint32_t cfg,
 		IN void (*handler)(IN struct oryx_timer_t *, IN int, IN char **),
 		IN int argc,
 		IN char **argv,
-		IN uint32_t nr_mseconds
+		IN uint32_t nr_micro_sec
 	)
 );
 
@@ -40,7 +47,7 @@ ORYX_DECLARE (
 		IN void (*handler)(IN struct oryx_timer_t *, IN int, IN char **),
 		IN int argc,
 		IN char **argv,
-		IN uint32_t nr_mseconds
+		IN uint32_t nr_micro_sec
 	)
 );
 

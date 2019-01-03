@@ -90,7 +90,7 @@ struct chash_root {
 	hash_fun_ptr hash_func;	/** Hash algorithms function. */
 
 	struct list_head node_head;	/** List stored all real node instance. */
-	os_mutex_t  nhlock;	/** Node head lock */
+	sys_mutex_t  nhlock;	/** Node head lock */
 
 
 };

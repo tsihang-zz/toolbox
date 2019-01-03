@@ -1,3 +1,9 @@
+/*!
+ * @file htable.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
 
 #include "oryx.h"
 	
@@ -46,13 +52,13 @@ func_cmp
 	IN uint32_t s2
 )
 {
-	int xret = 0;
+	int err = 0;
 
 	if (!v1 || !v2 || s1 != s2 ||
 		memcmp(v1, v2, s2))
-		xret = 1;
+		err = 1;
 	
-	return xret;
+	return err;
 }
 
 __oryx_always_extern__
@@ -102,7 +108,7 @@ struct oryx_htable_t* oryx_htable_init
 	ht->array_size		= max_buckets;
 
 	if (ht->ul_flags & HTABLE_SYNCHRONIZED) {
-		oryx_tm_create (&ht->os_lock);
+		oryx_sys_mutex_create (&ht->mtx);
 	}
 
 	/** setup the bitarray */
@@ -151,7 +157,8 @@ void oryx_htable_destroy
 
 	HTABLE_UNLOCK(ht);
 
-	oryx_tm_destroy(ht->os_lock);
+	if (ht->ul_flags & HTABLE_SYNCHRONIZED)
+		oryx_sys_mutex_destroy(&ht->mtx);
 	
     kfree(ht);
 }
@@ -159,7 +166,7 @@ void oryx_htable_destroy
 __oryx_always_extern__
 int oryx_htable_add
 (
-	IN struct oryx_htable_t *ht,
+	IO struct oryx_htable_t *ht,
 	IN ht_value_t value,
 	IN uint32_t valen
 )
@@ -197,7 +204,7 @@ int oryx_htable_add
 __oryx_always_extern__
 int oryx_htable_del
 (
-	IN struct oryx_htable_t *ht,
+	IO struct oryx_htable_t *ht,
 	IN ht_value_t value,
 	IN uint32_t valen
 )

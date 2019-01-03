@@ -1,5 +1,12 @@
-#ifndef ORYX_RING_H
-#define ORYX_RING_H
+/*!
+ * @file oryx_ring.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_RING_H__
+#define __ORYX_RING_H__
 
 #include "ring.h"
 #include "shm_ring.h"

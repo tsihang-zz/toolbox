@@ -32,12 +32,12 @@ void SCHSPrintSearchStats(MpmThreadCtx *mpm_thread_ctx);
  * built and then cloned for each thread context. Access is serialised via
  * g_scratch_proto_mutex. */
 static hs_scratch_t *g_scratch_proto = NULL;
-static os_mutex_t g_scratch_proto_mutex = INIT_MUTEX_VAL;
+static sys_mutex_t g_scratch_proto_mutex = INIT_MUTEX_VAL;
 
 /* Global hash table of Hyperscan databases, used for de-duplication. Access is
  * serialised via g_db_table_mutex. */
 static struct oryx_htable_t  *g_db_table = NULL;
-static os_mutex_t g_db_table_mutex = INIT_MUTEX_VAL;
+static sys_mutex_t g_db_table_mutex = INIT_MUTEX_VAL;
 
 #define oryx_htable_create 		oryx_htable_init
 
@@ -849,7 +849,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
 
     /* Serialise whole database compilation as a relatively easy way to ensure
      * dedupe is safe. */
-    do_mutex_lock(&g_db_table_mutex);
+    oryx_sys_mutex_lock(&g_db_table_mutex);
 
     /* Init global pattern database hash if necessary. */
     if (g_db_table == NULL) {
@@ -857,7 +857,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
                                    PatternDatabaseCompare,
                                    PatternDatabaseTableFree, 0);
         if (g_db_table == NULL) {
-            do_mutex_unlock(&g_db_table_mutex);
+            oryx_sys_mutex_unlock(&g_db_table_mutex);
             goto error;
         }
     }
@@ -873,7 +873,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
                    pd_cached->ref_cnt);
         pd_cached->ref_cnt++;
         ctx->pattern_db = pd_cached;
-        do_mutex_unlock(&g_db_table_mutex);
+        oryx_sys_mutex_unlock(&g_db_table_mutex);
         PatternDatabaseFree(pd);
         SCHSFreeCompileData(cd);
         return 0;
@@ -895,7 +895,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
         if (p->flags & (MPM_PATTERN_FLAG_OFFSET | MPM_PATTERN_FLAG_DEPTH)) {
             cd->ext[i] = malloc(sizeof(hs_expr_ext_t));
             if (cd->ext[i] == NULL) {
-                do_mutex_unlock(&g_db_table_mutex);
+                oryx_sys_mutex_unlock(&g_db_table_mutex);
                 goto error;
             }
             memset(cd->ext[i], 0, sizeof(hs_expr_ext_t));
@@ -924,25 +924,25 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
             fprintf (stdout,  "compile error: %s\n", compile_err->message);
         }
         hs_free_compile_error(compile_err);
-        do_mutex_unlock(&g_db_table_mutex);
+        oryx_sys_mutex_unlock(&g_db_table_mutex);
         goto error;
     }
 
     ctx->pattern_db = pd;
 
-    do_mutex_lock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_lock(&g_scratch_proto_mutex);
     err = hs_alloc_scratch(pd->hs_db, &g_scratch_proto);
-    do_mutex_unlock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_unlock(&g_scratch_proto_mutex);
     if (err != HS_SUCCESS) {
         fprintf (stdout,  "%s***Failed to allocate scratch%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
-        do_mutex_unlock(&g_db_table_mutex);
+        oryx_sys_mutex_unlock(&g_db_table_mutex);
         goto error;
     }
 
     err = hs_database_size(pd->hs_db, &ctx->hs_db_size);
     if (err != HS_SUCCESS) {
         fprintf (stdout,  "%s***Failed to query database size%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
-        do_mutex_unlock(&g_db_table_mutex);
+        oryx_sys_mutex_unlock(&g_db_table_mutex);
         goto error;
     }
 
@@ -955,7 +955,7 @@ int SCHSPreparePatterns(MpmCtx *mpm_ctx)
     /* Cache this database globally for later. */
     pd->ref_cnt = 1;
     oryx_htable_add(g_db_table, pd, 1);
-    do_mutex_unlock(&g_db_table_mutex);
+    oryx_sys_mutex_unlock(&g_db_table_mutex);
 
     SCHSFreeCompileData(cd);
     return 0;
@@ -993,12 +993,12 @@ void SCHSInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread
     ctx->scratch = NULL;
     ctx->scratch_size = 0;
 
-    do_mutex_lock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_lock(&g_scratch_proto_mutex);
 
     if (g_scratch_proto == NULL) {
         /* There is no scratch prototype: this means that we have not compiled
          * any Hyperscan databases. */
-        do_mutex_unlock(&g_scratch_proto_mutex);
+        oryx_sys_mutex_unlock(&g_scratch_proto_mutex);
         fprintf (stdout, "%s***No scratch space prototype%s\n", draw_color(COLOR_RED), draw_color(COLOR_FIN));
         return;
     }
@@ -1006,7 +1006,7 @@ void SCHSInitThreadCtx(MpmCtx __oryx_unused__ *mpm_ctx, MpmThreadCtx *mpm_thread
     hs_error_t err = hs_clone_scratch(g_scratch_proto,
                                       (hs_scratch_t **)&ctx->scratch);
 
-    do_mutex_unlock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_unlock(&g_scratch_proto_mutex);
 
     if (err != HS_SUCCESS) {
         fprintf (stdout,  "Unable to clone scratch prototype\n");
@@ -1097,7 +1097,7 @@ void SCHSDestroyCtx(MpmCtx *mpm_ctx)
 
     /* Decrement pattern database ref count, and delete it entirely if the
      * count has dropped to zero. */
-    do_mutex_lock(&g_db_table_mutex);
+    oryx_sys_mutex_lock(&g_db_table_mutex);
     PatternDatabase *pd = ctx->pattern_db;
     if (pd) {
         BUG_ON(pd->ref_cnt == 0);
@@ -1107,7 +1107,7 @@ void SCHSDestroyCtx(MpmCtx *mpm_ctx)
             PatternDatabaseFree(pd);
         }
     }
-    do_mutex_unlock(&g_db_table_mutex);
+    oryx_sys_mutex_unlock(&g_db_table_mutex);
 
     free(mpm_ctx->ctx);
     mpm_ctx->memory_cnt--;
@@ -1304,21 +1304,21 @@ void MpmHSRegister(void)
  */
 void MpmHSGlobalCleanup(void)
 {
-    do_mutex_lock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_lock(&g_scratch_proto_mutex);
     if (g_scratch_proto) {
         fprintf (stdout, "Cleaning up Hyperscan global scratch\n");
         hs_free_scratch(g_scratch_proto);
         g_scratch_proto = NULL;
     }
-    do_mutex_unlock(&g_scratch_proto_mutex);
+    oryx_sys_mutex_unlock(&g_scratch_proto_mutex);
 
-    do_mutex_lock(&g_db_table_mutex);
+    oryx_sys_mutex_lock(&g_db_table_mutex);
     if (g_db_table != NULL) {
         fprintf (stdout, "Clearing Hyperscan database cache\n");
         oryx_htable_destroy(g_db_table);
         g_db_table = NULL;
     }
-    do_mutex_unlock(&g_db_table_mutex);
+    oryx_sys_mutex_unlock(&g_db_table_mutex);
 }
 
 /*************************************Unittests********************************/

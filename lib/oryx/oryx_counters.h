@@ -1,3 +1,10 @@
+/*!
+ * @file oryx_counter.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __ORYX_COUNTERS_H__
 #define __ORYX_COUNTERS_H__
 

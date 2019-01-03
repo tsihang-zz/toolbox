@@ -106,7 +106,7 @@ typedef struct vlib_iface_main {
 	struct oryx_timer_t		*healthy_tmr;
 	uint32_t						link_detect_tmr_interval;
 	uint32_t						poll_interval;
-	os_mutex_t				lock;
+	sys_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
 	void					*vm;

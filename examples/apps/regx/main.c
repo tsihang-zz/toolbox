@@ -39,7 +39,7 @@ static void
 usage(void)
 {
 	fprintf (stdout,
-		"%s -f DATASOURCE -m SIGNAL -n <THREADNUM> -s SRCDIR -d DSTDIR\n"
+		"%s [-c] -r DATASOURCE -m SIGNAL -n <THREADNUM> -s SRCDIR -d DSTDIR -f TIMESTR -t TIMRSTR\n"
 		" -v            : Show version\n"
 		" -c            : Check file format\n"
 		" -r DATASOURCE : Resource (REGX_DB, REGX_DISK)\n"
@@ -47,8 +47,8 @@ usage(void)
 		" -n <THREADNUM>: Number of threads in parallels\n"
 		" -s SRCDIR     : A directory where the recoverying CSV files come from\n"
 		" -d DSTDIR     : A directory Where the recovered CSV files stored to\n"
-		" -f TIMESTR    : Time from, 201812131450\n"
-		" -t TIMESTR    : Time to, 201812131455\n"
+		" -f TIMESTR    : Time from, 20181213145000, in second\n"
+		" -t TIMESTR    : Time to, 20181213145500, in second\n"
 		, progname);
 }
 
@@ -66,7 +66,7 @@ void sigchld_handler(int num) {
     if (WIFEXITED(status)) {
 		if(WEXITSTATUS(status) != 0)
         	fprintf(stdout,
-        		"The child %d exit with code %d\n", pid, WEXITSTATUS(status));   
+        		"The child %d exit with code %d\n", pid, WEXITSTATUS(status));
     }   
 }
 

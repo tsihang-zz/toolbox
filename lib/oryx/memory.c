@@ -1,3 +1,10 @@
+/*!
+ * @file memory.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #define ALIGN_BYTES (offsetof (struct { char x; uint64_t y; }, y) - 1)
@@ -26,7 +33,7 @@ typedef struct memory_handle_s {
 	uint32_t	current_block;	/* Index of current memblock to allocate memory from */
 	uint32_t 	allocted;		/* Number of bytes already allocated in memblock */
 
-	pthread_mutex_t mem_mutex;
+	sys_mutex_t mtx;
 } memory_handle_t;
 
 typedef struct mem_debug_info_s {
@@ -53,7 +60,7 @@ int MEM_InitMemory(void **mem_handle)
 	handle->current_block = 0;
 	handle->allocted	  = 0;
 	
-	pthread_mutex_init(&handle->mem_mutex, NULL);
+	oryx_sys_mutex_create(&handle->mtx);
 
 	*mem_handle = (void *)handle;
 	return 0;
@@ -66,7 +73,7 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 	uint32_t	aligned_size;
 	memory_handle_t *handle = (memory_handle_t *)mem_handle;
 
-	do_mutex_lock(&handle->mem_mutex);
+	oryx_sys_mutex_lock(&handle->mtx);
 	
 	// make sure size of memory is aligned
 	aligned_size = (((uint32_t)(size) + ALIGN_BYTES) &~ ALIGN_BYTES);
@@ -101,7 +108,7 @@ void *MEM_GetMemory(void *mem_handle, uint32_t size)
 	p = (char *)handle->mem_block[handle->current_block] + handle->allocted;
 	handle->allocted += aligned_size;
 
-	do_mutex_unlock(&handle->mem_mutex);
+	oryx_sys_mutex_unlock(&handle->mtx);
 	return p;
 }
 
@@ -132,7 +139,7 @@ void MEM_UninitMemory(void *mem_handle)
 	handle->mem_block	= NULL;
 	handle->max_blocks	= 0;
 
-	pthread_mutex_destroy(&handle->mem_mutex);
+	oryx_sys_mutex_destroy(&handle->mtx);
 
 	free(mem_handle);
 }

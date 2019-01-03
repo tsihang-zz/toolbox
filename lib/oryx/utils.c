@@ -1,3 +1,10 @@
+/*!
+ * @file utils.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #define COLOR_TYPES {\

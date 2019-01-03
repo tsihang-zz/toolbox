@@ -17,7 +17,7 @@ typedef struct vlib_mme_t {
 
 	vlib_threadvar_t	*tv;
 
-	os_mutex_t			lock;
+	sys_mutex_t			lock;
 
 
 	struct list_head 	fhead;	/* Opened file handlers for this mme. */
@@ -42,9 +42,9 @@ typedef struct vlib_mme_t {
 } vlib_mme_t;
 
 #define MME_LOCK(mme)\
-	(do_mutex_lock(&(mme)->lock))
+	(oryx_sys_mutex_lock(&(mme)->lock))
 #define MME_UNLOCK(mme)\
-	(do_mutex_unlock(&(mme)->lock))
+	(oryx_sys_mutex_unlock(&(mme)->lock))
 #define MME_LOCK_INIT(mme)\
 	do_mutex_init(&(mme)->lock)
 

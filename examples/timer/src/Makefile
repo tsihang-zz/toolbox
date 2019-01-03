@@ -54,8 +54,7 @@ CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 CFLAGS += -I$(SRCDIR)\
 		  -I$(SRCDIR)/../oryx
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt\
-		   -lpcre -lyaml -lpcap
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
 
 LDLIBS += -L$(subst src,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx

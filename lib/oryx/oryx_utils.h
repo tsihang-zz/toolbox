@@ -1,5 +1,12 @@
-#ifndef ORYX_UTILS_H
-#define ORYX_UTILS_H
+/*!
+ * @file oryx_utils.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_UTILS_H__
+#define __ORYX_UTILS_H__
 
 #include "rbtree.h"
 #include "list.h"

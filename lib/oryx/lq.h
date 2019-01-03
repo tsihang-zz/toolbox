@@ -1,18 +1,14 @@
+/*!
+ * @file lq.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef LQ_H
 #define LQ_H
 
 #define LQ_ENABLE_PASSIVE
-
-#define FQLOCK_INIT(q)\
-	do_mutex_init(&(q)->m)
-#define FQLOCK_DESTROY(q)\
-	do_mutex_destroy(&(q)->m)
-#define FQLOCK_LOCK(q)\
-	do_mutex_lock(&(q)->m)
-#define FQLOCK_TRYLOCK(q)\
-	do_mutex_trylock(&(q)->m)
-#define FQLOCK_UNLOCK(q)\
-	do_mutex_unlock(&(q)->m)
 
 /** trigger method. */
 #define LQ_TYPE_PASSIVE	(1 << 2)
@@ -34,13 +30,13 @@ struct oryx_lq_ctx_t {
 #ifdef DBG_PERF
 	uint32_t	dbg_maxlen;
 #endif /* DBG_PERF */
-	os_mutex_t	m;
+	sys_mutex_t	mtx;
 
 #if defined(LQ_ENABLE_PASSIVE)
 	void (*fn_wakeup) (void *);
 	void (*fn_hangon) (void *);
-	os_mutex_t	cond_lock;
-	os_cond_t	cond;
+	sys_mutex_t	cond_mtx;
+	sys_cond_t	cond;
 #endif
 	int			unique_id;
 	uint32_t	ul_flags;
@@ -76,7 +72,7 @@ void oryx_lq_enqueue
 	BUG_ON(q == NULL || f == NULL);
 //#endif
 
-	FQLOCK_LOCK(q);
+	oryx_sys_mutex_lock(&q->mtx);
 
 	if (q->top != NULL) {
 		((struct lq_prefix_t *)f)->lnext = q->top;
@@ -95,7 +91,7 @@ void oryx_lq_enqueue
 		q->dbg_maxlen = q->len;
 #endif /* DBG_PERF */
 
-	FQLOCK_UNLOCK(q);
+	oryx_sys_mutex_unlock(&q->mtx);
 
 #if defined(LQ_ENABLE_PASSIVE)
 	if(lq_type_blocked(q))
@@ -128,11 +124,11 @@ void * oryx_lq_dequeue
 		q->fn_hangon(q);
 #endif
 
-	FQLOCK_LOCK(q);
+	oryx_sys_mutex_lock(&q->mtx);
 	
 	void *f = q->bot;
 	if (f == NULL) {
-		FQLOCK_UNLOCK(q);
+		oryx_sys_mutex_unlock(&q->mtx);
 		return NULL;
 	}
 
@@ -156,7 +152,7 @@ void * oryx_lq_dequeue
 	if (q->len > 0)
 		q->len--;
 
-	FQLOCK_UNLOCK(q);
+	oryx_sys_mutex_unlock(&q->mtx);
 
 	return f;
 }

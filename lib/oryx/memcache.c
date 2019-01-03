@@ -1,4 +1,12 @@
 #include "oryx.h"
+
+#define MC_LOCK(mc)\
+		oryx_sys_mutex_lock(&(mc)->mtx);
+
+#define MC_UNLOCK(mc)\
+		oryx_sys_mutex_unlock(&(mc)->mtx);
+	
+
 /*
  * Determine the size of a slab object
  */
@@ -11,8 +19,8 @@ void *oryx_kc_alloc(struct oryx_kmcache_t *cachep)
 {
 	void *node = NULL;
 
-	do_mutex_lock (cachep->lock);
-	do_mutex_unlock (cachep->lock);
+	MC_LOCK (cachep);
+	MC_UNLOCK (cachep);
 
 	node = kmalloc(cachep->obj_size, MPF_CLR, __oryx_unused_val__);
 	if (cachep->ctor)
@@ -25,12 +33,12 @@ void oryx_kc_free(struct oryx_kmcache_t *cachep, void *objp)
 {
 	assert(objp);
 
-	do_mutex_lock (cachep->lock);
+	MC_LOCK (cachep);
 	/**
 	 * FIXME UP.
 	 */
 	 kfree (objp);
-	do_mutex_unlock(cachep->lock);
+	MC_UNLOCK(cachep);
 }
 
 
@@ -40,7 +48,7 @@ oryx_kc_create(const char *name, size_t size, size_t offset,
 {
 	struct oryx_kmcache_t *ret = kmalloc(sizeof(*ret), MPF_CLR, __oryx_unused_val__);
 
-	oryx_tm_create (&ret->lock);
+	oryx_sys_mutex_create (&ret->mtx);
 	ret->obj_size = size;
 	ret->name = name;
 	ret->nr_objs = 0;

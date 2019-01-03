@@ -1,3 +1,10 @@
+/*!
+ * @file shm_ring.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #define SHMRING_BASE	0x123456

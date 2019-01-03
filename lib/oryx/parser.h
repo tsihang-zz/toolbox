@@ -1,5 +1,12 @@
-#ifndef ORYX_PARSER_H
-#define ORYX_PARSER_H
+/*!
+ * @file parser.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef PARSER_H
+#define PARSER_H
 
 ORYX_DECLARE(void oryx_pcre_initialize(void));
 ORYX_DECLARE(void oryx_pcre_deinitialize(void));

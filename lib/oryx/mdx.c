@@ -1,3 +1,10 @@
+/*!
+ * @file mdx.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #define SHIFT(X, s) (((X) << (s)) | ((X) >> (32 - (s))))

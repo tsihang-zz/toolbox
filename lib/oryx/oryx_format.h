@@ -1,5 +1,12 @@
-#ifndef ORYX_FORMAT_H
-#define ORYX_FORMAT_H
+/*!
+ * @file oryx_format.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_FORMAT_H__
+#define __ORYX_FORMAT_H__
 
 #include "format.h"
 

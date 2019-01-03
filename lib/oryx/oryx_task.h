@@ -1,5 +1,12 @@
-#ifndef ORYX_TASK_H
-#define ORYX_TASK_H
+/*!
+ * @file oryx_task.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_TASK_H__
+#define __ORYX_TASK_H__
 
 #include "task.h"
 

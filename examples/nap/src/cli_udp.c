@@ -15,10 +15,10 @@ oryx_vector udp_vector_table;
 #ifdef UDP_LOCK
 static INIT_MUTEX(udp_lock);
 #else
-#undef do_mutex_lock
-#undef do_mutex_unlock
-#define do_mutex_lock(lock)
-#define do_mutex_unlock(lock)
+#undef oryx_sys_mutex_lock
+#undef oryx_sys_mutex_unlock
+#define oryx_sys_mutex_lock(lock)
+#define oryx_sys_mutex_unlock(lock)
 #endif
 
 #define VTY_ERROR_UDP(prefix, alias)\
@@ -286,7 +286,7 @@ int udp_entry_remove (struct udp_t *udp)
 	vlib_udp_main_t *vp = &vlib_udp_main;
 	char log[ORYX_LOG_MAX_LOG_MSG_LEN] = {0};
 
-	do_mutex_lock (&udp_lock);
+	oryx_sys_mutex_lock (&udp_lock);
 	
 	fprintf (stdout, "[\"%16s\"] uninstalling  ...  ", udp_alias(udp));
 	r = oryx_htable_del(vp->htable, udp->sc_alias, strlen((const char *)udp->sc_alias));
@@ -298,7 +298,7 @@ int udp_entry_remove (struct udp_t *udp)
 		fprintf (stdout, "not done(%d)\n", udp_slot(udp));
 	}
 
-	do_mutex_unlock (&udp_lock);
+	oryx_sys_mutex_unlock (&udp_lock);
 
 	/** Call MAP reloading it's UDP. */
 	

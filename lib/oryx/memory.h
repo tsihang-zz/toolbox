@@ -1,3 +1,10 @@
+/*!
+ * @file memory.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 

@@ -61,7 +61,7 @@ struct map_t {
 
 	char			sc_alias[32];				/** Unique, and also can be well human-readable. */
 	uint32_t		ul_id;						/** Unique, allocated automatically. */
-	os_mutex_t 		*ol_lock;
+	sys_mutex_t 		*ol_lock;
 	char 			*port_list_str[QUA_RXTX];	/** A temporary variable holding argvs from CLI,
 	     											and will be freee after split. */
 	uint32_t		rx_panel_port_mask;			/** Attention: QUA_RX, Where frame comes from.
@@ -112,7 +112,7 @@ struct map_t {
 typedef struct {
 	uint32_t				ul_flags;
 	volatile uint32_t		nb_maps;
-	os_mutex_t 				lock;
+	sys_mutex_t 				lock;
 	volatile uint32_t		vector_runtime;
 	volatile oryx_vector	entry_vec;
 	struct oryx_timer_t		*online_port_update_tmr;

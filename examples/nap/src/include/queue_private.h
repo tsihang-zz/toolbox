@@ -9,7 +9,7 @@ typedef struct pq_t_ {
 #ifdef DBG_PERF
     uint32_t dbg_maxlen;
 #endif /* DBG_PERF */
-    os_mutex_t mutex_q;
+    sys_mutex_t mutex_q;
     os_cond_t cond_q;
 } pq_t;
 

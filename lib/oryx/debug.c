@@ -1,3 +1,10 @@
+/*!
+ * @file debug.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 #ifndef ORYX_LOG_LEVEL

@@ -1,3 +1,10 @@
+/*!
+ * @file oryx_debug.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __ORYX_DEBUG_H__
 #define __ORYX_DEBUG_H__
 

@@ -1,3 +1,10 @@
+/*!
+ * @file mdx.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef MDX_H
 #define MDX_H
 

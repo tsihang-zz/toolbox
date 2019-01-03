@@ -1,3 +1,10 @@
+/*!
+ * @file htable.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __HASH_TABLE_H__
 #define __HASH_TABLE_H__
 
@@ -22,9 +29,9 @@ struct oryx_htable_t {
 						 * maybe great than array_size in future. */
 	uint32_t		ul_flags;
 
-	os_mutex_t		*os_lock;
-	int		(*ht_lock_fn)(os_mutex_t *lock);
-	int		(*ht_unlock_fn)(os_mutex_t *lock);
+	sys_mutex_t		mtx;
+	int		(*ht_lock_fn)(sys_mutex_t *mtx);
+	int		(*ht_unlock_fn)(sys_mutex_t *mtx);
 
 	ht_key_t (*hash_fn)(struct oryx_htable_t *,
 				const ht_value_t, uint32_t);	/* function for create a hash value
@@ -41,11 +48,11 @@ struct oryx_htable_t {
 
 #define HTABLE_LOCK(ht)\
 	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
-		do_mutex_lock((ht)->os_lock);
+		oryx_sys_mutex_lock(&(ht)->mtx);
 
 #define HTABLE_UNLOCK(ht)\
 	if((ht)->ul_flags & HTABLE_SYNCHRONIZED)\
-		do_mutex_unlock((ht)->os_lock);
+		oryx_sys_mutex_unlock(&(ht)->mtx);
 
 #define htable_active_slots(ht)\
 	((ht)->array_size)

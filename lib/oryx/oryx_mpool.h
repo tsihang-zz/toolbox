@@ -1,5 +1,12 @@
-#ifndef ORYX_MPOOL_H
-#define ORYX_MPOOL_H
+/*!
+ * @file oryx_mpool.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_MPOOL_H__
+#define __ORYX_MPOOL_H__
 
 ORYX_DECLARE (
 	void oryx_mpool_new (

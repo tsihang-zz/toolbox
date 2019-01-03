@@ -25,7 +25,7 @@ typedef struct FlowQueue_
     uint32_t dbg_maxlen;
 #endif /* DBG_PERF */
 #ifdef FQLOCK_MUTEX
-    os_mutex_t m;
+    sys_mutex_t m;
 #elif defined FQLOCK_SPIN
     os_spinlock_t s;
 #else
@@ -42,9 +42,9 @@ typedef struct FlowQueue_
 #elif defined FQLOCK_MUTEX
     #define FQLOCK_INIT(q) pthread_mutex_init(&(q)->m, NULL)
     #define FQLOCK_DESTROY(q) do_mutex_destroy(&(q)->m)
-    #define FQLOCK_LOCK(q) do_mutex_lock(&(q)->m)
+    #define FQLOCK_LOCK(q) oryx_sys_mutex_lock(&(q)->m)
     #define FQLOCK_TRYLOCK(q) do_mutex_trylock(&(q)->m)
-    #define FQLOCK_UNLOCK(q) do_mutex_unlock(&(q)->m)
+    #define FQLOCK_UNLOCK(q) oryx_sys_mutex_unlock(&(q)->m)
 #else
     #error Enable FQLOCK_SPIN or FQLOCK_MUTEX
 #endif

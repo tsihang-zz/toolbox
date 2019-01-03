@@ -1,3 +1,10 @@
+/*!
+ * @file debug.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 

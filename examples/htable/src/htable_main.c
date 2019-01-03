@@ -38,13 +38,13 @@ ht__cmp (const ht_value_t v1,
 		const ht_value_t v2,
 		uint32_t s2)
 {
-	int xret = 0;
+	int err = 0;
 
 	if (!v1 || !v2 ||s1 != s2 ||
 		memcmp(v1, v2, s2))
-		xret = 1;
+		err = 1;
 
-	return xret;
+	return err;
 }
 
 static void htable_handler(ht_value_t __oryx_unused__ v,
@@ -81,6 +81,7 @@ int main (
 	fprintf (stdout, "%d =? %d\n", refcount, active_elements);
 	
 	oryx_htable_destroy(htable);
+	fprintf(stdout, "Press Ctrl+c for quit ...\n");
 
 	FOREVER;
 }

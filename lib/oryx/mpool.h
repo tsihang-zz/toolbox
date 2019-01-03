@@ -1,3 +1,10 @@
+/*!
+ * @file mpool.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __MPOOL_H__
 #define __MPOOL_H__
 

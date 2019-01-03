@@ -1,3 +1,10 @@
+/*!
+ * @file atomic.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __ATOMIC_H__
 #define __ATOMIC_H__
 

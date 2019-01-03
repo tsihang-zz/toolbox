@@ -263,7 +263,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 		return 0;
 	}
 
-	do_mutex_lock (&am->lock);
+	oryx_sys_mutex_lock (&am->lock);
 	int r = oryx_htable_del(am->htable,
 				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 	if (r == 0 /** success */) {
@@ -272,7 +272,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 
 		/** do not set appl_id to APPL_INVALID_ID here, because appl_inherit. */
 	}
-	do_mutex_unlock (&am->lock);
+	oryx_sys_mutex_unlock (&am->lock);
 	
 	/** Should you free appl here ? */
 	return 0;  
@@ -280,7 +280,7 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 
 int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 {
-	do_mutex_lock (&am->lock);
+	oryx_sys_mutex_lock (&am->lock);
 	int r = 0;
 	int each;
 	struct appl_t *son = NULL, *a = NULL;
@@ -322,7 +322,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 	}
 
 finish:
-	do_mutex_unlock (&am->lock);
+	oryx_sys_mutex_unlock (&am->lock);
 	return r;
 }
 

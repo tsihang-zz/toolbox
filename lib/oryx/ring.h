@@ -1,20 +1,12 @@
+/*!
+ * @file ring.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef LOCKLESS_RING_H
 #define LOCKLESS_RING_H
-
-#define RLOCK_INIT(r)\
-		do_mutex_init(&(r)->m)
-
-#define RLOCK_DESTROY(r)\
-		do_mutex_destroy(&(r)->m)
-
-#define RLOCK_TRYLOCK(r)\
-		do_mutex_trylock(&(r)->m)
-
-#define RLOCK_LOCK(r)\
-		do_mutex_lock(&(r)->m)
-
-#define RLOCK_UNLOCK(r)\
-		do_mutex_unlock(&(r)->m)
 
 struct oryx_ring_data_t {
 	uint32_t	s0: 16;
@@ -37,7 +29,7 @@ struct oryx_ring_t {
 						nr_times_wr,
 						nr_times_f;	/* full times */
 
-	os_mutex_t			m;			/* lockless .*/
+	sys_mutex_t			mtx;			/* lockless .*/
 };
 #define	ring_element_next(r,rw)	(((rw) + 1) % (r)->max_elements)
 

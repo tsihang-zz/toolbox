@@ -87,7 +87,7 @@ static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 	int each;
 	struct map_t *son = NULL, *a = NULL;
 	
-	do_mutex_lock (&mm->lock);
+	oryx_sys_mutex_lock (&mm->lock);
 	
 	/** lookup for an empty slot for this map. */
 	vec_foreach_element(mm->entry_vec, each, a) {
@@ -129,7 +129,7 @@ static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 	}
 
 finish:
-	do_mutex_unlock (&mm->lock);
+	oryx_sys_mutex_unlock (&mm->lock);
 	return r;
 }
 
@@ -140,7 +140,7 @@ static int no_map_table_entry (struct map_t *map)
 	vlib_main_t *vm = mm->vm;
 	int r = 0;
 	
-	do_mutex_lock (&mm->lock);
+	oryx_sys_mutex_lock (&mm->lock);
 	
 	/** Delete alias from hash table. */
 	r = oryx_htable_del(mm->htable, (ht_value_t)map_alias(map),
@@ -162,7 +162,7 @@ static int no_map_table_entry (struct map_t *map)
 		mm->nb_maps --;
 	}
 
-	do_mutex_unlock (&mm->lock);
+	oryx_sys_mutex_unlock (&mm->lock);
 
 	/** Should you free here ? */
 	

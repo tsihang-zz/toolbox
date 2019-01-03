@@ -1,17 +1,23 @@
+/*!
+ * @file task.c
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #include "oryx.h"
 
 struct oryx_task_mgr_t {	
-	os_mutex_t			lock;				/** lock. */
+	sys_mutex_t			mtx;				/** mutex. */
 	struct list_head	head;				/** all tasks are hold by head. */
 	uint32_t			ul_count;			/** tasks statistics. */
-	uint32_t			ul_setting_flags;	/** task manager settings. */
+	uint32_t			cfg;	/** task manager settings. */
 	int					nr_cpus;			/** total cpus. */
 };
 
 static struct oryx_task_mgr_t taskmgr = {
-	.ul_setting_flags	=	0,
+	.cfg	=	0,
 	.ul_count			=	0,
-	.lock				=	INIT_MUTEX_VAL,
 	.nr_cpus			=	0,
 };
 
@@ -47,10 +53,10 @@ task_deregistry
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	do_mutex_lock(&tm->lock);
+	oryx_sys_mutex_lock(&tm->mtx);
 	list_del(&task->list);	
 	tm->ul_count --;
-	do_mutex_unlock(&tm->lock);
+	oryx_sys_mutex_unlock(&tm->mtx);
 
 	if(task->ul_flags & TASK_CAN_BE_RECYCLABLE)
 		kfree(task);
@@ -64,10 +70,10 @@ task_registry
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	do_mutex_lock(&tm->lock);
+	oryx_sys_mutex_lock(&tm->mtx);
 	list_add_tail(&task->list, &tm->head);	
 	tm->ul_count ++;
-	do_mutex_unlock(&tm->lock);
+	oryx_sys_mutex_unlock(&tm->mtx);
 }
 
 static struct oryx_task_t*
@@ -79,14 +85,14 @@ oryx_task_query_id
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	do_mutex_lock(&tm->lock);
+	oryx_sys_mutex_lock(&tm->mtx);
 	list_for_each_entry_safe(task, p, &tm->head, list){
 		if (pid == task->pid){
-			do_mutex_lock(&tm->lock);
+			oryx_sys_mutex_lock(&tm->mtx);
 			return task;
 		}
 	}
-	do_mutex_unlock(&tm->lock);
+	oryx_sys_mutex_unlock(&tm->mtx);
 	return NULL;
 }
 
@@ -99,14 +105,14 @@ oryx_task_query_alias
 	struct oryx_task_t *task = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
 
-	do_mutex_lock(&tm->lock);
+	oryx_sys_mutex_lock(&tm->mtx);
 	list_for_each_entry_safe(task, p, &tm->head, list){
 		if (!strcmp(sc_alias, task->sc_alias)){
-			do_mutex_lock(&tm->lock);
+			oryx_sys_mutex_lock(&tm->mtx);
 			return task;
 		}
 	}
-	do_mutex_unlock(&tm->lock);
+	oryx_sys_mutex_unlock(&tm->mtx);
 	return NULL;
 }
 
@@ -288,6 +294,7 @@ oryx_task_initialize (void)
 
 	INIT_LIST_HEAD(&tm->head);
 	tm->nr_cpus	=	(int)sysconf(_SC_NPROCESSORS_ONLN);
+	oryx_sys_mutex_create(&tm->mtx);
 	os_sync_init();
 }
 

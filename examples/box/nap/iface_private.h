@@ -94,7 +94,7 @@ typedef struct vlib_iface_main_t {
 	struct oryx_timer_t		*healthy_tmr;
 	uint32_t				link_detect_tmr_interval;
 	uint32_t				poll_interval;
-	os_mutex_t				lock;
+	sys_mutex_t				lock;
 	oryx_vector				entry_vec;
 	struct oryx_htable_t	*htable;
 	void					*vm;
@@ -231,14 +231,14 @@ int iface_add
 	IN struct iface_t *this
 )
 {
-	do_mutex_lock (&pm->lock);
+	oryx_sys_mutex_lock (&pm->lock);
 	int r = oryx_htable_add(pm->htable, iface_alias(this),
 						strlen((const char *)iface_alias(this)));
 	if (r == 0) {
 		vec_set_index (pm->entry_vec, this->ul_id, this);
 		pm->ul_n_ports ++;
 	}
-	do_mutex_unlock (&pm->lock);
+	oryx_sys_mutex_unlock (&pm->lock);
 	return r;
 }
 
@@ -249,14 +249,14 @@ int iface_del
 	IN struct iface_t *this
 )
 {
-	do_mutex_lock (&pm->lock);
+	oryx_sys_mutex_lock (&pm->lock);
 	int r = oryx_htable_del(pm->htable, iface_alias(this),
 						strlen((const char *)iface_alias(this)));
 	if (r == 0) {
 		vec_unset (pm->entry_vec, this->ul_id);
 		pm->ul_n_ports --;
 	}
-	do_mutex_unlock (&pm->lock);
+	oryx_sys_mutex_unlock (&pm->lock);
 	return r;
 }
 

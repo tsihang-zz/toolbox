@@ -1,3 +1,10 @@
+/*!
+ * @file format.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef __FORMAT_H__
 #define __FORMAT_H__
 

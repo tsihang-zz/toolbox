@@ -1,3 +1,10 @@
+/*!
+ * @file shm_ring.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef SHMRING_H
 #define SHMRING_H
 

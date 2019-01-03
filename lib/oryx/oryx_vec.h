@@ -1,5 +1,12 @@
-#ifndef ORYX_VEC_H
-#define ORYX_VEC_H
+/*!
+ * @file oryx_vec.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
+#ifndef __ORYX_VEC_H__
+#define __ORYX_VEC_H__
 
 #include "vec.h"
 

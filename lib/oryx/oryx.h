@@ -1,3 +1,9 @@
+/*!
+ * @file oryx.h
+ * @date 2017/08/29
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
 
 #ifndef __ORYX_H__
 #define __ORYX_H__
@@ -234,24 +240,16 @@ typedef uint32_t 			key32_t;
 typedef void* 			ht_value_t;
 typedef key32_t			ht_key_t;
 
-/* mutex */
-typedef pthread_mutex_t	os_mutex_t;
-
-/* cond */
-typedef pthread_cond_t	os_cond_t;
-
-/* rwlocks */
-typedef pthread_rwlock_t	os_rwlock_t;
-
-/* spinlocks */
-typedef pthread_spinlock_t	os_spinlock_t;
-
 #ifndef IN
-#define IN
+#define IN	/* Parameter IN, always be a constant */
 #endif
 
 #ifndef OUT
-#define OUT
+#define OUT	/* Parameter OUT, always be a pointer */
+#endif
+
+#ifndef IO
+#define IO	/* Parameter IN and OUT, means that an input pointer maybe modified. */
 #endif
 
 #define GETL_BYTE2(p)		(((p)[0]<<8)  | (p)[1])

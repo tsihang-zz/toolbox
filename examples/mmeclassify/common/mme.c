@@ -100,7 +100,7 @@ vlib_mme_t *mme_alloc(const char *name, size_t nlen)
 			mme->lq_id = 0;
 			mme->tv = 0;
 			INIT_LIST_HEAD(&mme->fhead);
-			MME_LOCK_INIT(mme);
+			oryx_sys_mutex_create(&mme->lock);
 			memcpy(&mme->name[0], &name[0], nlen);
 			return mme;
 		}

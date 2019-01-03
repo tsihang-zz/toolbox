@@ -1272,9 +1272,9 @@ void CudaReleasePacket(Packet *p)
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled == 1) {
         p->cuda_pkt_vars.cuda_mpm_enabled = 0;
-        do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
+        oryx_sys_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
         p->cuda_pkt_vars.cuda_done = 0;
-        do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
+        oryx_sys_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
     }
 
     return;
@@ -1479,10 +1479,10 @@ static void *SCACCudaDispatcher(void *arg)
         for (uint32_t i = 0; i < no_of_items; i++, i_op_start_offset++) {
             Packet *p = (Packet *)cb_data->p_buffer[i_op_start_offset];
 
-            do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
+            oryx_sys_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
             if (p->cuda_pkt_vars.cuda_mpm_enabled == 0) {
                 p->cuda_pkt_vars.cuda_done = 0;
-                do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
+                oryx_sys_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
                 continue;
             }
 
@@ -1497,7 +1497,7 @@ static void *SCACCudaDispatcher(void *arg)
             }
 
             p->cuda_pkt_vars.cuda_done = 1;
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
+            oryx_sys_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
             do_cond_signal(&p->cuda_pkt_vars.cuda_cond);
         }
         if (no_of_items != 0)
@@ -1545,13 +1545,13 @@ uint32_t SCACCudaPacketResultsProcessing(Packet *p, const MpmCtx *mpm_ctx,
     uint32_t u = 0;
 
     while (!p->cuda_pkt_vars.cuda_done) {
-        do_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
+        oryx_sys_mutex_lock(&p->cuda_pkt_vars.cuda_mutex);
         if (p->cuda_pkt_vars.cuda_done) {
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
+            oryx_sys_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
             break;
         } else {
             do_cond_wait(&p->cuda_pkt_vars.cuda_cond, &p->cuda_pkt_vars.cuda_mutex);
-            do_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
+            oryx_sys_mutex_unlock(&p->cuda_pkt_vars.cuda_mutex);
         }
     } /* while */
     p->cuda_pkt_vars.cuda_done = 0;

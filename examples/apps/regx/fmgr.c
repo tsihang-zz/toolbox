@@ -37,13 +37,13 @@ static ht_key_t fkey_hval (struct oryx_htable_t *ht,
 static int fkey_cmp (const ht_value_t v1, uint32_t s1,
 		const ht_value_t v2, uint32_t s2)
 {
-	int xret = 0;
+	int err = 0;
 	
 	if (!v1 || !v2 || s1 != s2 ||
 		memcmp(v1, v2, s2))
-		xret = 1;	/** Compare failed. */
+		err = 1;	/** Compare failed. */
 
-	return xret;
+	return err;
 }
 
 static vlib_conf_t *fkey_alloc(void)
@@ -56,7 +56,7 @@ static vlib_conf_t *fkey_alloc(void)
 
 
 static __oryx_always_inline__
-int fmgr_fchk (const char *f, char *date, char *port)
+int fmgr_fchk (const char *f, char *date, char *port, bool chkfmt)
 {
 	char *p;
 	int c = 0,
@@ -72,17 +72,22 @@ int fmgr_fchk (const char *f, char *date, char *port)
 				date[i ++] = *p;
 		}
 		if (c == 3) {
-			if (*p != '_' && *p != '.')
-				port[j ++] = *p;
-			else {
-				if (!strncmp(p, ".AVL", 4)) {
-					pass = 1;
-					break;
-				}
+			if (*p == '_')
+				continue;
+			if (*p == '.') {
+				pass = 1;
+				break;
 			}
+			port[j ++] = *p;
 		}
 	}
-	
+
+	if (chkfmt && !strncmp(p, "AVL", 3)) {		
+		pass = 0;
+	}
+
+	//fprintf(stdout, "-%s-%s-pass(%d)\n", date, port, pass);
+
 	return pass;
 }
 
@@ -101,23 +106,25 @@ static int fmgr_inotify_timedout
 	vlib_conf_t *key;	/* search hash table first */
 	vlib_main_t *vm = (vlib_main_t *)argv;
 	char date[1024] = {0}, port[8] = {0};
+	bool skip = false;
 
-	if (vm->ul_flags & VLIB_REGX_FNAME_CHK) {
-		if (!fmgr_fchk(filename, date, port)) {
-			fprintf(stdout, "%s -\n", pathname);
-			return 0;
+	if (!fmgr_fchk(filename, date, port, (vm->ul_flags & VLIB_REGX_FNAME_CHK))) {
+		skip = true;
+	}
+
+	if (!skip && (vm->ul_flags & VLIB_REGX_FTIME_CHK)) {
+		time_t t = regx_date2stamp(date);
+		fprintf(stdout, "-%s-%s-%lu\n", date, port, t);
+		if (t < regx_time_from || t > regx_time_to) {
+			skip = true;
 		}
-		//fprintf(stdout, "%s %s %lu\n", date, port, regx_date2stamp(date));
+	}
+
+	if (skip) {
+		fprintf(stdout, "%s -\n", pathname);
+		return 0;
 	}
 	
-	if (vm->ul_flags & VLIB_REGX_FTIME_CHK) {
-		time_t t = regx_date2stamp(date);
-		if (t < regx_time_from || t > regx_time_to) {
-			fprintf(stdout, "%s -\n", pathname);
-			return 0;
-		}
-	}
-
 	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
 	if (s) {
 		return 0;
