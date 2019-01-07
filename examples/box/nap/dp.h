@@ -40,60 +40,60 @@ typedef struct DecodeThreadVars_
     int vlan_disabled;
 
     /** stats/counters */
-    counter_id counter_pkts;
-    counter_id counter_bytes;
-    counter_id counter_avg_pkt_size;
-    counter_id counter_max_pkt_size;
+    oryx_counter_id_t counter_pkts;
+    oryx_counter_id_t counter_bytes;
+    oryx_counter_id_t counter_avg_pkt_size;
+    oryx_counter_id_t counter_max_pkt_size;
 
-    counter_id counter_invalid;
+    oryx_counter_id_t counter_invalid;
 
-    counter_id counter_eth;
-    counter_id counter_ipv4;
-    counter_id counter_ipv6;
-    counter_id counter_tcp;
-    counter_id counter_udp;
-    counter_id counter_icmpv4;
-    counter_id counter_icmpv6;
+    oryx_counter_id_t counter_eth;
+    oryx_counter_id_t counter_ipv4;
+    oryx_counter_id_t counter_ipv6;
+    oryx_counter_id_t counter_tcp;
+    oryx_counter_id_t counter_udp;
+    oryx_counter_id_t counter_icmpv4;
+    oryx_counter_id_t counter_icmpv6;
 	
-    counter_id counter_sll;
-    counter_id counter_raw;
-    counter_id counter_null;
-    counter_id counter_sctp;
-    counter_id counter_ppp;
-    counter_id counter_gre;
-	counter_id counter_arp;
-    counter_id counter_vlan;
-	counter_id counter_dsa;	/** Marvell DSA. */
-    counter_id counter_vlan_qinq;
-    counter_id counter_ieee8021ah;
-    counter_id counter_pppoe;
-    counter_id counter_teredo;
-    counter_id counter_mpls;
-    counter_id counter_ipv4inipv6;
-    counter_id counter_ipv6inipv6;
-    counter_id counter_erspan;
+    oryx_counter_id_t counter_sll;
+    oryx_counter_id_t counter_raw;
+    oryx_counter_id_t counter_null;
+    oryx_counter_id_t counter_sctp;
+    oryx_counter_id_t counter_ppp;
+    oryx_counter_id_t counter_gre;
+	oryx_counter_id_t counter_arp;
+    oryx_counter_id_t counter_vlan;
+	oryx_counter_id_t counter_dsa;	/** Marvell DSA. */
+    oryx_counter_id_t counter_vlan_qinq;
+    oryx_counter_id_t counter_ieee8021ah;
+    oryx_counter_id_t counter_pppoe;
+    oryx_counter_id_t counter_teredo;
+    oryx_counter_id_t counter_mpls;
+    oryx_counter_id_t counter_ipv4inipv6;
+    oryx_counter_id_t counter_ipv6inipv6;
+    oryx_counter_id_t counter_erspan;
 
-	counter_id counter_http;
-	counter_id counter_http_get;
-	counter_id counter_http_post;
+	oryx_counter_id_t counter_http;
+	oryx_counter_id_t counter_http_get;
+	oryx_counter_id_t counter_http_post;
 	
-	counter_id counter_drop;
+	oryx_counter_id_t counter_drop;
 
     /** frag stats - defrag runs in the context of the decoder. */
-    counter_id counter_defrag_ipv4_fragments;
-    counter_id counter_defrag_ipv4_reassembled;
-    counter_id counter_defrag_ipv4_timeouts;
-    counter_id counter_defrag_ipv6_fragments;
-    counter_id counter_defrag_ipv6_reassembled;
-    counter_id counter_defrag_ipv6_timeouts;
-    counter_id counter_defrag_max_hit;
+    oryx_counter_id_t counter_defrag_ipv4_fragments;
+    oryx_counter_id_t counter_defrag_ipv4_reassembled;
+    oryx_counter_id_t counter_defrag_ipv4_timeouts;
+    oryx_counter_id_t counter_defrag_ipv6_fragments;
+    oryx_counter_id_t counter_defrag_ipv6_reassembled;
+    oryx_counter_id_t counter_defrag_ipv6_timeouts;
+    oryx_counter_id_t counter_defrag_max_hit;
 
-    counter_id counter_flow_memcap;
+    oryx_counter_id_t counter_flow_memcap;
 
-    counter_id counter_flow_tcp;
-    counter_id counter_flow_udp;
-    counter_id counter_flow_icmp4;
-    counter_id counter_flow_icmp6;
+    oryx_counter_id_t counter_flow_tcp;
+    oryx_counter_id_t counter_flow_udp;
+    oryx_counter_id_t counter_flow_icmp4;
+    oryx_counter_id_t counter_flow_icmp6;
 
 
     /* thread data for flow logging api: only used at forced

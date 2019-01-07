@@ -28,7 +28,7 @@ ORYX_DECLARE (
 
 ORYX_DECLARE (
 	void oryx_task_deregistry_id (
-		IN oryx_os_thread_t pid
+		IN sys_thread_t pid
 	)
 );
 

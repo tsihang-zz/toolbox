@@ -8,6 +8,10 @@
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /** memory flags */
 #define MPF_NOFLGS  (0)
@@ -105,5 +109,9 @@ ORYX_DECLARE (
 		IN int size
 	)
 );
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif

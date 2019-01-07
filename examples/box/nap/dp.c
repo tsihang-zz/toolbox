@@ -1047,7 +1047,6 @@ void dp_start
 		sprintf (thrgp_name, "dp[%u] hd-thread", i);
 		tv->thread_group_name = strdup(thrgp_name);
 		ATOMIC_INIT(tv->flags);
-		pthread_mutex_init(&tv->perf_private_ctx0.m, NULL);
 		dp_register_perf_counters(dtv, tv);
 	}
 

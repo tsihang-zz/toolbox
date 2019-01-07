@@ -261,9 +261,9 @@ typedef struct {
 
 typedef struct {
 	/* control interval of dpdk link state and stat polling */
-	f64 link_state_poll_interval;
+	uint64_t link_state_poll_interval;
 	
-	f64 stat_poll_interval;
+	uint64_t stat_poll_interval;
 	
 	/* Sleep for this many usec after each device poll */
 	uint32_t poll_sleep_usec;

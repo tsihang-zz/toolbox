@@ -1,6 +1,14 @@
+/*!
+ * @file netdev.h
+ * @date 2019/01/05
+ *
+ * TSIHANG (haechime@gmail.com)
+ */
+
 #ifndef NETDEV_H
 #define NETDEV_H
 
+#include "config.h"
 #include "ethtool.h"
 
 #if defined(HAVE_PCAP)

@@ -8,7 +8,8 @@
 #include "acl.h"
 
 vlib_map_main_t vlib_map_main = {
-	.lock = INIT_MUTEX_VAL,
+	.ul_flags = 0,
+	.nb_maps = 0,
 };
 
 ATOMIC_DECL_AND_INIT(uint32_t, nr_map_elems);
@@ -643,7 +644,9 @@ void vlib_map_init(vlib_main_t *vm)
 	mm->vm			=	vm;
 	mm->entry_vec	=	vec_init (MAX_MAPS);
 	mm->htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-									ht_map_hval, ht_map_cmp, ht_map_free, 0);	
+									ht_map_hval, ht_map_cmp, ht_map_free, 0);
+	oryx_sys_mutex_create(&mm->lock);
+	
 	if (mm->htable == NULL || 
 		mm->entry_vec == NULL)
 		oryx_panic(-1, 

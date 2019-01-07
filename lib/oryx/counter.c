@@ -19,7 +19,7 @@
  * \retval 0 on failure
  */
 static
-counter_id register_qualified_counter
+oryx_counter_id_t register_qualified_counter
 (
 	IN const char *name,
 	IN struct oryx_counter_ctx_t *ctx,
@@ -71,8 +71,8 @@ counter_id register_qualified_counter
     return c->id;
 }
 
-counter_id
-oryx_register_counter
+__oryx_always_extern__
+oryx_counter_id_t oryx_register_counter
 (
 	IN const char *name,
 	IN const char *comments,
@@ -80,7 +80,7 @@ oryx_register_counter
 )
 {
 	comments = comments;
-	counter_id id = register_qualified_counter (
+	oryx_counter_id_t id = register_qualified_counter (
 					name,
 					ctx,
 					STATS_TYPE_Q_NORMAL, NULL);
@@ -93,8 +93,8 @@ oryx_register_counter
 * \param head Pointer to the head of the list of perf counters that have to
 * 			be freed
 */
-void
-oryx_release_counter
+__oryx_always_extern__
+void oryx_release_counter
 (
 	IN struct oryx_counter_ctx_t *ctx
 )
@@ -123,11 +123,11 @@ oryx_release_counter
  *
  *  \retval a counter-array in this(s_id-e_id) range for this TM instance
  */
-int
-oryx_counter_get_array_range
+__oryx_always_extern__
+int oryx_counter_get_array_range
 (
-	IN counter_id s_id,
-	IN counter_id e_id,
+	IN oryx_counter_id_t s_id,
+	IN oryx_counter_id_t e_id,
 	IN struct oryx_counter_ctx_t *ctx
 )
 {
@@ -137,7 +137,7 @@ oryx_counter_get_array_range
 	BUG_ON (ctx == NULL);
 	BUG_ON ((s_id < 1) || (e_id < 1) || (s_id > e_id));
 	
-	if (e_id > (counter_id)atomic_read(ctx->curr_id))
+	if (e_id > (oryx_counter_id_t)atomic_read(ctx->curr_id))
         	oryx_panic(-1,
 			"end id is greater than the max id.");
 

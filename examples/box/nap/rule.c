@@ -6,7 +6,7 @@
 
 
 vlib_appl_main_t vlib_appl_main = {
-	.lock = INIT_MUTEX_VAL,
+	.ul_flags = 0,
 };
 
 ATOMIC_DECL_AND_INIT(uint32_t, nr_rule_elems);
@@ -844,6 +844,7 @@ void vlib_rule_init (vlib_main_t *vm)
 	am->entry_vec	= vec_init (MAX_APPLICATIONS);
 	am->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_appl_hval, ht_appl_cmp, ht_appl_free, 0);
+	oryx_sys_mutex_create(&am->lock);
 	
 	if (am->htable == NULL || am->entry_vec == NULL)
 		oryx_panic(-1, 

@@ -8,8 +8,18 @@
 #ifndef __FORMAT_H__
 #define __FORMAT_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define FMT_BUFF_INITIALIZATION	{NULL, 0, 0}
+#define FMT_DATA(fmt)	((struct oryx_fmt_buff_t *)(&fmt))->fmt_data
+#define FMT_DATA_LENGTH(fmt) ((struct oryx_fmt_buff_t *)(&fmt))->fmt_doffs
+
 #define FMT_START		0
 #define DEFAULT_FMT_MSG_SIZE	1024
+
 struct oryx_fmt_buff_t {
 
 	/** data hold by this variable. */
@@ -22,9 +32,9 @@ struct oryx_fmt_buff_t {
 	size_t fmt_buff_size;
 };
 
-#define FMT_BUFF_INITIALIZATION	{NULL, 0, 0}
-#define FMT_DATA(fmt)	((struct oryx_fmt_buff_t *)(&fmt))->fmt_data
-#define FMT_DATA_LENGTH(fmt) ((struct oryx_fmt_buff_t *)(&fmt))->fmt_doffs
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif
 

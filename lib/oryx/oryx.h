@@ -8,6 +8,11 @@
 #ifndef __ORYX_H__
 #define __ORYX_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <sched.h>
 #include <assert.h>
 #include <arpa/inet.h>
@@ -72,10 +77,6 @@
 
 #if !defined(HAVE_DPDK)
 #include <net/ethernet.h>
-#endif
-
-#if defined(HAVE_PCAP)
-#include <pcap.h>
 #endif
 
 #if defined(HAVE_PCRE)
@@ -201,42 +202,23 @@
 #define TRUE true
 #define FALSE false
 
+typedef unsigned char		uchar;
+typedef unsigned long		uword;
 
-/** std variable. */
-typedef unsigned char	oryx_byte_t;
-typedef size_t		oryx_size_t;
-typedef int16_t		oryx_int16_t;
-typedef uint8_t		oryx_uint8_t;
-typedef uint16_t		oryx_uint16_t;
-typedef uint32_t		oryx_uint32_t;
-typedef int32_t		oryx_int32_t;
-typedef uint64_t		oryx_uint64_t;
-typedef int64_t		oryx_int64_t;
-typedef off_t			oryx_off_t;
-typedef socklen_t		oryx_socklen_t;
-typedef ino_t          	oryx_ino_t;
-typedef oryx_uint16_t	oryx_port_t;
-typedef oryx_uint32_t		HASH_INDEX;
-typedef DIR				oryx_dir_t;			   /**< native dirent */
-typedef struct timeval		oryx_os_imp_time_t;    /**< native timeval */
-typedef struct tm			oryx_os_exp_time_t;    /**< native tm */
-typedef oryx_int32_t		oryx_handler_t;
-typedef signed char i8;
-typedef signed short i16;
-typedef signed int i32;
-typedef signed long long i64;
-typedef unsigned char u8;
-typedef unsigned char uchar;
-typedef unsigned short u16;
-/* Floating point types. */
-typedef double f64;
-typedef float f32;
-typedef unsigned long long u64;
-typedef unsigned long uword;
-typedef void *			oryx_os_shm_t;         /**< native SHM */
-typedef pthread_t		oryx_os_thread_t;
-typedef void *			oryx_os_dso_handle_t;
-typedef uint32_t 			key32_t;
+typedef signed char			i8;
+typedef unsigned char		u8;
+
+typedef signed short		i16;
+typedef unsigned short		u16;
+
+typedef signed int			i32;
+typedef unsigned int		u32;
+
+typedef int64_t				i64;
+typedef uint64_t			u64;
+
+
+typedef uint32_t 		key32_t;
 typedef void* 			ht_value_t;
 typedef key32_t			ht_key_t;
 
@@ -275,16 +257,6 @@ typedef union {
 	    uint64_t    v6l;	/** Lower */
 	};
 } ip_addr_t;
-
-/* Address */
-struct inet_addr {
-    char family;
-    union {
-        uint32_t       data32[4]; /* type-specific field */
-        uint16_t       data16[8]; /* type-specific field */
-        uint8_t        data8[16]; /* type-specific field */
-    } address;
-};
 
 /**
  * Alignment macros
@@ -446,7 +418,7 @@ static __oryx_always_inline__ uint64_t __ntoh64__(uint64_t net)
  * headers, without defining ORYX_DECLARE_STATIC, will prepare the code to be
  * linked to the dynamic library.
  */
-#define ORYX_DECLARE(type)            type 
+#define ORYX_DECLARE(type)            type
 
 /**
  * The public ORYX functions using variable arguments are declared with 
@@ -616,6 +588,10 @@ struct oryx_cfg_t *oryx_cfg_get(void) {
 #include "oryx_counters.h"
 
 extern int oryx_initialize(void);
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif	/* ORYX_H */
 

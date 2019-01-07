@@ -8,6 +8,11 @@
 #ifndef MDX_H
 #define MDX_H
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ORYX_MD5_BUFLEN	64
 
 typedef struct {
@@ -36,15 +41,19 @@ typedef struct {
 ORYX_DECLARE(
 	void oryx_md5_init (oryx_md5_ctxt *)
 );
+
 ORYX_DECLARE(
 	void oryx_md5_loop (oryx_md5_ctxt *, const void *, uint32_t)
 );
+
 ORYX_DECLARE(
 	void oryx_md5_pad (oryx_md5_ctxt *)
 );
+
 ORYX_DECLARE(
 	void oryx_md5_result (uint8_t *, oryx_md5_ctxt *)
 );
+
 ORYX_DECLARE(
 	void oryx_hmac_md5(
 			unsigned char*  text,			/* pointer to data stream */
@@ -63,6 +72,10 @@ do {				\
 	oryx_md5_pad((y));		\
 	oryx_md5_result((x), (y));	\
 } while (0)
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif
 

@@ -9,6 +9,12 @@
 #define __TASK_H__
 
 #define THIS 0
+#define INVALID_CORE		((typeof(__cpu_mask))(~0))
+#define KERNEL_SCHED    	(~0)
+
+/* Type for array elements in ‘cpu_set‘.  */
+typedef unsigned long int __cpu_mask;
+typedef pthread_t		sys_thread_t;
 
 #if defined(HAVE_SCHED_H)
 #ifndef __CPU_SETSIZE
@@ -19,16 +25,10 @@
 #define __NCPUBITS		(8 * sizeof(__cpu_mask))
 #endif
 
-/* Type for array elements in ‘cpu_set‘.  */
-typedef unsigned long int __cpu_mask;
-
 typedef struct {
 	__cpu_mask __bits[__CPU_SETSIZE / __NCPUBITS];
 }cpu_set_t;
 #endif
-
-#define INVALID_CORE		((typeof(__cpu_mask))(~0))
-#define KERNEL_SCHED    	(~0)
 
 /* task.ul_flags. */
 #define TASK_CAN_BE_RECYCLABLE	(1 << 0)	/** allowed or forbidden */
@@ -36,7 +36,7 @@ typedef struct {
 
 struct oryx_task_t {
     const int			module;					/** Not used, setup with macro THIS. */
-	oryx_os_thread_t	pid;
+	sys_thread_t	pid;
 	const char			*sc_alias;
 	__cpu_mask			lcore_mask;			/** lcore, kernel schedule if eque INVALID_CORE */
 	uint32_t			ul_prio;				/** priority of current task */

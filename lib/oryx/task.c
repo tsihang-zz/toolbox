@@ -79,7 +79,7 @@ task_registry
 static struct oryx_task_t*
 oryx_task_query_id 
 (
-	IN oryx_os_thread_t pid
+	IN sys_thread_t pid
 )
 {
 	struct oryx_task_t *task = NULL, *p;
@@ -124,7 +124,7 @@ oryx_task_query
 {
 	switch (lp->cmd) {
 		case LOOKUP_ID:
-			return oryx_task_query_id (*(oryx_os_thread_t *)lp->v);
+			return oryx_task_query_id (*(sys_thread_t *)lp->v);
 		case LOOKUP_ALIAS:
 			return oryx_task_query_alias ((char *)lp->v);
 		default:
@@ -155,7 +155,7 @@ oryx_task_registry
 void
 oryx_task_deregistry_id 
 (
-	IN oryx_os_thread_t pid
+	IN sys_thread_t pid
 )
 {
 	struct prefix_t p = {

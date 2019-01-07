@@ -39,15 +39,32 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 ifneq ($(CONFIG_RTE_EXEC_ENV),"linuxapp")
-$(info This application can only operate in a linuxapp environment, \
+$(error This application can only operate in a linuxapp environment, \
 please change the definition of the RTE_TARGET environment variable)
-else
-
-DIRS-y += oryx quagga ndev nap netperf
 endif
 
-include $(RTE_SDK)/mk/rte.extsubdir.mk
+# library name
+LIB = libndev.a
 
-clean:
-	@rm -fr src/$(RTE_TARGET)
-	@rm -fr oryx/$(RTE_TARGET)
+LIBABIVER := 1
+
+# all source are stored in SRC-Y
+SRCS-y :=\
+   netdev.c netdev_pcap.c
+
+#CFLAGS += $(WERROR_FLAGS)
+CFLAGS := -W -Wall -Wstrict-prototypes -Wmissing-prototypes
+CFLAGS += -Wmissing-declarations -Wpointer-arith
+CFLAGS += -Wcast-align -Wnested-externs
+CFLAGS += -Wformat-nonliteral -Wformat-security
+CFLAGS += -Wundef -Wwrite-strings
+#CFLAGS += -Wold-style-definition -Wcast-qual
+
+CFLAGS += -g -O3 --std=gnu99 
+CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
+		  -DHAVE_PCAP -DHAVE_ADVANCED_TMR
+
+CFLAGS += -I$(SRCDIR)\
+                -I$(SRCDIR)/../oryx
+
+include $(RTE_SDK)/mk/rte.extlib.mk

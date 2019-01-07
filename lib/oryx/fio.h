@@ -8,9 +8,15 @@
 #ifndef FIO_H
 #define FIO_H
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ORYX_FILE_NEW		(1 << 0)
 #define ORYX_FILE_OPENED	(1 << 1)
 #define ORYX_FILE_FLUSH		(1 << 2)
+
 struct oryx_file_t {
 #define	name_length	256
 	FILE		*fp;
@@ -66,6 +72,10 @@ ORYX_DECLARE (
 	)
 
 );
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif
 

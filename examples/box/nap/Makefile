@@ -65,6 +65,7 @@ CFLAGS += -I$(SRCDIR)\
 	  -I$(SRCDIR)/../oryx\
 	  -I$(SRCDIR)/../oryx/osih\
 	  -I$(SRCDIR)/../quagga\
+	  -I$(SRCDIR)/../ndev\
 	  -I/usr/include/hs
 
 #LDFLAGS += -lhs -lhs_runtime
@@ -72,6 +73,9 @@ LDFLAGS += -ldl -lpthread -lm -lrt -lpcap -lstdc++
 
 LDLIBS += -L$(subst nap,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
+
+LDLIBS += -L$(subst nap,ndev,$(RTE_OUTPUT))/lib
+LDLIBS += -lndev
 
 LDLIBS += -L$(subst nap,quagga,$(RTE_OUTPUT))/lib
 LDLIBS += -lquagga

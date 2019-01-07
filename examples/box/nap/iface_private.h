@@ -19,8 +19,8 @@ enum interface_conf_cmd {
 
 
 struct iface_counter_ctx {
-	counter_id lcore_counter_pkts[QUA_RXTX][VLIB_MAX_LCORES];
-	counter_id lcore_counter_bytes[QUA_RXTX][VLIB_MAX_LCORES];
+	oryx_counter_id_t lcore_counter_pkts[QUA_RXTX][VLIB_MAX_LCORES];
+	oryx_counter_id_t lcore_counter_bytes[QUA_RXTX][VLIB_MAX_LCORES];
 };
 
 #define NETDEV_ADMIN_UP							(1 << 0)	/** 0-down, 1-up */

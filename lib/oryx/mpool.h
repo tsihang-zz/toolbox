@@ -8,6 +8,11 @@
 #ifndef __MPOOL_H__
 #define __MPOOL_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Nothing to do. */
 
 ORYX_DECLARE (
@@ -44,6 +49,10 @@ ORYX_DECLARE (
 		IN void *elem
 	)
 );
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif
 

@@ -8,22 +8,10 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
-struct oryx_log_dynamic_type {
-	const char *name;
-	uint32_t loglevel;
-};
-
-/** The rte_log structure. */
-struct oryx_logs_t {
-	uint32_t type;  /**< Bitfield with enabled logs. */
-	uint32_t level; /**< Log level. */
-	FILE *file;     /**< Output file set by rte_openlog_stream, or NULL. */
-	size_t dynamic_types_len;
-	struct oryx_log_dynamic_type *dynamic_types;
-};
-
-/** Global log informations */
-extern struct oryx_logs_t oryx_logs;
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* SDK log type */
 #define ORYX_LOGTYPE_EAL        0 /**< Log related to eal. */
@@ -117,5 +105,26 @@ typedef enum {
 
 /* The default output interface to be used */
 #define SC_LOG_DEF_LOG_OP_IFACE SC_LOG_OP_IFACE_CONSOLE
+
+struct oryx_log_dynamic_type {
+	const char *name;
+	uint32_t loglevel;
+};
+
+/** The rte_log structure. */
+struct oryx_logs_t {
+	uint32_t type;  /**< Bitfield with enabled logs. */
+	uint32_t level; /**< Log level. */
+	FILE *file;     /**< Output file set by rte_openlog_stream, or NULL. */
+	size_t dynamic_types_len;
+	struct oryx_log_dynamic_type *dynamic_types;
+};
+
+/** Global log informations */
+extern struct oryx_logs_t oryx_logs;
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif

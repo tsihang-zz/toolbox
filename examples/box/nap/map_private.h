@@ -61,7 +61,7 @@ struct map_t {
 
 	char			sc_alias[32];				/** Unique, and also can be well human-readable. */
 	uint32_t		ul_id;						/** Unique, allocated automatically. */
-	sys_mutex_t 		*ol_lock;
+	sys_mutex_t 	ol_lock;
 	char 			*port_list_str[QUA_RXTX];	/** A temporary variable holding argvs from CLI,
 	     											and will be freee after split. */
 	uint32_t		rx_panel_port_mask;			/** Attention: QUA_RX, Where frame comes from.
@@ -258,11 +258,11 @@ int map_entry_new (struct map_t **map,
 	/** make alias. */
 	sprintf ((char *)&(*map)->sc_alias[0], "%s", ((alias != NULL) ? alias: MAP_PREFIX));
 
-	(*map)->port_list_str[QUA_RX] = strdup (from);
+	(*map)->port_list_str[QUA_RX] = strdup(from);
 	(*map)->port_list_str[QUA_TX] = strdup(to);
 	/** Need Map's ul_id, so have to remove map_ports to map_table_entry_add. */
 
-	oryx_tm_create(&(*map)->ol_lock);
+	oryx_sys_mutex_create(&(*map)->ol_lock);
 
 	return 0;
 }

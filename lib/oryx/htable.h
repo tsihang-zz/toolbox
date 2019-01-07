@@ -8,6 +8,11 @@
 #ifndef __HASH_TABLE_H__
 #define __HASH_TABLE_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DEFAULT_HASH_CHAIN_SIZE	(1 << 10)
 
 struct oryx_hbucket_t {
@@ -187,5 +192,8 @@ and these came close:
   c ^= b; c -= rot(b,24); \
 }
 
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif

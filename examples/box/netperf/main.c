@@ -1,7 +1,45 @@
 #include "oryx.h"
 #include "config.h"
 
-vlib_main_t *vlib_main;
+ATOMIC_DECLARE(int, nr_sub_netperf_proc);
+static vlib_main_t *vlib_main;
+static const char *shortopt = "vi:l:t:";
+
+/* Parameter from args. */
+static char *progname;
+static char *ethdev;
+static size_t mtu = 1024;
+/* how long does this progress run (in seconds). 0 means forever. */
+static time_t timeout = 0;
+
+#define RXTX_BUF_MAX	1024
+static char rx_buf[RXTX_BUF_MAX], tx_buf[RXTX_BUF_MAX] ="\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+/* payload length */
+static size_t tx_buf_len = 0;
+
+/*
+ * print a usage message
+ */
+static void
+usage(void)
+{
+	fprintf (stdout,
+		"%s -i ETHDEV -l MTU -t TIMEDOUT\n"
+		" -v            : Show version\n"
+		" -i ETHDEV     : Which netdev should be used to send packets\n"
+		" -l MTU        : Maximum Transform Unit, %lu (in bytes)\n"
+		" -t TIMEDOUT   : Time for netperf in runtime, 0 means never stop\n"
+		, progname, mtu);
+}
 
 static __oryx_always_inline__
 void logprgname(void)
@@ -22,7 +60,7 @@ void logprgname(void)
 
 static __oryx_always_inline__
 void sigint_handler(int sig) {
-	fprintf (stdout, "signal %d ...\n", sig);
+	fprintf (stdout, "%s, signal %d ...\n", progname, sig);
 	vlib_main->ul_flags |= VLIB_QUIT;
 }
 
@@ -38,32 +76,16 @@ void sigchld_handler(int num) {
     }   
 }
 
-struct vlib_ethdev_t {
-	char *name;
-	uint64_t	nr_rx_pkts;
-	uint64_t	nr_tx_pkts;
-	uint64_t	nr_rx_bytes;
-	uint64_t	nr_tx_bytes;
-};
-
-typedef struct vlib_sockpair_t {
-	int sock[2];
-	struct vlib_ethdev_t dev[2];
-} vlib_sockpair_t;
-
-#define VLIB_GRP_NUM 5
-vlib_sockpair_t vlib_sockpair[VLIB_GRP_NUM];
-
-static void netperf_sockpair (const char *ethname1, const char *ethname2)
+static vlib_ndev_t *ndev_open (const char *ethname)
 {
-	static int i = 0;
+	int err;
 	int sock;
-	vlib_sockpair_t *skpair;
 	struct ifreq ifr;
+	vlib_ndev_t *ndev;
+	vlib_main_t *vm = vlib_main;
 	
-	skpair = &vlib_sockpair[i ++];
-
-	sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	//sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
 		fprintf(stdout, "socket: %s\n",
 			oryx_safe_strerror(errno));
@@ -72,84 +94,179 @@ static void netperf_sockpair (const char *ethname1, const char *ethname2)
 
 	/* bind to specified interface */
 	memset (&ifr, 0, sizeof (ifr));
-	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", ethname1);
+	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", ethname);
 
-    if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
-		(char *)&ifr, sizeof(ifr))  < 0) {
-		fprintf(stdout, "setsockopt: %s\n",
-			oryx_safe_strerror(errno));
-		exit(0);
-    }
-	if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0) {
-		fprintf(stdout, "ioctl: %s\n",
-			oryx_safe_strerror(errno));
-		exit(0);
-	}
-	skpair->dev[0].name = strdup(ethname1);
-	skpair->sock[0] = sock;
-
-	sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	if (sock < 0) {
-		fprintf(stdout, "socket: %s\n",
-			oryx_safe_strerror(errno));
-		exit(0);
-	}
-
-	/* bind to specified interface */
-	memset (&ifr, 0, sizeof (ifr));
-	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", ethname2);
-    if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
-		(char *)&ifr, sizeof(ifr))  < 0) {
+	err = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
+		(char *)&ifr, sizeof(ifr));
+    if (err  < 0) {
 		fprintf(stdout, "setsockopt: %s\n",
 			oryx_safe_strerror(errno));
 		exit(0);
     }
 
-	if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0) {
+	err = ioctl (sock, SIOCGIFHWADDR, &ifr);
+	if (err < 0) {
 		fprintf(stdout, "ioctl: %s\n",
 			oryx_safe_strerror(errno));
 		exit(0);
 	}
-	skpair->dev[1].name = strdup(ethname2);
-	skpair->sock[1] = sock;
 
+	/* Nonblock */
+	int flags = 0;
+	if ((flags = fcntl(sock, F_GETFL, 0)) < 0) {
+		fprintf(stdout, "%s\n",
+			oryx_safe_strerror(errno));
+		exit(0);
+	}
+
+	err = fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+	if (err) {
+		fprintf(stdout, "%s\n",
+			oryx_safe_strerror(errno));
+		exit(0);
+	}
+	
+	ndev = &vm->ndev[vm->nr_ndevs ++];
+	ndev->sock = sock;
+	memcpy (&ndev->ethname[0], ethname, strlen(ethname));
+
+	return ndev;
+	
 }
 
-int toIpString(const char* ip, uint32_t* retval) {
-   struct hostent *hp;
-   *retval = 0;
+static int netperf_init(int argc, char **argv)
+{
+	char c;
+	vlib_main_t *vm = vlib_main;
 
-   if (strcmp(ip, "0.0.0.0") == 0) {
-      return 0;
-   }
+	vm->start_time = time(NULL);
+	progname = argv[0];
+	
+	while ((c = getopt(argc, argv, shortopt)) != -1) {
+		switch ((char)c) {
+			case 'v':
+				{
+					fprintf(stdout,
+						"%s Verson %s. BUILD %s\n", progname, "1", "aaa");
+					exit(0);
+				}
+			
+			case 'i':
+				{
+					ethdev = optarg;
+					break;
+				}
 
-   if (ip[0] == 0) {
-      return 0;
-   }
+			case 'l':
+				{
+					char *chkptr;
+					mtu = strtol(optarg, &chkptr, 10);
+					if ((chkptr != NULL && *chkptr == 0)) {
+						tx_buf_len = (mtu - 14 - 20 - 20);
+						break;
+					}
+					return -1;
 
-   // It seems it can't resolve IP addresses, or tries too hard to find a name,
-   // or something.  Need to check for a.b.c.d
-   *retval = inet_addr(ip);
-   if (*retval != INADDR_NONE) {
-      *retval = ntohl(*retval);
-      return 0;
-   }
+				}
+				break;
 
-   // Otherwise, try to resolve it below.
-   hp = gethostbyname(ip);
-   if (hp == NULL) {
-      return -1;
-   }//if
-   else {
-      *retval = ntohl(*((unsigned int*)(hp->h_addr_list[0])));
-      if (*retval != 0) {
-         return 0;
-      }
-      else {
-         return -1;
-      }
-   }
-   return -1;
+			case 't':
+				{
+					char *chkptr;
+					int tmoff;
+					if (is_number(optarg, strlen(optarg))) {
+						tmoff = strtol(optarg, &chkptr, 10);
+						if ((chkptr != NULL && *chkptr == 0)) {
+							timeout = (vm->start_time + tmoff);
+							break;
+						}
+					}
+					return -1;
+			
+				}
+				break;
+
+			default:
+				fprintf(stdout, "error\n");
+				return -1;
+		}
+	}
+
+	if (tx_buf_len > RXTX_BUF_MAX) {
+		fprintf(stdout, "tx_buf_len out of range (max %d)\n",
+			RXTX_BUF_MAX);
+		return -1;
+	}
+	
+	fprintf(stdout, "eth %s, tx_buf_len %lu, timeout %lu\n",
+		ethdev, tx_buf_len, timeout);
+	
+	return 0;
+}
+
+static void netperf_rx_handler(vlib_ndev_t *ndev)
+{
+	/* Rx rountine */
+	ssize_t bytes;
+	struct sockaddr_in peer;
+	socklen_t len = sizeof(peer);
+
+	bytes = recvfrom(ndev->sock, rx_buf, RXTX_BUF_MAX,
+			0, (struct sockaddr *)&peer, &len);
+	if (bytes > 0) {
+		ndev->nr_rx_bytes += (bytes + 14 + 20 + 20);
+		ndev->nr_rx_pkts ++;
+	} else {
+		if (bytes < 0) {
+			if (errno != EAGAIN) {
+				fprintf(stdout, "rx: %s(%d)\n",
+					oryx_safe_strerror(errno), errno);
+			}
+		}
+	}
+}
+
+static void netperf_tx_handler(vlib_ndev_t *ndev)
+{
+	/* Tx rountine */
+	ssize_t bytes;
+	struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(12345);
+    addr.sin_addr.s_addr = inet_addr("1.1.1.1");
+	
+	bytes = sendto(
+			ndev->sock, tx_buf, tx_buf_len,
+			0, (struct sockaddr *)&addr, sizeof(addr));
+	if (bytes > 0) {
+		ndev->nr_tx_bytes += (bytes + 14 + 20 + 20);
+		ndev->nr_tx_pkts ++;
+	} else {
+		if (bytes < 0) {
+			fprintf(stdout, "tx: %s\n",
+				oryx_safe_strerror(errno));
+		}
+	}
+}
+
+static void netperf_handler (vlib_ndev_t *ndev)
+{
+	vlib_main_t *vm = vlib_main;
+
+	if (!ndev) return;
+
+	atomic_inc(nr_sub_netperf_proc);
+	FOREVER {	
+		/* Rx rountine */
+		netperf_rx_handler(ndev);
+		/* Tx rountine */
+		netperf_tx_handler(ndev);
+
+		if (netperf_is_quit(vm))
+			break;	
+	}
+	
+	atomic_dec(nr_sub_netperf_proc);
 }
 
 int main (
@@ -157,13 +274,15 @@ int main (
         char    __oryx_unused__   ** argv
 )
 {
-	int err;
-
+	int err;	
+	int i;
 	vlib_shm_t shm = {
 		.shmid = 0,
 		.addr = 0,
 			
 	};
+	vlib_ndev_t *ndev = NULL;
+
 	err = oryx_shm_get(VLIB_SHM_BASE_KEY, sizeof(vlib_main_t), &shm);
 	if (err) {
 		exit (0);
@@ -180,63 +299,75 @@ int main (
 	//oryx_register_sighandler(SIGCHLD,	sigchld_handler);
 	signal(SIGCHLD,	SIG_IGN);
 
-	netperf_sockpair("lan1", "lan2");
-	netperf_sockpair("lan3", "lan4");
-	netperf_sockpair("lan5", "lan6");
-	netperf_sockpair("lan7", "lan8");
-	netperf_sockpair("enp5s0f2", "enp5s0f3");
-
-	int i, j;
-	for (i = 0; i < VLIB_GRP_NUM; i ++) {
-		vlib_sockpair_t *skpair = &vlib_sockpair[i];
-		fprintf(stdout, "=== GROUP[%d]:\n", i);
-		fprintf(stdout, "%8s%12d\n", skpair->dev[0].name, skpair->sock[0]);
-		fprintf(stdout, "%8s%12d\n", skpair->dev[1].name, skpair->sock[1]);
+	err = netperf_init(argc, argv);
+	if (err) {
+		usage();
+		exit(0);
 	}
+	
+	memset(tx_buf, 'A', tx_buf_len);
 
-	struct sockaddr_in dest_addr;
-	// set up the destination address
-	memset(&dest_addr, '\0', sizeof(dest_addr));
-	dest_addr.sin_family = PF_PACKET;
-
-	uint32_t dip = 0;
-	toIpString("192.168.1.1", &dip);
-	dest_addr.sin_addr.s_addr = htonl(dip);
-	dest_addr.sin_port = htons(9);
-   	
+	if (ethdev)
+		ndev = ndev_open(ethdev);
+	else {
+		char lanx[32] = {0};
+		for (i = 0; i < 8; i ++) {
+			sprintf(lanx, "lan%d", (i+1));
+			ndev_open(lanx);
+		}
+	}
+	
 	oryx_task_launch();
-	FOREVER {
-		if (netperf_is_quit(vm))
-			break;		
-		usleep(1000);
-		logprgname();
-#if 0
-		for (i = 0; i < VLIB_GRP_NUM; i ++) {
-			vlib_sockpair_t *skpair = &vlib_sockpair[i];
-			for (j = 0; j < 2; j ++) {
-				char msg[1024] = {0};
-				sprintf(msg, "hello the world");
-				uint64_t nr_tx_bytes = sendto(skpair->sock[j], msg, strlen(msg),
-					0, (struct sockaddr *)&dest_addr, sizeof (dest_addr));
-				if (nr_tx_bytes > 0) {
-					skpair->dev[j].nr_tx_bytes += nr_tx_bytes;
-					fprintf(stdout, "[%s TX]  %s\n", skpair->dev[j].name, msg);
-				}
+
+	pid_t p;
+	if (ethdev) {
+		p = fork();
+		if (p < 0) {
+			fprintf(stdout, "fork: %s\n",
+				oryx_safe_strerror(errno));
+		} else if (p == 0) {
+			fprintf(stdout, "Children %d -> %s\n",
+				getpid(), ndev->ethname);
+			netperf_handler(ndev);
+		}
+	} else {
+		for (i = 0; i < vm->nr_ndevs; i ++) {
+			ndev = &vm->ndev[i];
+			p = fork();
+			if (p < 0) {
+				fprintf(stdout, "fork: %s\n",
+					oryx_safe_strerror(errno));
+				continue;
+			} else if (p == 0) {
+				fprintf(stdout, "Children %d -> %s\n",
+					getpid(), ndev->ethname);
+				netperf_handler(ndev);
 			}
 		}
-#else
-		for (i = 0; i < VLIB_GRP_NUM; i ++) {
-			vlib_sockpair_t *skpair = &vlib_sockpair[i];
-			for (j = 0; j < 2; j ++) {
-				char msg[1024] = {0};
-				uint64_t nr_rx_bytes = recvfrom(skpair->sock[j], msg, 1024, 0, NULL, NULL);
-				if (nr_rx_bytes > 0) {
-					skpair->dev[j].nr_rx_bytes += nr_rx_bytes;
-					fprintf(stdout, "[%s RX]  %s\n", skpair->dev[j].name, msg);
-				}
+	}
+
+	FOREVER {
+		for (i = 0; i < vm->nr_ndevs; i ++) {
+			ndev = &vm->ndev[i];
+			fprintf(stdout, "%s, rx_pkts %lu, tx_pkts %lu\n",
+				ndev->ethname, ndev->nr_rx_pkts, ndev->nr_tx_pkts);
+		}
+		//logprgname();	
+		sleep(1);
+
+		if (timeout) {
+			if (timeout < (time(NULL))) {
+				vlib_main->ul_flags |= VLIB_QUIT;
+				fprintf(stdout, "Timedout ... quit\n");
 			}
-		}	
-#endif
+		}
+		
+		if (netperf_is_quit(vm)) {
+			/* wait all subprocess quit finished. */
+			while (atomic_read(nr_sub_netperf_proc))
+				continue;
+			break;
+		}
 	};
 
 	return 0;

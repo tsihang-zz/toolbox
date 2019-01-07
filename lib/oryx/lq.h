@@ -8,6 +8,11 @@
 #ifndef LQ_H
 #define LQ_H
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LQ_ENABLE_PASSIVE
 
 /** trigger method. */
@@ -166,5 +171,9 @@ int oryx_lq_length
 	struct oryx_lq_ctx_t *q = (struct oryx_lq_ctx_t *)lq;
 	return q->len;
 }
+
+#ifdef __cplusplus
+}
+#endif /* C++ */
 
 #endif
