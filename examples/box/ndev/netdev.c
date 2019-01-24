@@ -8,7 +8,7 @@
 #include "oryx.h"
 #include "netdev.h"
 
-static void netdev_pkt_handler 
+static void ndev_pkt_handler 
 (
 	IN u_char *user,
 	IN const struct pcap_pkthdr *h,
@@ -29,13 +29,13 @@ static int is_there_an_eth_iface_named
 {
 	int skfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(skfd < 0) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 				"%s", oryx_safe_strerror(errno));
 		return -1;
 	}
 
 	if(ioctl(skfd, SIOCGIFFLAGS, ifr) < 0) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 				"%s-%d(\"%s\")", oryx_safe_strerror(errno), errno, ifr->ifr_name);
 		if (errno == ENODEV) {
 			close(skfd);
@@ -48,7 +48,7 @@ static int is_there_an_eth_iface_named
 	return skfd;
 }
 
-int netdev_exist
+int ndev_exist
 (
 	IN const char *iface
 )
@@ -68,7 +68,7 @@ int netdev_exist
 	}
 }
 
-int netdev_is_running
+int ndev_is_running
 (
 	IN const char *iface,
 	IN struct ethtool_cmd *ethtool
@@ -95,7 +95,7 @@ int netdev_is_running
 }
 
 
-int netdev_is_up
+int ndev_is_up
 (
 	IN const char *iface
 )
@@ -117,7 +117,7 @@ int netdev_is_up
 	}
 }
 
-int netdev_up
+int ndev_up
 (
 	IN const char *iface
 )
@@ -133,7 +133,7 @@ int netdev_up
 	ifr.ifr_flags |= IFF_UP;
 
 	if(ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 				"%s(\"%s\")", oryx_safe_strerror(errno), ifr.ifr_name);
 	    close(skfd);
 	    return -1;
@@ -143,7 +143,7 @@ int netdev_up
 	return 0;
 }
 
-int netdev_down
+int ndev_down
 (
 	IN const char *iface
 )
@@ -159,7 +159,7 @@ int netdev_down
 	ifr.ifr_flags &= ~IFF_UP;
 
 	if(ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 				"%s(\"%s\")", oryx_safe_strerror(errno), ifr.ifr_name);
 	    close(skfd);
 	    return -1;
@@ -170,48 +170,60 @@ int netdev_down
 }
 
 int
-netdev_open
+ndev_open
 (
-	IN struct netdev_t *netdev
+	IN vlib_ndev_t *ndev,
+	IN void (*ndev_pkt_handler)(u_char *user,
+					const struct pcap_pkthdr *h, const u_char *bytes),
+	IN int (*ndev_close_fn)(ndev_handler_t *)
 )
 {
-	netdev->ul_flags = NETDEV_OPEN_LIVE;
-	return netdev_pcap_open ((dev_handler_t **)&netdev->handler, 
-				netdev->devname, netdev->ul_flags);
+	int err;
+	
+	ndev->ul_flags = NETDEV_OPEN_LIVE;
+	err = ndev_pcap_open ((ndev_handler_t **)&ndev->handler, 
+				ndev->name, ndev->ul_flags);
+	if (!err) {
+		ndev->ndev_pkt_handler = \
+			(ndev_pkt_handler ? ndev_pkt_handler : ndev_pkt_handler);
+		ndev->ndev_close_fn = \
+			(ndev_close_fn ? ndev_close_fn : ndev_pcap_close);
+	}
+
+	return err;
 }
 
-void *netdev_cap
+void *ndev_capture
 (
 	IN void *argv
 )
 {
 	int64_t rank_acc;
-	struct netdev_t *netdev = (struct netdev_t *)argv;
+	vlib_ndev_t *netdev = (vlib_ndev_t *)argv;
 	
 	atomic_set(netdev->rank, 0);
 
-	netdev_open(netdev);
-	
 	FOREVER {
 		if (!netdev->handler)
 			continue;
 		
 		rank_acc = pcap_dispatch(netdev->handler,
 			1024, 
-			(netdev->pcap_handler != NULL) ? netdev->pcap_handler : netdev_pkt_handler, 
+			netdev->ndev_pkt_handler, 
 			(u_char *)netdev);
 
 		if (rank_acc >= 0) {
 			atomic_add (netdev->rank, rank_acc);
 		} else {
-			pcap_close (netdev->handler);
+			netdev->ndev_close_fn(netdev->handler);
 			netdev->handler = NULL;
 			switch (rank_acc) {
 				case -1:
 				case -2:
 				case -3:
 				default:
-					fprintf (stdout, "pcap_dispatch=%ld\n", rank_acc);
+					fprintf(stderr,
+						"pcap_dispatch=%ld\n", rank_acc);
 					break;
 			}
 		}

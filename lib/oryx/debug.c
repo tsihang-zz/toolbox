@@ -813,7 +813,7 @@ oryx_dump_stack(void)
 		return;
 
 	while (size > 0) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 		 "%d: [%s]", size, symb[size - 1]);
 		size --;
 	}

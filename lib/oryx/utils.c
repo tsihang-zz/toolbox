@@ -85,23 +85,24 @@ int oryx_mkdir
 {
 
 	char cmd[256] = {0};
-	int s = 0;
+	int err = 0;
 
 	ASSERT (dir);
-	
-	(*d) = NULL;
-	
+
 	snprintf (cmd, 255, "mkdir -p %s", dir);
 	do_system(cmd);
 
 	snprintf (cmd, 255,  "chmod 775 %s", dir);
     do_system(cmd);
 
-	(*d)  = opendir (dir);
-
-	s = (dir && (*d)) ? 0 : 1;
-
-	return s;
+	if (d) {
+		(*d)  = opendir (dir);
+		err = (dir && (*d)) ? 0 : 1;
+	} else {
+		err = oryx_path_exsit(dir) ? 0 : 1;
+	}
+	
+	return err;
 }
 
 __oryx_always_extern__

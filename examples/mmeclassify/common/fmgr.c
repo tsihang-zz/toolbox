@@ -223,7 +223,7 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 		return 0;
 	}
 
-#if 0
+#if 1
 	struct stat buf;
 	err = stat(pathname, &buf);
 	if(err) {
@@ -231,7 +231,7 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 		return 0;
 	}
 	
-	/* file without any modifications in 60 seconds will be timeout and removed. */
+	/* check file whether any modifications in 5 seconds or not. */
 	if(time(NULL) < (buf.st_mtime + 5)) {
 		fprintf(stdout, "@");
 		return 0;

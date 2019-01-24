@@ -138,7 +138,8 @@ static void load_dictionary(vlib_main_t *vm)
 				iplen;
 
 	int			i,
-				sep_refcnt = 0;
+				sep_refcnt = 0,
+				err;
 
 	vlib_mmekey_t	*mmekey;
 	vlib_mme_t		*mme;
@@ -242,7 +243,11 @@ static void load_dictionary(vlib_main_t *vm)
 		vm->nr_mmes ++;
 	}
 
-	mkdir(classify_home, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	err = oryx_mkdir(classify_home, NULL);
+	if (err) {
+		fprintf(stdout, "mkdir: %s (%s)\n",
+			oryx_safe_strerror(errno), pdir);
+	}
 
 	for (i = 0; i < vm->nr_mmes; i ++) {
 		mme = &nr_global_mmes[i];
@@ -256,8 +261,17 @@ static void load_dictionary(vlib_main_t *vm)
 		fprintf(stdout, ")\n");
 	}
 
-	mkdir(pdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	mkdir(sdir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	err = oryx_mkdir(pdir, NULL);
+	if (err) {
+		fprintf(stdout, "mkdir: %s (%s)\n",
+			oryx_safe_strerror(errno), pdir);
+	}
+	
+	err = oryx_mkdir(sdir, NULL);
+	if (err) {
+		fprintf(stdout, "mkdir: %s (%s)\n",
+			oryx_safe_strerror(errno), sdir);
+	}
 
 	/* Prepare Classify CSV files for each MME. */
 	for (i = 0; i < vm->nr_mmes; i ++) {	
@@ -267,8 +281,11 @@ static void load_dictionary(vlib_main_t *vm)
 		sprintf (mme->path, "%s/%s", pdir, mme->name);
 		sprintf (mme->pathr, "%s", sdir);
 		fprintf (stdout, "mkdir %s \n", mme->path);
-		mkdir(mme->path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		
+		err = oryx_mkdir(mme->path, NULL);
+		if (err) {
+			fprintf(stdout, "mkdir: %s (%s)\n",
+				oryx_safe_strerror(errno), mme->path);
+		}	
 		/* Prepare a new CSV file.
 		 * At this stage, mme->fp is definable NULL.
 		 * To make sure that there is a valid file handler 

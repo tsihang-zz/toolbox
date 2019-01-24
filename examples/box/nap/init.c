@@ -119,17 +119,17 @@ box_check_lcore_params(void)
 	for (i = 0; i < nb_lcore_params; ++i) {
 		queue = lcore_params[i].queue_id;
 		if (queue >= MAX_RX_QUEUE_PER_PORT) {
-			oryx_loge(-1, "invalid queue number: %hhu\n", queue);
+			oryx_loge(errno, "invalid queue number: %hhu\n", queue);
 			return -1;
 		}
 		lcore = lcore_params[i].lcore_id;
 		if (!rte_lcore_is_enabled(lcore)) {
-			oryx_loge(-1, "error: lcore %hhu is not enabled in lcore mask\n", lcore);
+			oryx_loge(errno, "error: lcore %hhu is not enabled in lcore mask\n", lcore);
 			return -1;
 		}
 		if ((socketid = rte_lcore_to_socket_id(lcore) != 0) &&
 			(numa_on == 0)) {
-			oryx_loge(-1, "warning: lcore %hhu is on socket %d with numa off \n",
+			oryx_loge(errno, "warning: lcore %hhu is on socket %d with numa off \n",
 				lcore, socketid);
 		}
 	}

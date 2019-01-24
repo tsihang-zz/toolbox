@@ -312,7 +312,7 @@ void sync_acl(vlib_main_t *vm, int *nr_entries)
 	
 	struct rte_acl_rule *acl_base = acl_add_entries(context, entries, nb_entries);
 	if (!acl_base) {
-		oryx_loge(-1,
+		oryx_loge(errno,
 			"(%d) sync acl error %d elements", hv, nb_entries);
 	} else {
 		/* clear ACL result file. */		

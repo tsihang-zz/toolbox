@@ -141,6 +141,7 @@ oryx_task_registry
 )
 {	
 	BUG_ON(task == NULL);
+	BUG_ON(task->sc_alias == NULL);
 
 	struct prefix_t p = {
 		.cmd	=	LOOKUP_ALIAS,

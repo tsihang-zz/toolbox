@@ -351,7 +351,7 @@ void iface_activity_prob_tmr_handler
 				if(this->if_poll_up) {
 					this->if_poll_up(this);
 				} else {
-					oryx_loge(-1,
+					oryx_loge(errno,
 						"ethdev up driver is not registered, this iface will down forever.");
 				}
 			}

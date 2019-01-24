@@ -39,7 +39,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-APP = netperf
+APP = netperf0
 
 # all source are stored in SRCS-y
 SRCS-y := main.c
@@ -49,15 +49,20 @@ CFLAGS += -g -O3 --std=gnu99 $(CFLAGS_SRC)
 CFLAGS += -DBUILD_DEBUG
 CFLAGS += -D_GNU_SOURCE -D__USE_GNU -D__STDC_FORMAT_MACROS\
 		  -DHAVE_BACKTRACE\
+		  -DHAVE_PCAP\
 		  -DHAVE_ADVANCED_TMR
 			  
 CFLAGS += -I$(SRCDIR)\
-		-I$(SRCDIR)/../oryx
+		-I$(SRCDIR)/../oryx\
+		-I$(SRCDIR)/../ndev
 
-LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt
+LDFLAGS += -lstdc++ -ldl -lpthread -lm -lrt -lpcap
 
 LDLIBS += -L$(subst netperf,oryx,$(RTE_OUTPUT))/lib
 LDLIBS += -loryx
+
+LDLIBS += -L$(subst netperf,ndev,$(RTE_OUTPUT))/lib
+LDLIBS += -lndev
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

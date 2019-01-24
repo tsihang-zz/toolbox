@@ -8,13 +8,25 @@
 #ifndef NETDEV_H
 #define NETDEV_H
 
-#include "config.h"
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
+
 #include "ethtool.h"
 
 #if defined(HAVE_PCAP)
-typedef pcap_t  dev_handler_t;
-#else
-typedef int		dev_handler_t;
+#include <pcap.h>
+typedef pcap_t  ndev_handler_t;
+#endif
+
+#if !defined(HAVE_PCAP)
+struct pcap_pkthdr {
+	struct timeval ts;
+	bpf_u_int32 caplen;
+	bpf_u_int32 len;
+};
+#endif
+
+typedef int		ndev_handler_t;
 /** pfring */
 #endif
 
@@ -24,19 +36,29 @@ typedef int		dev_handler_t;
 #define	NETDEV_OPEN_LIVE	(1 << 0)
 #define NETDEV_OPEN_FAIL	(1 << 1)
 
-struct netdev_t {
-	dev_handler_t	*handler;
-	char		devname[16];
-	int (*netdev_capture_fn)(dev_handler_t, char *, size_t);
-	int (*netdev_close_fn)(dev_handler_t);
-	void (*pcap_handler)(u_char *user, const struct pcap_pkthdr *h,
+typedef struct vlib_ndev_t {
+	ndev_handler_t	*handler;
+	char			*name;
+	char			ethmac[6];
+	int				sock;
+
+	int				type;	/**< console ? netdev ? disk ? etc... */
+
+	struct sockaddr_ll dev;
+	char tx_buf[54 + 1024];
+
+	int         (*ndev_close_fn)(ndev_handler_t *);
+	void        (*ndev_pkt_handler)(u_char *user, const struct pcap_pkthdr *h,
                                    const u_char *bytes);
 
-	void *private;
 	ATOMIC_DECLARE(uint64_t, rank);
 
-	uint32_t ul_flags;
-};
+	uint32_t ul_flags;	
+	uint64_t	nr_rx_pkts;
+	uint64_t	nr_tx_pkts;
+	uint64_t	nr_rx_bytes;
+	uint64_t	nr_tx_bytes;
+} vlib_ndev_t;
 
 static __oryx_always_inline__
 const char *ethtool_speed(uint32_t speed){
@@ -75,44 +97,47 @@ const char *ethtool_duplex(uint32_t duplex) {
 }
 
 ORYX_DECLARE (
-	int netdev_up (
+	int ndev_up (
 		IN const char *iface
 	)
 );
 
 ORYX_DECLARE (
-	int netdev_exist (
+	int ndev_exist (
 		IN const char *iface
 	)
 );
 
 ORYX_DECLARE (
-	int netdev_is_running (
+	int ndev_is_running (
 		IN const char *iface,
 		IN struct ethtool_cmd *ethtool
 	)
 );
 
 ORYX_DECLARE (
-	int netdev_is_up (
+	int ndev_is_up (
 		IN const char *iface
 	)
 );
 
 ORYX_DECLARE (
-	int netdev_open (
-		IN struct netdev_t *netdev
+	int ndev_open (
+		IN vlib_ndev_t *ndev,
+		IN void (*ndev_pkt_handler)(u_char *user,
+						const struct pcap_pkthdr *h, const u_char *bytes),
+		IN int (*ndev_close_fn)(ndev_handler_t *)
 	)
 );
 
 ORYX_DECLARE (
-	int netdev_down (
+	int ndev_down (
 		IN const char *iface
 	)
 );
 
 ORYX_DECLARE (
-	void *netdev_cap (
+	void *ndev_capture (
 		IN void *argv
 	)
 );

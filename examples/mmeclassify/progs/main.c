@@ -74,16 +74,32 @@ int main (
 	}
 
 	if(vm->inotifydir /* dir exist ? */) {
-		if(!oryx_path_exsit(vm->inotifydir)) {
-			err = mkdir(vm->inotifydir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-			if(err) {
-				fprintf(stdout, "mkdir: %s\n", oryx_safe_strerror(errno));
-			}
+		err = oryx_mkdir(vm->inotifydir, NULL);
+		if (err) {
+			fprintf(stdout, "mkdir: %s (%s)\n",
+				oryx_safe_strerror(errno), vm->inotifydir);
 		}
+
 		oryx_lq_new("A FMGR queue", 0, (void **)&fmgr_q);
 		oryx_lq_dump(fmgr_q);
 		oryx_task_registry(&inotify);
 	}
+
+	if(vm->classdir /* dir exist ? */) {
+		err = oryx_mkdir(vm->classdir, NULL);
+		if (err) {
+			fprintf(stdout, "mkdir: %s (%s)\n",
+				oryx_safe_strerror(errno), vm->classdir);
+		}
+	}
+
+	if(vm->savdir /* dir exist ? */) {
+		err = oryx_mkdir(vm->savdir, NULL);
+		if (err) {
+			fprintf(stdout, "mkdir: %s (%s)\n",
+				oryx_safe_strerror(errno), vm->savdir);
+		}
+	}	
 
 	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
 								mmekey_hval, mmekey_cmp, mmekey_free, 0/* HTABLE_SYNCHRONIZED is unused,

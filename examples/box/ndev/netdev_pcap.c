@@ -1,10 +1,11 @@
 #include "oryx.h"
 #include "netdev.h"
 
-int netdev_pcap_open
+__oryx_always_extern__
+int ndev_pcap_open
 (
-	OUT dev_handler_t **handler,
-	IN char *devname,
+	IO ndev_handler_t **handler,
+	IN char *name,
 	IN int flags
 )
 {
@@ -19,17 +20,17 @@ int netdev_pcap_open
 	}
 	
     /** search the ethernet device */
-    xret = pcap_lookupnet(devname, &ip, &mask, errbuf);
+    xret = pcap_lookupnet(name, &ip, &mask, errbuf);
     if (likely(xret < 0)){
 		fprintf(stderr,
-			"pcap_lookupnet error %s", devname);
+			"pcap_lookupnet error %s\n", name);
 		exit(0);
     }
 
-	(*handler) = pcap_open_live(devname, 65535, 1, 500, errbuf);
+	(*handler) = pcap_open_live(name, 65535, 1, 500, errbuf);
 	if(unlikely(!(*handler))){
 		fprintf(stderr,
-				"pcap_open_live error %s -> %s\n", devname, errbuf);
+				"pcap_open_live error %s -> %s\n", name, errbuf);
 		exit(0);
 	 }
 
@@ -47,7 +48,14 @@ int netdev_pcap_open
 		exit(0);
     }
 
-	fprintf (stdout, "Pcap open %s okay\n", devname);
+	fprintf(stdout, "Pcap open %s okay\n", name);
+	return 0;
+}
+
+__oryx_always_extern__
+int ndev_pcap_close(ndev_handler_t *handler)
+{
+	pcap_close(handler);
 	return 0;
 }
 
