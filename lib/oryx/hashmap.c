@@ -123,9 +123,9 @@ void hashmap_insert_entry
 /**
  *  \brief Create a new HashMap
  *
- *  \param hm_name, the HashMap alias
- *  \param hm_max_elements, supported maximum elements
- *  \param hm_max_chains, default is HASHMAP_DEFAULT_CHAINS
+ *  \param name, the HashMap alias
+ *  \param nr_max_elements, supported maximum elements
+ *  \param nr_max_chains, default is HASHMAP_DEFAULT_CHAINS
  *  \param hm_cfg, configurations
  *  \param hashkey_fn, user specified @key hash function
  *  \param cmpkey_fn, user specified @key compare function
@@ -134,9 +134,9 @@ void hashmap_insert_entry
 __oryx_always_extern__
 void oryx_hashmap_new
 (
-	IN const char *hm_name,
-	IN uint32_t hm_max_elements,
-	IN uint32_t hm_max_buckets,
+	IN const char *name,
+	IN uint32_t nr_max_elements,
+	IN uint32_t nr_max_buckets,
 	IN uint32_t hm_cfg,
 	IN uint32_t (*hashkey_fn)(const hm_key_t),
 	IN int (*cmpkey_fn)(const hm_key_t, const hm_key_t),
@@ -151,9 +151,9 @@ void oryx_hashmap_new
 			"malloc: %s", oryx_safe_strerror(errno));
 
 	memset(hmctx, 0, sizeof(struct oryx_hashmap_t));
-	hmctx->name		=	hm_name;
-	hmctx->nr_max_elements	=	hm_max_elements;
-	hmctx->nr_max_buckets	=	hm_max_buckets ? hm_max_buckets : HASHMAP_DEFAULT_CHAINS;
+	hmctx->name		=	name;
+	hmctx->nr_max_elements	=	nr_max_elements ? nr_max_elements : UINT_MAX;
+	hmctx->nr_max_buckets	=	nr_max_buckets  ? nr_max_buckets : HASHMAP_DEFAULT_CHAINS;
 	hmctx->ul_flags		=	hm_cfg;
 	hmctx->hashkey_fn	=	hashkey_fn ? hashkey_fn : hashmap_hashkey;
 	hmctx->cmpkey_fn	=	cmpkey_fn  ? cmpkey_fn  : hashmap_cmpkey;
@@ -175,10 +175,6 @@ void oryx_hashmap_new
 	oryx_sys_mutex_create(&hmctx->mtx);
 
 	(*hashmap) = hmctx;
-	fprintf(stdout, "hashmap handler, %p\n", (*hashmap));
-	fprintf(stdout, "   max elements, %u\n", hmctx->nr_max_elements);
-	fprintf(stdout, "    max buckets, %u\n", hmctx->nr_max_buckets);
-	fprintf(stdout, "       elements, %u\n", hmctx->nr_elements);
 }
 
 static __oryx_always_inline__
@@ -224,21 +220,27 @@ void oryx_hashmap_print
 )
 {
 	int i, n;
+	float max_usage = 0;
 	struct oryx_hashmap_bucket_t *b;
 	struct oryx_hashmap_t *hmctx = (struct oryx_hashmap_t *)hashmap;
 
-	fprintf (stdout, "\n----------- HashMap Summary (Usage %.2f%%) ------------\n", oryx_hashmap_usage(hmctx));
-	fprintf (stdout, "Buckets:	%d\n", hmctx->nr_max_buckets);	
 	for (i = 0; i < (int)hmctx->nr_max_buckets; i ++) {
 		n = 0;
 		b = hmctx->array[i];
 		while(b) {
-			if (b) n ++;
+			n ++;
 			b = b->next;
 		}
-		//fprintf (stdout, "  bucket[%d], %4d (%.2f%%)\n", i, n, ratio_of(n, hmctx->nr_max_elements));
+		if (max_usage < ratio_of(n, hmctx->nr_max_elements))
+			max_usage = ratio_of(n, hmctx->nr_max_elements);
+		//fprintf(stdout, "  bucket[%d], %4d (%.2f%%)\n", i, n, ratio_of(n, hmctx->nr_max_elements));
 	}
-	fprintf (stdout, "-----------------------------------------\n");
+	fprintf(stdout, "HashMap Summary (Usage %u/%u, %.2f%%), buckets %u(%.2f%%)\n",
+		hmctx->nr_elements,
+		hmctx->nr_max_elements,
+		oryx_hashmap_usage(hmctx),
+		hmctx->nr_max_buckets,
+		max_usage);
 }
 
 /**
@@ -255,56 +257,41 @@ void oryx_hashmap_print
  *  \param hashmap, the HashMap context
  *  \param nr_max_buckets, the new bucket number
  */
-static __oryx_always_inline__
+__oryx_always_extern__
 int oryx_hashmap_resize
 (
-	IN struct oryx_hashmap_t *hashmap,
+	IN void * hashmap,
 	uint32_t nr_max_buckets
 )
 {
 	int i;
 	uint32_t hash;
-	struct oryx_hashmap_t *newhashmap;
-	struct oryx_hashmap_bucket_t *next, *b;
+	struct oryx_hashmap_t *hmctx = (struct oryx_hashmap_t *)hashmap;
+	struct oryx_hashmap_bucket_t **new, *next, *b;
 
-	newhashmap = (struct oryx_hashmap_t *)malloc(sizeof(struct oryx_hashmap_t));
-	if (unlikely(!newhashmap))
+	new = (struct oryx_hashmap_bucket_t **)hashmap_alloc_table(nr_max_buckets);
+	if (unlikely(!new))
 		oryx_panic(0,
-			"malloc: %s", oryx_safe_strerror(errno));
-	
-	newhashmap->array = (struct oryx_hashmap_bucket_t **)hashmap_alloc_table(nr_max_buckets);
-	if (unlikely(!newhashmap))
-		oryx_panic(0,
-			"hashmap alloc table: %s", oryx_safe_strerror(errno));		
+			"hashmap alloc table: %s", oryx_safe_strerror(errno));
 
 	/* remap entries to new hashmap */
-	for (i = 0; i < (int)hashmap->nr_max_buckets; i ++) {
-		b = hashmap->array[i];
+	for (i = 0; i < (int)hmctx->nr_max_buckets; i ++) {
+		b = hmctx->array[i];
+		if (!b) continue;
 		while (b) {
-			/* rehash */
-			hash = (hashmap->hashkey_fn(b->key) % nr_max_buckets);
-			hashmap_insert_entry(newhashmap, hash, b->key, b->value);
-			b = b->next;
-		}
-	}
-
-	/* release old entries */
-	for (i = 0; i < (int)hashmap->nr_max_buckets; i ++) {
-		next = b = hashmap->array[i];
-		while(b) {
 			next = b->next;
-			hashmap->freekey_fn(b->key, b->value);
-			free(b);
+			/* rehash */
+			hash = (hmctx->hashkey_fn(b->key) % nr_max_buckets);
+			b->next = new[hash];
+			new[hash] = b;
 			b = next;
 		}
 	}
-	
-	fprintf(stdout, "hashmap resize %4u -> %4u (%4u)\n", hashmap->nr_max_buckets, nr_max_buckets, hashmap->nr_elements);
-	free(hashmap->array);
-	hashmap->array = newhashmap->array;
-	hashmap->nr_max_buckets = nr_max_buckets;
-	hashmap->nr_elements = newhashmap->nr_elements;
-	
+
+	fprintf(stdout, "hashmap resize %4u -> %4u(%u)\n", hmctx->nr_max_buckets, nr_max_buckets, hmctx->nr_elements);
+	free(hmctx->array);
+	hmctx->array = new;
+	hmctx->nr_max_buckets = nr_max_buckets;
 	return HM_SUCCESS;
 }
 
@@ -390,16 +377,15 @@ int oryx_hashmap_put
 	}
 
 	HM_LOCK(hmctx);
-	hashmap_insert_entry(hmctx, hash, key, val);
-	if (0 /**< not ready */) {
-		if (oryx_hashmap_load(hmctx) > HASHMAP_MAX_LOAD_FACTOR) {
-			err = oryx_hashmap_resize(hmctx, hmctx->nr_max_buckets * 2);
-			if (err) {
-				oryx_panic(0,
-					"resize: %s", oryx_safe_strerror(errno));
-			}
+	/* checkload. */
+	if (oryx_hashmap_load(hmctx) > HASHMAP_MAX_LOAD_FACTOR) {
+		err = oryx_hashmap_resize(hashmap, hmctx->nr_max_buckets * 2);
+		if (err) {
+			oryx_panic(0,
+				"resize: %s", oryx_safe_strerror(errno));
 		}
-	}
+	}	
+	hashmap_insert_entry(hmctx, hash, key, val);
 	HM_UNLOCK(hmctx);
 
 	return HM_SUCCESS;
@@ -475,11 +461,11 @@ int oryx_hashmap_del
 __oryx_always_extern__
 void oryx_hashmap_destroy
 (
-	IN void ** hashmap
+	IN void *hashmap
 )
 {
 	struct oryx_hashmap_t *hmctx = (struct oryx_hashmap_t *)hashmap;
-	fprintf(stdout, "Destroy hashmap %s\n", hmctx->name);
+	//fprintf(stdout, "Destroy hashmap %s\n", hmctx->name);
 	oryx_hashmap_entry_free(hmctx);	
 	free(hmctx->array);
 	oryx_sys_mutex_destroy(&hmctx->mtx);

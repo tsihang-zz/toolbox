@@ -38,69 +38,86 @@ void hashmap_freekey
 	IN hm_val_t v
 )
 {
-	fprintf(stdout, "free %s %s\n", k, v);
 	free(k);
 	free(v);
 }
 
-static void hashmap_test0(void)
+static void hashmap_test_create(void)
 {
-	int i, err;
-	char *key, keys[HM_KEY_LENGTH];
-	char *val, *evicted;
 	void *hashmap;
-	
+
 	oryx_hashmap_new("HASHMAP", nr_max_elements,
-		4,
+		nr_elements,
 		HASHMAP_ENABLE_UPDATE,
 		hashmap_hashkey,
 		hashmap_cmpkey,
 		hashmap_freekey,
 		&hashmap);
 
-	key = "123";
-	val = "abc";
-	err = oryx_hashmap_put(hashmap, (hm_key_t *)key, (hm_val_t *)val, (hm_val_t *)&evicted);
-	if (err) {
-		fprintf(stdout, "line%d, put(%s) err(%s), %s\n",
-			__LINE__, key, oryx_hashmap_strerror(err), val);
+	oryx_hashmap_print(hashmap);
+	oryx_hashmap_destroy(hashmap);
+}
+
+
+static void hashmap_test_put_get(void)
+{
+	int i, err;
+	char *key, keys[HM_KEY_LENGTH];
+	char *val, *evicted;
+	void *hashmap;
+
+	oryx_hashmap_new("HASHMAP", nr_max_elements,
+		nr_elements,
+		HASHMAP_ENABLE_UPDATE,
+		hashmap_hashkey,
+		hashmap_cmpkey,
+		hashmap_freekey,
+		&hashmap);
+	
+	for (i = 0; i < nr_elements; i ++) {
+		key = (char *)malloc(HM_KEY_LENGTH);
+		val = (char *)malloc(HM_KEY_LENGTH);
+		sprintf(key, "%d", i);
+		sprintf(val, "value%d", i); 
+		err = oryx_hashmap_put(hashmap, (hm_key_t)key, (hm_val_t)val, (hm_val_t *)&evicted);
+		if (err) {
+			fprintf(stdout, "line%d, put(%s) err(%s), %s\n",
+				__LINE__, key, oryx_hashmap_strerror(err), val);
+			free(key);
+			free(val);
+		}
 	}
+	oryx_hashmap_print(hashmap);
 
 	/* hit */
-	err = oryx_hashmap_get(hashmap, (hm_key_t *)key, (hm_val_t *)&val);
-	if (err) {
-		fprintf(stdout, "line%d, get(%s) err(%s)\n",
-			__LINE__, key, oryx_hashmap_strerror(err));
-	} else {
-		fprintf(stdout, "get -> key %s, val %s\n", keys, val); 
+	for (i = 0; i < nr_elements; i ++) {
+		sprintf(keys, "%d", i);
+		err = oryx_hashmap_get(hashmap, (hm_key_t)keys, (hm_val_t *)&val);
+		if (err) {
+			fprintf(stdout, "line%d, get(%s) err(%s)\n",
+				__LINE__, key, oryx_hashmap_strerror(err));
+		}
 	}
 
-	/* miss */
-	key = "1234";
-	err = oryx_hashmap_get(hashmap, (hm_key_t *)key, (hm_val_t *)&val);
-	if (err) {
-		fprintf(stdout, "line%d, get(%s) err(%s)\n",
-			__LINE__, key, oryx_hashmap_strerror(err));
-	} else {
-		fprintf(stdout, "get -> key %s, val %s\n", key, val);
-	}
-	
-	err = oryx_hashmap_del(hashmap, key);
-	if (err) {
-		fprintf(stdout, "line%d, del(%s) err(%s)\n",
-			__LINE__, key, oryx_hashmap_strerror(err));
-	} else {
-		fprintf(stdout, "del -> key %s\n", key, val); 
-	}
-	
+	oryx_hashmap_destroy(hashmap);
 }
 
-static void hashmap_test1(void)
+
+static void hashmap_test_del(void)
 {
 	int i, err;
 	char *key, keys[HM_KEY_LENGTH];
 	char *val, *evicted;
-	
+	void *hashmap;
+
+	oryx_hashmap_new("HASHMAP", nr_max_elements,
+		nr_elements,
+		HASHMAP_ENABLE_UPDATE,
+		hashmap_hashkey,
+		hashmap_cmpkey,
+		hashmap_freekey,
+		&hashmap);
+
 	for (i = 0; i < nr_elements; i ++) {
 		key = (char *)malloc(HM_KEY_LENGTH);
 		val = (char *)malloc(HM_KEY_LENGTH);
@@ -115,107 +132,41 @@ static void hashmap_test1(void)
 		}
 	}
 	oryx_hashmap_print(hashmap);
-
-	for (i = 0; i < nr_elements; i ++) {
-		sprintf(keys, "%d", i);
-		err = oryx_hashmap_get(hashmap, (hm_key_t)keys, (hm_val_t *)&val);
-		if (err) {
-			fprintf(stdout, "line%d, get(%s) err(%s)\n",
-				__LINE__, key, oryx_hashmap_strerror(err));
-		} else {
-			fprintf(stdout, "get -> key %s, val %s\n", keys, val); 
-		}
-	}
-
-	/* delete one of entries by a specified key */
-	key = "2";
-	err = oryx_hashmap_del(hashmap, key);
-	if (err) {
-		fprintf(stdout, "line%d, del(%s) err(%s)\n",
-			__LINE__, key, oryx_hashmap_strerror(err));
-	} else {
-		fprintf(stdout, "del -> key %s\n", key, val); 
-	}
-
-	oryx_hashmap_print(hashmap);
-
-}
-
-static void hashmap_test2(void)
-{
-	int i, err;
-	char *key, keys[HM_KEY_LENGTH];
-	char *val, *evicted;
-
-	for (i = 0; i < nr_elements; i ++) {
-		key = (char *)malloc(HM_KEY_LENGTH);
-		val = (char *)malloc(HM_KEY_LENGTH);
-		sprintf(key, "%d", i);
-		sprintf(val, "value%d", i); 
-		err = oryx_hashmap_put(hashmap, (hm_key_t)key, (hm_val_t)val, (hm_val_t *)&evicted);
-		if (err) {
-			fprintf(stdout, "line%d, put(%s) err(%s), %s\n",
-				__LINE__, key, oryx_hashmap_strerror(err), val);
-			free(key);
-			free(val);
-		} else {
-			fprintf(stdout, "put -> key %s, val %s\n", key, val); 
-		}
-	}
-
-	/* update KV pair */
-	for (i = 0; i < nr_elements; i ++) {
-		sprintf(keys, "%d", i);	
-		val = (char *)malloc(HM_KEY_LENGTH);
-		sprintf(val, "value%d", i + 100);
-		err = oryx_hashmap_put(hashmap, (hm_key_t)keys, (hm_val_t)val, (hm_val_t *)&evicted);
-		if (err) {
-			fprintf(stdout, "line%d, put(%s) err(%s), %s\n",
-				__LINE__, key, oryx_hashmap_strerror(err), val);
-		} else {
-			fprintf(stdout, "put -> key %s, val %s, evicted %s\n", key, val, evicted);
-			free(evicted);
-		}
-	}
-
-	for (i = 0; i < nr_elements; i ++) {
-		sprintf(keys, "%d", i);
-		err = oryx_hashmap_get(hashmap, (hm_key_t)keys, (hm_val_t *)&val);
-		if (err) {
-			fprintf(stdout, "line%d, get(%s) err(%s)\n",
-				__LINE__, key, oryx_hashmap_strerror(err));
-		} else {
-			fprintf(stdout, "get -> key %s, val %s\n", keys, val); 
-		}
-	}
-
+	
 	for (i = 0; i < nr_elements; i ++) {
 		sprintf(keys, "%d", i);
 		err = oryx_hashmap_del(hashmap, keys);
 		if (err) {
 			fprintf(stdout, "line%d, del(%s) err(%s)\n",
 				__LINE__, key, oryx_hashmap_strerror(err));
-		} else {
-			fprintf(stdout, "del -> key %s\n", keys); 
 		}
 	}
 	oryx_hashmap_print(hashmap);
 
+	oryx_hashmap_destroy(hashmap);
 }
 
-static void hashmap_test3(void)
+static void hashmap_test_resize(void)
 {
 	int i, err;
 	char *key, keys[HM_KEY_LENGTH];
 	char *val, *evicted;
+	void *hashmap;
 
-	for (i = 0; i < nr_max_elements; i ++) {
+	oryx_hashmap_new("HASHMAP", nr_max_elements,
+		nr_elements,
+		HASHMAP_ENABLE_UPDATE,
+		hashmap_hashkey,
+		hashmap_cmpkey,
+		hashmap_freekey,
+		&hashmap);
+
+	for (i = 0; i < nr_elements; i ++) {
 		key = (char *)malloc(HM_KEY_LENGTH);
 		val = (char *)malloc(HM_KEY_LENGTH);
-		if (!val || !key) exit(0);
-		
 		sprintf(key, "%d", i);
 		sprintf(val, "value%d", i); 
+
 		err = oryx_hashmap_put(hashmap, (hm_key_t)key, (hm_val_t)val, (hm_val_t *)&evicted);
 		if (err) {
 			fprintf(stdout, "line%d, put(%s) err(%s), %s\n",
@@ -224,7 +175,21 @@ static void hashmap_test3(void)
 			free(val);
 		}
 	}
+	oryx_hashmap_resize(hashmap, 2 * oryx_hashmap_curr_buckets(hashmap));
+
+	/* hit */
+	for (i = 0; i < nr_elements; i ++) {
+		sprintf(keys, "%d", i);
+		err = oryx_hashmap_get(hashmap, (hm_key_t)keys, (hm_val_t *)&val);
+		if (err) {
+			fprintf(stdout, "line%d, get(%s) err(%s)\n",
+				__LINE__, key, oryx_hashmap_strerror(err));
+		}
+	}
+
 	oryx_hashmap_print(hashmap);
+	
+	oryx_hashmap_destroy(hashmap);
 }
 
 int main (
@@ -234,18 +199,9 @@ int main (
 {
 	oryx_initialize();
 
-	oryx_hashmap_new("HASHMAP", nr_max_elements,
-		4,
-		HASHMAP_ENABLE_UPDATE,
-		hashmap_hashkey,
-		hashmap_cmpkey,
-		hashmap_freekey,
-		&hashmap);
-
-	//hashmap_test0();
-	hashmap_test1();
-	//hashmap_test2();
-	//hashmap_test3();
-	oryx_hashmap_destroy(hashmap);
+	hashmap_test_create();
+	hashmap_test_put_get();
+	hashmap_test_del();
+	hashmap_test_resize();
 }
 

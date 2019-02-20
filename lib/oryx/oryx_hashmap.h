@@ -12,9 +12,9 @@
 
 ORYX_DECLARE (
 	void oryx_hashmap_new (
-		IN const char *hm_name,
-		IN uint32_t hm_max_elements,
-		IN uint32_t hm_max_buckets,
+		IN const char *name,
+		IN uint32_t nr_max_elements,
+		IN uint32_t nr_max_buckets,
 		IN uint32_t hm_cfg,
 		IN uint32_t (*hashkey_fn)(const hm_key_t),
 		IN int (*cmpkey_fn)(const hm_key_t, const hm_key_t),
@@ -25,7 +25,7 @@ ORYX_DECLARE (
 
 ORYX_DECLARE (
 	void oryx_hashmap_destroy (
-		IN void ** hashmap
+		IN void * hashmap
 	)
 );
 
@@ -50,6 +50,13 @@ ORYX_DECLARE (
 	int oryx_hashmap_del (
 		IN void * hashmap,
 		IN hm_key_t key
+	)
+);
+
+ORYX_DECLARE (
+	int oryx_hashmap_resize (
+		IN void * hashmap,
+		uint32_t nr_max_buckets
 	)
 );
 

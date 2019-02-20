@@ -47,8 +47,11 @@ struct oryx_hashmap_t {
 #endif
 };
 
-#define oryx_hashmap_usage(hm) ratio_of((hm)->nr_elements, (hm)->nr_max_elements)
-#define oryx_hashmap_load(hm)  ((double)(hm)->nr_elements / (hm)->nr_max_buckets)
+#define oryx_hashmap_usage(hashmap) \
+	ratio_of(((struct oryx_hashmap_t *)(hashmap))->nr_elements, ((struct oryx_hashmap_t *)(hashmap))->nr_max_elements)
+#define oryx_hashmap_load(hashmap) \
+	((double)((struct oryx_hashmap_t *)(hashmap))->nr_elements / ((struct oryx_hashmap_t *)(hashmap))->nr_max_buckets)
+#define oryx_hashmap_curr_buckets(hashmap) (((struct oryx_hashmap_t *)(hashmap))->nr_max_buckets)
 
 #ifdef __cplusplus
 }
