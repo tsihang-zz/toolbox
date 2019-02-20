@@ -134,8 +134,8 @@ oryx_task_query
 	return NULL;
 }
 
-void
-oryx_task_registry 
+__oryx_always_extern__
+void oryx_task_registry 
 (
 	IN struct oryx_task_t *task
 )
@@ -153,8 +153,8 @@ oryx_task_registry
 		task_registry (task);
 }
 
-void
-oryx_task_deregistry_id 
+__oryx_always_extern__
+void oryx_task_deregistry_id 
 (
 	IN sys_thread_t pid
 )
@@ -174,8 +174,8 @@ oryx_task_deregistry_id
 
 
 /** Thread description should not be same with registered one. */
-struct oryx_task_t*
-oryx_task_spawn
+__oryx_always_extern__
+struct oryx_task_t* oryx_task_spawn
 (
 	IN const char		__oryx_unused__*alias, 
 	IN const uint32_t	__oryx_unused__ ul_prio,
@@ -227,8 +227,8 @@ oryx_task_spawn
 	return NULL;
 }
 
-void 
-oryx_task_launch(void)
+__oryx_always_extern__
+void oryx_task_launch(void)
 {
 	struct oryx_task_t *t = NULL, *p;
 	struct oryx_task_mgr_t *tm = &taskmgr;
@@ -288,8 +288,8 @@ oryx_task_launch(void)
 	return;
 }
 
-void 
-oryx_task_initialize (void)
+__oryx_always_extern__
+void oryx_task_initialize (void)
 {
 	struct oryx_task_mgr_t *tm = &taskmgr;
 

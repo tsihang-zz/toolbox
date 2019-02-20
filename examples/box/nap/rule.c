@@ -25,14 +25,14 @@ ATOMIC_DECL_AND_INIT(uint32_t, nr_rule_elems);
 
 
 static void
-ht_appl_free (const ht_value_t v)
+ht_appl_free (const ht_key_t v)
 {
 	/** To avoid warnings. */
 }
 
-static ht_key_t
-ht_appl_hval (struct oryx_htable_t *ht,
-		const ht_value_t v, uint32_t s) 
+static uint32_t
+ht_appl_hval (struct oryx_hashtab_t *ht,
+		const ht_key_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -45,15 +45,15 @@ ht_appl_hval (struct oryx_htable_t *ht,
      }
 
      hv *= s;
-     hv %= ht->array_size;
+     hv %= ht->nr_max_buckets;
      
      return hv;
 }
 
 static int
-ht_appl_cmp (const ht_value_t v1, 
+ht_appl_cmp (const ht_key_t v1, 
 		uint32_t s1,
-		const ht_value_t v2,
+		const ht_key_t v2,
 		uint32_t s2)
 {
 	int xret = 0;
@@ -328,8 +328,8 @@ int appl_entry_del (vlib_appl_main_t *am, struct appl_t *appl)
 	}
 
 	oryx_sys_mutex_lock (&am->lock);
-	int r = oryx_htable_del(am->htable,
-				(ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
+	int r = oryx_hashtab_del(am->htable,
+				(ht_key_t)appl_alias(appl));
 	if (r == 0 /** success */) {
 		appl->ul_flags &= ~APPL_VALID;
 		am->nb_appls --;
@@ -364,7 +364,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 		appl_inherit(son, appl);
 		
 		/** Add appl_alias(appl) to hash table for controlplane fast lookup */
-		r = oryx_htable_add(am->htable, appl_alias(son), strlen((const char *)appl_alias((son))));
+		r = oryx_hashtab_add(am->htable, appl_alias(son), strlen((const char *)appl_alias((son))));
 		if (r != 0)
 			goto finish;
 
@@ -374,7 +374,7 @@ int appl_entry_add (vlib_appl_main_t *am, struct appl_t *appl)
 	
 	} else {
 		/** Add appl_alias(appl) to hash table for controlplane fast lookup */
-		r = oryx_htable_add(am->htable, (ht_value_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
+		r = oryx_hashtab_add(am->htable, (ht_key_t)appl_alias(appl), strlen((const char *)appl_alias(appl)));
 		if (r != 0)
 			goto finish;
 		
@@ -842,7 +842,7 @@ void vlib_rule_init (vlib_main_t *vm)
 
 	am->vm			= vm;
 	am->entry_vec	= vec_init (MAX_APPLICATIONS);
-	am->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	am->htable		= oryx_hashtab_new(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_appl_hval, ht_appl_cmp, ht_appl_free, 0);
 	oryx_sys_mutex_create(&am->lock);
 	

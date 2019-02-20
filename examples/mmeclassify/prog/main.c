@@ -88,8 +88,16 @@ int main (
 
 	epoch_time_sec = time(NULL);
 
-	vm->mme_htable = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								mmekey_hval, mmekey_cmp, mmekey_free, 0/* HTABLE_SYNCHRONIZED is unused,																		* because the table is no need to update.*/);	
+
+	vm->mme_htable = oryx_hashtab_new("HASHTABLE",
+						0,
+						DEFAULT_HASH_CHAIN_SIZE,
+						mmekey_hval,
+						mmekey_cmp,
+						mmekey_free,
+						0/* HTABLE_SYNCHRONIZED is unused,
+						  * because the table is no need to update.*/);
+	
 	classify_initialization(vm);
 
 	vlib_conf_t conf = {

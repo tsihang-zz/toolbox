@@ -28,14 +28,14 @@ ATOMIC_DECL_AND_INIT(uint32_t, nr_map_elems);
 		atomic_read(nr_map_elems), mm->nb_maps, VTY_NEWLINE);
 
 static void
-ht_map_free (const ht_value_t __oryx_unused__ v)
+ht_map_free (const ht_key_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
 
-static ht_key_t
-ht_map_hval (struct oryx_htable_t *ht,
-		const ht_value_t v, uint32_t s) 
+static uint32_t
+ht_map_hval (struct oryx_hashtab_t *ht,
+		const ht_key_t v, uint32_t s) 
 {
      uint8_t *d = (uint8_t *)v;
      uint32_t i;
@@ -48,15 +48,15 @@ ht_map_hval (struct oryx_htable_t *ht,
      }
 
      hv *= s;
-     hv %= ht->array_size;
+     hv %= ht->nr_max_buckets;
      
      return hv;
 }
 
 static int
-ht_map_cmp (const ht_value_t v1, 
+ht_map_cmp (const ht_key_t v1, 
 		uint32_t s1,
-		const ht_value_t v2,
+		const ht_key_t v2,
 		uint32_t s2)
 {
 	int xret = 0;
@@ -103,7 +103,7 @@ static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 	if (son) {			
 		/** if there is an unused map, update its data with formatted map */		
 		map_inherit(son, map);
-		r = oryx_htable_add(mm->htable, 
+		r = oryx_hashtab_add(mm->htable, 
 					map_alias(son), strlen((const char *)map_alias(son)));
 		/** Add alias to hash table for fast lookup by map alise. */
 		if (r != 0)
@@ -116,7 +116,7 @@ static int map_table_entry_add (vlib_map_main_t *mm, struct map_t *map)
 	
 	} else {
 		/** else, set this map to vector. */
-		r = oryx_htable_add(mm->htable, 
+		r = oryx_hashtab_add(mm->htable, 
 					map_alias(map), strlen((const char *)map_alias(map)));
 		/** Add alias to hash table for fast lookup by map alise. */
 		if (r != 0)
@@ -144,8 +144,7 @@ static int no_map_table_entry (struct map_t *map)
 	oryx_sys_mutex_lock (&mm->lock);
 	
 	/** Delete alias from hash table. */
-	r = oryx_htable_del(mm->htable, (ht_value_t)map_alias(map),
-								strlen((const char *)map_alias(map)));
+	r = oryx_hashtab_del(mm->htable, (ht_key_t)map_alias(map));
 
 	if (r == 0 /** success */) {
 
@@ -643,7 +642,7 @@ void vlib_map_init(vlib_main_t *vm)
 
 	mm->vm			=	vm;
 	mm->entry_vec	=	vec_init (MAX_MAPS);
-	mm->htable		=	oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	mm->htable		=	oryx_hashtab_new(DEFAULT_HASH_CHAIN_SIZE, 
 									ht_map_hval, ht_map_cmp, ht_map_free, 0);
 	oryx_sys_mutex_create(&mm->lock);
 	

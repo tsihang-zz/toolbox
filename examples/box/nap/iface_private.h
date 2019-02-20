@@ -96,7 +96,7 @@ typedef struct vlib_iface_main_t {
 	uint32_t				poll_interval;
 	sys_mutex_t				lock;
 	oryx_vector				entry_vec;
-	struct oryx_htable_t	*htable;
+	struct oryx_hashtab_t	*htable;
 	void					*vm;
 } vlib_iface_main_t;
 
@@ -108,8 +108,7 @@ int iface_lookup_alias(vlib_iface_main_t *pm,
 				char *alias, struct iface_t **this)
 {
 	(*this) = NULL;
-	void *s = oryx_htable_lookup(pm->htable, (ht_value_t)&alias[0],
-									strlen((const char *)alias));			
+	void *s = oryx_htable_lookup(pm->htable, (ht_key_t)&alias[0]);
 	if (likely (s)) {
 		(*this) = (struct iface_t *) container_of (s, struct iface_t, sc_alias);
 		return 0;
@@ -216,11 +215,11 @@ int iface_rename
 )
 {
 	/** Delete old alias from hash table. */
-	oryx_htable_del (pm->htable, iface_alias(this), strlen (iface_alias(this)));
+	oryx_hashtab_del (pm->htable, iface_alias(this));
 	memset (iface_alias(this), 0, strlen (iface_alias(this)));
 	memcpy (iface_alias(this), new_name, strlen (new_name));
 	/** New alias should be rewrite to hash table. */
-	oryx_htable_add (pm->htable, iface_alias(this), strlen (iface_alias(this)));	
+	oryx_hashtab_add (pm->htable, iface_alias(this), strlen (iface_alias(this)));	
 	return 0;
 }
 
@@ -232,7 +231,7 @@ int iface_add
 )
 {
 	oryx_sys_mutex_lock (&pm->lock);
-	int r = oryx_htable_add(pm->htable, iface_alias(this),
+	int r = oryx_hashtab_add(pm->htable, iface_alias(this),
 						strlen((const char *)iface_alias(this)));
 	if (r == 0) {
 		vec_set_index (pm->entry_vec, this->ul_id, this);
@@ -250,8 +249,7 @@ int iface_del
 )
 {
 	oryx_sys_mutex_lock (&pm->lock);
-	int r = oryx_htable_del(pm->htable, iface_alias(this),
-						strlen((const char *)iface_alias(this)));
+	int r = oryx_hashtab_del(pm->htable, iface_alias(this));
 	if (r == 0) {
 		vec_unset (pm->entry_vec, this->ul_id);
 		pm->ul_n_ports --;

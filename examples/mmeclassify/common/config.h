@@ -96,7 +96,7 @@ typedef struct vlib_main_t {
 	
 	int			max_entries_per_file;
 
-	struct oryx_htable_t	*mme_htable;
+	struct oryx_hashtab_t	*mme_htable;
 
 	enum {RR, HASH}dispatch_mode;
 

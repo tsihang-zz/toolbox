@@ -1,5 +1,5 @@
 /*!
- * @file htable.h
+ * @file hashtable.h
  * @date 2017/08/29
  *
  * TSIHANG (haechime@gmail.com)
@@ -13,41 +13,38 @@
 extern "C" {
 #endif
 
+typedef void* 			ht_key_t;
+
 #define DEFAULT_HASH_CHAIN_SIZE	(1 << 10)
 
 struct oryx_hbucket_t {
-	ht_value_t		value;
+	ht_key_t		value;
 	uint32_t		valen;	/** sizeof (data) */
-	ht_key_t		key;	/** key = hash(value) */		
+	uint32_t		key;	/** key = hash(value) */		
 	struct oryx_hbucket_t *next;	/** conflict chain. */
 };
 
-#define HTABLE_SYNCHRONIZED	(1 << 0)	/* Synchronized hash table. 
-	 					 * Caller can use the hash table safely
-	 					 * without maintaining a thread-safe-lock. */
+#define HTABLE_SYNCHRONIZED	(1 << 0) /* Synchronized hash table. 
+	 				  * Caller can use the hash table safely
+	 				  * without maintaining a thread-safe-lock. */
 #define HTABLE_PRINT_INFO	(1 << 1)
-
-struct oryx_htable_t {
+struct oryx_hashtab_t {
+	const char	RDONLY *name;
 	struct oryx_hbucket_t	**array;
-	int			array_size;	/* sizeof hash bucket */
-	int			active_count;	/* total of instance stored in bucket,
-						 * maybe great than array_size in future. */
+	uint32_t		RDONLY nr_max_elements;	/**< maximum allowed elements in @array */
+	uint32_t		RDONLY nr_max_buckets;	/**< sizeof hash bucket */
+	uint32_t		nr_elements;		/**< current elements count in @array */
 	uint32_t		ul_flags;
 
 	sys_mutex_t		mtx;
-	int		(*ht_lock_fn)(sys_mutex_t *mtx);
-	int		(*ht_unlock_fn)(sys_mutex_t *mtx);
+	int		(*ht_lock_fn)(IN sys_mutex_t *mtx);
+	int		(*ht_unlock_fn)(IN sys_mutex_t *mtx);
 
-	ht_key_t (*hash_fn)(struct oryx_htable_t *,
-				const ht_value_t, uint32_t);	/* function for create a hash value
-								 * with the given parameter *v */
-	int (*cmp_fn)(const ht_value_t,
-				  uint32_t,
-				  const ht_value_t,
-				  uint32_t);			/* 0: equal,
-								 * otherwise a value less than zero returned. */
-										 
-	void (*free_fn)(const ht_value_t);	/* function for vlaue of
+	uint32_t (*hashkey_fn)(IN const ht_key_t);	/* function for create a hash value
+							 * with the given parameter *v */
+	int (*cmpkey_fn)(IN const ht_key_t, IN const ht_key_t);	/* 0: equal,
+							 * otherwise a value less than zero returned. */
+	void (*freekey_fn)(IN const ht_key_t);	/* function for vlaue of
 						 * oryx_hbucket_t releasing. */
 };
 
@@ -60,10 +57,10 @@ struct oryx_htable_t {
 		oryx_sys_mutex_unlock(&(ht)->mtx);
 
 #define htable_active_slots(ht)\
-	((ht)->array_size)
+	((ht)->nr_max_buckets)
 	
 #define htable_active_elements(ht)\
-	((ht)->active_count)
+	((ht)->nr_elements)
 
 static __oryx_always_inline__
 uint32_t oryx_js_hash
@@ -79,7 +76,7 @@ uint32_t oryx_js_hash
       		hash ^= ((hash << 5) + (*str) + (hash >> 2));
 
 	return hash;  
-}  
+}
 
 /*
  * My best guess at if you are big-endian or little-endian.  This may

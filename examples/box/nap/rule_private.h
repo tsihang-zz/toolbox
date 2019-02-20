@@ -102,7 +102,7 @@ typedef struct {
 	uint32_t				ul_flags;
 	sys_mutex_t				lock;
 	oryx_vector				entry_vec;
-	struct oryx_htable_t 	*htable;
+	struct oryx_hashtab_t 	*htable;
 	uint32_t				nb_appls;
 	void					*vm;
 }vlib_appl_main_t;
@@ -128,8 +128,7 @@ static __oryx_always_inline__
 void appl_entry_lookup_alias (vlib_appl_main_t *am, const char *alias, struct appl_t **appl)
 {
 	BUG_ON(alias == NULL);
-	void *s = oryx_htable_lookup (am->htable, (const ht_value_t)alias,
-						strlen(alias));
+	void *s = oryx_htable_lookup (am->htable, (const ht_key_t)alias);
 	if (s) {
 		(*appl) = (struct appl_t *) container_of (s, struct appl_t, sc_alias);
 	}

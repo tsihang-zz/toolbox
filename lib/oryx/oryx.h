@@ -83,6 +83,20 @@ extern "C" {
 #include <pcre.h>
 #endif
 
+
+typedef unsigned char		uchar;
+typedef unsigned long		uword;
+typedef signed char		i8;
+typedef unsigned char		u8;
+typedef signed short		i16;
+typedef unsigned short		u16;
+typedef signed int		i32;
+typedef unsigned int		u32;
+typedef int64_t			i64;
+typedef uint64_t		u64;
+typedef uint32_t 		key32_t;
+
+
 /** 
  * Define a common assume_aligned using an appropriate compiler built-in, if
  * it's available. Note that we need to handle C or C++ compilation. */
@@ -172,11 +186,11 @@ extern "C" {
 /* Shorthand for attribute to mark a function as part of our public API.
  * Functions without this attribute will be hidden. */
 #if defined(__GNUC__)
-#define __oryx_always_extern__		__attribute__((visibility("default")))
-#define	__oryx_always_inline__		inline __attribute__((always_inline))
-#define	__oryx_unused__				__attribute__((unused))
-#define __oryx_noreturn__(fn)		__attribute__((noreturn))fn
-#define __oryx_hot__				__attribute__((hot))
+#define __oryx_always_extern__	__attribute__((visibility("default")))
+#define	__oryx_always_inline__	inline __attribute__((always_inline))
+#define	__oryx_unused__		__attribute__((unused))
+#define __oryx_noreturn__(fn)	__attribute__((noreturn))fn
+#define __oryx_hot__		__attribute__((hot))
 //#define __oryx_format_func__(f,a)	__attribute__((format(__NSString__, f, a)))
 #else
 // TODO: dllexport defines for windows
@@ -190,7 +204,6 @@ extern "C" {
 #define xstr(s) str(s)
 #define str(s) #s
 
-
 #ifndef BUG_ON
 #define BUG_ON(expr)	assert(!(expr))
 #endif
@@ -199,28 +212,13 @@ extern "C" {
 #define WARN_ON(expr)	assert(!(expr))
 #endif
 
+#ifndef TRUE
 #define TRUE true
+#endif
+
+#ifndef FALSE
 #define FALSE false
-
-typedef unsigned char		uchar;
-typedef unsigned long		uword;
-
-typedef signed char			i8;
-typedef unsigned char		u8;
-
-typedef signed short		i16;
-typedef unsigned short		u16;
-
-typedef signed int			i32;
-typedef unsigned int		u32;
-
-typedef int64_t				i64;
-typedef uint64_t			u64;
-
-
-typedef uint32_t 		key32_t;
-typedef void* 			ht_value_t;
-typedef key32_t			ht_key_t;
+#endif
 
 #ifndef IN
 #define IN	/* Parameter IN, always be a constant */
@@ -232,6 +230,10 @@ typedef key32_t			ht_key_t;
 
 #ifndef IO
 #define IO	/* Parameter IN and OUT, means that an input pointer maybe modified. */
+#endif
+
+#ifndef RDONLY
+#define RDONLY
 #endif
 
 #define GETL_BYTE2(p)		(((p)[0]<<8)  | (p)[1])
@@ -333,21 +335,26 @@ typedef union {
 #define __ntoh16__(x) ntohs(x)
 #define hton32(x) htonl(x)
 #define __ntoh32__(x) ntohl(x)
-static __oryx_always_inline__ uint64_t __ntoh64__(uint64_t net)
+static __oryx_always_inline__
+uint64_t __ntoh64__
+(
+	IN uint64_t net
+)
 {   
-	uint64_t ret = 0;   
-	uint32_t high,low;
+	uint64_t r = 0;   
+	uint32_t h,l;
 	
-	low = net & 0xFFFFFFFF;
-	high = (net >> 32) & 0xFFFFFFFF;
+	l = net & 0xFFFFFFFF;
+	h = (net >> 32) & 0xFFFFFFFF;
 
-	low = htonl(low);   
-	high = htonl(high);   
+	l = htonl(l);   
+	h = htonl(h);   
 
-	ret = low;
-	ret <<= 32;   
-	ret |= high;   
-	return   ret;   
+	r = l;
+	r <<= 32;   
+	r |= h;
+   
+	return r;   
 }
 
 #ifndef INT_MAX
@@ -519,24 +526,24 @@ struct prefix_t {
 };
 
 
-#define BOLD                 "\e[1m"
-#define UNDERLINE      "\e[4m"
-#define BLINK               "\e[5m"
-#define REVERSE           "\e[7m"
-#define HIDE                  "\e[8m"
-#define CLEAR                "\e[2J"
-#define CLRLINE            "\r\e[K" //or "\e[1K\r"
+#define BOLD		"\e[1m"
+#define UNDERLINE	"\e[4m"
+#define BLINK		"\e[5m"
+#define REVERSE		"\e[7m"
+#define HIDE		"\e[8m"
+#define CLEAR		"\e[2J"
+#define CLRLINE		"\r\e[K" //or "\e[1K\r"
 
 #define foreach_color			\
-  _(FIN, "\e[0m", "Finish drawing.")	\
-  _(BLACK, "\e[0;30m", "Black color.")	\
-  _(RED, "\e[0;31m", "Red color.")\
-  _(GREEN, "\e[0;32m", "Green color.")\
-  _(YELLOW, "\e[0;33m", "Yellow color.")\
-  _(BLUE, "\e[0;34m", "Blue color.")\
-  _(PURPLE, "\e[0;35m", "Purple color.")\
-  _(CYAN, "\e[0;36m", "Cyan color.")\
-  _(WHITE, "\e[0;37m", "White color.")
+  _(FIN,	"\e[0m",	"Finish drawing.") \
+  _(BLACK,	"\e[0;30m",	"Black color.")	\
+  _(RED,	"\e[0;31m",	"Red color.") \
+  _(GREEN,	"\e[0;32m",	"Green color.") \
+  _(YELLOW,	"\e[0;33m",	"Yellow color.") \
+  _(BLUE,	"\e[0;34m",	"Blue color.") \
+  _(PURPLE,	"\e[0;35m",	"Purple color.") \
+  _(CYAN,	"\e[0;36m",	"Cyan color.") \
+  _(WHITE,	"\e[0;37m",	"White color.")
 
 typedef enum {
 #define _(f,s,d) COLOR_##f,
@@ -582,10 +589,12 @@ struct oryx_cfg_t *oryx_cfg_get(void) {
 #include "oryx_utils.h"
 #include "oryx_lq.h"
 #include "oryx_ring.h"
-#include "oryx_htable.h"
+#include "oryx_hashtab.h"
+#include "oryx_hashmap.h"
 #include "oryx_task.h"
 #include "oryx_tmr.h"
 #include "oryx_counters.h"
+#include "oryx_lru.h"
 
 extern int oryx_initialize(void);
 

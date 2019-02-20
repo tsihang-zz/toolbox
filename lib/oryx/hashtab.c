@@ -1,16 +1,26 @@
 /*!
- * @file htable.c
+ * @file hashtable.c
  * @date 2017/08/29
  *
  * TSIHANG (haechime@gmail.com)
  */
 
 #include "oryx.h"
-	
-static void
-func_free
+
+
+extern unsigned long clac_crc32
 (
-	IN const ht_value_t v
+	IN const unsigned char *s,
+	IN unsigned int len
+);
+
+/*
+ * Free function for a string
+ */
+static void
+hashtab_freekey
+(
+	IN const ht_key_t v
 )
 {
 #ifdef ORYX_HASH_DEBUG
@@ -19,62 +29,67 @@ func_free
 	kfree (v);
 }
 
-static ht_key_t
-func_hash
+/*
+ * Hashing function for a string
+ */
+static uint32_t
+hashtab_hashkey
 (
-	IN struct oryx_htable_t *ht,
-	IN const ht_value_t v,
-	IN uint32_t s
+	IN const ht_key_t key
 ) 
 {
-     uint8_t *d = (uint8_t *)v;
-     uint32_t i;
-     ht_key_t hv = 0;
+	unsigned long k = clac_crc32((unsigned char*)(key), strlen(key));
 
-     for (i = 0; i < s; i++) {
-         if (i == 0)      hv += (((uint32_t)*d++));
-         else if (i == 1) hv += (((uint32_t)*d++) * s);
-         else             hv *= (((uint32_t)*d++) * i) + s + i;
-     }
+	/* Robert Jenkins' 32 bit Mix Function */
+	k += (k << 12);
+	k ^= (k >> 22);
+	k += (k << 4);
+	k ^= (k >> 9);
+	k += (k << 10);
+	k ^= (k >> 2);
+	k += (k << 7);
+	k ^= (k >> 12);
 
-     hv *= s;
-     hv %= ht->array_size;
-     
-     return hv;
+	/* Knuth's Multiplicative Method */
+	k = (k >> 3) * 2654435761;
+
+	return k;
 }
 
-static int
-func_cmp
+/*
+ * Compare function for a string
+ */
+static __oryx_always_inline__
+int hashtab_cmpkey
 (
-	IN const ht_value_t v1,
-	IN uint32_t s1,
-	IN const ht_value_t v2,
-	IN uint32_t s2
+	IN const hm_key_t k0,
+	IN const hm_key_t k1
 )
 {
 	int err = 0;
 
-	if (!v1 || !v2 || s1 != s2 ||
-		memcmp(v1, v2, s2))
+	if (!k0 || !k1 ||
+		strcmp(k0, k1))
 		err = 1;
-	
+
 	return err;
 }
 
+
 __oryx_always_extern__
-void oryx_htable_print
+void oryx_hashtab_print
 (
-	IN struct oryx_htable_t *ht
+	IN struct oryx_hashtab_t *ht
 )
 {
 	BUG_ON(ht == NULL);
 
 	fprintf (stdout, "\n----------- Hash Table Summary ------------\n");
-	fprintf (stdout, "Buckets:				%" PRIu32 "\n", ht->array_size);
-	fprintf (stdout, "Active:					%" PRIu32 "\n", ht->active_count);
-	fprintf (stdout, "Hashfn:					%pF\n", ht->hash_fn);
-	fprintf (stdout, "Freefn:					%pF\n", ht->free_fn);
-	fprintf (stdout, "Compfn:					%pF\n", ht->cmp_fn);
+	fprintf (stdout, "Buckets:				%" PRIu32 "\n", ht->nr_max_buckets);
+	fprintf (stdout, "Active:					%" PRIu32 "\n", ht->nr_elements);
+	fprintf (stdout, "Hashfn:					%pF\n", ht->hashkey_fn);
+	fprintf (stdout, "Freefn:					%pF\n", ht->freekey_fn);
+	fprintf (stdout, "Compfn:					%pF\n", ht->cmpkey_fn);
 	fprintf (stdout, "Feature:				\n");
 	fprintf (stdout, "					%s\n", ht->ul_flags & HTABLE_SYNCHRONIZED ? "Synchronized" : "Non-Synchronized");
 	
@@ -82,55 +97,57 @@ void oryx_htable_print
 }
 
 __oryx_always_extern__
-struct oryx_htable_t* oryx_htable_init
+struct oryx_hashtab_t* oryx_hashtab_new
 (
-	IN uint32_t max_buckets, 
-	IN ht_key_t (*hash_fn)(IN struct oryx_htable_t *, IN void *, IN uint32_t), 
-	IN int (*cmp_fn)(IN void *, IN uint32_t, IN void *, IN uint32_t), 
-	IN void (*free_fn)(IN void *),
+	IN const char *name,
+	IN uint32_t nr_max_elements,
+	IN uint32_t nr_max_buckets,
+	IN uint32_t (*hashkey_fn)(IN ht_key_t), 
+	IN int (*cmpkey_fn)(IN ht_key_t, IN ht_key_t), 
+	IN void (*freekey_fn)(IN ht_key_t),
 	IN uint32_t ht_cfg
-) 
+)
 {
-	struct oryx_htable_t *ht = NULL;
+	struct oryx_hashtab_t *ht = NULL;
 
 	/* setup the filter */
-	ht = kmalloc(sizeof(struct oryx_htable_t),
+	ht = kmalloc(sizeof(struct oryx_hashtab_t),
 			MPF_CLR, __oryx_unused_val__);
-	BUG_ON((ht == NULL) || (max_buckets == 0));
+	BUG_ON((ht == NULL) || (nr_max_buckets == 0));
 
 	/* kmalloc.MPF_CLR means that the memory block pointed by its return 
-	 * has been CLEARED.
-	 */
-	ht->hash_fn			= hash_fn ? hash_fn : func_hash;
-	ht->cmp_fn			= cmp_fn ? cmp_fn : func_cmp;
-	ht->free_fn			= free_fn ? free_fn : func_free;
-	ht->ul_flags		= ht_cfg;
-	ht->array_size		= max_buckets;
+	 * has been CLEARED. */
+	ht->name			=	name;
+	ht->hashkey_fn		=	hashkey_fn ? hashkey_fn : hashtab_hashkey;
+	ht->cmpkey_fn		=	cmpkey_fn  ? cmpkey_fn  : hashtab_cmpkey;
+	ht->freekey_fn		=	freekey_fn ? freekey_fn : hashtab_freekey;
+	ht->ul_flags		=	ht_cfg;
+	ht->nr_max_buckets	=	nr_max_buckets;
+	ht->nr_max_elements =	nr_max_elements;
 
 	if (ht->ul_flags & HTABLE_SYNCHRONIZED) {
 		oryx_sys_mutex_create (&ht->mtx);
 	}
 
 	/** setup the bitarray */
-	ht->array = kmalloc(ht->array_size * sizeof(struct oryx_hbucket_t *),
+	ht->array = kmalloc(ht->nr_max_buckets * sizeof(struct oryx_hbucket_t *),
 					MPF_CLR, __oryx_unused_val__);
 	if (unlikely(!ht->array))
 		oryx_panic(-1,
 			"kmalloc: %s", oryx_safe_strerror(errno));
 
 	/* kmalloc.MPF_CLR means that the memory block pointed by its return 
-	 * has been CLEARED. 
-	 */
+	 * has been CLEARED. */
 	if (ht->ul_flags & HTABLE_PRINT_INFO)
-		oryx_htable_print (ht);
+		oryx_hashtab_print (ht);
 
 	return ht;
 }
 
 __oryx_always_extern__
-void oryx_htable_destroy
+void oryx_hashtab_destroy
 (
-	IN struct oryx_htable_t *ht
+	IN struct oryx_hashtab_t *ht
 )
 {
     int i = 0;
@@ -140,12 +157,12 @@ void oryx_htable_destroy
 	HTABLE_LOCK(ht);
 	
     /* free the buckets */
-    for (i = 0; i < ht->array_size; i++) {
+    for (i = 0; i < (int)ht->nr_max_buckets; i++) {
         struct oryx_hbucket_t *hb = ht->array[i];
         while (hb != NULL) {
             struct oryx_hbucket_t *next_hb = hb->next;
-            if (ht->free_fn != NULL)
-                ht->free_fn(hb->value);
+            if (ht->freekey_fn != NULL)
+                ht->freekey_fn(hb->value);
             kfree(hb);
             hb = next_hb;
         }
@@ -164,15 +181,15 @@ void oryx_htable_destroy
 }
 
 __oryx_always_extern__
-int oryx_htable_add
+int oryx_hashtab_add
 (
-	IO struct oryx_htable_t *ht,
-	IN ht_value_t value,
+	IO struct oryx_hashtab_t *ht,
+	IN ht_key_t value,
 	IN uint32_t valen
 )
 {
 	BUG_ON ((ht == NULL) || (value == NULL));
-	ht_key_t hash = ht->hash_fn(ht, value, valen);
+	uint32_t hash = (ht->hashkey_fn(value) % ht->nr_max_buckets);
 
 	struct oryx_hbucket_t *hb = kmalloc(sizeof(struct oryx_hbucket_t), MPF_CLR, -1);
 	if (unlikely(!hb))
@@ -192,7 +209,7 @@ int oryx_htable_add
 		hb->next = ht->array[hash];
 		ht->array[hash] = hb;
 	}
-	ht->active_count++;
+	ht->nr_elements++;
 	HTABLE_UNLOCK(ht);
 
 #ifdef ORYX_HASH_DEBUG
@@ -202,15 +219,14 @@ int oryx_htable_add
 }
 
 __oryx_always_extern__
-int oryx_htable_del
+int oryx_hashtab_del
 (
-	IO struct oryx_htable_t *ht,
-	IN ht_value_t value,
-	IN uint32_t valen
+	IO struct oryx_hashtab_t *ht,
+	IN ht_key_t value
 )
 {
 	BUG_ON ((ht == NULL) || (value == NULL));
-	ht_key_t hash = ht->hash_fn(ht, value, valen);
+	uint32_t hash = (ht->hashkey_fn(value) % ht->nr_max_buckets);
 
 	HTABLE_LOCK(ht);
 	if (ht->array[hash] == NULL) {
@@ -219,18 +235,18 @@ int oryx_htable_del
 	}
 
 	if (ht->array[hash]->next == NULL) {
-		if (ht->free_fn != NULL)
-			ht->free_fn(ht->array[hash]->value);
+		if (ht->freekey_fn != NULL)
+			ht->freekey_fn(ht->array[hash]->value);
 		kfree(ht->array[hash]);
 		ht->array[hash] = NULL;
-		ht->active_count --;
+		ht->nr_elements --;
 		HTABLE_UNLOCK(ht);
 		return 0;
 	}
 
 	struct oryx_hbucket_t *hb = ht->array[hash], *pb = NULL;
 	do {
-		if (ht->cmp_fn(hb->value, hb->valen, value, valen) == 0) {
+		if (ht->cmpkey_fn(hb->value, value) == 0) {
 			if (pb == NULL) {
 				/* root bucket */
 				ht->array[hash] = hb->next;
@@ -239,10 +255,10 @@ int oryx_htable_del
 				pb->next = hb->next;
 			}
 			/* remove this */
-			if (ht->free_fn != NULL)
-				ht->free_fn(hb->value);
+			if (ht->freekey_fn != NULL)
+				ht->freekey_fn(hb->value);
 			kfree(hb);
-			ht->active_count --;
+			ht->nr_elements --;
 			HTABLE_UNLOCK(ht);
 			return 0;
 		}
@@ -257,10 +273,10 @@ int oryx_htable_del
 }
 
 __oryx_always_extern__
-int oryx_htable_foreach_elem
+int oryx_hashtab_foreach
 (
-	IN struct oryx_htable_t *ht,
-	IN void (*handler)(IN ht_value_t, IN uint32_t, IN void *, IN int),
+	IN struct oryx_hashtab_t *ht,
+	IN void (*handler)(IN ht_key_t, IN uint32_t, IN void *, IN int),
 	IN void *opaque,
 	IN int opaque_size
 )
@@ -277,7 +293,7 @@ int oryx_htable_foreach_elem
 	
 	HTABLE_LOCK(ht);
 	
-	for (i = 0; i < htable_active_slots(ht); i ++) {
+	for (i = 0; i < (int)htable_active_slots(ht); i ++) {
 		hb = ht->array[i];
 		if (hb == NULL) continue;
 		do {

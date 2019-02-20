@@ -3,20 +3,20 @@
 #include "fmgr.h"
 #include <sys/inotify.h>
 
-static struct oryx_htable_t *file_hash_tab = NULL; 
+static struct oryx_hashtab_t *file_hash_tab = NULL; 
 
 char *inotify_home = NULL;
 char *store_home = NULL;
 
 struct oryx_lq_ctx_t *fmgr_q = NULL;
 
-static void fkey_free (const ht_value_t __oryx_unused__ v)
+static void fkey_free (const ht_key_t __oryx_unused__ v)
 {
 	/** Never free here! */
 }
 
-static ht_key_t fkey_hval (struct oryx_htable_t *ht,
-		const ht_value_t v, uint32_t __oryx_unused__ s)
+static uint32_t fkey_hval (struct oryx_hashtab_t *ht,
+		const ht_key_t v, uint32_t __oryx_unused__ s)
 {
 	uint8_t *d = (uint8_t *)v;
 	uint32_t i;
@@ -29,13 +29,13 @@ static ht_key_t fkey_hval (struct oryx_htable_t *ht,
 	 }
 
 	 hv *= s;
-	 hv %= ht->array_size;
+	 hv %= ht->nr_max_buckets;
 	 
 	 return hv;
 }
 
-static int fkey_cmp (const ht_value_t v1, uint32_t s1,
-		const ht_value_t v2, uint32_t s2)
+static int fkey_cmp (const ht_key_t v1, uint32_t s1,
+		const ht_key_t v2, uint32_t s2)
 {
 	int err = 0;
 	
@@ -125,7 +125,7 @@ static int fmgr_inotify_timedout
 		return 0;
 	}
 	
-	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
+	void *s = oryx_htable_lookup(file_hash_tab, filename);
 	if (s) {
 		return 0;
 	} else {
@@ -146,7 +146,7 @@ static int fmgr_inotify_timedout
 				return 0;
 
 			memcpy(key->name, filename, strlen(filename));
-			BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
+			BUG_ON(oryx_hashtab_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 			/* enqueue abslute pathname */
 			strcpy(fqe->name, filename);
 			oryx_lq_enqueue(fmgr_q, fqe);
@@ -163,7 +163,7 @@ void fmgr_move(const char *oldpath, const vlib_conf_t *vf)
 	vlib_conf_t *fkey;	/* search hash table first */
 	char	*f;
 	
-	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	void *s = oryx_htable_lookup(file_hash_tab, f);
 	if (!s) {
 		fprintf(stdout, "Cannot find %s in hash table\n", f);
 		return;
@@ -185,11 +185,11 @@ void fmgr_remove(const char *oldpath)
 	char	*f;
 	int err;
 	
-	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	void *s = oryx_htable_lookup(file_hash_tab, f);
 	if(!s) {		
 		BUG_ON(s == NULL);
 	} else {
-		err = oryx_htable_del(file_hash_tab, f, strlen(f));
+		err = oryx_hashtab_del(file_hash_tab, f);
 		if (err) {
 			fprintf(stdout, "Cannot delete file %s from hash table\n", f);
 		} else {
@@ -202,7 +202,7 @@ void vlib_fmgr_init(vlib_main_t *vm)
 {
 	int try_scan_dir = 0;
 	
-	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	file_hash_tab = oryx_hashtab_new(DEFAULT_HASH_CHAIN_SIZE, 
 								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
 	oryx_lq_new("fmgr queue", 0, &fmgr_q);
 	

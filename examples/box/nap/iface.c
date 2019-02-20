@@ -29,17 +29,17 @@ ATOMIC_DECL_AND_INIT(uint32_t, nr_ifaces);
 static
 void ht_iface_free
 (
-	IN const ht_value_t __oryx_unused__ v
+	IN const ht_key_t __oryx_unused__ v
 )
 {
 	/** Never free here! */
 }
 
 static
-ht_key_t ht_iface_hval 
+uint32_t ht_iface_hval 
 (
-	IN struct oryx_htable_t *ht,
-	IN const ht_value_t v,
+	IN struct oryx_hashtab_t *ht,
+	IN const ht_key_t v,
 	IN uint32_t s
 ) 
 {
@@ -54,7 +54,7 @@ ht_key_t ht_iface_hval
      }
 
      hv *= s;
-     hv %= ht->array_size;
+     hv %= ht->nr_max_buckets;
      
      return hv;
 }
@@ -62,9 +62,9 @@ ht_key_t ht_iface_hval
 static
 int ht_iface_cmp
 (
-	IN const ht_value_t v1,
+	IN const ht_key_t v1,
 	IN uint32_t s1,
-	IN const ht_value_t v2,
+	IN const ht_key_t v2,
 	IN uint32_t s2
 )
 {
@@ -547,7 +547,7 @@ void vlib_iface_init
 	
 	pm->link_detect_tmr_interval = 3;
 	pm->entry_vec	= vec_init (MAX_PORTS);
-	pm->htable		= oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
+	pm->htable		= oryx_hashtab_new(DEFAULT_HASH_CHAIN_SIZE, 
 							ht_iface_hval, ht_iface_cmp, ht_iface_free, 0);
 
 	if (pm->htable == NULL || pm->entry_vec == NULL)

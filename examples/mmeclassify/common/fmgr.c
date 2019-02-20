@@ -3,7 +3,7 @@
 #include <sys/inotify.h>
 
 struct oryx_lq_ctx_t *fmgr_q = NULL;
-static struct oryx_htable_t *file_hash_tab = NULL; 
+static struct oryx_hashtab_t *file_hash_tab = NULL; 
 
 uint64_t nr_classified_files = 0;
 uint64_t nr_handlers = 0;
@@ -44,40 +44,68 @@ struct event_mask event_masks[] = {
 }; 
 #endif
 
-static void fkey_free (const ht_value_t __oryx_unused__ v)
+extern unsigned long clac_crc32
+(
+	IN const unsigned char *s,
+	IN unsigned int len
+);
+
+/*
+ * Free function for a string
+ */
+static void
+hashtab_freekey
+(
+	IN const ht_key_t __oryx_unused__ v
+)
 {
 	/** Never free here! */
 }
 
-static ht_key_t fkey_hval (struct oryx_htable_t *ht,
-		const ht_value_t v, uint32_t __oryx_unused__ s)
+/*
+ * Hashing function for a string
+ */
+static uint32_t
+hashtab_hashkey
+(
+	IN const ht_key_t key
+) 
 {
-	uint8_t *d = (uint8_t *)v;
-	uint32_t i;
-	uint32_t hv = 0;
+	unsigned long k = clac_crc32((unsigned char*)(key), strlen(key));
 
-	 for (i = 0; i < s; i++) {
-		 if (i == 0)	  hv += (((uint32_t)*d++));
-		 else if (i == 1) hv += (((uint32_t)*d++) * s);
-		 else			  hv *= (((uint32_t)*d++) * i) + s + i;
-	 }
+	/* Robert Jenkins' 32 bit Mix Function */
+	k += (k << 12);
+	k ^= (k >> 22);
+	k += (k << 4);
+	k ^= (k >> 9);
+	k += (k << 10);
+	k ^= (k >> 2);
+	k += (k << 7);
+	k ^= (k >> 12);
 
-	 hv *= s;
-	 hv %= ht->array_size;
-	 
-	 return hv;
+	/* Knuth's Multiplicative Method */
+	k = (k >> 3) * 2654435761;
+
+	return k;
 }
 
-static int fkey_cmp (const ht_value_t v1, uint32_t s1,
-		const ht_value_t v2, uint32_t s2)
+/*
+ * Compare function for a string
+ */
+static __oryx_always_inline__
+int hashtab_cmpkey
+(
+	IN const hm_key_t k0,
+	IN const hm_key_t k1
+)
 {
-	int xret = 0;
-	
-	if (!v1 || !v2 || s1 != s2 ||
-		memcmp(v1, v2, s2))
-		xret = 1;	/** Compare failed. */
+	int err = 0;
 
-	return xret;
+	if (!k0 || !k1 ||
+		strcmp(k0, k1))
+		err = 1;
+
+	return err;
 }
 
 static vlib_conf_t *fkey_alloc(void)
@@ -121,8 +149,13 @@ void * fmgr_handler (void __oryx_unused__ *r)
 	
 	buf[BUFSIZ - 1] = 0;
 
-	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
+	file_hash_tab = oryx_hashtab_new("HASHTABLE",
+						0,
+						DEFAULT_HASH_CHAIN_SIZE,
+						hashtab_hashkey,
+						hashtab_cmpkey,
+						hashtab_freekey,
+						HTABLE_SYNCHRONIZED);
 
 	FOREVER {		
 		nread = 0;
@@ -156,12 +189,12 @@ void * fmgr_handler (void __oryx_unused__ *r)
 
 				/* search hash table first */
 				vlib_conf_t *key;
-				void *s = oryx_htable_lookup(file_hash_tab, name, strlen(name));
+				void *s = oryx_htable_lookup(file_hash_tab, name);
 				if (s) {
 					key = (vlib_conf_t *) container_of (s, vlib_conf_t, name);
 					if (key != NULL) {
 						fprintf(stdout, "[FID] %s\n", key->name);
-						//BUG_ON(oryx_htable_del(file_hash_tab, key->name, strlen(key->name)) != 0);
+						//BUG_ON(oryx_hashtab_del(file_hash_tab, key->name, strlen(key->name)) != 0);
 						goto next;
 					} else {
 						fprintf(stdout, "Cannot assign a file for %s! exiting ...\n", key->name);
@@ -177,7 +210,7 @@ void * fmgr_handler (void __oryx_unused__ *r)
 						key = fkey_alloc();
 						if (key) {
 							memcpy(key->name, name, strlen(name));
-							BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
+							BUG_ON(oryx_hashtab_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 						}
 					}
 				}
@@ -237,7 +270,7 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 		return 0;
 	}
 #endif
-	void *s = oryx_htable_lookup(file_hash_tab, filename, strlen(filename));
+	void *s = oryx_htable_lookup(file_hash_tab, filename);
 	if (s) {
 		return 0;
 	} else {
@@ -248,7 +281,7 @@ static int fmgr_inotify_timedout(void *argv, char *pathname, char *filename)
 			key = fkey_alloc();
 			if (key) {
 				memcpy(key->name, filename, strlen(filename));
-				BUG_ON(oryx_htable_add(file_hash_tab, key->name, strlen(key->name)) != 0);
+				BUG_ON(oryx_hashtab_add(file_hash_tab, key->name, strlen(key->name)) != 0);
 			}
 			/* enqueue abslute pathname */
 			strcpy(fqe->name, pathname);
@@ -346,7 +379,7 @@ void fmgr_move(const char *oldpath, const vlib_conf_t *vf)
 		return;
 	}
 
-	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	void *s = oryx_htable_lookup(file_hash_tab, f);
 	if (!s) {
 		fprintf(stdout, "Cannot find %s in hash table\n", f);
 		return;
@@ -375,11 +408,11 @@ void fmgr_remove(const char *oldpath)
 		return;
 	}
 
-	void *s = oryx_htable_lookup(file_hash_tab, f, strlen(f));
+	void *s = oryx_htable_lookup(file_hash_tab, f);
 	if(!s) {		
 		BUG_ON(s == NULL);
 	} else {
-		err = oryx_htable_del(file_hash_tab, f, strlen(f));
+		err = oryx_hashtab_del(file_hash_tab, f);
 		if (err) {
 			fprintf(stdout, "Cannot delete file %s from hash table\n", f);
 		} else {
@@ -388,7 +421,7 @@ void fmgr_remove(const char *oldpath)
 	}
 }
 
-static void fmgr_ht_handler(ht_value_t v,
+static void fmgr_ht_handler(ht_key_t v,
 				uint32_t s,
 				void *opaque,
 				int __oryx_unused__ opaque_size) {
@@ -413,9 +446,14 @@ static void * fmgr_handler0 (void __oryx_unused__ *r)
 		.end = 0,
 		.block = 0,
 	};
-		
-	file_hash_tab = oryx_htable_init(DEFAULT_HASH_CHAIN_SIZE, 
-								fkey_hval, fkey_cmp, fkey_free, HTABLE_SYNCHRONIZED);
+	
+	file_hash_tab = oryx_hashtab_new("HASHTABLE",
+						0,
+						DEFAULT_HASH_CHAIN_SIZE,
+						hashtab_hashkey,
+						hashtab_cmpkey,
+						hashtab_freekey,
+						HTABLE_SYNCHRONIZED);
 
 	FOREVER {
 		calc_tm_grid(&vtg, vm->threshold, time(NULL));
@@ -429,7 +467,7 @@ static void * fmgr_handler0 (void __oryx_unused__ *r)
 #endif
 
 #if 0
-		int refcount = oryx_htable_foreach_elem(file_hash_tab,
+		int refcount = oryx_hashtab_foreach(file_hash_tab,
 					fmgr_ht_handler, NULL, 0);
 #endif
 		/* aging entries in table. */

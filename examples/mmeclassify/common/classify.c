@@ -184,7 +184,7 @@ static void load_dictionary(vlib_main_t *vm)
 				iplen = strlen(ip);
 				
 				/* find same mme */
-				s = oryx_htable_lookup(vm->mme_htable, ip, iplen);
+				s = oryx_htable_lookup(vm->mme_htable, ip);
 				if (s) {
 					mmekey = (vlib_mmekey_t *) container_of (s, vlib_mmekey_t, ip);
 					if ((mme = mmekey->mme) != NULL) {
@@ -222,7 +222,7 @@ static void load_dictionary(vlib_main_t *vm)
 					/* add mmekey dictionary to hash table.
 					 * Actually, there are more than 1 IP for one MME.
 					 * So, use IP of which MME as index to find unique MME> */
-					BUG_ON(oryx_htable_add(vm->mme_htable, mmekey->ip, strlen(mmekey->ip)) != 0);
+					BUG_ON(oryx_hashtab_add(vm->mme_htable, mmekey->ip, strlen(mmekey->ip)) != 0);
 				}
 				break;
 			}
@@ -520,7 +520,7 @@ void do_dispatch(const char *value, size_t vlen)
 		ATOMIC64_INC(&vm->nr_rx_entries_undispatched);
 	} else {
 		if(!baker_entry(value, vlen, lqe)) {
-			lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, strlen(lqe->mme_ip));
+			lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip);
 			calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
 			mme = lqe->mme;
 			tv  = mme->tv;
@@ -557,7 +557,7 @@ void do_classify_entry
 	ATOMIC64_INC(&vm->nr_rx_entries);
 	
 	if(!baker_entry(value, valen, lqe)) {
-		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip, lqe->iplen);
+		lqe->mme	= mme_find_ip_h(vm->mme_htable, lqe->mme_ip);
 		calc_tm_grid(&lqe->vtg, vm->threshold, lqe->tv_sec);
 		do_classify_final(lqe);
 		ATOMIC64_INC(&vm->nr_rx_entries_dispatched);

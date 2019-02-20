@@ -73,15 +73,21 @@ void fmt_mme_ip(char *out, const char *in)
 	sprintf (out, "%d.%d.%d.%d", a, b, c, d);
 }
 
-extern void mmekey_free (const ht_value_t __oryx_unused__ v);
-extern ht_key_t mmekey_hval (struct oryx_htable_t *ht,
-					const ht_value_t v, uint32_t s) ;
-extern int mmekey_cmp (const ht_value_t v1, uint32_t s1,
-					const ht_value_t v2, uint32_t s2);
+extern void mmekey_free (
+	IN const ht_key_t __oryx_unused__ v
+);
+extern uint32_t mmekey_hval (
+	IN const ht_key_t key
+) ;
+extern int mmekey_cmp (
+	IN const ht_key_t v1,
+	IN const ht_key_t v2
+);
+
 extern vlib_mmekey_t *mmekey_alloc(void);
 extern vlib_mme_t *mme_find(const char *name, size_t nlen);
 extern vlib_mme_t *mme_alloc(const char *name, size_t nlen);
-extern void mme_print(ht_value_t  v,
+extern void mme_print(ht_key_t  v,
 				uint32_t __oryx_unused__ s,
 				void __oryx_unused__*opaque,
 				int __oryx_unused__ opaque_size);
@@ -90,13 +96,13 @@ extern vlib_mme_t *default_mme;
 
 /* find MME within a hash table */
 static __oryx_always_inline__
-vlib_mme_t *mme_find_ip_h(struct oryx_htable_t *ht, const char *ip, size_t iplen)
+vlib_mme_t *mme_find_ip_h(struct oryx_hashtab_t *ht, const char *ip)
 {
 	void *s;
 	vlib_mmekey_t *mmekey;
 	vlib_mme_t		*mme = NULL;
 
-	s = oryx_htable_lookup(ht, (const void *)ip, iplen);
+	s = oryx_htable_lookup(ht, (ht_key_t)ip);
 	if (s) {
 		mmekey = (vlib_mmekey_t *) container_of (s, vlib_mmekey_t, ip);
 		mme = mmekey->mme;

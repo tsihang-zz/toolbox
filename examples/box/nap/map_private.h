@@ -116,7 +116,7 @@ typedef struct {
 	volatile uint32_t		vector_runtime;
 	volatile oryx_vector	entry_vec;
 	struct oryx_timer_t		*online_port_update_tmr;
-	struct oryx_htable_t	*htable;	
+	struct oryx_hashtab_t	*htable;	
 	void					*vm;
 }vlib_map_main_t;
 
@@ -129,9 +129,7 @@ void map_entry_lookup_alias (vlib_map_main_t *mm, const char *alias, struct map_
 	
 	if (!alias) return;
 
-	void *s = oryx_htable_lookup (mm->htable,
-		(ht_value_t)alias, strlen(alias));
-
+	void *s = oryx_htable_lookup (mm->htable, (ht_key_t)alias);
 	if (s) {
 		(*map) = (struct map_t *) container_of (s, struct map_t, sc_alias);
 	}
